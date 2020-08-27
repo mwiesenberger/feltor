@@ -18,6 +18,7 @@ using Geometry = dg::CylindricalGrid3d;
 #define MPI_OUT
 #include "feltordiag.h"
 
+//TEST COMMIT 
 int main( int argc, char* argv[])
 {
     if( argc < 3)
