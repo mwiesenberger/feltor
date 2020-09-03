@@ -7,6 +7,7 @@ include ../../config/devices/devices.mk
 
 INCLUDE+= -I../         # other src libraries
 INCLUDE+= -I../../inc   # other project libraries
+INCLUDE+= -L /home/raulgerru/anaconda3/lib
 
 all: feltor_hpc feltor feltor_mpi manufactured feltordiag
 
