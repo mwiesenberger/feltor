@@ -708,6 +708,19 @@ std::vector<Record> diagnostics2d_list = {
         }
     },
     /// ------------------------ Vorticity terms ---------------------------//
+    {"er", "Radial electric field", false,
+        []( DVec& result, Variables& v){
+            routines::dot( v.f.gradP(0), v.gradPsip, result);
+            //dg::blas1::pointwiseDot( 1., result, v.f.binv(), v.f.binv(), 0., result);
+            //dg::blas1::pointwiseDot( v.p.mu[1], result, v.f.density(0), 0., result);
+        }
+    },  
+     {"par_J", "Parallel current", false,
+        []( DVec& result, Variables& v ) {
+            dg::blas1::pointwiseDot(v.f.density(1), v.f.velocity(1), result);
+            dg::blas1::pointwiseDot(-1., v.f.density(0), v.f.velocity(0), 1., result);
+        }
+    },
     {"oexbi", "ExB vorticity term with ion density", false,
         []( DVec& result, Variables& v){
             routines::dot( v.f.gradP(0), v.gradPsip, result);

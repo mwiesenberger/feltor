@@ -219,8 +219,8 @@ int main( int argc, char* argv[])
 /// ------------------- NEW:Partial FSA and CONVOLUTION elements ---------------------//
    
    
-    double eta_0=3*M_PI/2; //NEW: Defining center of partial fsa
-    double eta_range=90.; //NEW: Defining the poloidal range of partial fsa 
+    double eta_0=M_PI/2; //NEW: Defining center of partial fsa
+    double eta_range=30.; //NEW: Defining the poloidal range of partial fsa 
 	//double conv_window=7.5; // NEW: Window for the convolution function    
     double radial_cut_point=0.; //NEW: Radial position where we will like to do the cut of the 1D convolution
        
