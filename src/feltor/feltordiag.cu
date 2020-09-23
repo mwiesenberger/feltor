@@ -148,7 +148,7 @@ int main( int argc, char* argv[])
     const double f0 = ( gridX2d.x1() - gridX2d.x0() ) / ( psipmax - psipO );
     dg::HVec t1d = dg::evaluate( dg::zero, g1d_out), fsa1d( t1d);
     dg::HVec transfer1d = dg::evaluate(dg::zero,g1d_out);
-
+ 
     /// ------------------- Compute 1d flux labels ---------------------//
 
     std::vector<std::tuple<std::string, dg::HVec, std::string> > map1d;
@@ -214,16 +214,16 @@ int main( int argc, char* argv[])
     dg::HVec dvdpsip2d = dg::evaluate( dg::zero, g2d_out);
     dg::blas2::symv( fsa2rzmatrix, dvdpsip, dvdpsip2d);
     dg::HMatrix dpsi = dg::create::dx( g1d_out, dg::DIR_NEU, dg::backward); //we need to avoid involving cells outside LCFS in computation (also avoids right boundary)
-    //although the first point outside LCFS is still wrong
-
+    //although the first point outside LCFS is still wrong 
+    
 /// ------------------- NEW:Partial FSA and CONVOLUTION elements ---------------------//
+    
    
-   
-    double eta_0=M_PI/2; //NEW: Defining center of partial fsa
+    double eta_0=0; //NEW: Defining center of partial fsa
     double eta_range=30.; //NEW: Defining the poloidal range of partial fsa 
 	//double conv_window=7.5; // NEW: Window for the convolution function    
     double radial_cut_point=0.; //NEW: Radial position where we will like to do the cut of the 1D convolution
-       
+        
     //NEW DATA AND GRID DEFINITIONS    
     dg::HVec  part_volX2d(volX2d);//, conv_volX2d(volX2d); //NEW: Grids for the partial fsa and the convoluted grid
     dg::HVec part_transferH2dX(volX2d);//, preconv_transferH2dX(volX2d), conv_def_transferH2dX(volX2d), post_conv_def_transferH2dX(volX2d); //NEW:
@@ -328,7 +328,7 @@ int main( int argc, char* argv[])
         err = nc_put_att_text( ncid_out, id1d_pol[name], "long_name", long_name.size(),
             long_name.data());
             
-        name = record_name + "_part_fsa_at_"+std::to_string(eta_0)+"_"+std::to_string(eta_range); //NEW partial fsa at the position defined
+        name = record_name + "_part_fsa_at_"+std::to_string(180*eta_0/M_PI)+"_"+std::to_string(eta_range); //NEW partial fsa at the position defined
         long_name = record.long_name + " (Partial Flux surface average.)";
         err = nc_def_var( ncid_out, name.data(), NC_DOUBLE, 2, dim_ids1d,
             &id1d[name]);
@@ -422,6 +422,7 @@ int main( int argc, char* argv[])
                     err = nc_get_vara_double( ncid, dataID,
                         start2d, count2d, transferH2d.data());
                     DVec transferD2d = transferH2d;
+
                     fieldaligned.integrate_between_coarse_grid( g3d, transferD2d, transferD2d);
                     transferH2d = transferD2d;
                     t2d_mp = transferH2d; //save toroidal average
@@ -429,22 +430,25 @@ int main( int argc, char* argv[])
                     dg::blas2::symv( grid2gridX2d, transferH2d, transferH2dX); //interpolate onto X-point grid
                     part_transferH2dX=transferH2dX; //NEW: Define the data matrices that we are going to edit for the partial fsa and the convolution                    
                     LCFS_1d=cutter.cut(transferH2dX, radial_cut_point);//NEW	
+
                     dg::blas1::pointwiseDot( transferH2dX, volX2d, transferH2dX); //multiply by sqrt(g)                  
                     poloidal_average( transferH2dX, t1d, false); //average over eta
                     dg::blas1::scal( t1d, 4*M_PI*M_PI*f0); //
                     dg::blas1::copy( 0., fsa1d); //get rid of previous nan in fsa1d (nasty bug)
-                    
+
 					dg::blas1::pointwiseDot( part_transferH2dX, part_volX2d, part_transferH2dX);  //NEW:  
                     poloidal_average( part_transferH2dX, part_t1d, false);//NEW
                     dg::blas1::scal( part_t1d, 4*M_PI*M_PI*f0); //NEW
                     dg::blas1::scal(part_t1d, 360/eta_range); //NEW: Normalization factor (explained in feltor.pdf)
-                  
+
                     if( record_name[0] != 'j'){
                         dg::blas1::pointwiseDivide( t1d, dvdpsip, fsa1d );
 						dg::blas1::pointwiseDivide( part_t1d, dvdpsip, part_fsa1d ); //NEW
 					}
                     else                  				
-                    dg::blas1::copy( t1d, fsa1d);
+                    {dg::blas1::copy( t1d, fsa1d);
+					 dg::blas1::copy( part_t1d, part_fsa1d);
+					}
 
                     //3. Interpolate fsa on 2d plane : <f>
                     dg::blas2::gemv(fsa2rzmatrix, fsa1d, transferH2d); //fsa on RZ grid
@@ -455,9 +459,10 @@ int main( int argc, char* argv[])
                     dg::blas1::scal( transferH2d, 0.);
                     dg::blas1::scal( t2d_mp, 0.);
                 }
+                
                 err = nc_put_vara_double( ncid_out, id1d.at(record_name+"_fsa"),
                     start1d_out, count1d, fsa1d.data());
-                err = nc_put_vara_double( ncid_out, id1d.at(record_name+"_part_fsa_at_"+std::to_string(eta_0)+"_"+std::to_string(eta_range)),
+                err = nc_put_vara_double( ncid_out, id1d.at(record_name+"_part_fsa_at_"+std::to_string(180*eta_0/M_PI)+"_"+std::to_string(eta_range)),
                     start1d_out, count1d, part_fsa1d.data()); //NEW: Save the partial fsa data
                 err = nc_put_vara_double( ncid_out, id2d.at(record_name+"_fsa2d"),
                     start2d_out, count2d, transferH2d.data() );
@@ -470,6 +475,7 @@ int main( int argc, char* argv[])
                 err = nc_put_vara_double( ncid_out, id2d.at(record_name+"_cta2d"),
                     start2d_out, count2d, t2d_mp.data() );
                 //4. Read 2d variable and compute fluctuations
+
                 available = true;
                 try{
                     err = nc_inq_varid(ncid, (record.name+"_2d").data(), &dataID);
@@ -536,6 +542,7 @@ int main( int argc, char* argv[])
                     }
                     err = nc_put_vara_double( ncid_out, id0d.at(record_name+"_ifs_norm"),
                         start2d_out, count2d, &result );
+
                     //7. Compute midplane fluctuation amplitudes
                     dg::blas1::pointwiseDot( transferH2d, transferH2d, transferH2d);
                     dg::blas2::symv( grid2gridX2d, transferH2d, transferH2dX); //interpolate onto X-point grid
