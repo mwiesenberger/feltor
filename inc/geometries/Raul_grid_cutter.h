@@ -85,25 +85,22 @@ struct radial_cut
 
 
 
-struct Nablas
+struct Nablas //This structure needs a 3D grid to activate the nablas and use them to calculate grad perp in different components and the divergence.
 {
-	Nablas(RealGrid3d<double>& grid3d): m_g(grid3d){
+	Nablas(RealGrid3d<double>& grid3d): m_g(grid3d) {
 		m_dR = dg::create::dx( m_g, dg::DIR_NEU, dg::centered); //Derivative in R direction
 		m_dZ = dg::create::dy( m_g, dg::DIR_NEU, dg::centered); //Derivative in Z direction
 		m_dP = dg::create::dz( m_g, dg::DIR_NEU, dg::centered); //Derivative in parallel direction	
-		m_vol= dg::tensor::volume(m_g.metric());} //volume tensor
+		m_vol= dg::tensor::volume(m_g.metric()); } //volume tensor
 
 					
 	void GradPerp_R (const HVec& f, HVec gradPerp_R)){ //f the input scalar and c the vector field output
 	dg::HVec c_R;
-		gradPerp_R= dg::blas2::symv( m_dR, f, c_R);
-	}
-	
+		gradPerp_R= dg::blas2::symv( m_dR, f, c_R);	}	
 	void GradPerp_Z (const HVec& f, HVec gradPerp_Z)){ //f the input scalar and c the vector field output
 	dg::HVec c_Z;
 		gradPerp_Z= dg::blas2::symv( m_dZ, f, c_Z);
-	}	
-		
+	}			
 	void div ( HVec v_R, HVec v_Z, HVec v_P, HVec& F){ // input the three components of the vector to do the divergence
 	dg::HVec c_R,c_Z,c_P, inv_vol, F;
 	dg::blas1::pointwiseDivide(1,vol,inv_vol);
@@ -124,8 +121,6 @@ struct Nablas
 	HVec m_vol;
 	
 }
-
-
 };//namespace geo
 }//namespace dg
 
