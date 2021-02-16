@@ -449,7 +449,7 @@ std::vector<Record> diagnostics2d_list = {
 
     {"elec_vorticity", "Electric vorticity", false,
         []( DVec& result, Variables& v, RealGrid3d<double> grid, Geometry& geom ) {
-             routines::Nablas nabla(grid);
+             dg::geo::Nablas nabla(grid);
              dg::HVec InvB= dg::pullback( dg::geo::Bmodule(v.InvB), geom);
              dg::HVec v_result;
              nabla.GradPerp(v.f.potential(0), v_result)
@@ -462,7 +462,7 @@ std::vector<Record> diagnostics2d_list = {
     },
     {"dielec_vorticity", "Dielectric vorticity", false,
         []( DVec& result, Variables& v, RealGrid3d<double> grid, Geometry& geom ) {
-             routines::Nablas nabla(grid);
+             dg::geo::Nablas nabla(grid);
              InvB= dg::pullback( dg::geo::Bmodule(v.InvB), geom);
              dg::HVec result=InvB;
              dg::HVec v_result;
@@ -471,6 +471,19 @@ std::vector<Record> diagnostics2d_list = {
              nabla.GradPerp(result, v_result) 
              nabla.div(v_result, result)
              
+        }
+    },
+    ///----------------------EXTRA RAUL ADDITION-------------------------///
+        {"er", "Radial electric field", false,
+        []( DVec& result, Variables& v){
+			dg::blas1::scal( v.gradPsip, 1/sqrt(v.gradPsip[0]*v.gradPsip[0]+v.gradPsip[1]*v.gradPsip[1]), result);
+            routines::dot( v.f.gradP(0), result, result);
+        }
+    },  
+     {"par_J", "Parallel current", false,
+        []( DVec& result, Variables& v ) {
+            dg::blas1::pointwiseDot(v.f.density(1), v.f.velocity(1), result);
+            dg::blas1::pointwiseDot(-1., v.f.density(0), v.f.velocity(0), 1., result);
         }
     },
         /// -----------------Miscellaneous additions --------------------//
