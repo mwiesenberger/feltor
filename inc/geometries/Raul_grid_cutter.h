@@ -82,6 +82,50 @@ struct radial_cut
 	HVec m_conv_LCFS_F;
 	
 };
+
+
+
+struct Nablas
+{
+	Nablas(RealGrid3d<double>& grid3d): m_g(grid3d){
+		m_dR = dg::create::dx( m_g, dg::DIR_NEU, dg::centered); //Derivative in R direction
+		m_dZ = dg::create::dy( m_g, dg::DIR_NEU, dg::centered); //Derivative in Z direction
+		m_dP = dg::create::dz( m_g, dg::DIR_NEU, dg::centered); //Derivative in parallel direction	
+		m_vol= dg::tensor::volume(m_g.metric());} //volume tensor
+
+					
+	void GradPerp_R (const HVec& f, HVec gradPerp_R)){ //f the input scalar and c the vector field output
+	dg::HVec c_R;
+		gradPerp_R= dg::blas2::symv( m_dR, f, c_R);
+	}
+	
+	void GradPerp_Z (const HVec& f, HVec gradPerp_Z)){ //f the input scalar and c the vector field output
+	dg::HVec c_Z;
+		gradPerp_Z= dg::blas2::symv( m_dZ, f, c_Z);
+	}	
+		
+	void div ( HVec v_R, HVec v_Z, HVec v_P, HVec& F){ // input the three components of the vector to do the divergence
+	dg::HVec c_R,c_Z,c_P, inv_vol, F;
+	dg::blas1::pointwiseDivide(1,vol,inv_vol);
+	dg::blas1::pointwiseDot(inv_vol, v_R, v_R);
+	dg::blas1::pointwiseDot(inv_vol, v_Z, v_Z);
+	dg::blas1::pointwiseDot(inv_vol, v_P, v_P);
+	dg::blas2::symv( m_dR, v_R, c_R);
+	dg::blas2::symv( m_dZ, v_Z, c_Z);
+	dg::blas2::symv( m_dP, v_P, c_P);
+	dg::blas1::pointwiseDot(vol,(c_R+c_Z+c_P),F);	
+	
+}
+	private:
+	RealGrid3d<double> m_g;
+	HMatrix m_dR;
+	HMatrix m_dZ;
+	HMatrix m_dP;
+	HVec m_vol;
+	
+}
+
+
 };//namespace geo
 }//namespace dg
 
