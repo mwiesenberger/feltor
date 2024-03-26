@@ -156,7 +156,6 @@ struct Explicit
         // grad S_ne and grad S_ni
         dg::blas2::symv( m_dxF_N, m_s[0][i], gradS[0]);
         dg::blas2::symv( m_dyF_N, m_s[0][i], gradS[1]);
-        if(m_compute_in_3d)dg::blas2::symv( m_dz, m_s[0][i], gradS[2]);
     }
     void compute_dot_aparallel( Container& tmp) const {
         m_old_apar.derive( tmp);
@@ -164,10 +163,10 @@ struct Explicit
     const dg::SparseTensor<Container>& projection() const{
         return m_hh;
     }
-    const std::array<Container, 3> & curv () const {
+    const std::array<Container, 2> & curv () const {
         return m_curv;
     }
-    const std::array<Container, 3> & curvKappa () const {
+    const std::array<Container, 2> & curvKappa () const {
         return m_curvKappa;
     }
     const Container& divCurvKappa() const {
@@ -179,9 +178,8 @@ struct Explicit
     //volume with dG weights
     const Container& vol3d() const { return m_lapperpN.weights();}
     const Container& weights() const { return m_lapperpN.weights();}
-    //bhat / sqrt{g} / B
-    const std::array<Container, 3> & bhatgB () const {
-        // covariant components
+    //bhat / sqrt{g} / B (covariant components)
+    const Container & bhatgB () const {
         return m_b;
     }
     void compute_lapMperpN (double alpha, const Container& density, Container& temp0, double beta, Container& result)
@@ -208,10 +206,10 @@ struct Explicit
     {
         update_diag();
         dg::blas1::subroutine( BPerp(), m_apar,
-            m_dA[0], m_dA[1], m_dA[2],
-            bperp[0], bperp[1], bperp[2], // bperp on output
-            m_b[0], m_b[1], m_b[2],
-            m_curvKappa[0], m_curvKappa[1], m_curvKappa[2]
+            m_dA[0], m_dA[1],
+            bperp[0], bperp[1],// bperp on output
+            m_b[2],
+            m_curvKappa[0], m_curvKappa[1]
         );
     }
     const Container& get_source() const{
@@ -353,11 +351,6 @@ struct Explicit
         dg::blas2::symv( m_dxC, temp0, result);
         dg::blas1::pointwiseDot( 1., prefactor, m_detg, contra_vec[1], 0., temp0);
         dg::blas2::symv( 1., m_dyC, temp0, 1., result);
-        if( m_compute_in_3d)
-        {
-            dg::blas1::pointwiseDot( 1., prefactor, m_detg, contra_vec[2], 0., temp0);
-            dg::blas2::symv( 1., m_dz, temp0, 1., result);
-        }
         dg::blas1::pointwiseDivide( 1., result, m_detg, 0., result);
     }
     void centered_v_dot_nabla( const std::array<Container, 3>& contra_vec,
@@ -367,11 +360,6 @@ struct Explicit
         dg::blas1::pointwiseDot( contra_vec[0], temp1, result);
         dg::blas2::symv( m_dyC, f, temp1);
         dg::blas1::pointwiseDot( 1., contra_vec[1], temp1, 1., result);
-        if( m_compute_in_3d)
-        {
-            dg::blas2::symv( m_dz, f, temp1);
-            dg::blas1::pointwiseDot( 1., contra_vec[2], temp1, 1., result);
-        }
     }
     void compute_pol( double alpha, const Container& density, Container& temp, double beta, Container& result)
     {
@@ -517,14 +505,10 @@ struct Explicit
         dg::blas1::copy( sheath, m_sheath);
         dg::blas1::copy( sheath_coordinate, m_sheath_coordinate);
     }
-    void compute_aparST( double t, const std::array<Container,2>&,
-            std::array<Container,2>&, Container&, bool);
-    void compute_phi( double t, const std::array<Container,2>&, Container&);//, bool);
-    void compute_psi( double t, const Container& phi, Container& psi);//, bool);
     void update_staggered_density_and_phi( double t,
         const std::array<Container,2>& density,
         const std::array<Container,2>& potential);
-    void update_staggered_density_and_ampere( double t,
+    void update_staggered_density( double t,
         const std::array<Container,2>& density);
     void update_velocity_and_apar( double t,
         const std::array<Container,2>& velocityST,
@@ -590,36 +574,33 @@ struct Explicit
         dg::geo::TokamakMagneticField);
     void construct_bhat( const Geometry&, thermal::Parameters,
         dg::geo::TokamakMagneticField);
-    void construct_invert( const Geometry&, thermal::Parameters,
-        dg::geo::TokamakMagneticField);
 
     //these should be considered const // m_curv is full curvature
-    std::array<Container,3> m_curv, m_curvKappa, m_b; //m_b is bhat/ sqrt(g) / B
-    Container m_divCurvKappa;
-    Container m_bphi, m_binv, m_divb, m_detg;
+    std::array<Container,2> m_curv, m_curvKappa;
+    Container m_divCurvKappa, m_b; //m_b is bhat/ sqrt(g) / B (covariant component)
+    Container m_bphi, m_binv, m_divb, m_detg; // m_bphi is covariant bhat component
     Container m_source, m_profne, m_sheath_coordinate;
     Container m_wall, m_sheath;
 
     // Only set once every call to operator()
-    std::array<Container,2> m_density, m_densityST;
     std::array<Container,2> m_velocity, m_velocityST;
     std::array<Container,2> m_potential, m_potentialST;
-    Container m_apar, m_aparST;
+    Container m_phi, m_apar, m_aparST;
 
     Container m_UE2;
-    std::array<Container,2> m_divNUb;
-    std::array<Container,2> m_plusN, m_zeroN, m_minusN, m_plusU, m_zeroU, m_minusU;
-    std::array<Container,2> m_plusSTN, m_minusSTN, m_plusSTU, m_minusSTU;
-    std::vector<Container> m_multi_chi;
+    Container m_divNUb;
+    Container m_plusN, m_zeroN, m_minusN, m_plusU, m_zeroU, m_minusU;
+    std::vector<Container> m_plusSTN, m_minusSTN, m_densityST;
+    Container m_plusSTU, m_minusSTU;
 
     // overwritten by diag_update and/or set once by operator()
-    std::array<Container,3> m_dA;
-    std::array<std::array<Container,3>,2> m_dP, m_dFN, m_dBN, m_dFU, m_dBU;
-    std::array<Container,2> m_dsN, m_dsP, m_dsU;
-    std::array<std::array<Container,2>,2> m_s;
+    std::array<Container,2> m_dA;
+    std::array<Container,2> m_dP, m_dFN, m_dBN, m_dFU, m_dBU;
+    Container m_dsN, m_dsP, m_dsU;
+    std::array<std::vector<Container>,4> m_s; // source
 
     // Set by diag_update
-    std::array<Container,2> m_dssU, m_lapParU, m_lapParN;
+    Container m_dssU, m_lapParU, m_lapParN;
 
     // Helper variables can be overwritten any time (except by compute_parallel)!!
     Container m_temp0, m_temp1;
@@ -629,27 +610,20 @@ struct Explicit
 
     //matrices and solvers
     Matrix m_dxF_N, m_dxB_N, m_dxF_U, m_dxB_U, m_dx_P, m_dx_A;
-    Matrix m_dyF_N, m_dyB_N, m_dyF_U, m_dyB_U, m_dy_P, m_dy_A, m_dz;
+    Matrix m_dyF_N, m_dyB_N, m_dyF_U, m_dyB_U, m_dy_P, m_dy_A;
     Matrix m_dxC, m_dyC;
     dg::geo::Fieldaligned<Geometry, IMatrix, Container> m_fa, m_faST;
-    dg::Elliptic3d< Geometry, Matrix, Container> m_lapperpN, m_lapperpU, m_lapperpP;
-    std::vector<dg::Elliptic3d< Geometry, Matrix, Container> > m_multi_pol;
-    std::vector<dg::Helmholtz3d<Geometry, Matrix, Container> > m_multi_invgammaP,
-        m_multi_invgammaN, m_multi_ampere;
-
-    dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
-    dg::Extrapolation<Container> m_old_phi, m_old_psi, m_old_gammaN, m_old_apar, m_old_aparST;
-    //dg::Extrapolation<Container> m_old_phiST, m_old_psiST, m_old_gammaNST;
-
-    dg::SparseTensor<Container> m_hh;
+    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperpN, m_lapperpU, m_lapperpP;
+    thermal::ThermalSolvers<Geometry, Matrix, Container> m_solvers;
 
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
     double m_source_rate = 0., m_sheath_rate = 0., m_wall_rate = 0.;
     double m_minne = 0., m_minrate  = 0., m_minalpha = 0.;
     double m_nwall = 0., m_uwall = 0.;
-    bool m_fixed_profile = true, m_reversed_field = false, m_compute_in_3d = true;
-    bool m_upToDate = false, m_modify_diff = false;
+    bool m_fixed_profile = true, m_reversed_field = false;
+    std::vector<bool> m_upToDate;
+    bool m_modify_diff = false;
     unsigned m_called = 0;
 
 };
@@ -665,12 +639,7 @@ void Explicit<Grid, IMatrix, Matrix, Container>::construct_mag(
     if( mag.ipol()( g.x0(), g.y0()) < 0)
         m_reversed_field = true;
     if( p.curvmode == "true" )
-    {
-        curvNabla = dg::geo::createTrueCurvatureNablaB(mag);
-        curvKappa = dg::geo::createTrueCurvatureKappa(mag);
-        dg::assign(  dg::pullback(dg::geo::TrueDivCurvatureKappa(mag), g),
-            m_divCurvKappa);
-    }
+        throw std::runtime_error( "curvmode : true is not possible in thermal code!");
     else if( p.curvmode == "low beta")
     {
         if( m_reversed_field)
@@ -699,9 +668,9 @@ void Explicit<Grid, IMatrix, Matrix, Container>::construct_mag(
     else
         throw std::runtime_error( "Warning! curvmode value '"+p.curvmode+"' not recognized!! I don't know what to do! I exit!\n");
     dg::pushForward(curvNabla.x(), curvNabla.y(), curvNabla.z(),
-        m_curv[0], m_curv[1], m_curv[2], g);
+        m_curv[0], m_curv[1], m_temp0, g);
     dg::pushForward(curvKappa.x(), curvKappa.y(), curvKappa.z(),
-        m_curvKappa[0], m_curvKappa[1], m_curvKappa[2], g);
+        m_curvKappa[0], m_curvKappa[1], m_temp0, g);
     dg::blas1::axpby( 1., m_curvKappa, 1., m_curv);
     dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
@@ -725,81 +694,24 @@ void Explicit<Grid, IMatrix, Matrix, Container>::construct_bhat(
     // in Poisson we take EPhi except for the true curvmode
     bhat = dg::geo::createEPhi(+1);
     if( p.curvmode == "true")
-        bhat = dg::geo::createBHat(mag);
+        throw std::runtime_error( "curvmode : true is not possible in thermal code!");
     else if( m_reversed_field)
         bhat = dg::geo::createEPhi(-1);
-    dg::pushForward(bhat.x(), bhat.y(), bhat.z(), m_b[0], m_b[1], m_b[2], g);
+    dg::pushForward(bhat.x(), bhat.y(), bhat.z(), m_temp0, m_temp1, m_b, g);
     dg::SparseTensor<Container> metric = g.metric();
     // make bhat covariant:
-    dg::tensor::inv_multiply3d( metric, m_b[0], m_b[1], m_b[2],
-                                        m_b[0], m_b[1], m_b[2]);
-    dg::assign( m_b[2], m_bphi); //save bphi for momentum conservation
+    dg::tensor::inv_multiply3d( metric, m_temp0, m_temp1, m_b,
+                                        m_temp0, m_temp1, m_b);
+    dg::assign( m_b, m_bphi); //save bphi for momentum conservation
     m_detg = dg::tensor::volume( metric);
     dg::blas1::pointwiseDivide( m_binv, m_detg, m_temp0); //1/B/detg
-    for( int i=0; i<3; i++)
-        dg::blas1::pointwiseDot( m_temp0, m_b[i], m_b[i]); //b_i/detg/B
-    m_hh = dg::geo::createProjectionTensor( bhat, g);
+    dg::blas1::pointwiseDot( m_temp0, m_b, m_b); //b_2/detg/B
     m_lapperpN.construct ( g, p.bcxN, p.bcyN, dg::PER,  p.diff_dir),
     m_lapperpU.construct ( g, p.bcxU, p.bcyU, dg::PER,  p.diff_dir),
     m_lapperpP.construct ( g, p.bcxP, p.bcyP, dg::PER,  p.pol_dir),
-    m_lapperpN.set_chi( m_hh);
-    m_lapperpU.set_chi( m_hh);
-    m_lapperpP.set_chi( m_hh);
-    if( (p.curvmode == "true") && (p.symmetric == false))
-        m_compute_in_3d = true;
-    else
-    {
-        m_compute_in_3d = false;
-        m_lapperpN.set_compute_in_2d(true);
-        m_lapperpU.set_compute_in_2d(true);
-        m_lapperpP.set_compute_in_2d(true);
-    }
     m_lapperpP.set_jfactor(0); //we don't want jump terms in source
 }
-template<class Grid, class IMatrix, class Matrix, class Container>
-void Explicit<Grid, IMatrix, Matrix, Container>::construct_invert(
-    const Grid& g, thermal::Parameters p, dg::geo::TokamakMagneticField mag)
-{
-    //Set a hard code limit on the maximum number of iteration to avoid
-    //endless iteration in case of failure
-    m_multigrid.set_max_iter( 1e5);
-    /////////////////////////init elliptic and helmholtz operators/////////
-    auto bhat = dg::geo::createEPhi(+1); //bhat = ephi except when "true"
-    if( p.curvmode == "true")
-        bhat = dg::geo::createBHat( mag);
-    else if( m_reversed_field)
-        bhat = dg::geo::createEPhi(-1);
-    m_multi_chi = m_multigrid.project( m_temp0);
-    m_multi_pol.resize(p.stages);
-    m_multi_invgammaP.resize(p.stages);
-    m_multi_invgammaN.resize(p.stages);
-    m_multi_ampere.resize(p.stages);
-    for( unsigned u=0; u<p.stages; u++)
-    {
-        m_multi_pol[u].construct( m_multigrid.grid(u),
-            p.bcxP, p.bcyP, dg::PER,
-            p.pol_dir, p.jfactor);
-        m_multi_invgammaP[u] = { -0.5*p.tau[1]*p.mu[1],
-                {m_multigrid.grid(u), p.bcxP, p.bcyP, dg::PER, p.pol_dir}};
-        m_multi_invgammaN[u] = { -0.5*p.tau[1]*p.mu[1],
-                {m_multigrid.grid(u), p.bcxN, p.bcyN, dg::PER, p.pol_dir}};
-        m_multi_ampere[u] = {  -1.,
-                {m_multigrid.grid(u), p.bcxA, p.bcyA, dg::PER, p.pol_dir}};
 
-        dg::SparseTensor<Container> hh = dg::geo::createProjectionTensor(
-            bhat, m_multigrid.grid(u));
-        m_multi_pol[u].set_chi( hh);
-        m_multi_invgammaP[u].matrix().set_chi( hh);
-        m_multi_invgammaN[u].matrix().set_chi( hh);
-        m_multi_ampere[u].matrix().set_chi( hh);
-        if( !((p.curvmode == "true") && (p.symmetric == false))){
-            m_multi_pol[u].set_compute_in_2d( true);
-            m_multi_invgammaP[u].matrix().set_compute_in_2d( true);
-            m_multi_invgammaN[u].matrix().set_compute_in_2d( true);
-            m_multi_ampere[u].matrix().set_compute_in_2d( true);
-        }
-    }
-}
 template<class Grid, class IMatrix, class Matrix, class Container>
 Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     thermal::Parameters p, dg::geo::TokamakMagneticField mag,
@@ -817,15 +729,10 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     m_dyB_U( dg::create::dy( g, p.bcyU, dg::backward) ),
     m_dy_P(  dg::create::dy( g, p.bcyP, p.pol_dir) ),
     m_dy_A(  dg::create::dy( g, p.bcyA, p.pol_dir) ),
-    m_dz( dg::create::dz( g, dg::PER) ),
     m_dxC(   dg::create::dx( g, dg::NEU, dg::centered) ), // for divergence
     m_dyC(   dg::create::dy( g, dg::NEU, dg::centered) ), // for divergence
-    m_multigrid( g, p.stages),
-    m_old_phi( 2, dg::evaluate( dg::zero, g)),
-    m_old_psi( m_old_phi), m_old_gammaN( m_old_phi),
-    m_old_apar( m_old_phi), m_old_aparST( m_old_phi),
-    //m_old_phiST( 2, dg::evaluate( dg::zero, g)),
-    //m_old_psiST( m_old_phi), m_old_gammaNST( m_old_phi),
+    m_old_apar( 2, dg::evaluate( dg::zero, g)),
+    m_solvers( g, p, mag, js),
     m_p(p), m_js(js)
 {
     //--------------------------init vectors to 0-----------------//
@@ -852,7 +759,6 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     //--------------------------Construct-------------------------//
     construct_mag( g, p, mag);
     construct_bhat( g, p, mag);
-    construct_invert( g, p, mag);
     // An optional hidden parameter
     if( m_js["regularization"].isMember("modify-diff") )
         m_modify_diff = m_js["regularization"]["modify-diff"].asBool();
@@ -862,6 +768,9 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
 #endif
     if( m_modify_diff)
         DG_RANK0 std::cout << "# Optional parameter \"modify-diff\" activated\n";
+    m_upToDate.resize( m_p.num_species);
+    for( unsigned s=0; s<m_p.num_species; s++)
+        m_upToDate[s] = false;
 
 }
 
@@ -929,154 +838,6 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::initializeni(
 }
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::compute_phi(
-    double time, const std::array<Container,2>& density,
-    Container& phi//, bool staggered
-    )
-{
-    //density[0]:= n_e
-    //density[1]:= N_i
-    //----------Compute and set chi----------------------------//
-    dg::blas1::pointwiseDot( m_p.mu[1], density[1], m_binv, m_binv, 0., m_temp0);
-    m_multigrid.project( m_temp0, m_multi_chi);
-    for( unsigned u=0; u<m_p.stages; u++)
-        m_multi_pol[u].set_chi( m_multi_chi[u]);
-
-    //----------Compute right hand side------------------------//
-    if (m_p.tau[1] == 0.) {
-        //compute N_i - n_e
-        dg::blas1::axpby( 1., density[1], -1., density[0], m_temp0);
-    }
-    else
-    {
-        dg::blas1::transform( density[1], m_temp1, dg::PLUS<double>(-m_p.nbc));
-        //compute Gamma N_i - n_e
-        //if( staggered)
-        //    m_old_gammaNST.extrapolate( time, m_temp0);
-        //else
-            m_old_gammaN.extrapolate( time, m_temp0);
-        m_multigrid.set_benchmark( true, "Gamma N     ");
-        std::vector<unsigned> numberG = m_multigrid.solve(
-            m_multi_invgammaN, m_temp0, m_temp1, m_p.eps_gamma);
-        //if( staggered)
-        //    m_old_gammaNST.update( time, m_temp0); // store N - nbc
-        //else
-            m_old_gammaN.update( time, m_temp0); // store N - nbc
-        dg::blas1::transform( density[0], m_temp1, dg::PLUS<double>(-m_p.nbc));
-        dg::blas1::axpby( -1., m_temp1, 1., m_temp0, m_temp0);
-    }
-    // Add penalization method
-    multiply_rhs_penalization( m_temp0);
-    //----------Invert polarisation----------------------------//
-    //if( staggered)
-    //    m_old_phiST.extrapolate( time, phi);
-    //else
-        m_old_phi.extrapolate( time, phi);
-    m_multigrid.set_benchmark( true, "Polarisation");
-    std::vector<unsigned> number = m_multigrid.solve(
-        m_multi_pol, phi, m_temp0, m_p.eps_pol);
-#ifdef WRITE_POL_FILE
-    //if( number[0] > 1000)
-        counter++;
-    if( counter == 10)
-    {
-
-        dg::x::HVec transferH;
-        std::string names [6] = {"chi", "sol", "rhs", "ne", "Ni", "phiH"};
-        const Container* vecs [6] = {&m_multi_chi[0], &phi, &m_temp0, &density[0], &density[1], &m_old_phi.head()};
-        for ( unsigned i=0; i<6; i++)
-        {
-            dg::assign (*(vecs[i]), transferH);
-            pol_writer.def_and_put( names[i], {}, transferH);
-        }
-        m_old_phi.extrapolate( time, phi);
-        dg::assign ( phi, transferH);
-        pol_writer.def_and_put( "phi0", {}, transferH);
-#ifdef MPI_VERSION
-        int rank;
-        MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-#endif
-        DG_RANK0 err_pol = nc_close(ncid_pol);
-#ifdef MPI_VERSION
-        MPI_Barrier( MPI_COMM_WORLD);
-#endif
-        dg::abort_program();
-    }
-#endif // WRITE_POL_FILE
-    //if( staggered)
-    //    m_old_phiST.update( time, phi);
-    //else
-        m_old_phi.update( time, phi);
-}
-
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::compute_psi(
-    double time, const Container& phi, Container& psi//, bool staggered
-    )
-{
-    //-----------Solve for Gamma Phi---------------------------//
-    if (m_p.tau[1] == 0.) {
-        dg::blas1::copy( phi, psi);
-    } else {
-        //if( staggered)
-        //    m_old_psiST.extrapolate( time, psi);
-        //else
-            m_old_psi.extrapolate( time, psi);
-        m_multigrid.set_benchmark( true, "Gamma Phi   ");
-        std::vector<unsigned> number = m_multigrid.solve(
-            m_multi_invgammaP, psi, phi, m_p.eps_gamma);
-        //if( staggered)
-        //    m_old_psiST.update( time, psi);
-        //else
-            m_old_psi.update( time, psi);
-    }
-    //-------Compute Psi and derivatives
-    dg::blas2::symv( m_dx_P, phi, m_dP[0][0]);
-    dg::blas2::symv( m_dy_P, phi, m_dP[0][1]);
-    if( m_compute_in_3d) dg::blas2::symv( m_dz, phi, m_dP[0][2]);
-    //if( staggered)
-    //    dg::tensor::scalar_product3d( 1., m_binv,
-    //        m_dP[0][0], m_dP[0][1], m_dP[0][2], m_hh, m_binv, //grad_perp
-    //        m_dP[0][0], m_dP[0][1], m_dP[0][2], 1., psi);
-    //else
-    //{
-        dg::tensor::scalar_product3d( 1., m_binv,
-            m_dP[0][0], m_dP[0][1], m_dP[0][2], m_hh, m_binv, //grad_perp
-            m_dP[0][0], m_dP[0][1], m_dP[0][2], 0., m_UE2);
-        //m_UE2 now contains u_E^2
-        dg::blas1::axpby( -0.5, m_UE2, 1., psi);
-    //}
-}
-
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::compute_aparST(
-    double time, const std::array<Container,2>& densityST,
-    std::array<Container,2>& velocityST, Container& aparST, bool update)
-{
-    //on input
-    //densityST[0] = n_e, velocityST[0]:= w_e
-    //densityST[1] = N_i, velocityST[1]:= W_i
-
-    //----------Compute right hand side------------------------//
-    dg::blas1::pointwiseDot(  m_p.beta, densityST[1], velocityST[1],
-                             -m_p.beta, densityST[0], velocityST[0],
-                              0., m_temp0);
-    //----------Invert Induction Eq----------------------------//
-    if( update)
-        m_old_aparST.extrapolate( time, aparST);
-    m_multigrid.set_benchmark( true, "Apar        ");
-    std::vector<unsigned> number = m_multigrid.solve(
-        m_multi_ampere, aparST, m_temp0, m_p.eps_ampere);
-    if( update)
-        m_old_aparST.update( time, aparST);
-    if(  number[0] == m_multigrid.max_iter())
-        throw dg::Fail( m_p.eps_ampere);
-    //----------Compute Velocities-----------------------------//
-    dg::blas1::axpby( 1., velocityST[0], -1./m_p.mu[0], aparST, velocityST[0]);
-    dg::blas1::axpby( 1., velocityST[1], -1./m_p.mu[1], aparST, velocityST[1]);
-}
-
-template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::update_perp_derivatives(
     const std::array<Container,2>& density,
     const std::array<Container,2>& velocity,
@@ -1092,20 +853,14 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_perp_derivatives(
         dg::blas2::symv( m_dyF_N, m_temp1, m_dFN[i][1]);
         dg::blas2::symv( m_dxB_N, m_temp1, m_dBN[i][0]);
         dg::blas2::symv( m_dyB_N, m_temp1, m_dBN[i][1]);
-        if(m_compute_in_3d) dg::blas2::symv( m_dz, m_temp1, m_dFN[i][2]);
-        if(m_compute_in_3d) dg::blas2::symv( m_dz, m_temp1, m_dBN[i][2]);
         dg::blas2::symv( m_dxF_U, velocity[i], m_dFU[i][0]);
         dg::blas2::symv( m_dyF_U, velocity[i], m_dFU[i][1]);
         dg::blas2::symv( m_dxB_U, velocity[i], m_dBU[i][0]);
         dg::blas2::symv( m_dyB_U, velocity[i], m_dBU[i][1]);
-        if(m_compute_in_3d) dg::blas2::symv( m_dz, velocity[i], m_dFU[i][2]);
-        if(m_compute_in_3d) dg::blas2::symv( m_dz, velocity[i], m_dBU[i][2]);
         dg::blas2::symv( m_dx_P, potential[i], m_dP[i][0]);
         dg::blas2::symv( m_dy_P, potential[i], m_dP[i][1]);
-        if( m_compute_in_3d) dg::blas2::symv( m_dz, potential[i], m_dP[i][2]);
         dg::blas2::symv( m_dx_A, apar, m_dA[0]);
         dg::blas2::symv( m_dy_A, apar, m_dA[1]);
-        if( m_compute_in_3d) dg::blas2::symv( m_dz, apar, m_dA[2]);
     }
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
@@ -1132,54 +887,38 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density_an
     }
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density_and_ampere(
+void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density(
     double t,
-    const std::array<Container,2>& density)
+    const std::vector<Container>& density)
 {
-    for( unsigned i=0; i<2; i++)
+    for( unsigned s=0; s<m_p.num_species; s++)
     {
-        m_faST( dg::geo::zeroMinus, density[i], m_minusSTN[i]);
-        m_faST( dg::geo::einsPlus,  density[i], m_plusSTN[i]);
-        update_parallel_bc_1st( m_minusSTN[i], m_plusSTN[i],
+        m_faST( dg::geo::zeroMinus, density[s], m_minusSTN[s]);
+        m_faST( dg::geo::einsPlus,  density[s], m_plusSTN[s]);
+        update_parallel_bc_1st( m_minusSTN[s], m_plusSTN[s],
                 m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc : 0.);
-        dg::blas1::axpby( 0.5, m_minusSTN[i], 0.5, m_plusSTN[i], m_densityST[i]);
-    }
-    //----------Compute and set chi----------------------------//
-    if( m_p.beta != 0)
-    {
-        dg::blas1::axpby(  m_p.beta/m_p.mu[1], m_densityST[1],
-                          -m_p.beta/m_p.mu[0], m_densityST[0], m_temp0);
-        m_multigrid.project( m_temp0, m_multi_chi);
-        for( unsigned u=0; u<m_p.stages; u++)
-            m_multi_ampere[u].set_chi( m_multi_chi[u]);
+        dg::blas1::axpby( 0.5, m_minusSTN[s], 0.5, m_plusSTN[s], m_densityST[s]);
     }
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::update_velocity_and_apar(
+void Explicit<Geometry, IMatrix, Matrix, Container>::update_velocity(
     double t,
-    const std::array<Container,2>& velocityST,
-    const Container& aparST)
+    const Container& wST,
+    const Container& aparST,
+    Container& velocityST, unsigned s)
 {
-    for( unsigned i=0; i<2; i++)
-    {
-        // Compute dsU and velocity
-        m_faST( dg::geo::einsMinus, velocityST[i], m_minusSTU[i]);
-        m_faST( dg::geo::zeroPlus,  velocityST[i], m_plusSTU[i]);
-        update_parallel_bc_1st( m_minusSTU[i], m_plusSTU[i], m_p.bcxU, 0.);
-        dg::blas1::axpby( 0.5, m_minusSTU[i], 0.5, m_plusSTU[i], m_velocity[i]);
+    dg::blas1::axpby( 1., wST, -m_p.z[s]/m_p.mu[s], m_aparST, velocityST);
+    // Compute dsU and velocity
+    m_faST( dg::geo::einsMinus, velocityST, m_minusSTU);
+    m_faST( dg::geo::zeroPlus,  velocityST,  m_plusSTU);
+    update_parallel_bc_1st( m_minusSTU, m_plusSTU, m_p.bcxU, 0.);
+    dg::blas1::axpby( 0.5, m_minusSTU, 0.5, m_plusSTU, m_velocity);
 
-        m_fa( dg::geo::einsMinus, velocityST[i], m_minusU[i]);
-        m_fa( dg::geo::zeroForw,  velocityST[i], m_zeroU[i]);
-        m_fa( dg::geo::einsPlus,  velocityST[i], m_plusU[i]);
-        update_parallel_bc_2nd( m_fa, m_minusU[i], m_zeroU[i],
-                m_plusU[i], m_p.bcxU, 0.);
-    }
-    // Compute apar
-    m_faST( dg::geo::einsMinus, aparST, m_minus);
-    m_faST( dg::geo::zeroPlus,  aparST, m_plus);
-    update_parallel_bc_1st( m_minus, m_plus, m_p.bcxA, 0.);
-    dg::blas1::axpby( 0.5, m_minus, 0.5, m_plus, m_apar);
-    m_old_apar.update( t, m_apar);
+    m_fa( dg::geo::einsMinus, velocityST, m_minusU);
+    m_fa( dg::geo::zeroForw,  velocityST, m_zeroU);
+    m_fa( dg::geo::einsPlus,  velocityST, m_plusU);
+    update_parallel_bc_2nd( m_fa, m_minusU, m_zeroU,
+            m_plusU, m_p.bcxU, 0.);
 }
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
@@ -1739,112 +1478,112 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     std::array<std::vector<Container>,4>& yp)
 {
     m_called++;
-    m_upToDate = false;
 #ifdef MPI_VERSION
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
     //DG_RANK0 std::cout << "## time "<<time<<" dt "<<dt<<" t_out "<<t_output<<" step "<<step<<" failed "<<var.nfailed<<"\n";
     DG_RANK0 std::cout << "## time "<<t<<"\n";
-    /* y[0][0] := n_e
-       y[0][1] := N_i
-       y[1][0] := w_e^dagger
-       y[1][1] := W_i^dagger
-    */
 
     dg::Timer timer;
     double accu = 0.;//accumulated time
     timer.tic();
 
-    dg::blas1::copy( y[0], m_density),
 
+    std::vector<Container>&  density    = y[0];
+    std::vector<Container>&  wST        = y[1];
+    std::vector<Container>&  pperp      = y[2];
+    std::vector<Container>&  pparaST    = y[3];
+
+    // First compute potentials phi and apar
 #if FELTORPERP == 1
 
     // set m_potential[0]
-    compute_phi( t, m_density, m_pperp, m_potential[0]);//, false);
-    // set m_potential[1] and m_UE2 --- needs m_potential[0]
-    compute_E1( t, m_potential[0], m_pperp, m_potential[1]);//, false);
+    m_solvers.compute_phi( t, density, pperp, m_phi);
 
 #else
 
 
 #endif
-
     timer.toc();
     accu += timer.diff();
-    DG_RANK0 std::cout << "## Compute phi and psi               took "
+    DG_RANK0 std::cout << "## Compute phi                       took "
                        << timer.diff()<<"s\t A: "<<accu<<"s\n";
     timer.tic( );
-
-    //Compute m_densityST and m_potentialST
-    update_staggered_density_and_phi( t, m_density, m_potential);
-    update_staggered_density_and_ampere( t, m_density);
-
-    //// Now refine potential on staggered grid
-    //// set m_potentialST[0]
-    //compute_phi( t, m_densityST, m_potentialST[0], true);
-    //// set m_potentialST[1]  --- needs m_potentialST[0]
-    //compute_psi( t, m_potentialST[0], m_potentialST[1], true);
-    timer.toc();
-    accu += timer.diff();
-    DG_RANK0 std::cout << "## Compute phi and psi ST            took "
-                       << timer.diff()<<"s\t A: "<<accu<<"s\n";
-    timer.tic( );
+    //Compute m_densityST, m_minusSTN, m_plusSTN
+    update_staggered_density( t, m_density);
 
     // Compute m_aparST and m_velocityST if necessary
-    dg::blas1::copy( y[1], m_velocityST);
     if( m_p.beta != 0)
     {
-        compute_aparST( t, m_densityST, m_velocityST, m_aparST, true);
+        m_solvers.compute_aparST( t, m_densityST, wST, m_aparST, true);
     }
-    //Compute m_velocity and m_apar
-    update_velocity_and_apar( t, m_velocityST, m_aparST);
+    // Compute apar
+    m_faST( dg::geo::einsMinus, m_aparST, m_minus);
+    m_faST( dg::geo::zeroPlus,  m_aparST, m_plus);
+    update_parallel_bc_1st( m_minus, m_plus, m_p.bcxA, 0.);
+    dg::blas1::axpby( 0.5, m_minus, 0.5, m_plus, m_apar);
+    m_old_apar.update( t, m_apar);
 
-    timer.toc();
-    accu += timer.diff();
-    DG_RANK0 std::cout << "## Compute Apar and staggered        took "
-                       << timer.diff()<<"s\t A: "<<accu<<"s\n";
-    timer.tic( );
+    // main species loop
+    for( unsigned s=0; s<m_p.num_species; s++)
+    {
+
+        m_upToDate[s] = false;
+        //Compute m_velocityST, m_minusSTU, m_plusST, m_minusU, m_zeroU, m_plusU
+        update_velocity( t, wST, m_aparST, m_velocityST, s);
+
+
+        //Compute m_densityST and m_potentialST
+        update_staggered_density_and_phi( t, m_density, m_potential);
+
+        timer.toc();
+        accu += timer.diff();
+        DG_RANK0 std::cout << "## Compute phi and psi ST            took "
+                           << timer.diff()<<"s\t A: "<<accu<<"s\n";
+        timer.tic( );
+
 
 #if FELTORPERP == 1
 
-    // Set perpendicular dynamics in yp
-    compute_perp_density(  t, m_density, m_velocity, m_potential, m_apar,
-            yp[0]);
-    compute_perp_velocity( t, m_densityST, m_velocityST, m_potentialST,
-            m_aparST, yp[1]);
+        // Set perpendicular dynamics in yp
+        compute_perp_density(  t, m_density, m_velocity, m_potential, m_apar,
+                yp[0]);
+        compute_perp_velocity( t, m_densityST, m_velocityST, m_potentialST,
+                m_aparST, yp[1]);
 
 #else
 
-    dg::blas1::copy( 0., yp);
+        dg::blas1::copy( 0., yp);
 
 #endif
 
-    timer.toc();
-    accu += timer.diff();
-    DG_RANK0 std::cout << "## Compute perp dynamics             took "
-                       << timer.diff() << "s\t A: "<<accu<<"s\n";
-    timer.tic();
+        timer.toc();
+        accu += timer.diff();
+        DG_RANK0 std::cout << "## Compute perp dynamics             took "
+                           << timer.diff() << "s\t A: "<<accu<<"s\n";
+        timer.tic();
 
-    // Add parallel dynamics
+        // Add parallel dynamics
 #if FELTORPARALLEL == 1
 
-    compute_parallel( yp);
+        compute_parallel( yp);
 
 #endif
 #if FELTORPERP == 1
-    //------------------Add Resistivity--------------------------//
-    double eta = m_p.eta, mu0 = m_p.mu[0], mu1 = m_p.mu[1];
-    dg::blas1::subroutine( [eta,mu0,mu1] DG_DEVICE (
-            double ne, double ni,
-            double ue, double ui, double& dtUe, double& dtUi){
-                double current = ni*ui-ne*ue;
-                dtUe += -eta/mu0 * current;
-                dtUi += -eta/mu1 * ne/ni * current;
-            },
-        m_densityST[0], m_densityST[1],
-        m_velocityST[0], m_velocityST[1], yp[1][0], yp[1][1]);
+        //------------------Add Resistivity--------------------------//
+        double eta = m_p.eta, mu0 = m_p.mu[0], mu1 = m_p.mu[1];
+        dg::blas1::subroutine( [eta,mu0,mu1] DG_DEVICE (
+                double ne, double ni,
+                double ue, double ui, double& dtUe, double& dtUi){
+                    double current = ni*ui-ne*ue;
+                    dtUe += -eta/mu0 * current;
+                    dtUi += -eta/mu1 * ne/ni * current;
+                },
+            m_densityST[0], m_densityST[1],
+            m_velocityST[0], m_velocityST[1], yp[1][0], yp[1][1]);
 #endif
+    } // species loops
 
     if( !m_p.partitioned)
     {
@@ -1857,10 +1596,10 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     else
     {
         // partitioned means imex timestepper
-        for( unsigned i=0; i<2; i++)
+        for( unsigned i=0; i<4; i++)
         {
-            for( unsigned j=0; j<2; j++)
-                multiply_rhs_penalization( yp[i][j]); // F*(1-chi_w-chi_s)
+            for( unsigned s=0; s<m_p.num_species; s++)
+                multiply_rhs_penalization( yp[i][s]); // F*(1-chi_w-chi_s)
         }
     }
 

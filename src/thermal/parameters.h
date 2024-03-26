@@ -23,11 +23,11 @@ struct Parameters
     unsigned mx, my;
     double rk4eps;
     std::string interpolation_method;
-    double nbc;
+    std::vector<double> nbc; // boundary condition for density
 
-    std::array<double,2> mu; // mu[0] = mu_e, m[1] = mu_i
-    std::array<double,2> tau; // tau[0] = -1, tau[1] = tau_i
-    std::array<double,2> nu_parallel_u;
+    std::vector<double> mu; // mu[0] = mu_e, m[1] = mu_i
+    std::vector<double> tau; // tau[0] = -1, tau[1] = tau_i
+    std::vector<double> nu_parallel_u;
     double eta, beta;
 
     unsigned diff_order;
@@ -48,7 +48,10 @@ struct Parameters
     bool partitioned;
     //
     //
-    unsigned num_species;
+    unsigned num_species, num_trivial; // number of species and number of species with neglected mass ( electrons)
+    std::vector<bool> neglect_mass;
+    std::vector<int> z;
+    std::vector<std::string> name; // name of species s
 
     Parameters() = default;
     Parameters( const dg::file::WrappedJsonValue& js) {
@@ -138,6 +141,7 @@ struct Parameters
         if( bcxN == dg::DIR || bcxN == dg::DIR_NEU || bcxN == dg::NEU_DIR
             || bcyN == dg::DIR || bcyN == dg::DIR_NEU || bcyN == dg::NEU_DIR)
             nbc = js["boundary"]["bc"].get( "nbc", 1.0).asDouble();
+            // assert that sum z[s] nbc[s] gives 0
 
         bcxU = dg::str2bc(js["boundary"]["bc"][ "velocity"].get( 0, "").asString());
         bcyU = dg::str2bc(js["boundary"]["bc"][ "velocity"].get( 1, "").asString());
