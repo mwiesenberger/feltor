@@ -86,6 +86,7 @@ template<class Geometry, class Matrix, class Container>
 void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     double time, const std::vector<Container>& density,
     const std::vector<Container>& pperp,
+    const Container& boundary_condition,
     const std::function<void(Container&)>& multiply_rhs_penalization,
     Container& phi
     )
@@ -133,12 +134,16 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     }
     // Add penalization method
     multiply_rhs_penalization( m_temp0);
+    // Add boundary condition
+    m_multi_pol[0].symv( 1., boundary_condition, 1, m_temp0);
     //----------Invert polarisation----------------------------//
     m_old_phi.extrapolate( time, phi);
     m_multigrid.set_benchmark( true, "Polarisation");
     std::vector<unsigned> number = m_multigrid.solve(
         m_multi_pol, phi, m_temp0, m_p.eps_pol);
     m_old_phi.update( time, phi);
+    dg::blas1::axpby( 1., boundary_condition, 1., phi);
+
 }
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
