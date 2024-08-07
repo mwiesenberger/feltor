@@ -45,8 +45,7 @@ The section `Magnetic field` in `feltor.pdf` applies verbatim except:
 \begin{minted}[texcomments]{js}
 "magnetic_field":
 {
-    // NO LONGER VALID!
-    "curvmode": "true",
+    "curvmode": "true"// NO LONGER VALID!
 }
 \end{minted}
 
@@ -55,261 +54,33 @@ The section `Magnetic field` in `feltor.pdf` applies verbatim except:
 The section `Spatial grid` in `feltor.pdf` applies verbatim.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{The boundary region} \label{sec:boundary}
-Setting the boundary conditions in an appropriate manner is probably the most
-fiddly task in setting up a simulation. Things to consider are:
-\begin{itemize}
-\item implementation of boundary conditions in the FCI scheme (since
-    magnetic field-lines do not intersect the simulation domain perpendicularly)
-    In particular in the corners of the domain where fieldlines enter and leave
-    the domain in a short distance.
-\item how to dissipate density that reaches out of the SOL into the wall region
-\item whether and how to implement sheath boundary conditions
-\end{itemize}
-We have several tools to try to address the above issues
-\begin{itemize}
-    \item define homogeneous boundary conditions on the simulation boundary
-    \item define what part of the domain is inside or outside the wall
-    \item define what part of the domain is inside or outside the sheath region
-    \item dampen the dynamics in the wall region to the boundary conditions
-    \item dampen the dynamics in the sheath region to the boundary conditions
-    \item penalize the equations
-    \item modify the magnetic field in the wall region
-    \item various ways of implementing the parallel boundary condition
-\end{itemize}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{The wall region}\label{sec:wall}
+The section `The boundary region` in `feltor.pdf` applies verbatim.
+The only exception is when the values for wall and sheath boundary conditions are applied.
+The wall density is a list of values
 \begin{minted}[texcomments]{js}
 "boundary":
 {
     "wall" :
     {
-        // no wall region
-        "type" : "none"
+        "nwall" : [0.1,0.1], // $N_{s,w} >0$ (see also nbc, background and minne)
+        // length must equal number of species
+        "uwall" : 0.0, // $U_{\parallel,w}$
+        "twall" : 0.1, // $T_w > 0$ wall temperature
+        "qwall" : 0, // $Q_{w}$
     }
-}
-\end{minted}
-Being a box, our computational domain is in particular not aligned with the
-magnetic flux surfaces. This means that particularly in the corners of
-the domain the field lines inside the domain are very short (in the
-sense that the distance between the entry point and leave point is short).
-It turns out that this behaviour is numerically disadvantageous (may
-blow up the simulation in the worst case) in the
-computation of parallel derivatives.
-In order to remedy this situation
-we propose a penalization method to model the actual physical wall.
-We define an approximation to the step function with a transition layer of radius $a$
-around the origin
-\begin{align}
-\Theta_a(x) := \begin{cases}
-    0 & \text{ for } x \leq -a  \\
-    \frac{1}{32 a^7}  \left(16 a^3-29 a^2 x+20 a x^2-5 x^3\right) (a+x)^4
-    &\text{ for } -a<x\leq a \\
-    1 & \text{ for } x > a
-\end{cases}
-    \approx H(x)
-\label{eq:approx_heaviside}
-\end{align}
-where $H(x)$ is the Heaviside step function.
-%An integral of this function is
-%\begin{align}
-%\theta_a(x) := \begin{cases}
-%    0 &\text{ for } x \leq -a \\
-%    \frac{1}{256 a^7} \left(35 a^3-47 a^2 x+25 a x^2-5 x^3\right) (a+x)^5
-%     &\text{ for } -a<x\leq a \\
-%x &\text{ for } x > a
-%\end{cases}
-%    \approx x H(x)
-%\end{align}
-%Note that $\Theta_a(0) = 0.5$ and $\theta_a(0) = 35a/256$.
-%
-We now use the region defined by
-\begin{align}\label{eq:wall}
-    \chi_w(R,Z,\varphi):=\Theta_{\alpha/2}\left(\psi_{p,b} + \frac{\alpha}{2} - \psi \right) \approx H(\psi_{p,b}-\psi)
-\end{align}
-to define the wall region.
-In order to simplify the setup of this region we give $\psi_{p,b}$ and $\alpha$ in terms of
-$\rho_p$ and $\alpha_p$ via $\psi_{p,b} = (1-\rho_{p,b}^2)\psi_{p,O}$ and $\alpha = -(2\rho_{p,b} \alpha_p + \alpha_p^2)\psi_{p,O}$. In case we change the sign
-of $\psi_p$ via $\mathcal P_\psi$ (to make it concave) note that $\alpha$ becomes
-negative and $\psi_{p,O}$ is positive).
-We then need to point mirror Eq.~\eqref{eq:wall} at $\psi_{p,b}+\frac{\alpha}{2}$.
-
-Now, our idea is to dampen the density and velocity in the region defined by the
-wall to $N_w$ or $U_{\parallel,w}$ respectively.
-For both electrons and ions we add to the equations
-\begin{subequations} \label{eq:wall_penalization}
-\begin{align}
-    \partial_t N &= F_N -\omega_w\chi_w (N-N_w)\\
-    \partial_t W_\parallel &= F_U -\omega_w\chi_w (U_\parallel-U_{\parallel,w})
-\end{align}
-\end{subequations}
-where $\omega_w$ is the penalization parameter and $F_N$ and $F_U$ are the
-right hand sides as defined in Eqs.~\eqref{eq:EgyrofluidN} and \eqref{eq:EgyrofluidU}.
-\begin{minted}[texcomments]{js}
-"boundary":
-{
-    "wall" :
+    "sheath":
     {
-        // Simple flux aligned wall above a threshold value
-        "type" : "heaviside",
-        "boundary" : 1.2, // wall region boundary $\rho_{p,b}$
-        // yields $\psi_0 = (1-\rho_{p,b}^2)\psi_{p,O}$ in Eq.\eqref{eq:wall}.
-        "alpha" : 0.25, // Transition width $\alpha_p$: yields
-        // $\alpha=-2\rho_{p,b}\alpha_p+\alpha_p^2)\psi_{p,O}$ for the Heaviside
-        // in the wall function \eqref{eq:wall}.
-
-        // Double flux aligned wall above and below a threshold value
-        "type" : "sol_pfr",
-        "boundary" : [1.2, 0.8],
-        "alpha" : [0.25,0.25],
-        // first one is for main region, second one for PFR
-
-        "penalization" : 1.0, //penalization coefficient $\omega_w$ in density
-        // and velocity damping Eq.\eqref{eq:wall_penalization}
-        "modify-B" : false, // modify the magnetic field inside the wall to a
-        // purely toroidal field (uses the same parameters as the wall itself)
-        "penalize-rhs" : false, // if true we use Eq.\eqref{eq:wall_equations} else \eqref{eq:wall_penalization}
-        "nwall" : 0.1, // $N_w$ (see also nbc, background and minne)
-        "uwall" : 0.0 // $U_{\parallel,w}$
+        "type": "bohm" //INVALID, only "wall" or "insulating" are allowed
     }
 }
 \end{minted}
-\noindent
-The last parameter indicates that we penalize the right hand side of our equations
-as in
-\begin{subequations} \label{eq:wall_equations}
+Due to collisions, there can only be one wall temperature.
+Note the restriction
 \begin{align}
-    \partial_t N &= F_N ( 1-\chi_w) -\omega_w\chi_w (N-N_w)\\
-\partial_t W_\parallel &= F_U ( 1 - \chi_w) -\omega_w\chi_w (U_\parallel-U_{\parallel,w})
+    \sum_s z_s N_{s,w} = 0
 \end{align}
-\end{subequations}
-The polarization equation is penalized according to the immersed boundary method
-\begin{align}
-    -\nc\left( \frac{N_i}{B^2}\np \phi \right) = (\Gamma_{1,i} N_i - n_e)(1-\chi_w)
-\end{align}
-
-
-\begin{tcolorbox}[title=Note]
-    Computing on a box and cutting away the parts that are the wall,
-    for typical tokamak shapes incurs a (loosely) estimated 50\% overhead in vector size:
-    \begin{align*}
-        \text{ number of points in box } = 1.5 \times \text{ number of points in area with plasma}
-    \end{align*}
-\end{tcolorbox}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{The sheath region}\label{sec:sheath}
-\begin{minted}[texcomments]{js}
-"boundary":
-{
-    "sheath" :
-    {
-        // no sheath region
-        "type" : "none",
-    }
-}
-\end{minted}
-In order to define sheath boundary conditions we first define a sheath region
-and then determine whether the field lines point toward the wall or away from it.
-We define as sheath any part on the bounding box that is not included in the wall
-penalization. Then we check for each point in the box the poloidal distance (in
-terms of angle $\varphi$) to the sheath wall and if the poloidal field points
-toward or away from the wall closest to it.
-We then take $\theta_{\alpha/2}\left( 2\pi(\eps_s - \frac{\alpha}{2}) - d(R,Z)\right)$
-and take the set intersection of that region and the ``not wall'' region to
-determine the sheath penalization region:
-\begin{align}\label{eq:sheath}
-\chi_s := \left(1-\chi_w(R,Z,\varphi)\right) \theta_{\alpha/2}\left( 2\pi\left(\eps_s - \frac{\alpha}{2}\right) - d(R,Z)\right)
-\end{align}
-Within the sheath region we penalize
-\begin{subequations} \label{eq:sheath_penalization}
-\begin{align}
-    \partial_t N &= F_N -\omega_s \chi_s \left(N-N_{sh}\right)\\
-    \partial_t W &= F_U -\omega_s \chi_s \left(U_\parallel-U_{\parallel,sh}\right)
-\end{align}
-\end{subequations}
-where $\omega_s$ is the sheath penalization parameter.
-$N_{sh}$ is obtained by extrapolating $N$ along the magnetic field line with
-the help of the parallel derivative operators
-\begin{align}
-    N_{sh} = \Tpm N \text{ such that } \nabla_\parallel N|_{sh} = 0
-\end{align}
-where the sign depends again on the direction of the magnetic field line (we always extrapolate ``downstream'').
-The extrapolation models a parallel Neumann boundary condition for the density.
-
-The boundary condition for the parallel electron velocity can be either the Bohm condition containing the contribution from the electric potential or
-an insulating condition where the total current $j_\parallel =  (N_i U_{\parallel,i} - n_e u_{\parallel,e})$ vanishes.
-
-\begin{align}
-    U_{\parallel,i, sh} &= s\sqrt{1+\tau} \\
-    u_{\parallel,e, sh} &= s\frac{\sqrt{1+\tau}}{\sqrt{2\pi|\mu_e|}}\exp(-\phi) &\text{ "bohm" } \label{eq:bohm_sheath}\\
-    u_{\parallel,e, sh} &= U_{\parallel,i,sh}N_i/n_e &\text{ "insulating" } \label{eq:insulating_sheath} \\
-    u_{\parallel,e, sh} &= U_{\parallel,i,sh} = 0 &\text{ "wall" } \label{eq:wall_sheath}
-\end{align}
-where "s" is a fieldline coordinate that equals $-1$ on the negative divertor and $+1$ on the positive divertor
-and varies linearly in-between.
-\begin{tcolorbox}[title=Note]
-    The sign $+1$ of the divertor is defined such that if we follow $+\bhat$
-    then we leave the domain.
-    The sign $-1$ of the divertor is defined such that if we follow $-\bhat$
-    then we leave the domain.
-\end{tcolorbox}
-\begin{minted}[texcomments]{js}
-"boundary" :
-{
-    "sheath" :
-    {
-        "type" : "bohm", // Eq.\eqref{eq:bohm_sheath}
-        "type" : "insulating" // Eq.\eqref{eq:insulating_sheath}
-        "type" : "wall" // Eq.\eqref{eq:wall_sheath}
-        "boundary" : 3/32, // Total width of the sheath $\eps_s$ away from the wall
-        // in units of $2\pi$ in Eq.\eqref{eq:sheath}
-        "alpha" : 2/32, // Transition width $\alpha$
-        // in units of $2\pi$ in Eq.\eqref{eq:sheath}.
-        "penalization" : 1.0, //penalization coefficient $\omega_s$ in density
-        // and velocity damping Eq.\eqref{eq:sheath_penalization}
-        "penalize-rhs" : false // if true we use Eq.\eqref{eq:sheath_equations} else Eq.\eqref{eq:sheath_penalization}
-        "coordinate" : "s", // can be "s" or "phi", should be "s"
-        "max_angle" : 4 // $\varphi_{\max}$ in units of $2\pi$
-        // in order to compute field-line following coordinates
-        // we need to integrate fieldlines. In order to avoid infinite integration
-        // we here give a maximum angle where to stop integration
-    }
-}
-\end{minted}
-\noindent
-The last parameter indicates that we penalize the right hand side of our equations
-as in
-\begin{subequations} \label{eq:sheath_equations}
-\begin{align}
-    \partial_t N &= F_N ( 1-\chi_s)  -\omega_s\chi_s (N-N_{sh})\\
-    \partial_t W_\parallel &= F_U  ( 1 - \chi_s) -\omega_s\chi_s (U_\parallel-
-        U_{\parallel,sh})
-\end{align}
-\end{subequations}
-\begin{tcolorbox}[title=Note]
-    Make sure that in case the rhs is not penalized the density boundary conditions
-    read \texttt{dg::NEU} and the "FCI" boundary condition is set to "along\_field".
-    Same for the velocity.
-\end{tcolorbox}
-
-\begin{tcolorbox}[title=Note]
-    In case both wall and sheath boundaries penalize the equations we get
-    \begin{subequations} \label{eq:sheath_wall_equations}
-    \begin{align}
-        \partial_t N &= F_N ( 1-\chi_s - \chi_w)  -\omega_s\chi_s (N-N_{sh}) -\omega_w\chi_w (N-N_{w})\\
-        \partial_t W_\parallel &= F_U  ( 1 - \chi_s- \chi_w) -\omega_s \chi_s (U_\parallel - U_{\parallel,sh})-\omega_w\chi_w (U_\parallel- U_{\parallel,w})
-    \end{align}
-    \end{subequations}
-    In this case the perpendicular boundary
-    conditions "bc" for $N$ and $U_\parallel$ and the FCI implementation for the
-    boundary for $N$ and $U_\parallel$ become irrelevant.
-The polarization equation is penalized according to the immersed boundary method
-\begin{align}
-    -\nc\left( \frac{N_i}{B^2}\np \phi \right) = (\Gamma_{1,i} N_i - n_e)(1-\chi_w -\chi_s)
-\end{align}
-\end{tcolorbox}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+and that $T_{w}>0$ and $N_{s,w}>0$ must be strictly positive.
+The second exception is the box boundary conditions section:
 \subsubsection{Box boundary conditions}
 Here we can set the boundary conditions on the actual box boundary.
 This affects the implementation of the elliptic equations and the
@@ -329,13 +100,21 @@ where $\hat n$ is the normal vector to the boundary.
     // must be either DIR or NEU in both directions!!
     "bc" :
     {
-        "density" : [NEU, NEU], // boundary conditions in x and y for $n_e$
-        // and $N_i$, DIR (density 1 on boundary) means both convective and
+        "density" : [NEU, NEU], // boundary conditions in x and y for $N_s$
+        // DIR (density 1 on boundary) means both convective and
         // diffusive outflow while NEU (gradient 0) means no outflow by diffusion
-        "nbc" : 1.0, // Dirichlet value; must be present if and only if any one
+        "nbc" : [1.0,1.0] // Dirichlet value; must be present if and only if any one
         // density boundary condition is DIR (see also nwall, background and minne)
+        // length must equal number of species
         "velocity" : [NEU, NEU], // boundary conditions in x and y for
-        // $u_{\parallel,e}$ and $U_{\parallel,i}$,
+        // $U_{\parallel,s}$ for all $s$
+        // DIR is in general not very stable, NEU works better
+        "temperature" : [NEU, NEU], // boundary condition in x and y for
+        // $T_\perp$ and $T_\parallel$ for all species
+        "tbc" : 0.1 // Dirichlet value; must be present if and only if any one
+        // temperature boundary condition is DIR (see also $twall$ and background))
+        "heat-flux" : [NEU, NEU], // boundary conditions in x and y for
+        // heat flux $Q_\parallel$ and $Q_\perp$ for all $s$
         // DIR is in general not very stable, NEU works better
         "potential" : [DIR, DIR], // boundary conditions in x and y for $\phi$
         // and $\psi$, DIR means that the $v_{E,\perp}=0$ on the boundary (i.e.
