@@ -15,6 +15,8 @@
 #endif // WITHOUT_GLFW
 
 #include "dg/file/file.h"
+#include "../feltor/common.h"
+
 #include "thermal.h"
 #include "init.h"
 #include "thermaldiag.h"
@@ -73,7 +75,6 @@ int main( int argc, char* argv[])
 
 
     DG_RANK0 std::cout << "# Constructing Thermal...\n";
-    //thermal::Filter<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DVec> filter( grid, js);
     thermal::Explicit< dg::x::CylindricalGrid3d, dg::x::IDMatrix,
         dg::x::DMatrix, dg::x::DVec> thermal( grid, p, mag, js);
     DG_RANK0 std::cout << "# Done!\n";

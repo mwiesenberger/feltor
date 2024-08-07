@@ -25,10 +25,7 @@ struct Parameters
     std::string interpolation_method;
     std::vector<double> nbc; // boundary condition for density
 
-    std::vector<double> mu; // mu[0] = mu_e, m[1] = mu_i
-    std::vector<double> tau; // tau[0] = -1, tau[1] = tau_i
-    std::vector<double> nu_parallel_u;
-    double eta, beta;
+    double nu_ref, beta;
 
     unsigned diff_order;
     double nu_perp_n, nu_perp_u, nu_parallel_n;
@@ -49,8 +46,11 @@ struct Parameters
     //
     //
     unsigned num_species, num_trivial; // number of species and number of species with neglected mass ( electrons)
+    double qlandau;
     std::vector<bool> neglect_mass;
     std::vector<int> z;
+    std::vector<double> mu;
+    std::vector<double> pi, kappa; // prefactors for Braginskii viscosity and conductivity
     std::vector<std::string> name; // name of species s
 
     Parameters() = default;
@@ -104,27 +104,29 @@ struct Parameters
                 )
             throw std::runtime_error( "ERROR: advection : slope-limiter "+slope_limiter+" not recognized!\n");
 
-        mu[0]       = js["physical"].get( "mu", -0.000272121).asDouble();
-        mu[1]       = +1.;
-        tau[0]      = -1.;
-        tau[1]      = js["physical"].get( "tau", 0.).asDouble();
+        num_species = js["physical"]["species"].size();
+        mu.resize( num_species);
+        z.resize( num_species);
+        neglect_mass.resize( num_species);
+        num_trivial = 0;
+        for( unsigned u=0; u<num_species; u++)
+        {
+            std::string name = js["physical"]["species"][u].asString();
+            mu[u] = js["physical"]["mu"][u].asDouble();
+            z[u] = js["physical"]["z"][u].asDouble();
+            pi[u] = js["physical"]["pi"][u].asDouble();
+            kappa[u] = js["physical"]["kappa"][u].asDouble();
+
+            neglect_mass[u] = false;
+            if( fabs(mu[u] ) < 1e-3)
+            {
+                neglect_mass[u] = true;
+                num_trivial++;
+            }
+        }
         beta        = js["physical"].get( "beta", 0.).asDouble();
-        eta         = js["physical"].get( "resistivity", 0.).asDouble();
-        //Init after reading in eta and mu[0]
-        std::string viscosity = js["physical"].get( "viscosity",
-                "braginskii").asString();
-        if( viscosity == "braginskii")
-        {
-            nu_parallel_u[0] = 0.37/eta;
-            nu_parallel_u[1] = sqrt(fabs(mu[0]))*pow(tau[1], 1.5)*0.69/eta;
-        }
-        else if ( viscosity == "value")
-        {
-            nu_parallel_u[0] = js["physical"]["nu_parallel"].get(0u, 1.0).asDouble();
-            nu_parallel_u[1] = js["physical"]["nu_parallel"].get(1u, 1.0).asDouble();
-        }
-        else
-            throw std::runtime_error( "ERROR: physical viscosity "+viscosity+" not recognized!\n");
+        nu_ref      = js["physical"].get( "collisionality", 0.).asDouble();
+        qlandau     = js["physical"].get( "qlandau", 0.).asDouble();
 
 
         source_rate = 0.;
