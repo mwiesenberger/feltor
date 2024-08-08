@@ -63,7 +63,7 @@ The wall density is a list of values
     "wall" :
     {
         "nwall" : [0.1,0.1], // $N_{s,w} >0$ (see also nbc, background and minne)
-        // length must equal number of species
+        // length must equal number of species (see \ref{sec:species})
         "uwall" : 0.0, // $U_{\parallel,w}$
         "twall" : 0.1, // $T_w > 0$ wall temperature
         "qwall" : 0, // $Q_{w}$
@@ -105,12 +105,12 @@ where $\hat n$ is the normal vector to the boundary.
         // diffusive outflow while NEU (gradient 0) means no outflow by diffusion
         "nbc" : [1.0,1.0] // Dirichlet value; must be present if and only if any one
         // density boundary condition is DIR (see also nwall, background and minne)
-        // length must equal number of species
+        // length must equal number of species (see \ref{sec:species})
         "velocity" : [NEU, NEU], // boundary conditions in x and y for
         // $U_{\parallel,s}$ for all $s$
         // DIR is in general not very stable, NEU works better
         "temperature" : [NEU, NEU], // boundary condition in x and y for
-        // $T_\perp$ and $T_\parallel$ for all species
+        // $T_\perp$ and $T_\parallel$ for all species (see \ref{sec:species})
         "tbc" : 0.1 // Dirichlet value; must be present if and only if any one
         // temperature boundary condition is DIR (see also $twall$ and background))
         "heat-flux" : [NEU, NEU], // boundary conditions in x and y for
@@ -126,55 +126,164 @@ where $\hat n$ is the normal vector to the boundary.
 \end{minted}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Initial conditions} \label{sec:initial}
+\subsection{The species block: Initial conditions and sources} \label{sec:species}
+
+In order to setup a number of species the input file needs to contain the "species" field, which
+consists of a list of dictionaries describing the physical parameters, the initialisation and the sources
+for each species in the simulation:
+\begin{minted}[texcomments]{js}
+"species":
+[ // list of dictionaries; its length determines the number of species
+    {
+        "name" : "e", // determines field names in output file
+        "mu" : 2.72121e-4, // mass relative to reference mass: $m_s/m_i$. $\mu<10^{-3}$
+        // results in the neglect of gyro-radius effects for that species (s.a. \ref{sec:physical})
+        "z" : -1, //charge number of species
+        "kappa" : 3.2, // Braginskii numerical prefactor for heat flux ($\kappa_i=3.9$)
+        "pi" : 0.73, // Braginksii numerical prefactor for viscosity ($\pi_i = 0.96$)
+        "init" : {
+            //... describe initialisation of fields for this species \ref{sec:init}
+        },
+        "source" : {
+            // ... describe source terms for this species \ref{sec:sources}
+        }
+    },
+    {
+        // ... another species
+    }
+    // ... more species
+]
+\end{minted}
+
+
+\subsubsection{Initialisation} \label{sec:init}
+
 See the file {\tt init.h} to add your own custom condition.
 
 We have the possibility to
-initialize a simulation with the output of a previously
+initialize a species with the output of a previously
 run simulation:
+% We have to see how this is implemented to see if we can add more / less flexibiltiy here
+% also I don't foresee this option to be used much
 \begin{minted}[texcomments]{js}
 "init":
 {
     "type" : "restart",
     // only the "file" parameter is needed (also see Section \ref{sec:restart})
     "file" : "path/to/file.nc"
-    // the file to use as a restart for $n_e$, $N_i$, $u_{\parallel,e}$ and $U_{\parallel,i}$
+    // the file to use as a restart for $N_s$, $U_{\parallel,s}$, $T_{\parallel,s}$, $T_{\perp,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
 }
 \end{minted}
-In contrast, we can initialize the fields $n_e$, $N_i$, $u_{\parallel,e}$, $U_{\parallel,i}$
+For this to work the species name in the previous simulation must match the current one.
+
+In contrast, we can initialize the fields $N_s$, $U_{\parallel,s}$, $T_{\parallel,s}$, $T_{\perp,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
 directly:
 \begin{minted}[texcomments]{js}
 "init":
 {
     "type" : "fields",
-    // "density", "potential", "velocity", "aparallel"
+    "density":
+    {
+        //...
+    },
+    "tperp":
+    {
+        //...
+    },
+    "tparallel":
+    {
+        //...
+    },
+    "velocity":
+    {
+        //...
+    },
+    "qperp":
+    {
+        //...
+    },
+    "qparallel"
+    {
+        //...
+    }
 }
 \end{minted}
-The density can be initialized to the constant background value
+
+\noindent
+The "density", "tperp" and "tparallel" fields all allow the following:
 \begin{minted}[texcomments]{js}
 "init":
 {
-    "density" :
+    "density" : // or "tperp" or "tparallel"
     {
-        "type" : "const"  // $n_e = N_i = const$, $\phi = 0$
-        "background" : 0.1, // $const$
+        "type" : "const"  // $N_s = const$
+        "background" : 0.1, // $const>0$
         // same as choosing "const" profile with zero ntilde and no damping
         //(see also nbc, minne and nwall)
     }
-    //  "potential not needed
+    // OR
+    "density" : // or "tperp" or "tparallel"
+    {
+        "type" : "ne",  // $n_s = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
+        "ntilde":
+        {
+            // see Ntilde section in `feltor.pdf`
+        },
+        "profile":
+        {
+            // see Profile section in `feltor.pdf`
+        },
+        "damping":
+        {
+            // see Damping section in `feltor.pdf`
+        }
+    }
 }
 \end{minted}
-Or we initialize the electron density with
-\begin{align} \label{eq:initial_ne}
-    n_e(R,Z,\varphi, 0)= (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z) + n_{bg}
-\end{align}
-consisting of a toroidally symmetric profile $n_{\text{prof}}(R,Z)$ and a
-perturbation $\tilde n(R,Z,\varphi)$, which breaks the toroidal symmetry,
-multiplied with a damping profile $D(R,Z)$ (typically with values between 0 and
-1) that optionally dampens the density to a constant background value $n_{bg}$.
-Each of these functions can be chosen separately using parameters in the input
-file.  Note that we should take care to intitialize a smooth profile with
-ideally well-defined $\Delta^2_\perp n_e$.
+\begin{tcolorbox}[title=Note]
+    Even though the parameters reads "ne" and "ntilde" they apply equally to other densities and temperatures.
+    Also we here initialise the physical, particle quantities rather than the gyro-centre quantities
+\end{tcolorbox}
+For the velocity and heat fluxes we have
+\begin{minted}[texcomments]{js}
+"init":
+{
+    "velocity" :
+    {
+        "type" : "zero",  // $U_{\parallel}(R,Z,\varphi,0) = 0$
+    },
+    "qperp":
+    {
+        "type" : "zero" // currently the only option for $Q_\perp$
+    },
+    "qparallel":
+    {
+        "type" : "zero" // currently the only option for $Q_\parallel$
+    }
+}
+\end{minted}
+\noindent
+Or we initialize a linear profile between the divertor plates. This is achieved
+by integrating fieldlines towards the positive and negative divertor.
+\begin{minted}[texcomments]{js}
+"init":
+{
+    "velocity" :
+    {
+        "type" : "linear_cs" // $ U_{\parallel,i}= s\sqrt{T_\parallel}$ in the SOL
+        // where "s" is the fieldline coordinate defined in section\ref{sec:sheath}
+        // if the sheath type is "none" then $s=0$
+    }
+}
+\end{minted}
+\noindent
+
+
+\paragraph{Quasineutrality and insulating sheath}
+
+
+
+
 
 We have three possibilities to initialize the ion density
 \begin{align} \label{eq:initphi}
@@ -186,11 +295,6 @@ Note that $\alpha$ must not be too small to avoid $N_i < 0$.
 \begin{minted}[texcomments]{js}
 "init":
 {
-    "density" :
-    {
-        "type" : "ne",  // $n_e = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
-        // \ldots ntilde\ref{sec:ntilde}, profile\ref{sec:profile} and damping\ref{sec:damping} parameters
-    }
     "potential" :
     {
         "type" : "zero_pol",// $N_i = n_e$ (polarization charge is 0)
@@ -218,256 +322,6 @@ We can also reverse the roles of electron and ion densities like so:
 }
 \end{minted}
 \noindent
-The velocity can be chosen zero
-\begin{minted}[texcomments]{js}
-"init":
-{
-    "velocity" :
-    {
-        "type" : "zero",  // $u_{\parallel,e}(R,Z,\varphi,0) = U_{\parallel,i}(R,Z,\varphi,0) = 0$
-    }
-    // "aparallel" not needed
-}
-\end{minted}
-\noindent
-Or we initialize a linear profile between the divertor plates. This is achieved
-by integrating fieldlines towards the positive and negative divertor.
-\begin{minted}[texcomments]{js}
-"init":
-{
-    "velocity" :
-    {
-        "type" : "ui",
-        "profile" : "linear_cs" // $ U_{\parallel,i}= s\sqrt{1+\tau}$ in the SOL
-        // where "s" is the fieldline coordinate defined in section\ref{sec:sheath}
-        // if the sheath type is "none" then $s=0$
-    }
-    "aparallel"
-    {
-        "type" : "zero", // $u_{\parallel,e} = N_i U_{\parallel,i} / n_e$
-    }
-}
-\end{minted}
-\noindent
-\subsubsection{Ntilde} \label{sec:ntilde}
-We can choose between several initial conditions for $\tilde n$:
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "ntilde" : { "type" : "zero" } // $\tilde n = 0$
-}
-\end{minted}
-
-%\subsubsection{Blob}
-We initialize a blob in the R-Z plane
-\begin{align} \label{eq:initial_blob}
-  \tilde n_{blob}(R,Z,0) = \triangle n \exp\left( -\frac{(R - R_0 - p_x a)^2 + (Z-p_ya)^2}{\sigma^2 a^2} \right)
-\end{align}
-Then, we use fieldline integration modulated by either
-\begin{align} \label{eq:modulation_blob}
-    m_{\text{gaussian}}(\varphi) = \exp\left( -\frac{\varphi^2 }{\pi^2\sigma_z^2} \right)
-\end{align}
-or
-\begin{align} \label{eq:modulation_step}
-    m_{\text{step}}(\varphi) = \begin{cases}
-        1 &\text{for } -\pi\sigma_z < \varphi < \pi \sigma_z \\
-        0 & \text{else}
-    \end{cases}
-\end{align}
-to transform this blob to all other poloidal planes.
-We either follow fieldlines around the torus several times or only once.
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "ntilde" :
-    {
-        "type" : "blob", // Choose Eq.\eqref{eq:initial_blob}
-        "amplitude": 1.0, // $\triangle n$ in Eq.\eqref{eq:initial_blob}
-        "posX" : 0, // $p_x$ in Eq.\eqref{eq:initial_blob}
-        "posY" : 0, // $p_y$ in Eq.\eqref{eq:initial_blob}
-        "sigma" : 1.0, // $\sigma$ in Eq.\eqref{eq:initial_blob}
-        "revolutions" : 1, // times the blob is followed around the torus
-        "parallel" : "gaussian" // Eq.\eqref{eq:modulation_blob}
-        "parallel" : "step" // Eq.\eqref{eq:modulation_step}
-        "sigma_z" :  0.5 // $\sigma_z$ in Eq.\eqref{eq:modulation_blob} or \eqref{eq:modulation_step}
-    }
-}
-\end{minted}
-
-%\subsubsection{Turbulent bath}
-We can initialize the R-Z plane with a turbulent bath with a certain amplitude $A$.
-This especially has the goal to destabilize the edge region right inside the
-last closed flux surface. Notice that the core region is rather stable
-and quickly damps away fluctuations.
-Again, we transform this to all poloidal planes along the magnetic field lines and multiply the bath with
-\begin{align} \label{eq:initial_turbulent}
-    \tilde n_e(R,Z,\varphi) = \tilde n_{\text{bath}}(R,Z,\varphi)
-\end{align}
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "ntilde" :
-    {
-        "type" : "turbulence", // Choose Eq.\eqref{eq:initial_turbulent}
-        "amplitude": 1.0, //amplitude of perturbation in Eq.\eqref{eq:initial_turbulent}
-        "revolutions" : 1, // times the bath is followed around the torus
-        "parallel" : "gaussian" // Eq.\eqref{eq:modulation_blob}
-        "parallel" : "step" // Eq.\eqref{eq:modulation_step}
-        "sigma_z" :  0.5 // $\sigma_z$ in Eq.\eqref{eq:modulation_blob} or \eqref{eq:modulation_step}
-    }
-}
-\end{minted}
-We can initialize the R-Z plane with zonal flows of amplitude $A$ and
-wavelength $k_\psi$ aligned with the magnetic flux surfaces.
-\begin{align} \label{eq:initial_zonal_flow}
-    \tilde n_{\text{zonal}}(R,Z) &= A \sin (2\pi k_\psi \psi_p(R,Z)) \nonumber\\
-\tilde n_e(R,Z,\varphi) &= \tilde n_{\text{zonal}}(R,Z)
-\end{align}
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "ntilde" :
-    {
-        "type" : "zonal", // Choose Eq.\eqref{eq:initial_zonal_flow}
-        "amplitude": 1.0, // $A$ in Eq.\eqref{eq:initial_zonal_flow}
-        "k_psi" : 0.5 // $k_\psi$ in Eq.\eqref{eq:initial_zonal_flow}
-    }
-}
-\end{minted}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Profile} \label{sec:profile}
-We can have a constant (background) profile
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "profile" :
-    {
-        "type" : "const",// $n_{prof} = const$
-        "background" : 0.1 // $const$
-        //(see also nbc, minne and nwall)
-    }
-}
-\end{minted}
- \noindent
-We define a flux-aligned density profile as
-\begin{align} \label{eq:density_profile}
-    n_{\text{prof}}(R,Z)= \begin{cases}
-        n_{peak}\frac{\psi_p(R,Z) }{\psi_{p,O}} + n_{sep} \frac{\psi_{p,O} - \psi_p(R,Z)}{\psi_{p,O}} &\text{ for } \frac{\psi_p}{\psi_{p,O}} > 0\\
-        n_{\text{bg}} + \exp\left( \frac{n_{peak} - n_{sep}}{(n_{sep}-n_{bg})\psi_{p,O}}\psi_p\right) ( n_\text{sep} - n_{\text{bg}})&\text{ else }
-    \end{cases}
-\end{align}
-This profile is linear in $\psi_p$ in the closed fieldline region and exponentially
-decreases in the SOL to a constant background value.
-The function is once continuously differentiable at $\psi_p =0$.
-Typically this profile is used in combination with an aligned damping profile~\eqref{eq:aligned_damping}.
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "profile" :
-    {
-        "type" : "aligned",
-        "npeak" : 10.0, // Profile peak density $n_{peak}$ in Eq.\eqref{eq:density_profile}
-        "nsep" : 1.0, // Profile separatrix density $n_{sep}$ in Eq.\eqref{eq:density_profile}
-        "background" : 0.2 // $n_{bg}$ in Eq.~\eqref{eq:density_profile},
-        //also value to which to dampen the profile in Eq.\eqref{eq:initial_ne}
-        //(see also nbc, minne and nwall)
-    }
-}
-\end{minted}
-\noindent
-Instead of the flux-aligned profile we can also choose a toroidally symmetric Gaussian profile
-\begin{align} \label{eq:profile_blob}
-    n_{prof}(R,Z) = n_{bg} + A \exp\left( -\frac{(R - R_0 - p_x a)^2 + (Z-p_ya)^2}{\sigma^2} \right)
-\end{align}
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "profile" :
-    {
-        "type" : "gaussian",
-        "background" : 1.0, // $n_{bg}$ in Eq.~\eqref{eq:profile_blob},
-        //also value to which to dampen the profile in Eq.\eqref{eq:initial_ne}
-        //(see also nbc, minne and nwall)
-        "amplitude": 1.0, // $A$ in Eq.\eqref{eq:profile_blob}
-        "posX" : 0, // $p_x$ in Eq.\eqref{eq:profile_blob}
-        "posY" : 0, // $p_y$ in Eq.\eqref{eq:profile_blob}
-        "sigma" : 1.0, // $\sigma$ in Eq.\eqref{eq:profile_blob}
-    }
-}
-\end{minted}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsubsection{Damping} \label{sec:damping}
-We can have no damping
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "damping" : { "type" : "none" } // $D(R,Z) = 1$
-    //$n_{bg}$ drops from initial condition Eq.\eqref{eq:initial_ne}
-}
-\end{minted}
-Or we can have an aligned damping profile
-\begin{align}
-    \label{eq:aligned_damping}
-    D_\mathrm{aligned}(R,Z)&=\Theta_{\alpha_p/2}\left(\rho_{p,b}-\rho_p(R, Z)-\frac{\alpha_p}{2}\right)\\
-    \label{eq:alignedX_damping}
-    D_\mathrm{alignedX}(R,Z)&=\Theta_{\alpha_p/2}\left(\rho_{p,b}-\rho_p(R, Z)-\frac{\alpha_p}{2}\right) H(Z-Z_X)
-\end{align}
-The second Heaviside is multiplied only if the equilibrium $\psi_p$ has an
-X-point and avoids a profile in the private flux region.
-The factor $\alpha_p$ provides a smooth transition
-zone that avoids numerical oscillations.
-\begin{tcolorbox}[title=Note]
-    All damping acts on the \textbf{un-modified} magnetic field.
-\end{tcolorbox}
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "damping" :
-    {
-        "type" : "aligned", // Choose Eq.\eqref{eq:aligned_damping}
-        "type" : "alignedX", // Choose Eq.\eqref{eq:alignedX_damping}
-        "alpha" : 0.2,
-        // $\alpha_p$ in Eq.\eqref{eq:aligned_damping},
-        // (should be small but cannot be too small if $\tau_i > 0$ else
-        // $\Delta_\perp n_e$ explodes, must not be zero)
-        "boundary" : 1.0    // $\rho_{p,b}$ in Eq.\eqref{eq:aligned_damping}
-        //(see also nbc, minne and nwall)
-    }
-}
-\end{minted}
-If a profile also in the SOL is desired we can provide a "sol\_pfr" type damping
-profile requiring two boundaries and alphas
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "damping" :
-    {
-        "type" : "alignedPFR", // Choose double sided damping region in SOL and PFR
-        "alpha" : [0.2, 0.2], //first one is for main region, second one for PFR
-        // $\alpha_p$ in Eq.\eqref{eq:aligned_damping},
-        // (should be small but cannot be too small if $\tau_i > 0$ else
-        // $\Delta_\perp n_e$ explodes, must not be zero)
-        "boundary" : [0.7, 1.1],    // $\rho_{p,b}$ in Eq.\eqref{eq:aligned_damping}
-        // first one is for main region, second one for PFR
-        // second values should be $\alpha+\rho_b \leq 1$
-    }
-}
-\end{minted}
-Finally, we can have a circular damping profile
-\begin{align} \label{eq:circular_damping}
-    D_\mathrm{circular}(R,Z) = \Theta_{ a \alpha_p/2}\left( r a- \sqrt{(R-R_0)^2 + Z^2}\right)
-\end{align}
-\begin{minted}[texcomments]{js}
-"density":
-{
-    "damping" :
-    {
-        "type" : "circular", // Choose Eq.\eqref{eq:circular_damping}
-        "alpha" : 0.2,      // $\alpha_p$ in Eq.\eqref{eq:circular_damping}, must not be zero
-        "boundary" : 1.0    // $r$ in Eq.\eqref{eq:circular_damping}
-    }
-}
-\end{minted}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Sources} \label{sec:sources}
@@ -621,6 +475,7 @@ net momentum
 \end{align}
 for both electrons and ions.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Advection}
 We implemented an upwind-advection scheme for the perpendicular terms.
 No other scheme is currently choosable.
@@ -638,6 +493,7 @@ scheme. Here, we have some choices regarding the slope-limiter to use
 \begin{tcolorbox}[title=Note]
     A slope limiter increases the discretization order from 1 to 2.
 \end{tcolorbox}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Regularization} \label{sec:regularization}
 In order to stabilize the advection schemes and/or remove cascading energy
 from small scale wave components
@@ -669,7 +525,7 @@ Simply set the diffusion to 0 if you do not want any regularization.
     is a clear warning that \mintinline{c}{nu_perp} is too large for the
     chosen resolution.
 \end{tcolorbox}
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Elliptic solvers}
 We discretize all elliptic operators with a local dG method (LDG).  In order to
 solve the elliptic equations we chose a multigrid scheme (nested iterations in
@@ -709,85 +565,38 @@ one accuracy can be set:
     We use solutions from previous time steps to extrapolate an initial guess
     and use $1/\chi$ as a diagonal preconditioner
 \end{tcolorbox}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{FCI: Parallel derivatives}
-We discretize all parallel derivatives with the
-flux coordinate independent scheme (FCI) adapted to dG methods
-cf.~\cite{Held2016,Stegmeir2017}
-and use a support operator method.
-\begin{minted}[texcomments]{js}
-"FCI",
-{
-    "refine" : [2,2],
-    // refinement factor in support operator in R- and Z- direction
-    // values higher than [1,1] take longer to solve, but possibly stabilize
-    // the simulation
-    "rk4eps" : 1e-6, //Accuracy of fieldline integrator. The default is reasonable
-    "interpolation-method" : "dg", // "dg" uses default dG interpolation, "linear"
-    // uses linear interpolation and "cubic" uses cubic interpolation
-    "periodify" : true
-    // Indicate if flux function is periodified beyond grid boundaries such that
-    // the contours are perpendicular to the boundaries. This is not entirely
-    // consistent but works well for small Nz
-    // Does not have an effect on derivatives for the "along\_field" mode
-    // (but has an effect on field-aligning init and source)
+The section `FCI: Parallel derivatives` in `feltor.pdf` applies verbatim.
 
-    "bc" : "along_field", // use along\_field function for parallel
-    // derivatives, only valid if boundary conditions for density, potential and
-    // parallel velocity are each either "dg::DIR" or "dg::NEU" in both directions
-    "bc" : "perp", // use perpendicular interpolation technique to implement
-    // boundary conditions
-}
-\end{minted}
-
-\begin{tcolorbox}[title=Note]
-The "along\_field" option saves memory because then we can use
-the same FCI object for all quantities.
-\end{tcolorbox}
-\begin{tcolorbox}[title=Note]
-    When the "modify-B" option is used for the wall the magnetic fieldlines
-    do not intersect the domain boundary in the wall region (but still do in the
-    sheath region).
-\end{tcolorbox}
-\begin{tcolorbox}[title=Note]
-The boundary conditions in the FCI scheme are the number one reason of why
-simulations crash. See also~\ref{sec:troubleshooting}
-\end{tcolorbox}
-
-% Check periodify field
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Parameters in equations} \label{sec:physical}
 \begin{minted}[texcomments]{js}
 "physical":
 {
-    "mu" : -2.72121e-4, // $\mu_e =-m_e/m_i$.
-    // One of $\left\{ -5.44617\cdot 10^{-4}, -2.72121\cdot 10^{-4}, -1.81372\cdot 10^{-4} \right\}$
-    "tau" : 1.0, // $\tau_i = T_i/T_e$
     "beta" : 5e-5, // Plasma beta $5\cdot 10^{-6}$ (TJK), $4\cdot 10^{-3}$ (Compass),
     // If $0$, then the model is electrostatic
-    "resistivity" : 1e-4, // parallel resistivity parameter Eq.\eqref{eq:resistivity}
+    "collisionality" : 1e-4, // parallel resistivity parameter Eq.\eqref{eq:resistivity}
+    "mue" : 2.72121e-4, // $\mu_e =m_e/m_i$. [IGNORED]  This parameter is
+    // ignored by all codes, its sole purpose is to make the set of numerical
+    // parameters uniquely invertible for analysis purposes (see discussion below)
     "epsilon_D" : 1e-5, // [IGNORED] Eq.\eqref{eq:epsilon_D} This parameter is
     // ignored by all codes, its sole purpose is to make the set of numerical
     // parameters uniquely invertible for analysis purposes (see discussion below)
-    "viscosity" : "braginskii", //use Eq.\eqref{eq:nu_parallele} and \eqref{eq:nu_paralleli} for the parallel viscosity
-
-    // use the nu\_parallel field to determine value
-    // same for electrons and ions
-    "viscosity" : "value",
-    "nu_parallel" : [400,400] // first for electrons, second for ions
 }
 \end{minted}
 These parameters, together with the $R_0$ parameter in the magnetic field,
 determine the physical parameter regime we are in.
-In total, our model has \textbf{5} independent dimensionless parameters
+In total, our model has \textbf{4} independent dimensionless parameters
 \begin{align*}
-    \mu_e = -\frac{m_e}{m_i}\ \tau_i = \frac{T_e}{T_i}\ \beta =
-    \frac{n_0T_{e}}{B_0^2/\mu_0}\ \eta_\parallel = \frac{\sqrt{2m_e} e^3 \ln
+    \mu_e = \frac{m_e}{m_i}\ \beta =
+    \frac{n_0T_{e}}{B_0^2/\mu_0}\ \nu_{ref} = \frac{\sqrt{2m_e} e^3 \ln
     \Lambda} {12\pi^{3/2} \epsilon_0^2} \frac{n_0} {B_0T_e^{3/2}} \ R_0
     = \frac{\hat R_0 e B_0}{\sqrt{T_{e}m_i}}
 \end{align*}
-These are computed from \textbf{6} physical parameters
+These are computed from \textbf{5} physical parameters
 \begin{align*}
-    m_i\ T_e\ T_i\ n_0\ B_0\ \hat R_0
+    m_i\ T_e\ n_0\ B_0\ \hat R_0
 \end{align*}
  A given set of numerical parameters thus represents a one-dimensional
  submanifold of physical parameters.
@@ -804,190 +613,18 @@ of physical parameters.
     input file or (ii) fix one (or more) physical
     parameters to get a solvable system.  In practice this may be the scale of
     the machine $\hat R_0$ (and after that the magnetic field strength $B_0$).
+
+    Note that $\mu_e$ in the above list is ignored because the species mass ratio is given
+    in the species list.
 \end{tcolorbox}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Timestepper}
-The first option for the time stepper is an explicit fixed-stepsize multistep method
-where you can chose the tableau to use
-\begin{minted}[texcomments]{js}
-"timestepper" :
-{
-    "type"    : "multistep", //Choose an explicit multistep method
-    "tableau" : "TVB-3-3", // Any explicit multistep tableau *
-    "dt"      : 2e-2, // Fixed timestep in units of $c_s/\rho_s$
-}
-\end{minted}
-*See the \href{https://feltor-dev.github.io/doc/dg/html/structdg_1_1_explicit_multistep.html}{dg documentation} for what tableaus are available.
-
-The second option is an adaptive explicit embedded Runge-Kutta scheme
-\begin{minted}[texcomments]{js}
-"timestepper":
-{
-    "type"    : "adaptive", //Choose an explicit adaptive RK scheme
-    "tableau" : "Bogacki-Shampine-4-2-3", // Any explicit embedded RK tableau *
-    "rtol"    : 1e-5, // The relative tolerance in the timestep
-    "atol"    : 1e-6, // The absolute tolerance in the timestep
-    "reject-limit" : 2 // factor over tolarance by which a timestep is rejected
-    // if the timestepper fails very often you might want to increase this limit
-}
-\end{minted}
-*See the \href{https://feltor-dev.github.io/doc/dg/html/structdg_1_1_e_r_k_step.html}{dg documentation} for what tableaus are available.
-
-\begin{tcolorbox}[title=Note]
-The explicit resistive term leads to an absolute (CFL) restriction
-on the timestep according to $\partial_t u_e \propto \frac{\eta}{\mu_e} u_e \Rightarrow \Delta t < \frac{-\mu_e}{\eta}$. This is a quite weak restriction unless the resistivity exceeds $\eta > 10^{-4}$.
-The explicit parallel electron viscosity term leads to a CFL condition of the
-form $\Delta t < (2\pi (R_0 - a))^2/(N_z^2 \nu_{\parallel,e})$.
-\end{tcolorbox}
-
-
-There are two options on how to compute the time-interval between major file-outputs,
-either give the interval directly
-\begin{minted}[texcomments]{js}
-"timestepper":
-{
-    "output-mode" : "deltaT",
-    "deltaT" : 1 // give the time between major outputs
-    //(for a multistep scheme "dt" must divide "deltaT")
-}
-\end{minted}
-The second option is to provide an end-time $T_{\text{end}}$
-until which the simulation runs. The output interval is then determined by the "maxout" parameter in the "output" field.
-\begin{minted}[texcomments]{js}
-"timestepper":
-{
-    "output-mode" : "Tend",
-    "Tend" : 1 // give an absolute end time where the simulation ends
-    //(for a multistep scheme "dt" must divide "Tend"/"maxout")
-}
-\end{minted}
-
-% In every iteration of the implicit inversion we need to solve an equation of the form
-% \begin{align}
-%     n_e + a \hat L_{n_e} n_e = \hat n_e \\
-%     N_i + a \hat L_{N_e} N_i = \hat N_i \\
-%     w_e + a \hat L_{u_e} u_e = \hat w_e \\
-%     W_i + a \hat L_{U_i} U_i = \hat W_i
-% \end{align}
-% for given right hand side and unkown $n_e$, $N_i$, $w_e$ and $W_i$ with $W_\parallel=U_\parallel+A_\parallel/\mu$ and $-\Delta_\perp A_\parallel = \beta (N_i U_i -n_e u_e)$ and $\hat L$ the linear implicit part of the equations.
-% We solve the system by first isolating and solving the two density equations for $n_e$ and $N_i$. These can then be inserted into the Ampere equation as
-% fixed solutions, which makes this equation linear in the velocities.
-% We solve the velocity equations by artificially introducing $A_\parallel$ as
-% an additional unkown
-% \begin{align}
-%     \begin{pmatrix}
-%         1  + a\hat L_{u_e} & 0 & \frac{1}{\mu_e} \\
-%         0 & 1  + a \hat L_{U_i} &  \frac{1}{\mu_i} \\
-%     n_e & -N_i &  -\frac{1}{\beta}\Delta_\perp \\
-%     \end{pmatrix}
-%     \begin{pmatrix}
-%         u_e\\ U_i \\ A_\parallel
-%     \end{pmatrix}
-%     =
-%     \begin{pmatrix}
-%         \hat w_e\\ \hat W_i \\ 0
-%     \end{pmatrix}
-% \end{align}
-%We can show that $\det M  > 0$ and thus $M$ is invertible.
-% We can make the matrix equation symmetric
-% \begin{align}
-%     \begin{pmatrix}
-%     -\mu_e n_e  - a\mu_e n_e \hat L_{u_e} & 0 & -n_e \\
-%     0 & \mu_i N_i  + a\mu_i N_i \hat L_{U_i} &  N_i \\
-%     -n_e & N_i &  \frac{1}{\beta}\Delta_\perp \\
-%     \end{pmatrix}
-%     \begin{pmatrix}
-%         u_e\\ U_i \\ A_\parallel
-%     \end{pmatrix}
-%     =
-%     \begin{pmatrix}
-%         -\mu_e n_e \hat w_e\\ \mu_i N_i \hat W_i \\ 0
-%     \end{pmatrix}
-% \end{align}
-% If both $\hat L$ are symmetric positive definite, this matrix $M'$ is symmetric but unfortunately in-definite
-% (insert $(0,0,A_\parallel)$ to get $\vec z^T M' \vec z < 0$ but
-% $(u_e, U_i, 0)$ yields $\vec z^T M' \vec z > 0$)
-%   and thus cannot be solved via a conjugate gradient solve.
-%
-%Since the CG cannot be used it is also worth considering an iteration on $w_e$
-%and $W_i$
-% \begin{align}
-%     \begin{pmatrix}
-%         1  + a\hat L_{u_e} & 0 & -\frac{1}{\mu_e}a\hat L_{u_e} \\
-%         0 & 1  + a \hat L_{U_i} &  -\frac{1}{\mu_i}a \hat L_{U_i} \\
-%         \beta n_e & -\beta N_i &  - \frac{\beta}{\mu_e}n_e + \frac{\beta}{\mu_i}N_i -\Delta_\perp \\
-%     \end{pmatrix}
-%     \begin{pmatrix}
-%         w_e\\ W_i \\ A_\parallel
-%     \end{pmatrix}
-%     =
-%     \begin{pmatrix}
-%         \hat w_e\\ \hat W_i \\ 0
-%     \end{pmatrix}
-% \end{align}
-% which may be better conditioned because it becomes diagonally dominant for
-% small $a$ and large $\beta$.
-%%MW: unfortunately even though the idea is to decouple the outer and inner inversions, this does not really work
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+The section `Timestepper` in `feltor.pdf` applies verbatim.
 
 \subsection{Steering the file output} \label{sec:output}
-The netcdf/glfw outputs happen at equidistant time-intervals
-\begin{align}
-    \Delta T_\text{out} = \text{either given by "deltaT" or } \frac{T_{\text{end}}}{m_{\max}}
-\end{align}
-where $m_{\max}$ stands for the "maxout" parameter in the "output" field.
+The section `Steering the file output` in `feltor.pdf` applies verbatim.
 
-There is a second time-interval
-\begin{align}
-    \Delta T_\text{int} &= \frac{\Delta T_\text{out} }{ s_\text{itstp}}
-\end{align}
-The integration time $\Delta T_\text{int}$ determines how often the diagnostics integration is updated
-while the output time $\Delta T_\text{out}$ determines how often 2d/3d fields are written to file.
-\begin{tcolorbox}[title=Note]
-    The timesteppers do not necessarily exactly match
-    $\Delta T_\text{int}$ but they will match $\Delta T_\text{out}$.
-\end{tcolorbox}
-\begin{minted}[texcomments]{js}
-"output":
-{
-    // Use glfw to display results in a window while computing (requires to
-    // compile with the glfw3 library)
-    "type" : "glfw",
-    "window" : // ONLY GLFW : output window parameters
-    {
-        "rows":6,        // ONLY GLFW : # of rows
-        "reduction" : 4, // ONLY GLFW : # of cols = Nz/reduction+1
-        "width" :200,    // ONLY GLFW : box width (in pixel)
-        "height" : 200,  // ONLY GLFW : box height (in pixel)
-    }
-    // Use netcdf to write results into a file (filename given on command line)
-    // (see section\ref{sec:output_file} for information about what is written in there)
-    "type" : "netcdf",
-    "itstp"  : 4, // $s_\text{itstp}$ the number of discretization steps
-    // between file outputs (2d and 3d quantities);
-    // Flux-surface averages of all quantities can be computed based on full-resolution fields
-    // during the simulation (in contrast to feltordiag, which computes them based on the
-    // compressed fields which may introduce errors, s.a. Diagnostics):
-    "maxout" : 100 // Total Number of fields outputs excluding first
-    // If you want to let the simulation run for a long time
-    // choose this parameter very large and either manually kill the simulation
-    // or let the simulation hit the time-limit (on a cluster for example).
-    // ONLY NETCDF
-    "compression" : [2,2] // Compress output file by reducing points in x and y
-    // (pojecting the polynomials onto a coarser grid): output contains
-    // n*Nx/c[0] points in x, (has to divde Nx evenly), and n*Ny/c[1] points in
-    // y, (has to divde Ny evenly). 2 or 3 are reasonable values.
-    // ONLY NETCDF
-}
-\end{minted}
-\begin{tcolorbox}[title=Note]
-    The multistep method uses one function evaluation per time-step while the
-    adaptive method uses several. This means that the itstp variable can
-    be chosen larger for the adaptive method than for the multistep method.
-\end{tcolorbox}
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{[Optional] Output equations flags}\label{sec:output_flags}
 The optional variable "equations" contains a list of strings that
@@ -1014,82 +651,13 @@ definitions are in the equations titles.
 \begin{tcolorbox}[title=Note]
     If the "equations" field does not exist, the default selection is ["Basic", "Mass-conserv", "Energy-theorem","Toroidal-momemtum","Parallel-momentum","Zonal-Flow-Energy"]
 \end{tcolorbox}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \subsection{[Optional] Probes (synthetic diagnostics)}
-FELTOR has the possibility of getting the output of the computational fields
-($n_e$, $N_i$, $u_{\parallel,e}$, $U_{\parallel,i}$, $\phi$ and $A_\parallel$)
-including their first derivatives $\partial_R$, $\partial_Z$, $\npar$) in time
-interpolated to any grid location (as if a measurement was done at that
-location). The output interval is defined at the integration time intervals
-$\Delta T_{int}$. The output is described in Section~\ref{sec:probes-output}.
+The section `[Optional] Probes (synthetic diagnostics)` in `feltor.pdf` applies verbatim
+except that the first sentence applies to $N$, $U_\parallel$, $T_\perp$, $T_\parallel$, $Q_\perp$ and $Q_\parallel$ for all species s.
 
-In the input file, it is required to define the R, Z and phi position "R", "Z"
-and "P" arrays, for each of the probes included. The R and Z values are
-given in $\rho_s$ units, while the toroidal angle is given in radian. The
-user should make certain that the length of the position arrays match each
-other.
-There is no limit on the size of the arrays; they are typically not performance
-relevant unless the size exceeds $10^5$.
-\begin{minted}[texcomments]{js}
-"probes":
-{
-    "input" : "coords",
-    "coords" :
-    {
-        "format" : format, // see paragraph below
-        "coords-names" : ["R","Z","P"], // name of coordinates in order they are passed to interpolation function
-        "R": [90, 95, 100], // R coordinates in rho\_s
-        "Z": [0, 0, 0], // Z coordinates in rho\_s
-        "P": [0, 0, 3] // phi coordinates in radian (values outside the interval
-        // $[0,2\pi]$ will be taken modulo $2\pi$ (unsigned))
-    }
-}
-\end{minted}
-\begin{tcolorbox}[title=Note]
- If the user does not want to use any probes, the entire "probes" input field
- can be left away. No probes will be written into the output file then.  Be
- sure not to have any spelling mistakes on "probes" if you do want them though.
-\end{tcolorbox}
-Alternatively the "R", "Z" and "P" fields can be read from an external json file
-\begin{minted}[texcomments]{js}
-"probes":
-{
-    "input" : "file",
-    "file" : "path/to/probes.json" // relative to folder from where feltor is executed
-    "scale" : [1000, 1000, 1] // scale factors for "R", "Z", "P"
-}
-\end{minted}
-\begin{tcolorbox}[title=Units of $R$ and $Z$]
-Similar to the magnetic parameters, in this case the "R" and "Z" values can be unnormalized.
-The "scale" values are multipled to "R", "Z" and "P" when they are read from file
-\end{tcolorbox}
-\paragraph{format}
-All measurements from points, lines, surfaces and volumes with different
-purposes and different diagnostics, must be concatenated and flattened into the
-one-dimensional "R", "Z", "P" arrays and the measurements are written to file
-as one-dimensional arrays.  In this way the book-keeping "which point belong
-to which diagnostics and is neighbor to which other point" may become
-challening. This is why the "format" field exists.
-
-The format value is a user-defined json value that is ignored by feltor and
-copied "as-is" as a string attribute to the probes group in the output file.
-Its purpose is to hold parsing information for the (flat) $R$, $Z$, $P$ arrays
-for post-processing. For example
-\begin{minted}[texcomments]{js}
-"format" : [
-{"name" : "x-probe", "pos" : [0,10], "shape" : [10]},
-{"name" : "omp", "pos" : [10,1010], "shape" : [10,10,10]}
-]
-\end{minted}
-interprets the first ten points in the probes array as a linear "x-probe" line,
-while the remaining 1000 points belong to a 3d measurement volume called "omp".
-From this information e.g. array views can be easily created in python:
-\begin{minted}[texcomments]{py}
-named_arr = dict()
-for f in format:
-    named_arr[f["name"]] = arr[f["pos"][0]:f["pos"][1]].reshape( f["shape"])
-\end{minted}
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{[Optional] Computational flags}
 We can simplify the full simulation in a few ways:
 \begin{minted}[texcomments]{js}
@@ -1125,52 +693,10 @@ the "wall": "penalization" parameter to $0$ such that a semblance of
 Neumann boundary conditions result for the wall.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Restarting} \label{sec:restart}
-We have the possibility to initialize time and
-the fields with the results of a previous simulation.
-There are two possibilities to restart a simulation
-\begin{enumerate}
-    \item setting the option "restart" in the input file in the init type field
-        and providing the path to an \mintinline{bash}{initial.nc} netcdf file in the
-        corresponding file field (see Section~\ref{sec:initial})
-    \item providing an additional netcdf file \mintinline{bash}{initial.nc}
-        to \mintinline{bash}{feltor}, \mintinline{bash}{feltor_hpc} or \mintinline{bash}{feltor_mpi} on the
-        command line. This mode takes precedence over the first because it
-        subsequently ignores the "init" field of the input file.
-\end{enumerate}
-The intention behind the two different modes is that there are two different
-restarting scenarios. In the first you have one input file that you just want
-to restart over and over again. In a way you only want to split a single
-simulation into several smaller parts. In the second you want to use a
-simulation that ran with a specific set of parameters as an initial condition
-for another simulation with different parameters.
-\begin{tcolorbox}[title=Note]
-    The restart file is only used to initialize $n_e$, $N_i$, $u_{\parallel,e}$
-    and $U_{\parallel,i}$ with the latest timestep in \mintinline{bash}{initial.nc}, all
-    other parameters (magnetic field, profiles, resolutions, sources, etc.)
-    are still read from the input json file.  The user is responsible
-    that these are consistent with the paramters in the existing
-    \mintinline{bash}{initial.nc} file.
-\end{tcolorbox}
+The section `Restarting` in `feltor.pdf` applies verbatim except that the code is called `thermal` instead of `feltor` and the computational fields include
+$N$, $U_\parallel$, $T_\perp$, $T_\parallel$, $Q_\perp$ and $Q_\parallel$ for all species s.
 
-\begin{tcolorbox}[title=Note]
-    You can submit chain jobs on the cluster. See the --dependency option in SLURM.
-\end{tcolorbox}
-\begin{tcolorbox}[title=Note]
-In order to enable a
-loss-less continuation of the simulation we output special restart fields into
-the output file that in contrast to the other fields are not compressed.
-\end{tcolorbox}
-
-
-\begin{tcolorbox}[title=Note]
-We try to discourage
-appending new results to an exisiting file directly, because if for some reason
-the cluster crashes and the file is corrupted the whole simulation is lost.
-It is safer to just merge files afterwards with
-\mint{bash}{ncrcat output1.nc output2.nc output.nc}
-from the \mintinline{bash}{nco} package
-\end{tcolorbox}
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Output} \label{sec:output_file}
 Output file format: \href{https://www.unidata.ucar.edu/software/netcdf/docs/}{netcdf-4/hdf5};
 
