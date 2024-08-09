@@ -64,6 +64,7 @@ The wall density is a list of values
     {
         "nwall" : [0.1,0.1], // $N_{s,w} >0$ (see also nbc, background and minne)
         // length must equal number of species (see \ref{sec:species})
+        // Quasineutrality must be observed $\sum_s z_s n_{s,wall} = 0$
         "uwall" : 0.0, // $U_{\parallel,w}$
         "twall" : 0.1, // $T_w > 0$ wall temperature
         "qwall" : 0, // $Q_{w}$
@@ -186,11 +187,11 @@ directly:
     {
         //...
     },
-    "tperp":
+    "tperp": // or "pperp"
     {
         //...
     },
-    "tparallel":
+    "tparallel": // or "pparallel"
     {
         //...
     },
@@ -210,11 +211,16 @@ directly:
 \end{minted}
 
 \noindent
+\begin{tcolorbox}[title=Note]
+    Instead of temperature one can choose to initializse the pressure as well
+    by writing `p` instead of `t` in the relevant field. However, only one of
+    the two may be present not both.
+\end{tcolorbox}
 The "density", "tperp" and "tparallel" fields all allow the following:
 \begin{minted}[texcomments]{js}
 "init":
 {
-    "density" : // or "tperp" or "tparallel"
+    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
     {
         "type" : "const"  // $N_s = const$
         "background" : 0.1, // $const>0$
@@ -222,7 +228,7 @@ The "density", "tperp" and "tparallel" fields all allow the following:
         //(see also nbc, minne and nwall)
     }
     // OR
-    "density" : // or "tperp" or "tparallel"
+    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
     {
         "type" : "ne",  // $n_s = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
         "ntilde":
@@ -263,16 +269,18 @@ For the velocity and heat fluxes we have
 }
 \end{minted}
 \noindent
-Or we initialize a linear profile between the divertor plates. This is achieved
-by integrating fieldlines towards the positive and negative divertor.
+For the velocity to fulfill sheath boundary conditions we initialize a linear profile between the divertor plates.
+This is achieved by integrating fieldlines towards the positive and negative divertor.
 \begin{minted}[texcomments]{js}
 "init":
 {
     "velocity" :
     {
-        "type" : "linear_cs" // $ U_{\parallel,i}= s\sqrt{T_\parallel}$ in the SOL
+        "type" : "linear_cs" // $ U_{\parallel,i}= s\sqrt{\frac{T_{i,\parallel} + z_i T_{e,\parallel}}{\mu_i}}$ in the SOL
         // where "s" is the fieldline coordinate defined in section\ref{sec:sheath}
         // if the sheath type is "none" then $s=0$
+        // the "electrons" are the first massless species found
+        // this type does not work for electrons
     }
 }
 \end{minted}
@@ -280,11 +288,41 @@ by integrating fieldlines towards the positive and negative divertor.
 
 
 \paragraph{Quasineutrality and insulating sheath}
+We need to observe the quasineutrality
+\begin{align}
+\sum_s z_s n_s = 0
+\end{align}
+and for the sheath we need to have zero outflow at the sheath
+\begin{align}
+\sum_s z_s n_s u_{\parallel,s}|_{sh} = 0
+\end{align}
+
+In order to achieve this a single species (usually the electrons) can be automatically determined by the
+above conditions setting
+\begin{minted}[texcomments]{js}
+"init":
+{
+    "density" :
+    {
+        "type" : "quasineutral"  // $n_s = -\sum_{i,i\neq s} z_i n_i/ z_s$
+    },
+    "velocity":
+    {
+        "type" : "quasineutral" // $U_{\parallel,s} = -\sum_{i,i\neq s}z_i N_i U_{\parallel,i}/(z_sN_s)$
+    }
+}
+\end{minted}
 
 
+\paragraph{Transformation to gyro-center quantities}
+Per default we think of the initialisation of determining the physical, particle quantities however, the
+model is derived in terms of gyro-centre quantities.
+The physical quantities therefore need to be transformed to gyro-centre quantities. This is in general a
+difficult task and may only be possible approximately.
 
-
-
+% We should maybe start with 2 possibilities: "none" or "lwl"
+% The question of how to do quasineutrality is somewhat related but also not
+% and how to do it for source terms is also still open
 We have three possibilities to initialize the ion density
 \begin{align} \label{eq:initphi}
     N_i = n_e \text{ or }N_i = \Gamma_{1,i}^{-1} n_e \text{ or } N_i = \Gamma_{1,i}n_e\approx \left(1+\frac{1}{2}\tau_i\mu_i\Delta_\perp\right)n_e
@@ -327,13 +365,39 @@ We can also reverse the roles of electron and ion densities like so:
 \subsection{Sources} \label{sec:sources}
 See the file {\tt init.h} to add your own custom source.
 
+At this stage we can have sources only in the density, perpendicular temperature and
+parallel temperature equations. The parallel momentum and heat flux sources are always zero.
+\begin{minted}[texcomments]{js}
+"source":
+{
+    "density":
+    {
+        //...
+    },
+    "tperp":
+    {
+        //...
+    },
+    "tparallel":
+    {
+        //...
+    }
+}
+\end{minted}
+
+
+\paragraph{Minimum density}
+% Do we need to enforce a minimum temperature as well?
+% For now let's assume we do not need to and assume that
+% there is no mechanism that infinitely cools the plasma
+
 The first task of the source is to globally ensure a minimum density. This
 is required since through sheath dissipation the density can in
 principle become arbitrarily close to zero. This would however
 be detrimental to the stability of the simulation and in reality
 also never happens due to wall-recycling etc.
 \begin{align}
-    S_{n_e} = -\omega_{\min} ( n - n_{\min}) \Theta_{\alpha/2}( n_{\min}-\alpha/2 -n)
+    S_{N,s} = -\omega_{\min} ( N - n_{\min}) \Theta_{\alpha/2}( n_{\min}-\alpha/2 -N)
     \label{eq:minimumne}
 \end{align}
 \begin{tcolorbox}[title=Note]
@@ -345,10 +409,13 @@ is below the lower limit. $n_{\min}=0$ disables this term.
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "minne" : 0.1 // $n_{\min}$ in Eq.\eqref{eq:minimumne}
-    //if 0 then the other two parameters are ignored
-    "minrate" : 1 // $\omega_{\min}$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
-    "minalpha" : 0.01 // $\alpha$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
+    "density":
+    {
+        "minne" : 0.1 // $n_{\min}$ in Eq.\eqref{eq:minimumne}
+        //if 0 then the other two parameters are ignored
+        "minrate" : 1 // $\omega_{\min}$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
+        "minalpha" : 0.01 // $\alpha$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
+    }
 }
 \end{minted}
 \noindent
@@ -356,103 +423,88 @@ In order to disable any additional source terms choose
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "type" : "zero" // $S_{n_e} = 0$
-}
-\end{minted}
-\noindent We can choose the source terms $S_N$ to force a profile
-\begin{align} \label{eq:electron_source}
-    S_{n_e}(R,Z,\varphi, t) &= \omega_s (n_{prof}(R,Z) - n_e(R,Z,\varphi, t))D(R,Z)
-\end{align}
-where $\omega_s$ is the source strength parameter.
-The forced source will result in exponential adaption of the core
-density profile of the form $n_e \propto n_{prof}+(n_{prof}-n_{e,0})e^{-\omega_st}$.
-\begin{minted}[texcomments]{js}
-"source":
-{
-    "type" : "fixed_profile",
-    "rate" : 1e-3 // source strength $\omega_s$
-    "profile" :
+    "density":
     {
-        // Determine $n_{prof}(R,Z)$
-        // Choose anything from section\ref{sec:profile}
-    },
-    "damping" :
-    {
-        // $D(R,Z)$ determines where the source is active
-        // Choose anything from section\ref{sec:damping}
-        // The background parameter must be present but is ignored ($n_{bg} = 0$)
+        "type" : "zero" // $S_{n_e} = 0$
     }
 }
 \end{minted}
 
-Another option is to provide a constant influx of particles
+\paragraph{Profile forcing}
+\noindent We can choose the source terms $S_N$, $S_{T,\perp}$ and $S_{T,\parallel}$ to force a profile
+\begin{align} \label{eq:electron_source}
+    S_{N,s}(R,Z,\varphi, t) &= \omega_s (n_{prof}(R,Z) - N_s(R,Z,\varphi, t))D(R,Z)
+\end{align}
+and analogously for the temperature / pressure sources,
+where $\omega_s$ is the source strength parameter.
+The forced source will result in exponential adaption of the core
+profile of the form $n \propto n_{prof}+(n_{prof}-n_{0})e^{-\omega_st}$.
+\begin{minted}[texcomments]{js}
+"source":
+{
+    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
+    {
+        "type" : "fixed_profile",
+        "rate" : 1e-3 // source strength $\omega_s$
+        "profile" :
+        {
+            // Determine $n_{prof}(R,Z)$
+            // see Profile section in `feltor.pdf`
+        },
+        "damping" :
+        {
+            // $D(R,Z)$ determines where the source is active
+            // see Damping section in `feltor.pdf`
+            // The background parameter must be present but is ignored ($n_{bg} = 0$)
+        }
+    }
+}
+\end{minted}
+
+\paragraph{Constant influx}
+Another option is to provide a constant influx of particles and/or heat
 \begin{align}
-    S_{n_e}(R,Z,\varphi, t) &= \omega_s \left( (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg})D(R,Z) + n_{bg}\right)
+    S_{N,s}(R,Z,\varphi, t) &= \omega_s \left( (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg})D(R,Z) + n_{bg}\right)
 \end{align}
 where $\omega_s$ is the source strength parameter.
 The idea is that you can start with zero density and evolve the profile purely
 with the source. Destabilization of the profile works if you put a turbulent
 bath on top of it.
 \begin{tcolorbox}[title=Note]
-    See the output \mintinline{c}{sne_tt_ifs} in \mintinline{bash}{feltordiag.cu} for how much mass
+    % Update to actual output fields
+    See the output \mintinline{c}{sne_tt_ifs} in \mintinline{bash}{thermaldiag.cu} for how much mass
 the source with the parameters below generates and compare to
 \mintinline{c}{jsne_tt_fsa} to see how much mass is lost.
 \end{tcolorbox}
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "type" : "influx",
-    "rate" : 1e-3, // source strength $\omega_s$
-    "ntilde" :
+    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
     {
-        // Determine $\tilde n(R,Z,\varphi)$
-        // Choose anything from section\ref{sec:ntilde}
-        // The turbulent bath works well to destabilize the profile
-    },
-    "profile" :
-    {
-        // Determine $n_{prof}(R,Z)$
-        // Choose anything from section\ref{sec:profile}
-    },
-    "damping" :
-    {
-        // Determine $D(R,Z)$
-        // Choose anything from section\ref{sec:damping}
-        // The boundary determines where the source is active
+        "type" : "influx",
+        "rate" : 1e-3, // source strength $\omega_s$
+        "ntilde" :
+        {
+            // Determine $\tilde n(R,Z,\varphi)$
+            // see Ntilde section in `feltor.pdf`
+            // The turbulent bath works well to destabilize the profile
+        },
+        "profile" :
+        {
+            // Determine $n_{prof}(R,Z)$
+            // see Profile section in `feltor.pdf`
+        },
+        "damping" :
+        {
+            // Determine $D(R,Z)$
+            // see Damping section in `feltor.pdf`
+            // The boundary determines where the source is active
+        }
     }
 }
 \end{minted}
 
-We can choose the special ringed Gaussian TCV source of the form
-\begin{align}
-    S_{n_e}(R,Z) &= \omega_s \exp\left( -\frac{(\psi_p-\psi_{p,0})^2}{\sigma^2}\right)H(Z-Z_X)
-\end{align}
-with $\psi_{p,0} = \psi_p(1075, -10)$ and $\sigma = 0.0093\psi_{p,0}/0.4$,
-\begin{minted}[texcomments]{js}
-"source":
-{
-    "type" : "tcv",
-    "rate" : 1e-3 // source strength $\omega_s$
-}
-\end{minted}
-or a Torpex inspired source profile
-\begin{align} \label{eq:electron_source_torpex}
-  S_{n_e}(R,Z) &= \omega_s
-  \begin{cases}
-    \exp\left( - \frac{(R-R_0)^2}{a^2 }- \frac{(Z-Z_0)^2}{b^2}\right) \text{ if} R > R_0 \\
-    \frac{1}{2}\exp\left( - \frac{(R-R_0)^2}{a^2} -2c(R-R_0)(Z-Z_0)- \frac{(Z-Z_0)^2}{b^2} \right) \\
-  +\frac{1}{2}\exp\left( - \frac{(R-R_0)^2}{a^2} +2c(R-R_0)(Z-Z_0)- \frac{(Z-Z_0)^2}{b^2} \right) \text{ else}
-  \end{cases}
-\end{align}
-with $a=0.0335$m, $b=0.05$m, $c=565m^{-2}$, $R_0=0.98$m and $Z_0=-0.02$m.
-\begin{minted}[texcomments]{js}
-"source":
-{
-    "type" : "torpex",
-    "rate" : 1e-3 // source strength $\omega_s$
-}
-\end{minted}
-
+\paragraph{Quasineutrality}
 In order to not generate potential with the source term the
 ion source needs to fulfill $S_{n_e} = \Gamma_{1,i}S_{N_i} + \nc\left( \frac{\mu_i S_{N_i}}{B^2}\np \phi\right)$ which in the long wavelength limit can be inverted to (the long wavelength limit should be well-fulfilled for a realistic source term since the amplitude is typically quite small)
 \begin{align}
@@ -467,13 +519,14 @@ Also note that with our definition of $\Lambda_{n_e}$ and $\Lambda_{N_i}$ and
 the polarisation equation we have $\Lambda_{n_e} = \Gamma_{1,i}\Lambda_{N_i} + \nc\left( \frac{\mu_i \Lambda_{N_i}}{B^2}\np \phi\right)$ in the long wavelength limit (swap the operators).
 This means that diffusion does not generate potential either.
 
+\paragraph{Velocity source}
 The velocity source is chosen such that the density source does not introduce
 net momentum
 \begin{align}
     S_U = -\frac{U_\parallel}{N} S_N
     \label{eq:velocity_source}
 \end{align}
-for both electrons and ions.
+for all species.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Advection}
