@@ -164,16 +164,32 @@ class UniversalLanczos
                 m_bnorm);
         return m_iter;
     }
+
     /**
-     * @brief Tridiagonalization of A using Lanczos method with \f$ f(x) = x^{-1}\f$.
+     * @brief Tridiagonalization of A using Lanczos method with \f$ f(x) = x^{-1} \f$
      *
      * @note Just calls the general \c tridiag method with the function \f$ f(x) = x^{-1}\f$. Useful if one wants to compute the extreme Eigenvalues of \f$A\f$
- * @code{.cpp}
- *  dg::mat::UniversalLanczos lanczos( A.weights(), 20);
- *  auto T = lanczos.tridiag( A, A.weights(), A.weights());
- *  auto EV = dg::mat::compute_extreme_EV( T);
- *  // EV[0] is the minimum, EV[1] the maximum Eigenvalue
- * @endcode
+     *
+     * @code{.cpp}
+     *  dg::mat::UniversalLanczos lanczos( A.weights(), 20);
+     *  auto T = lanczos.tridiag( A, A.weights(), A.weights());
+     *  auto EV = dg::mat::compute_extreme_EV( T);
+     *  // EV[0] is the minimum, EV[1] the maximum Eigenvalue
+     * @endcode
+     * @param A A self-adjoint, positive definit matrix
+     * @param b The initial vector that starts orthogonalization
+     * @param weights Weights that define the scalar product in which \c A is
+     *  self-adjoint and in which the error norm is computed.
+     * @param eps relative accuracy of residual
+     * @param nrmb_correction the absolute error \c C in units of \c eps to be respected
+     * @param error_norm Either "residual" or "universal"
+     * @param res_fac factor \f$ \tau\f$ that is multiplied to the norm of the
+     *  residual. Used to account for specific matrix function and operator in
+     *  the convergence criterium
+     * @param q The q-number in the "universal stopping criterion
+     *
+     * @return returns the tridiagonal matrix T. Note that \f$ T = (MV)^T A V \f$.
+     *  The number of iterations is given by \c T.num_rows
       */
     template< class MatrixType, class ContainerType0, class ContainerType1>
     const HDiaMatrix& tridiag( MatrixType&& A, const ContainerType0& b,

@@ -1,5 +1,6 @@
 #pragma once
 #include <boost/math/special_functions.hpp>
+#include "../dg/topology/functions.h" // for DG_DEVICE
 namespace dg {
 namespace mat {
 /**
@@ -159,7 +160,9 @@ struct GyrolagK
         if( m_n == 1)
             return (-x*m_a)*exp( x*m_a);
         if( m_n == 2)
-            return 0.5*(x*x*m_a*m_a)*exp( x*m_a);
+            return 0.5*(-x*m_a)*(-x*m_a)*exp( x*m_a);
+        if( m_n == 3)
+            return (-x*m_a)*(-x*m_a)*(-x*m_a)*exp( x*m_a)/6.0;
         return pow(-x*m_a,m_n)/tgamma(m_n+1)*exp(x*m_a);
     }
     T  DG_DEVICE operator()(T x, T y) const { return this->operator()(x*y); }
