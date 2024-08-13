@@ -2,6 +2,7 @@
 
 #include "dg/algorithm.h"
 #include "parameters.h"
+#include "dg/matrix/matrix.h"
 #include "dg/geometries/geometries.h"
 
 
@@ -31,13 +32,17 @@ struct ThermalSolvers
 
     prviate:
     thermal::Parameters m_p;
-    Container m_temp0, m_temp1, m_temp2, m_rhoinv2, m_B2;
+    Container m_temp0, m_temp1, m_temp2, m_rhoinv2, m_B, m_vol;
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
     std::vector<Container> m_multi_chi;
 
     std::vector<dg::Elliptic2d< Geometry, Matrix, Container> > m_multi_pol;
-    std::vector<dg::Helmholtz2d<Geometry, Matrix, Container> > m_multi_invgammaP,
+    std::vector<dg::Helmholtz2d<Geometry, Matrix, Container> >
         m_multi_invgammaN, m_multi_ampere;
+
+    dg::Elliptic2d<Geometry, Matrix, Container> m_laplaceM;
+    dg::mat::ProductMatrixFunction<Container> m_prod;
+    cusp::dia_matrix<int, double, cusp::host_memory> m_T;
 
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
     // where do we need _old_apar
@@ -56,8 +61,9 @@ Explicit<Geometry, Matrix, Container>::Explicit( const Geometry& g,
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
     m_rhoinv2 = m_temp2, m_temp1 = m_temp0;
-    dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B2);
-    dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
+    dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B);
+    m_vol = dg::create::volume( g);
+    //dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
 
     //Set a hard code limit on the maximum number of iteration to avoid
     //endless iteration in case of failure
@@ -65,7 +71,6 @@ Explicit<Geometry, Matrix, Container>::Explicit( const Geometry& g,
     /////////////////////////init elliptic and helmholtz operators/////////
     m_multi_chi = m_multigrid.project( m_temp0);
     m_multi_pol.resize(p.stages);
-    m_multi_invgammaP.resize(p.stages);
     m_multi_invgammaN.resize(p.stages);
     m_multi_ampere.resize(p.stages);
     for( unsigned u=0; u<p.stages; u++)
@@ -73,29 +78,32 @@ Explicit<Geometry, Matrix, Container>::Explicit( const Geometry& g,
         m_multi_pol[u].construct( m_multigrid.grid(u),
             p.bcxP, p.bcyP,
             p.pol_dir, p.jfactor);
-        m_multi_invgammaP[u] = { -1.,
-                {m_multigrid.grid(u), p.bcxP, p.bcyP, p.pol_dir}};
         m_multi_invgammaN[u] = { -1.,
                 {m_multigrid.grid(u), p.bcxN, p.bcyN, p.pol_dir}};
         m_multi_ampere[u] = {  -1.,
                 {m_multigrid.grid(u), p.bcxA, p.bcyA, p.pol_dir}};
     }
+    m_laplaceM.construct( g, p.bcxP, p.bcyP, p.pol_dir, p.jfactor);
+    m_prod.construct( m_temp0, 1e3);
 }
 
 template<class Geometry, class Matrix, class Container>
 void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     double time, const std::vector<Container>& density,
-    const std::vector<Container>& pperp,
-    const Container& boundary_condition,
+    const std::vector<Container>& pperp, // bar P_perp
     const std::function<void(Container&)>& multiply_rhs_penalization,
     Container& phi
     )
 {
     //----------Compute and set chi----------------------------//
+    dg::blas1::copy( 0., m_temp0);
     for( unsigned s = 0; s<m_p.num_species; s++)
     {
         if( !m_p.neglect_mass[s] )
-            dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B2, 0., m_temp0);
+        {
+            dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B, 0., m_temp1);
+            dg::blas1::pointwiseDivide( 1., m_temp1, m_B, 1., m_temp0);
+        }
     }
     m_multigrid.project( m_temp0, m_multi_chi);
     for( unsigned u=0; u<m_p.stages; u++)
@@ -103,6 +111,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
 
     //----------Compute right hand side------------------------//
     dg::blas1::copy( 0, m_temp0);
+    double min = 0.;
     for( unsigned s = 0; s<m_p.num_species; s++)
     {
         if( m_p.neglect_mass[s] )
@@ -112,8 +121,9 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
             continue;
         }
         // compute 2/rho_s^2
-        dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // T_perp = P_perp / N
-        dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B2, m_temp1, 0., m_rhoinv2);
+        dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // bar T_perp = bar P_perp / N
+        dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B, m_temp1, 0., m_rhoinv2);
+        min = std::min( dg::blas1::reduce( m_rhoinv2, 1e308, thrust::minimum<double>()), min);
 
         m_multigrid.project( m_rhoinv2, m_multi_chi);
         for( unsigned u=0; u<m_p.stages; u++)
@@ -134,15 +144,28 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     }
     // Add penalization method
     multiply_rhs_penalization( m_temp0);
-    // Add boundary condition
-    m_multi_pol[0].symv( 1., boundary_condition, 1, m_temp0);
     //----------Invert polarisation----------------------------//
     m_old_phi.extrapolate( time, phi);
     m_multigrid.set_benchmark( true, "Polarisation");
     std::vector<unsigned> number = m_multigrid.solve(
         m_multi_pol, phi, m_temp0, m_p.eps_pol);
     m_old_phi.update( time, phi);
-    dg::blas1::axpby( 1., boundary_condition, 1., phi);
+
+    // compute Lanczos tridiagonalisation of Phi
+    dg::Timer t;
+    t.tic();
+    dg::mat::GyrolagK<double> func(0, -1.);
+    auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( x, 1./min);});
+    m_T = krylovproduct.lanczos().tridiag( unary_func, m_laplaceM, phi, m_vol, m_p.eps_pol, 1.,
+                "universal", 1.0, 1);
+    t.toc();
+#ifdef MPI_VERSION
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+#endif
+    DG_RANK0 std::cout << "# Lanczos tridiag "<<m_T.iter<<" iterations took "<<t.diff()<<"s\n";
+
+
 
 }
 
@@ -186,46 +209,33 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_aparST(
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_psi(
-    double time, const std::vector<Container>& tperp, const Container& phi, std::array<Container,3>& psi, unsigned s
+    double time, const std::vector<Container>& pperp,
+    const Container& phi, std::array<Container,4>& psi, unsigned s
     )
 {
-    // Let us try to go without extrapolated initial guess ( else we need to store so much)
-    // compute 2/rho_s^2
-    dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B2, tperp[s], 0., m_rhoinv2);
-    m_multigrid.project( m_rhoinv2, m_multi_chi);
-    for( unsigned u=0; u<m_p.stages; u++)
-        m_multi_invgammaP[u].set_chi( m_multi_chi[u]);
-    dg::blas1::pointwiseDot( phi, m_rhoinv2, m_temp0);
+    // it's easy to get confused about minusses here
+    if( m_p.neglect_mass[s] )
+    {
+        dg::blas1::copy( phi, psi[0]);
+        for( unsigned u=1; u<4; u++)
+            dg::blas1::copy( 0, psi[u]);
+        return;
+    }
+    // compute rho_s^2/2
+    dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // bar T_perp = bar P_perp / N
+    dg::blas1::pointwiseDivide( m_p.mu[s]/2./m_p.z[s]/m_p.z[s], m_temp1, m_B, 0., m_rhoinv2);
+
     //-----------Solve for Gamma1 Phi---------------------------//
-    dg::blas1::pointwiseDivide( m_temp0, m_rhoinv2, psi[0]); // initial guess
-    m_multigrid.set_benchmark( true, "Gamma1 Phi  ");
-    std::vector<unsigned> number = m_multigrid.solve(
-        m_multi_invgammaP, psi[0], m_temp0, m_p.eps_gamma);
-
-    //-----------Solve for Gamma2 Phi---------------------------//
-    dg::apply( m_multi_invgammaP[0].matrix(), psi[0], m_temp0);
-    dg::blas1::transform( m_rhoinv2, m_temp2, dg::SQRT<double>());
-    dg::blas1::pointwiseDot( m_temp0, m_temp2, m_temp0);
-
-    dg::blas1::pointwiseDivide( m_temp0, m_rhoinv2, psi[1]); // initial guess
-    m_multigrid.set_benchmark( true, "Gamma2 Phi  ");
-    std::vector<unsigned> number = m_multigrid.solve(
-        m_multi_invgammaP, psi[1], m_temp0, m_p.eps_gamma);
-    dg::blas1::pointwiseDivide( psi[1], m_temp2, psi[1]);
-
-
-    //-----------Solve for Gamma3 Phi---------------------------//
-    dg::blas1::pointwiseDot( psi[1], m_temp2, m_temp0);
-    dg::apply( m_multi_invgammaP[0].matrix(), m_temp0, m_temp1);
-    dg::blas1::pointwiseDot( m_temp0, m_temp2, m_temp0);
-
-    dg::blas1::pointwiseDivide( m_temp0, m_rhoinv2, psi[2]); // initial guess
-    m_multigrid.set_benchmark( true, "Gamma2 Phi  ");
-    std::vector<unsigned> number = m_multigrid.solve(
-        m_multi_invgammaP, psi[2], m_temp0, m_p.eps_gamma);
-    dg::blas1::pointwiseDivide( psi[2], m_rhoinv2, psi[2]);
-
-    dg::blas1::axpby( 2., psi[1], 2., psi[2], psi[2]);
+    for( unsigned u=0; u<4; u++)
+    {
+        dg::mat::GyrolagK<double> func(u, -1.);
+        m_prod.compute_vlcl( func, m_rhoinv2, m_laplaceM, m_T, psi[u], phi, m_prod.lanczos().get_bnorm());
+    }
+    dg::blas1::axpbypgz( -6., m_psi[1], 12., m_psi[2], -6., m_psi[3]);
+    dg::blas1::axpby(    -2., m_psi[1],  2., m_psi[2]);
+    dg::blas1::scal( -1., m_psi[1]);
+    dg::blas1::pointwiseDivide( 1., m_B, m_temp0);
+    m_laplaceM.variation( -m_p.mu[s]/2./m_p.z[s], m_temp0, phi, 1., m_psi[0]); // psi_2
 }
 
 }//namespace thermal
