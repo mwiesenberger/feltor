@@ -229,10 +229,35 @@ struct MatrixFunction
 
 /**
  * @brief Computation of \f$ \vec x = f(A,\vec d)\vec b\f$ and \f$ \vec x = f(\vec d, A)\vec b\f$
- * for self-adjoint positive definite \f$ A\f$
+ * where \f$ A \f$ is
+ * a positive definite matrix self-adjoint in the weights \f$ W\f$ .
+ *
+ * The first identity is computed via \f$ \vec x = f(\vec d, A) \vec b = (E_{A} \odot F ) E^T_{A}M^T b\f$
+ * where \f$ E_A := V_A E_T \f$ and \f$ F_{ai} := f( d_a, \lambda_i)\f$
+ * and \f$ T\f$ and \f$ V_A\f$  are the tridiagonal matrix and vectors that
+ * come out of a Lanczos iteration on \f$ A\f$, \f$ W\f$, \f$ \vec b\f$; \f$ \vec d\f$ is a vector.
+ *
+ * The second identity is computed via \f$ \vec x = f(A, \vec d) \vec b = E_{A} (F^T \odot   E^T_{A}M^T) b\f$
+ * where \f$ E_A := V_A E_T \f$ and \f$ F_{ai} := f( d_a, \lambda_i)\f$
+ * and \f$ T\f$ and \f$ V_A\f$  are the tridiagonal matrix and vectors that
+ * come out of a Lanczos iteration on \f$ A\f$, \f$ W\f$, \f$ \vec b\f$; \f$ \vec d\f$ is a vector
  *
  * @ingroup matrixfunctionapproximation
  * @attention Just as in the Lanczos or PCG methods the matrix \f$ A\f$ needs to be positive-definite (i.e. it won't work for negative definite)
+ * @note The \c apply and \c apply_adjoint methods are just abbreviations. If one wants full control, e.g. to reuse a tridiagonalisation one has to manually code:
+ *
+ * @code{.cpp}
+ * double max = dg::blas1::reduce( diag, -1e308, thrust::maximum<double>());
+    auto func = dg::mat::make_FuncEigen_Te1( [&](value_type x) {return op( max, x);});
+    dg::mat::ProductMatrixFunction<ContainerType> prod( x, 100);
+    auto T = prod.lanczos().tridiag( func, A,
+                b, weights, eps, nrmb_correction,
+                "universal", 1.0, 1);
+    prod.compute_vlcl( op, diag, A, T, x, b, prod.lanczos().get_bnorm());
+    // or
+    prod.compute_vlcl_adjoint( op, A, diag, T, x, b,
+                weights, prod.lanczos().get_bnorm());
+ * @endcode
  */
 template<class ContainerType>
 struct ProductMatrixFunction
@@ -262,7 +287,7 @@ struct ProductMatrixFunction
     }
 
     ///@copydoc MatrixFunction::set_benchmark(bool,std::string)
-    void set_benchmark( bool benchmark, std::string message = "Function"){
+    void set_benchmark( bool benchmark, std::string message = "ProductFunction"){
         m_benchmark = benchmark;
         m_message = message;
     }
@@ -270,10 +295,16 @@ struct ProductMatrixFunction
     /**
      * @brief Compute \f$ \vec x = f(\vec d, A) \vec b = (E_{A} \odot F ) E^T_{A}M^T b\f$
      *
-     * where \f$ E_A := V_A E_T \f$ and \f$ F_{ai} := f( d_a, \lambda_i)\f$
-     * and \f$ T\f$ and \f$ V_A\f$  are the tridiagonal matrix and vectors that
-     * come out of a Lanczos iteration on \f$ A\f$, \f$ W\f$, \f$ \vec b\f$; \f$ \vec d\f$ is a vector and \f$ A \f$ is
-     * a positive definite matrix self-adjoint in the weights \f$ W\f$ .
+     * This function is equivalent to:
+     * @code{.cpp}
+        auto func = dg::mat::make_FuncEigen_Te1( [&](value_type x) {return op(1., x);});
+        auto T = m_lanczos.tridiag( func, std::forward<MatrixType>(A),
+                b, weights, eps, nrmb_correction,
+                "universal", 1.0, 2);
+        compute_vlcl( op, diag, std::forward<MatrixType>(A), T, x, b,
+                    m_lanczos.get_bnorm());
+        return T.num_rows;
+     * @endcode
      * @note The stopping criterion used on the Lanczos iteration is the
      * universal one applied to \f$ f(1, x) \f$
      * @param x output-vector, contains result on output, ignored on input
@@ -320,10 +351,16 @@ struct ProductMatrixFunction
     /**
      * @brief Compute \f$ \vec x = f(A, \vec d) \vec b = E_{A} (F^T \odot   E^T_{A}M^T) b\f$
      *
-     * where \f$ E_A := V_A E_T \f$ and \f$ F_{ai} := f( d_a, \lambda_i)\f$
-     * and \f$ T\f$ and \f$ V_A\f$  are the tridiagonal matrix and vectors that
-     * come out of a Lanczos iteration on \f$ A\f$, \f$ W\f$, \f$ \vec b\f$; \f$ \vec d\f$ is a vector and \f$ A \f$ is
-     * a positive definite matrix self-adjoint in the weights \f$ W\f$ .
+     * This function is equivalent to:
+     * @code{.cpp}
+        auto func = make_FuncEigen_Te1( [&](value_type x) {return op( x, 1.);});
+        auto T = m_lanczos.tridiag( func, std::forward<MatrixType>(A),
+                b, weights, eps, nrmb_correction,
+                "universal", 1.0, 2);
+        compute_vlcl_adjoint( op, std::forward<MatrixType>(A), diag, T, x, b,
+                weights, m_lanczos.get_bnorm());
+        return T.num_rows;
+     * @endcode
      * @note \f$ f(A, \vec d)\f$ is the adjoint operation to \f$ f( \vec d, A)\f$
      *  since both \f$ \vec d\f$ and \f$ A\f$ are self-adjoint.
      * @note The stopping criterion used on the Lanczos iteration is the
@@ -375,7 +412,6 @@ struct ProductMatrixFunction
         return T.num_rows;
     }
 
-    private:
     template< class BinaryOp, class ContainerType0, class MatrixType,
         class DiaMatrixType, class ContainerType1,
         class ContainerType2>
@@ -494,10 +530,12 @@ struct ProductMatrixFunction
             dg::blas1::axpby( cl[i+1], m_v, 1., x);
         }
     }
+    UniversalLanczos<ContainerType>& lanczos() { return m_lanczos;}
+    private:
 
     UniversalLanczos<ContainerType> m_lanczos;
     bool m_benchmark = true;
-    std::string m_message = "Function";
+    std::string m_message = "ProductFunction";
     ContainerType  m_v, m_vp, m_vm, m_f;
 };
 

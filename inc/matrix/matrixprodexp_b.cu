@@ -105,7 +105,6 @@ int main(int argc, char * argv[])
         dg::mat::GyrolagK<double> func(0, -alpha);
         auto funcE1 = dg::mat::make_FuncEigen_Te1( func);
         double time = 0.;
-        unsigned iter_sum=0;
 
         //MLanczos-universal
         if (u==0)
@@ -118,14 +117,27 @@ int main(int argc, char * argv[])
         if (u==1)
         {
             t.tic();
-            iter = krylovproduct.apply( x, func, d, A, b, w2d, eps, 1.);
+            //iter = krylovproduct.apply( x, func, d, A, b, w2d, eps, 1.);
+            double max = dg::blas1::reduce( d, -1e308, thrust::maximum<double>());
+            auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( max, x);});
+            auto T = krylovproduct.lanczos().tridiag( unary_func, A, b, w2d, eps, 1.,
+                "universal", 1.0, 1);
+            iter = T.num_rows;
+            krylovproduct.compute_vlcl( func, d, A, T, x, b, krylovproduct.lanczos().get_bnorm());
             t.toc();
             time = t.diff();
         }
         if (u==2)
         {
             t.tic();
-            iter = krylovproduct.apply_adjoint( x, func, A, d, b, w2d, eps, 1.);
+            //iter = krylovproduct.apply_adjoint( x, func, A, d, b, w2d, eps, 1.);
+            double max = dg::blas1::reduce( d, -1e308, thrust::maximum<double>());
+            auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( x, max);});
+            auto T = krylovproduct.lanczos().tridiag( unary_func, A, b, w2d, eps, 1.,
+                "universal", 1.0, 1);
+            iter = T.num_rows;
+            krylovproduct.compute_vlcl_adjoint( func, A, d, T, x, b,
+                w2d, krylovproduct.lanczos().get_bnorm());
             t.toc();
             time = t.diff();
         }
@@ -167,9 +179,8 @@ int main(int argc, char * argv[])
             dg::blas1::axpby(1.0, x, -1.0, x_exac, error);
             erel = sqrt(dg::blas2::dot( w2d, error) / dg::blas2::dot( w2d, x_exac));
             std::cout << "    universal-error: "<<erel  << "\n";
-            std::cout << "    universal-iter: " <<std::setw(3)<< iter << "\n";
         }
-        else std::cout << "    universal-iter: " <<std::setw(3)<< iter_sum << "\n";
+        std::cout << "    universal-iter: " <<std::setw(3)<< iter << "\n";
     }
 
     return 0;
