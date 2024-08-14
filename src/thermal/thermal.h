@@ -1,8 +1,9 @@
 #pragma once
 
 #include "dg/algorithm.h"
-#include "parameters.h"
 #include "dg/geometries/geometries.h"
+#include "parameters.h"
+#include "../feltor/common.h"
 
 #define FELTORPARALLEL 1
 #define FELTORPERP 1
@@ -10,26 +11,15 @@
 namespace thermal
 {
 
-struct BPerp{
-    //b_perp
-    DG_DEVICE void operator()(double A,
-        double d0A, double d1A,
-        double& bp0, double& bp1, //bperp
-        double b_2,
-        double curvKappa0,  double curvKappa1
-        ){
-        bp0 = (   b_2*d1A + A*curvKappa0);
-        bp1 = ( - b_2*d0A + A*curvKappa1);
-    }
-};
-
 template< class Geometry, class IMatrix, class Matrix, class Container >
 struct Explicit
 {
     // y[0] == density
-    // y[1] == velocity
-    // y[2] == pperp
-    // y[3] == ppara
+    // y[1] == pperp
+    // y[2] == pparallel
+    // y[3] == wST
+    // y[4] == qperpST
+    // y[5] == qparallel
     using vector = std::array<std::vector<Container>,4>;
     using container = Container;
     Explicit( const Geometry& g, thermal::Parameters p,
@@ -185,7 +175,7 @@ struct Explicit
     void compute_lapMperpN (double alpha, const Container& density, Container& temp0, double beta, Container& result)
     {
         // positive Laplacian
-        dg::blas1::transform( density, temp0, dg::PLUS<double>(-m_p.nbc));
+        dg::blas1::transform( density, temp0, dg::PLUS<double>(-m_p.nbc[s]));
         dg::blas2::symv( alpha, m_lapperpN, temp0, beta, result);
     }
     void compute_lapMperpU (int i, Container& result)
@@ -202,15 +192,10 @@ struct Explicit
         // only if lapperpU has same direction as lapperpP
         dg::blas2::gemv( m_lapperpU, m_apar, result);
     }
-    void compute_bperp( std::array<Container,3>& bperp)
+    const std::array<Container,2> get_bperp( )
     {
         update_diag();
-        dg::blas1::subroutine( BPerp(), m_apar,
-            m_dA[0], m_dA[1],
-            bperp[0], bperp[1],// bperp on output
-            m_b[2],
-            m_curvKappa[0], m_curvKappa[1]
-        );
+        return m_bperp;
     }
     const Container& get_source() const{
         return m_source;
@@ -234,7 +219,7 @@ struct Explicit
         // result = alpha Lambda_N + beta result
         if( m_p.nu_perp_n > 0)
         {
-            dg::blas1::transform( density, temp0, dg::PLUS<double>(-m_p.nbc));
+            dg::blas1::transform( density, temp0, dg::PLUS<double>(-m_p.nbc[s]));
             for( unsigned s=0; s<m_p.diff_order; s++)
             {
                 using std::swap;
@@ -274,7 +259,7 @@ struct Explicit
         if( nu > 0 )
         {
 
-            dg::blas1::transform( density, temp0, dg::PLUS<double>(-m_p.nbc));
+            dg::blas1::transform( density, temp0, dg::PLUS<double>(-m_p.nbc[s]));
             for( unsigned s=0; s<m_p.diff_order-1; s++)
             {
                 using std::swap;
@@ -392,7 +377,7 @@ struct Explicit
                 m_fa( dg::geo::zeroForw,  m_density[i], m_zero);
                 m_fa( dg::geo::einsPlus,  m_density[i], m_plus);
                 update_parallel_bc_2nd( m_fa, m_minus, m_zero, m_plus,
-                        m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc : 0.);
+                        m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc[s] : 0.);
                 dg::geo::ds_centered( m_fa, 1., m_minus, m_plus, 0., m_dsN[i]);
                 dg::geo::dssd_centered( m_fa, 1.,
                         m_minus, m_zero, m_plus, 0., m_lapParN[i]);
@@ -509,7 +494,7 @@ struct Explicit
         const std::array<Container,2>& density,
         const std::array<Container,2>& potential);
     void update_staggered_density( double t,
-        const std::array<Container,2>& density);
+        const std::vector<Container>& density);
     void update_velocity( double t,
         const std::array<Container,2>& velocityST,
         const Container& aparST);
@@ -561,8 +546,27 @@ struct Explicit
         const Container& plusST,
         Container& flux,
         std::string slope_limiter);
+    void compute_bperp( const Container& apar,
+        std::array<Container,2>& bperp, Container& divbperp)
+    {
+        dg::blas2::symv( m_dx_A, apar, m_temp0);
+        dg::blas2::symv( m_dy_A, apar, m_temp1);
+        dg::blas1::pointwiseDot( 1., m_b, m_temp1, 1., apar, m_curvKappa[0], 0., bperp[0]);
+        dg::blas1::pointwiseDot(-1., m_b, m_temp0, 1., apar, m_curvKappa[1], 0., bperp[1]);
+        dg::blas1::pointwiseDot( 1., apar, m_divCurvKappa, -1., m_curvNabla[0], m_temp0, 0., divbperp);
+        dg::blas1::pointwiseDot( -1., m_curvNabla[1], m_temp1, 1., divbperp);
+    }
+    void compute_efield( )
+    {
+        dg::blas2::symv( m_dx_P, m_potential[0], m_E_0[0]);
+        dg::blas2::symv( m_dy_P, m_potential[0], m_E_0[1]);
+        dg::blas2::symv( m_dx_P, m_potential[1], m_E_1[0]);
+        dg::blas2::symv( m_dy_P, m_potential[1], m_E_1[1]);
+        dg::blas2::symv( m_dxF_N, m_temp1, m_dFN[0]);
+        dg::blas2::symv( m_dyF_N, m_temp1, m_dFN[1]);
+
+    }
     void compute_parallel(          std::array<std::array<Container,2>,2>& yp);
-    void multiply_rhs_penalization(      Container& yp);
     void add_wall_and_sheath_terms( std::array<std::array<Container,2>,2>& yp);
     void add_source_terms(          std::array<std::array<Container,2>,2>& yp);
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
@@ -583,8 +587,11 @@ struct Explicit
     Container m_wall, m_sheath;
 
     // Only set once every call to operator()
-    std::array<Container,2> m_velocity, m_velocityST;
-    std::array<Container,2> m_potential, m_potentialST;
+    Container m_velocity, m_velocityST;
+    std::array<Container,4> m_potential, m_potentialST;
+    std::array<Container,2> m_E_0, m_E_1;
+    Container m_divuE0, m_divuE1;
+    Container m_dsE_1;
     Container m_phi, m_apar, m_aparST;
 
     Container m_UE2;
@@ -594,10 +601,11 @@ struct Explicit
     Container m_plusSTU, m_minusSTU;
 
     // overwritten by diag_update and/or set once by operator()
-    std::array<Container,2> m_dA;
+    std::array<Container,2> m_bperp, m_bperpST;
+    Container m_divbperp, m_divbperpST;
     std::array<Container,2> m_dP, m_dFN, m_dBN, m_dFU, m_dBU;
     Container m_dsN, m_dsP, m_dsU;
-    std::array<std::vector<Container>,4> m_s; // source
+    std::array<std::vector<Container>,3> m_s; // source N, Pperp, Pparallel
 
     // Set by diag_update
     Container m_dssU, m_lapParU, m_lapParN;
@@ -750,8 +758,9 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     m_velocityST = m_potentialST = m_potential;
     m_dsN = m_dsP = m_dsU = m_dssU = m_lapParU = m_lapParN = m_potential;
 
-    m_dA[0] = m_dA[1] = m_dA[2] = m_temp0;
-    m_dP[0] = m_dP[1] = m_dA;
+    m_bperp[0] = m_bperp[1] = m_divbperp = m_temp0;
+    m_bperpST[0] = m_bperpST[1] = m_divbperpST = m_temp0;
+    m_dP[0] = m_dP[1] = m_bperp;
     m_dFN = m_dBN = m_dFU = m_dBU = m_dP;
     m_s[0] = m_s[1] = m_potential ;
 
@@ -783,17 +792,17 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::initializene(
         if( initphi == "zero")
         {
             // ne-nbc = Gamma (ni-nbc)
-            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc));
-            dg::blas1::plus(target, -m_p.nbc);
+            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc[s]));
+            dg::blas1::plus(target, -m_p.nbc[s]);
             m_multigrid.set_benchmark( true, "Gamma N     ");
             std::vector<unsigned> number = m_multigrid.solve(
                 m_multi_invgammaN, target, m_temp0, m_p.eps_gamma);
-            dg::blas1::plus(target, +m_p.nbc);
+            dg::blas1::plus(target, +m_p.nbc[s]);
         }
         else if( initphi == "balance")
         {
             //add FLR correction -0.5*tau*mu*Delta n_e
-            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc));
+            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc[s]));
             dg::blas2::symv( 0.5*m_p.tau[1]*m_p.mu[1],
                 m_lapperpN, m_temp0, 1.0, target);
             //wird stark negativ falls alpha klein!!
@@ -816,7 +825,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::initializeni(
         if( initphi == "zero")
         {
             //add FLR correction -0.5*tau*mu*Delta n_e
-            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc));
+            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc[s]));
             dg::blas2::symv( 0.5*m_p.tau[1]*m_p.mu[1],
                 m_lapperpN, m_temp0, 1.0, target);
             //wird stark negativ falls alpha klein!!
@@ -824,7 +833,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::initializeni(
         else if( initphi == "balance")
         {
             //add FLR correction +0.5*tau*mu*Delta n_e
-            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc));
+            dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc[s]));
             dg::blas2::symv( -0.5*m_p.tau[1]*m_p.mu[1],
                 m_lapperpN, m_temp0, 1.0, target);
             //wird stark negativ falls alpha klein!!
@@ -840,14 +849,13 @@ template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::update_perp_derivatives(
     const Container& density,
     const Container& velocity,
-    const Container& potential,
-    const Container& apar)
+    const Container& potential)
 {
     for( unsigned i=0; i<2; i++)
     {
         ////////////////////perpendicular dynamics////////////////////////
         //First compute forward and backward derivatives for upwind scheme
-        dg::blas1::transform( density, m_temp1, dg::PLUS<double>(-m_p.nbc));
+        dg::blas1::transform( density, m_temp1, dg::PLUS<double>(-m_p.nbc[s]));
         dg::blas2::symv( m_dxF_N, m_temp1, m_dFN[0]);
         dg::blas2::symv( m_dyF_N, m_temp1, m_dFN[1]);
         dg::blas2::symv( m_dxB_N, m_temp1, m_dBN[0]);
@@ -858,8 +866,6 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_perp_derivatives(
         dg::blas2::symv( m_dyB_U, velocity, m_dBU[1]);
         dg::blas2::symv( m_dx_P, potential, m_dP[0]);
         dg::blas2::symv( m_dy_P, potential, m_dP[1]);
-        dg::blas2::symv( m_dx_A, apar, m_dA[0]);
-        dg::blas2::symv( m_dy_A, apar, m_dA[1]);
     }
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
@@ -874,7 +880,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density_an
         m_fa( dg::geo::zeroForw,  density, m_zeroN);
         m_fa( dg::geo::einsPlus,  density, m_plusN);
         update_parallel_bc_2nd( m_fa, m_minusN, m_zeroN, m_plusN,
-                m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc : 0.);
+                m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc[s] : 0.);
 
         m_faST( dg::geo::zeroMinus, potential[i], m_minus);
         m_faST( dg::geo::einsPlus,  potential[i], m_plus);
@@ -894,7 +900,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density(
         m_faST( dg::geo::zeroMinus, density[s], m_minusSTN[s]);
         m_faST( dg::geo::einsPlus,  density[s], m_plusSTN[s]);
         update_parallel_bc_1st( m_minusSTN[s], m_plusSTN[s],
-                m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc : 0.);
+                m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc[s] : 0.);
         dg::blas1::axpby( 0.5, m_minusSTN[s], 0.5, m_plusSTN[s], m_densityST[s]);
     }
 }
@@ -1357,29 +1363,6 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
     dg::blas1::axpby( 1., m_s, 1.0, yp);
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::multiply_rhs_penalization(
-        Container& yp)
-{
-    //mask right hand side in penalization region
-    if( m_p.penalize_wall && m_p.penalize_sheath)
-    {
-        dg::blas1::subroutine( []DG_DEVICE(
-            double& rhs, double wall, double sheath){
-                rhs *= (1.0-wall-sheath);
-            }, yp, m_wall, m_sheath);
-    }
-    else if( m_p.penalize_wall)
-    {
-        dg::blas1::subroutine( []DG_DEVICE( double& rhs, double wall){
-                rhs *= (1.0-wall); }, yp, m_wall);
-    }
-    else if( m_p.penalize_sheath)
-    {
-        dg::blas1::subroutine( []DG_DEVICE( double& rhs, double sheath){
-                rhs *= (1.0-sheath); }, yp, m_sheath);
-    }
-}
-template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::add_wall_and_sheath_terms(
         std::array<std::vector<Container>,4>& yp)
 {
@@ -1475,15 +1458,18 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
 
     std::vector<Container>&  density    = y[0];
+    std::vector<Container>&  pperp      = y[1];
+    std::vector<Container>&  pparallel  = y[2];
     std::vector<Container>&  wST        = y[1];
-    std::vector<Container>&  pperp      = y[2];
-    std::vector<Container>&  pparaST    = y[3];
+    std::vector<Container>&  qperpST    = y[2];
+    std::vector<Container>&  qparallelST= y[3];
 
     // First compute potentials phi and apar
 #if FELTORPERP == 1
 
     // set m_potential[0]
-    m_solvers.compute_phi( t, density, pperp, multiply_rhs_penalization, m_phi);
+    m_solvers.compute_phi( t, density, pperp, m_phi, m_p.penalize_wall,
+        m_wall, m_p.penalize_sheath, m_sheath);
 
 #else
 
@@ -1502,23 +1488,26 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     {
         m_solvers.compute_aparST( t, m_densityST, wST, m_aparST, true);
     }
-    // Compute apar
+    // Compute apar, bperp, and divbperp
     m_faST( dg::geo::einsMinus, m_aparST, m_minus);
     m_faST( dg::geo::zeroPlus,  m_aparST, m_plus);
     update_parallel_bc_1st( m_minus, m_plus, m_p.bcxA, 0.);
     dg::blas1::axpby( 0.5, m_minus, 0.5, m_plus, m_apar);
     m_old_apar.update( t, m_apar);
+    compute_bperp( m_apar, m_bperp, m_divbperp);
+    compute_bperp( m_aparST, m_bperpST, m_divbperpST);
 
     // main species loop
     for( unsigned s=0; s<m_p.num_species; s++)
     {
 
         m_upToDate[s] = false;
-        //Compute m_velocityST, m_minusSTU, m_plusST, m_minusU, m_zeroU, m_plusU
-        update_velocity( t, wST, m_aparST, m_velocityST, s);
 
         // Compute the three potentials
-        m_solvers.compute_psi( t, 
+        m_solvers.compute_psi( t, density, pperp, m_phi, m_potential,s);
+
+        //Compute m_velocityST, m_minusSTU, m_plusST, m_minusU, m_zeroU, m_plusU
+        update_velocity( t, wST, m_aparST, m_velocityST, s);
 
         //Compute m_minusN, m_zeroN, m_plusN
         update_staggered_density_and_phi( t, m_density, m_potential);

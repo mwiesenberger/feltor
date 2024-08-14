@@ -20,19 +20,23 @@ struct ThermalSolvers
         dg::geo::TokamakMagneticField mag, dg::file::WrappedJsonValue js);
     void compute_phi(
         double time, const std::vector<Container>& density,
-        const std::vector<Container>& tperp,
-        const std::function<void(Container&)>& multiply_rhs_penalization,
-        Container& phi
+        const std::vector<Container>& pperp,
+        Container& phi,
+        bool penalize_wall, const Container& wall,
+        bool penalize_sheath, const Container& sheath
     );
     void compute_aparST( double t, const std::vector<Container>&,
             std::vector<Container>&, Container&, bool);
 
-    void compute_psi( double time, const Container& phi,
-        std::array<Container,3>& psi, unsigned s);
+    void compute_psi(
+        double time, const std::vector<Container>& density,
+        const std::vector<Container>& pperp,
+        const Container& phi,
+        std::array<Container,4>& psi, unsigned s);
 
     prviate:
     thermal::Parameters m_p;
-    Container m_temp0, m_temp1, m_temp2, m_rhoinv2, m_B, m_vol;
+    Container m_temp0, m_temp1, m_temp2, m_rhoinv2, m_B2, m_vol;
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
     std::vector<Container> m_multi_chi;
 
@@ -45,7 +49,6 @@ struct ThermalSolvers
     cusp::dia_matrix<int, double, cusp::host_memory> m_T;
 
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
-    // where do we need _old_apar
     dg::Extrapolation<Container> m_old_phi, m_old_aparST;
     std::vector<dg::Extrapolation<Container>> m_old_gammaN;
 };
@@ -61,9 +64,9 @@ Explicit<Geometry, Matrix, Container>::Explicit( const Geometry& g,
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
     m_rhoinv2 = m_temp2, m_temp1 = m_temp0;
-    dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B);
+    dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B2);
     m_vol = dg::create::volume( g);
-    //dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
+    dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
 
     //Set a hard code limit on the maximum number of iteration to avoid
     //endless iteration in case of failure
@@ -90,9 +93,10 @@ Explicit<Geometry, Matrix, Container>::Explicit( const Geometry& g,
 template<class Geometry, class Matrix, class Container>
 void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     double time, const std::vector<Container>& density,
-    const std::vector<Container>& pperp, // bar P_perp
-    const std::function<void(Container&)>& multiply_rhs_penalization,
-    Container& phi
+    const std::vector<Container>& pperp,
+    Container& phi,
+    bool penalize_wall, const Container& wall,
+    bool penalize_sheath, const Container& sheath
     )
 {
     //----------Compute and set chi----------------------------//
@@ -101,8 +105,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     {
         if( !m_p.neglect_mass[s] )
         {
-            dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B, 0., m_temp1);
-            dg::blas1::pointwiseDivide( 1., m_temp1, m_B, 1., m_temp0);
+            dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B2, 0., m_temp1);
         }
     }
     m_multigrid.project( m_temp0, m_multi_chi);
@@ -121,8 +124,8 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
             continue;
         }
         // compute 2/rho_s^2
-        dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // bar T_perp = bar P_perp / N
-        dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B, m_temp1, 0., m_rhoinv2);
+        dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // T_perp = P_perp / N
+        dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B2, m_temp1, 0., m_rhoinv2);
         min = std::min( dg::blas1::reduce( m_rhoinv2, 1e308, thrust::minimum<double>()), min);
 
         m_multigrid.project( m_rhoinv2, m_multi_chi);
@@ -143,7 +146,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
         dg::blas1::axpby( m_p.z[s], m_temp2, 1., m_temp0);
     }
     // Add penalization method
-    multiply_rhs_penalization( m_temp0);
+    feltor::common::multiply_rhs_penalization( m_temp0, penalize_wall, wall, penalize_sheath, sheath );
     //----------Invert polarisation----------------------------//
     m_old_phi.extrapolate( time, phi);
     m_multigrid.set_benchmark( true, "Polarisation");
@@ -209,7 +212,8 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_aparST(
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_psi(
-    double time, const std::vector<Container>& pperp,
+    double time, const std::vector<Container>& density,
+    const std::vector<Container>& pperp,
     const Container& phi, std::array<Container,4>& psi, unsigned s
     )
 {
@@ -223,7 +227,7 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_psi(
     }
     // compute rho_s^2/2
     dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // bar T_perp = bar P_perp / N
-    dg::blas1::pointwiseDivide( m_p.mu[s]/2./m_p.z[s]/m_p.z[s], m_temp1, m_B, 0., m_rhoinv2);
+    dg::blas1::pointwiseDivide( m_p.mu[s]/2./m_p.z[s]/m_p.z[s], m_temp1, m_B2, 0., m_rhoinv2);
 
     //-----------Solve for Gamma1 Phi---------------------------//
     for( unsigned u=0; u<4; u++)
@@ -234,8 +238,8 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_psi(
     dg::blas1::axpbypgz( -6., m_psi[1], 12., m_psi[2], -6., m_psi[3]);
     dg::blas1::axpby(    -2., m_psi[1],  2., m_psi[2]);
     dg::blas1::scal( -1., m_psi[1]);
-    dg::blas1::pointwiseDivide( 1., m_B, m_temp0);
-    m_laplaceM.variation( -m_p.mu[s]/2./m_p.z[s], m_temp0, phi, 1., m_psi[0]); // psi_2
+    m_laplaceM.variation( phi, m_temp0);
+    dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., m_psi[0]);
 }
 
 }//namespace thermal
