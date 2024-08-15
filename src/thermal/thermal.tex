@@ -82,7 +82,15 @@ Note the restriction
 \end{align}
 and that $T_{w}>0$ and $N_{s,w}>0$ must be strictly positive.
 The second exception is the box boundary conditions section:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Box boundary conditions}
+\begin{tcolorbox}[title=Note]
+The box boundary conditions are the same as in `feltor.pdf`. The density boundary
+condition also applies to $T_\perp$ and $T_\parallel$ and the velocity
+also applies to $Q_\perp$ and $Q_\paralllel$. The nbc value for density
+in case of Dirichlet must now have a value for each species and there must
+be a tbc value for temperature.
+\end{tcolorbox}
 Here we can set the boundary conditions on the actual box boundary.
 This affects the implementation of the elliptic equations and the
 perpendicular terms.
@@ -101,21 +109,16 @@ where $\hat n$ is the normal vector to the boundary.
     // must be either DIR or NEU in both directions!!
     "bc" :
     {
-        "density" : [NEU, NEU], // boundary conditions in x and y for $N_s$
+        "density" : [NEU, NEU], // boundary conditions in x and y for $N$, $T_\perp$ and $T_\parallel$
         // DIR (density 1 on boundary) means both convective and
         // diffusive outflow while NEU (gradient 0) means no outflow by diffusion
         "nbc" : [1.0,1.0] // Dirichlet value; must be present if and only if any one
         // density boundary condition is DIR (see also nwall, background and minne)
         // length must equal number of species (see \ref{sec:species})
-        "velocity" : [NEU, NEU], // boundary conditions in x and y for
-        // $U_{\parallel,s}$ for all $s$
-        // DIR is in general not very stable, NEU works better
-        "temperature" : [NEU, NEU], // boundary condition in x and y for
-        // $T_\perp$ and $T_\parallel$ for all species (see \ref{sec:species})
         "tbc" : 0.1 // Dirichlet value; must be present if and only if any one
-        // temperature boundary condition is DIR (see also $twall$ and background))
-        "heat-flux" : [NEU, NEU], // boundary conditions in x and y for
-        // heat flux $Q_\parallel$ and $Q_\perp$ for all $s$
+        // density boundary condition is DIR (see also $twall$ and background))
+        "velocity" : [NEU, NEU], // boundary conditions in x and y for
+        // $U_{\parallel,s}$, $Q_\perp$ and $Q_\parallel$ for all $s$
         // DIR is in general not very stable, NEU works better
         "potential" : [DIR, DIR], // boundary conditions in x and y for $\phi$
         // and $\psi$, DIR means that the $v_{E,\perp}=0$ on the boundary (i.e.
