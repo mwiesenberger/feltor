@@ -1540,8 +1540,8 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_wall_and_sheath_terms(
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     double t,
-    const std::array<std::vector<Container>,4>& y,
-    std::array<std::vector<Container>,4>& yp)
+    const std::array<std::vector<Container>,6>& y,
+    std::array<std::vector<Container>,6>& yp)
 {
     m_called++;
 #ifdef MPI_VERSION
@@ -1559,9 +1559,9 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     std::vector<Container>&  density    = y[0];
     std::vector<Container>&  pperp      = y[1];
     std::vector<Container>&  ppara      = y[2];
-    std::vector<Container>&  wST        = y[1];
-    std::vector<Container>&  qperpST    = y[2];
-    std::vector<Container>&  qparaST    = y[3];
+    std::vector<Container>&  wST        = y[3];
+    std::vector<Container>&  qperpST    = y[4];
+    std::vector<Container>&  qparaST    = y[5];
 
     // First compute potentials phi and apar
 #if FELTORPERP == 1
