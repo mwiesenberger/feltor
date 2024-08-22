@@ -54,7 +54,15 @@ class ParallelDynamics
     const std::array<Container,6>& get_qST( ) const{return m_qST;}
     const std::array<Container,6>& get_psiST( ) const{return m_psiST;}
 
-    void add_para_density_dynamics( unsigned s,
+    void add_para_density_dynamics(
+        unsigned s,
+        const std::array<Container,4>& psi,
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp);
+    void add_para_velocity_dynamics(
+        unsigned s,
+        const std::array<Container,4>& psi,
+        const std::array<std::vector<Container>,6>& y,
         std::array<std::vector<Container>,6>& yp);
 
     private:
