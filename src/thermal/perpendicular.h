@@ -22,20 +22,127 @@ class PerpDynamics
         const std::array<std::vector<Container>,6> >& y,
         const std::array<Container,6>& q
     );
-    void add_perp_density_dynamics(
+    void add_perp_density_advection(
         unsigned s,
         const Container& apar,
+        const std::array<Container,4>& psi,
         const std::array<std::vector<Container>,6> >& y,
         const std::array<Container,6>& q,
         std::array<std::vector<Container>,6>& yp
     );
-    void add_perp_velocity_dynamics(
+    void add_perp_velocity_advection(
         unsigned s,
-        const Container& apar,
+        const Container& aparST,
+        const std::array<Container,4>& psiST,
         const std::array<std::vector<Container>,6> >& y,
-        const std::array<Container,6>& q,
+        const std::array<Container,6>& qST,
         std::array<std::vector<Container>,6>& yp
     );
+    void add_perp_density_diffusion(
+        unsigned s,
+        const std::array<std::vector<Container>,6> >& y,
+        const std::array<Container,6>& q,
+        std::array<std::vector<Container>,6>& yp)
+    {
+        compute_perp_laplaceN( -m_p.nu_perp[0], q[0], m_p.nbc[s], m_p.diff_order,
+            m_temp0, m_temp1, 1., yp[0][s]);
+        compute_perp_laplaceN( -m_p.nu_perp[1], q[1], m_p.tbc, m_p.diff_order,
+            m_temp0, m_temp1, 1., yp[1][s]);
+        compute_perp_laplaceN( -m_p.nu_perp[2], q[2], m_p.tbc, m_p.diff_order,
+            m_temp0, m_temp1, 1., yp[2][s]);
+        // Ppara interfaces with U
+        compute_perp_laplaceU( m_p.nu_perp[3], q[3], m_p.diff_order-1,
+            m_temp0, m_temp1, 0., m_temp0);
+
+        dg::blas2::symv( m_dx_U, m_temp0, m_temp1);
+        dg::blas2::symv( m_dx_U, q[3], m_temp2);
+        dg::blas1::pointwiseDot( -2.*m_p.mu[s], m_temp1, m_temp2, 1., yp[2][s]);
+
+        dg::blas2::symv( m_dy_U, m_temp0, m_temp1);
+        dg::blas2::symv( m_dy_U, q[3], m_temp2);
+        dg::blas1::pointwiseDot( -2.*m_p.mu[s], m_temp1, m_temp2, 1., yp[2][s]);
+    }
+    void add_perp_velocity_diffusion(
+        unsigned s,
+        const std::array<std::vector<Container>,6> >& y,
+        const std::array<Container,6>& qST,
+        std::array<std::vector<Container>,6>& yp
+    )
+    {
+        compute_perp_laplaceU( -m_p.nu_perp[3], qST[3], m_p.diff_order,
+            m_temp0, m_temp1, 0., m_temp0);
+        dg::blas1::pointwiseDivide( 1., m_temp0, qST[0], 1., yp[3][s]);
+        compute_perp_laplaceU( -m_p.nu_perp[4], qST[4], m_p.diff_order,
+            m_temp0, m_temp1, 1., yp[4][s]);
+        compute_perp_laplaceU( -m_p.nu_perp[5], qST[5], m_p.diff_order,
+            m_temp0, m_temp1, 1., yp[5][s]);
+        // U interfaces with N
+        compute_perp_laplaceN( m_p.nu_perp[0], qST[0], m_p.diff_order-1,
+            m_temp0, m_temp1, 0., m_temp0);
+        to be continued
+
+        // // - v_x dx U
+        // if( m_p.diff_dir == dg::centered)
+        //     dg::blas2::symv( m_dxC, temp0, temp1);
+        // else if( m_p.diff_dir == dg::forward)
+        //     dg::blas2::symv( m_dxF_N, temp0, temp1);
+        // else
+        //     dg::blas2::symv( m_dxB_N, temp0, temp1);
+        // dg::blas1::pointwiseDivide( -nu, temp1, density, 0., temp1);
+        // dg::blas2::symv( m_dxB_U, velocity, temp2);
+        // dg::blas2::symv( m_dxF_U, velocity, temp3);
+        // dg::blas1::evaluate( result, dg::minus_equals(), dg::UpwindProduct(),
+        //         temp1, temp2, temp3);
+        // // - v_y dy U
+        // if( m_p.diff_dir == dg::centered)
+        //     dg::blas2::symv( m_dyC, temp0, temp1);
+        // else if( m_p.diff_dir == dg::forward)
+        //     dg::blas2::symv( m_dyF_N, temp0, temp1);
+        // else
+        //     dg::blas2::symv( m_dyB_N, temp0, temp1);
+        // dg::blas1::pointwiseDivide( -nu, temp1, density, 0., temp1);
+        // dg::blas2::symv( m_dyB_U, velocity, temp2);
+        // dg::blas2::symv( m_dyF_U, velocity, temp3);
+        // dg::blas1::evaluate( result, dg::minus_equals(), dg::UpwindProduct(),
+        //         temp1, temp2, temp3);
+
+    }
+    // y = alpha*(-Delta)^order N + beta * y
+    void compute_perp_laplaceN( double alpha, const Container& density, double bc, unsigned order,
+            Container& temp0, Container& temp1, double beta, Container& result )
+    {
+        if( alpha > 0)
+        {
+            dg::blas1::transform( density, temp0, dg::PLUS<double>(-bc));
+            for( unsigned s=0; s<order; s++)
+            {
+                using std::swap;
+                swap( temp0, temp1);
+                dg::blas2::symv( 1., m_lapperpN, temp1, 0., temp0);
+            }
+            dg::blas1::axpby( alpha, temp0, beta, result);
+        }
+        else
+            dg::blas1::scal( result, beta);
+    }
+    // y = alpha*(-Delta)^order U + beta * y
+    void compute_perp_laplaceU( double alpha, const Container& velocity, unsigned order,
+            Container& temp0, Container& temp1, double beta, Container& result )
+    {
+        if( alpha > 0)
+        {
+            dg::blas1::copy( velocity, temp0);
+            for( unsigned s=0; s<order; s++)
+            {
+                using std::swap;
+                swap( temp0, temp1);
+                dg::blas2::symv( 1., m_lapperpU, temp1, 0., temp0);
+            }
+            dg::blas1::axpby( alpha, temp0, beta, result);
+        }
+        else
+            dg::blas1::scal( result, beta);
+    }
     private:
     //these should be considered const
     std::array<Container,2> m_curvNabla, m_curvKappa, m_gradLnB;
@@ -43,11 +150,11 @@ class PerpDynamics
 
     Matrix m_dxF_N, m_dxB_N, m_dxF_U, m_dxB_U, m_dx_N, m_dx_U, m_dx_P, m_dx_A;
     Matrix m_dyF_N, m_dyB_N, m_dyF_U, m_dyB_U, m_dy_N, m_dy_U, m_dy_P, m_dy_A;
+    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperpN, m_lapperpU;
 
-    Container m_temp0, m_temp1;
+    Container m_temp0, m_temp1, m_temp2;
     std::array<Container,3> m_dxF, m_dxB, m_dyF, m_dyB;
     std::array<Container,9> m_dx, m_dy;
-    std::map<std::string, Container> m_v;
 
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
@@ -133,7 +240,7 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     dg::blas1::pointwiseDot( m_gradLnB[0], m_temp0, m_gradLnB[0]);
     dg::blas1::pointwiseDot( m_gradLnB[1], m_temp0, m_gradLnB[1]);
     dg::blas1::pointwiseDot( m_b_2, m_temp0, m_bphiB); // bphi / B
-    m_temp0 = dg::tensor::volume( metric);
+    m_temp2 = m_temp0 = dg::tensor::volume( metric);
     dg::blas1::pointwiseDivide( m_b_2, m_temp0, m_bbphiB); //bphiB/detg/B
 
     // allocate resources for internal vectors
@@ -141,6 +248,8 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     m_dxB = m_dyF = m_dyB = m_dxF;
     std::fill( m_dx.begin(), m_dx.end(), m_temp0);
     std::fill( m_dy.begin(), m_dy.end(), m_temp0);
+    // Diffusion operators
+    m_lapperpN.construct ( g, p.bcxN, p.bcyN,  p.diff_dir),
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
@@ -184,7 +293,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::update_density_derivatives(
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_density_dynamics(
+void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_density_advection(
     unsigned s,
     const Container& apar,
     const std::array<Container,4>& psi,
@@ -323,7 +432,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_density_dynamics(
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocity_dynamics(
+void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocity_advection(
     unsigned s,
     const Container& aparST,
     const std::array<Container,4>& psiST,
