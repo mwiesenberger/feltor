@@ -11,35 +11,54 @@ namespace thermal
 using Feltor = thermal::Explicit< dg::x::CylindricalGrid3d, dg::x::IDMatrix,
         dg::x::DMatrix, dg::x::DVec>;
 
-std::vector<dg::file::Record<void(dg::x::DVec&, Feltor&, unsigned i)>> restart3d_list = {
-    {"restart_density", "gyro-centre density",
-        []( dg::x::DVec& result, Feltor& f, unsigned i ) {
-             dg::blas1::copy(f.restart_density(i), result);
+std::vector<dg::file::Record<void(dg::x::DVec&, Feltor&, unsigned)>> restart3d_list = {
+    {"n", "gyro-centre density",
+        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
+             dg::blas1::copy(f.restart_density(s), result);
         }
     },
-    {"restart_velocity", "parallel velocity",
-        []( dg::x::DVec& result, Feltor& f, unsigned i ) {
-             dg::blas1::copy(f.restart_velocity(i), result);
+    {"pperp", "perpendicular pressure",
+        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
+             dg::blas1::copy(f.restart_pperp(s), result);
         }
     },
-    {"restart_pperp", "perpendicular pressure",
-        []( dg::x::DVec& result, Feltor& f, unsigned i ) {
-             dg::blas1::copy(f.restart_pperp(i), result);
+    {"ppara", "parallel pressure",
+        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
+             dg::blas1::copy(f.restart_ppara(s), result);
         }
     },
-    {"restart_ppara", "parallel pressure",
-        []( dg::x::DVec& result, Feltor& f, unsigned i ) {
-             dg::blas1::copy(f.restart_ppara(i), result);
+    {"w", "canonical parallel velocity",
+        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
+             dg::blas1::copy(f.restart_velocity(s), result);
         }
     },
-    {"restart_aparallel", "parallel magnetic potential",
-        []( dg::x::DVec& result, Feltor& f, unsigned i ) {
-             dg::blas1::copy(f.restart_aparallel(), result);
+    {"qperp", "perpendicular heat flux",
+        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
+             dg::blas1::copy(f.restart_qperp(s), result);
         }
-    }
+    },
+    {"qpara", "parallel heat flux",
+        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
+             dg::blas1::copy(f.restart_qpara(s), result);
+        }
+    },
 };
 
-std::array<std::vector<dg::x::DVec>,4> init_from_file( std::string file_name,
+std::vector<std::vector<dg::file::Record<void(dg::x::DVec&, Feltor&, unsigned)>>> make_restart3d_list( std::vector<std::string> names)
+{
+    unsigned num_species = names.size();
+    for( unsigned s =0; s<num_species; s++)
+    {
+        for( auto record : restart3d_list)
+        {
+            records[s].append( {names[s] + "_restart_" + record.name, record.long_name, record.function});
+        }
+    }
+    return records;
+}
+
+
+std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
         const dg::x::CylindricalGrid3d& grid, const Parameters& p,
         double& time)
 {
