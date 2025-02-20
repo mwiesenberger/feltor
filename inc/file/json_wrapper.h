@@ -19,10 +19,7 @@ namespace dg
 namespace file
 {
 /**
- * @defgroup json Json utilities
- * \#include "dg/file/json_utilities.h" (link -ljsoncpp)
- *
- * @addtogroup json
+ * @addtogroup wrapper
  * @{
  */
 
@@ -116,8 +113,8 @@ try{
  * js["hello"]["world"] = dg::file::file2Json("test.json")
  * @endcode
  *
- * @note If the Marco \c DG_USE_JSONHPP is defined, the <tt> \#include <nlohmann/json.hpp> </tt>
- * parser is used instead of <tt> \#include <json/json.h> </tt> Since the former is header-only
+ * @note If the Marco \c DG_USE_JSONHPP is defined, the <tt>\#include <nlohmann/json.hpp></tt>
+ * parser is used instead of <tt>\#include <json/json.h></tt> Since the former is header-only
  * no additional linker options must be present at compilation.
  */
 struct WrappedJsonValue
@@ -331,7 +328,10 @@ struct WrappedJsonValue
     error m_mode;
     std::string m_access_str = "";
 };
+///@}
 
+///@addtogroup json
+///@{
 /**
  * @brief Convenience wrapper to open a file and parse it into a JsonType
  *
@@ -344,7 +344,7 @@ struct WrappedJsonValue
  * \c error::is_silent: silently return
  * @return js object with all the found variables in \c filename
  */
-static inline JsonType file2Json(std::string filename, enum comments comm =
+inline JsonType file2Json(std::string filename, enum comments comm =
         file::comments::are_discarded, enum error err = file::error::is_throw)
 {
     std::ifstream isI( filename);
@@ -406,7 +406,7 @@ static inline JsonType file2Json(std::string filename, enum comments comm =
 }
 
 /// @brief Same as <tt>js = dg::file::file2Json( filename, comm, err)</tt>
-static inline void file2Json(std::string filename, JsonType& js, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
+inline void file2Json(std::string filename, JsonType& js, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
 {
     js = file2Json( filename, comm, err);
 }
@@ -426,7 +426,7 @@ static inline void file2Json(std::string filename, JsonType& js, enum comments c
  * \c error::is_silent: silently return
  * @return json object with all the found Json variables in \c input
  */
-static inline JsonType string2Json(std::string input, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
+inline JsonType string2Json(std::string input, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
 {
     JsonType js;
 #ifdef DG_USE_JSONHPP
@@ -475,7 +475,7 @@ static inline JsonType string2Json(std::string input, enum comments comm = file:
 }
 
 /// @brief Same as <tt>js = string2Json( input, comm, err)</tt>
-static inline void string2Json(std::string input, JsonType& js, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
+inline void string2Json(std::string input, JsonType& js, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
 {
     js = string2Json( input, comm, err);
 }
@@ -505,17 +505,8 @@ dg::file::JsonType vec2json( std::initializer_list<T> shared)
     std::vector<T> cc( shared);
     return vec2json(cc);
 }
-
-///Convert a string to a json object \c js with <tt> js["long_name"] = long_name</tt>
-/// Useful in connection with \c dg::file::Record
-static inline dg::file::JsonType long_name( const std::string& long_name)
-{
-    dg::file::JsonType att;
-    att["long_name"] = long_name;
-    return att;
-}
-
-
 ///@}
+
+
 }//namespace file
 }//namespace dg

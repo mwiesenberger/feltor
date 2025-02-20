@@ -16,6 +16,7 @@
   */
 namespace dg
 {
+    //TODO Elliptic can be made complex aware with a 2nd complex ContainerType
 // Note that there are many tests for this file : elliptic2d_b,
 // elliptic2d_mpib, elliptic_b, elliptic_mpib, ellipticX2d_b
 // And don't forget inc/geometries/elliptic3d_t (testing alignment and
@@ -104,7 +105,7 @@ class Elliptic1d
         m_jfactor=jfactor;
         dg::blas2::transfer( dg::create::dx( g, inverse( bcx), inverse(dir)), m_leftx);
         dg::blas2::transfer( dg::create::dx( g, bcx, dir), m_rightx);
-        dg::blas2::transfer( dg::create::jump( g, bcx),   m_jumpX);
+        dg::blas2::transfer( dg::create::jumpX( g, bcx),   m_jumpX);
 
         dg::assign( dg::create::weights(g),       m_weights);
         dg::assign( dg::evaluate( dg::one, g),    m_precond);
@@ -217,7 +218,7 @@ class Elliptic1d
  @copydoc hide_note_jump
 
  The following code snippet demonstrates the use of \c Elliptic in an inversion problem
- * @snippet elliptic2d_b.cu pcg
+ * @snippet elliptic2d_b.cpp pcg
  * @copydoc hide_geometry_matrix_container
  * This class has the \c SelfMadeMatrixTag so it can be used in \c blas2::symv functions
  * and thus in a conjugate gradient solver.
@@ -541,7 +542,7 @@ using Elliptic = Elliptic2d<Geometry, Matrix, Container>;
 
 
  The following code snippet demonstrates the use of \c Elliptic3d in an inversion problem
- * @snippet elliptic_b.cu invert
+ * @snippet elliptic_b.cpp invert
  * @copydoc hide_geometry_matrix_container
  * This class has the \c SelfMadeMatrixTag so it can be used in \c blas2::symv functions
  * and thus in a conjugate gradient solver.

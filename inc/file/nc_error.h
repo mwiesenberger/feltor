@@ -18,26 +18,34 @@ namespace file
  */
 struct NC_Error : public std::exception
 {
-
     /**
      * @brief Construct from error code
      *
      * @param error netcdf error code
      */
-    NC_Error( int error): error_( error) {}
+    NC_Error( int error): m_error( error) {}
+
+    int error() const { return m_error;}
+    int& error() { return m_error;}
     /**
      * @brief What string
      *
      * @return string netcdf error message generated from error code
      */
-    char const* what() const throw(){
-        return nc_strerror(error_);}
+    char const* what() const noexcept{
+        if ( m_error == 1000)
+            return "NC ERROR Cannot operate on closed file!\n";
+        else if( m_error == 1001)
+            return "NC ERROR Slab dimension does not match variable dimension!\n";
+        else if( m_error == 1002)
+            return "NC ERROR Cannot open file. File already open!\n";
+        return nc_strerror(m_error);}
   private:
-    int error_;
+    int m_error;
 };
 
 /**
- * @brief Empty utitlity class that handles return values of netcdf
+ * @brief DEPRECATED Empty utitlity class that handles return values of netcdf
  * functions and throws NC_Error(status) if( status != NC_NOERR)
  *
  * For example
@@ -56,7 +64,7 @@ struct NC_Error : public std::exception
  * @endcode
  *
  * This allows for a C++ style error handling of netcdf errors in that the program either terminates if the NC_Error is not caught or does something graceful in a try catch statement.
- * @ingroup netcdf
+ * @ingroup legacy
  */
 struct NC_Error_Handle
 {

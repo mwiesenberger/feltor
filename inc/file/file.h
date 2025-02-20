@@ -6,33 +6,32 @@
 
 #include "json_utilities.h"
 #include "nc_utilities.h"
-#include "json_netcdf.h"
-#include "writer.h"
-#include "reader.h"
 #include "probes.h"
 
 /*!@file
  *
  * Combined json and netcdf utilities
  *
- * @defgroup json Json utilities
- * \#include "dg/file/json_utilities.h" (link -ljsoncpp )
+ * @defgroup section Json utilities
+ * @brief \#include "dg/file/json_utilities.h" (link -ljsoncpp )
+ * @{
+ *  @defgroup wrapper The WrappedJsonValue class
+ *  @defgroup json Convert to Json
+ * @}
  *
  * If the Macro \c DG_USE_JSONHPP is defined before inclusion then the (header-only) nlohmann-json library is used
  * instead of jsoncpp
- * @defgroup netcdf NetCDF utilities
- * \#include "dg/file/nc_utilities.h" (link -lnetcdf -lhdf5[_serial] -lhdf5[_serial]_hl)
+ * @defgroup high A high level C++ interface to NetCDF-4
+ * @brief \#include "dg/file/nc_utilities.h" (link -lnetcdf -lhdf5[_serial] -lhdf5[_serial]_hl)
  * @{
- *      @defgroup Dimensions Dimension utilities
- *      @defgroup Input Read variable utilities
- *      @defgroup Output Write variable utilities
+ *  @defgroup ncfile The NcFile class
+ *  @{
+ *      @defgroup netcdf Utilities for the NcFile class
+ *  @}
+ *  @defgroup probes The Probes diagnostics module
  * @}
- * @defgroup json_netcdf Json and NetCDF utilities
- * \#include "dg/file/file.h" (link -lnetcdf -lhdf5[_serial] -lhdf5[_serial]_hl)
- * @{
- *      @defgroup Attributes Json as Nc Attributes utilities
- *      @defgroup Cpp A high level C++ interface
- * @}
+ *
+ * @defgroup legacy Legacy NetCDF-C utility
  */
 
 namespace dg

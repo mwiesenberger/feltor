@@ -8,22 +8,17 @@
 #include "dg/topology/mpi_grid.h"
 #endif //MPI_VERSION
 #include "nc_error.h"
+#include "nc_hyperslab.h"
 
 /*!@file
  *
  * Define variable readers
  */
 
-// Variable ids are persistent once created
-// Attribute ids can change if one deletes attributes
 namespace dg
 {
 namespace file
 {
-/**
- * @addtogroup Input
- * @{
- */
 
 ///@cond
 namespace detail
@@ -74,65 +69,107 @@ inline int get_vara_T<unsigned>( int ncid, int varID, const size_t* startp, cons
     return nc_get_vara_uint( ncid, varID, startp, countp, data);
 }
 #ifdef MPI_VERSION
-
-template<class host_vector, class MPITopology>
-void get_vara_detail(int ncid, int varid, unsigned slice, const MPITopology& grid, MPI_Vector<host_vector>& data, bool vara, bool parallel = true)
+template<class host_vector>
+void get_vara_detail(int ncid, int varid,
+        const MPINcHyperslab& slab,
+        host_vector& data,
+        thrust::host_vector<dg::get_value_type<host_vector>>& to_send,
+        MPI_Comm global_comm = MPI_COMM_WORLD
+        )
 {
-    MPI_Comm comm = grid.communicator();
-    int local_root_rank = dg::mpi_comm_global2local_rank(comm);
+    MPI_Comm comm = slab.communicator();
+    // we need to identify the global root rank within the groups and mark the
+    // entire group
+    int local_root_rank = dg::file::detail::mpi_comm_global2local_rank(comm, 0,
+        global_comm);
     if (local_root_rank == MPI_UNDEFINED)
         return;
-    unsigned grid_ndims = grid.ndim();
-    auto cc = shape( grid.local());
-    std::reverse( cc.begin(), cc.end());
-    if( vara)
-        cc.insert( cc.begin(), 1);
-    std::vector<size_t> count( cc.begin(), cc.end());
+    unsigned ndim = slab.ndim(); // same on all processes
     int rank, size;
     MPI_Comm_rank( comm, &rank);
     MPI_Comm_size( comm, &size);
-    std::vector<size_t> start(vara ? grid_ndims+1 : grid_ndims,0);
-    if( vara)
-        start[0] = slice;
-    file::NC_Error_Handle err;
-    if( parallel)
+
+    // Send start and count vectors to root
+    std::vector<size_t> r_start( rank == local_root_rank ? size * ndim : 0);
+    std::vector<size_t> r_count( rank == local_root_rank ? size * ndim : 0);
+    MPI_Gather( slab.startp(), ndim, dg::getMPIDataType<size_t>(),
+                &r_start[0], ndim, dg::getMPIDataType<size_t>(),
+                local_root_rank, comm);
+    MPI_Gather( slab.countp(), ndim, dg::getMPIDataType<size_t>(),
+                &r_count[0], ndim, dg::getMPIDataType<size_t>(),
+                local_root_rank, comm);
+
+    MPI_Datatype mpitype = dg::getMPIDataType<get_value_type<host_vector>>();
+    int err = NC_NOERR;
+    if( rank == local_root_rank )
     {
-        int coords[grid_ndims];
-        MPI_Cart_coords( comm, rank, grid_ndims, coords);
-        for( unsigned i=0; i<grid_ndims; i++)
-            start[vara ? i+1 : i] = count[ vara ? i+1 : i]*coords[grid_ndims-1-i];
-        err = detail::get_vara_T( ncid, varid, &start[0], &count[0],
-            data.data().data());
+        // Sanity check
+        int ndims;
+        int e = nc_inq_varndims( ncid, varid, &ndims);
+        if( not e)
+            err = e;
+        if( (unsigned)ndims != slab.ndim())
+            err = 1001; // Our own error code
+
+        std::vector<size_t> sizes( size, 1);
+        for( int r = 0 ; r < size; r++)
+            for( unsigned u=0; u<ndim; u++)
+                sizes[r]*= r_count[r*ndim + u];
+
+        // host_vector could be a View
+        unsigned max_size = *std::max_element( sizes.begin(), sizes.end());
+        to_send.resize( max_size);
+        for( int r=0; r<size; r++)
+        {
+            if(r!=rank)
+            {
+                int e = detail::get_vara_T( ncid, varid, &r_start[r*ndim],
+                        &r_count[r*ndim], to_send.data()); // read data
+                MPI_Send( to_send.data(), (int)sizes[r], mpitype, r, r, comm);
+                if( not e) err = e;
+            }
+            else // read own data
+            {
+                int e = detail::get_vara_T( ncid, varid, slab.startp(),
+                        slab.countp(), thrust::raw_pointer_cast(data.data()));
+                if( not e) err = e;
+            }
+        }
     }
     else
     {
+        size_t num = 1;
+        for( unsigned u=0; u<ndim; u++)
+            num*= slab.count()[u];
         MPI_Status status;
-        size_t local_size = data.data().size();
-        std::vector<int> coords( grid_ndims*size);
-        for( int rrank=0; rrank<size; rrank++)
-            MPI_Cart_coords( comm, rrank, grid_ndims, &coords[grid_ndims*rrank]);
-        if( rank == local_root_rank )
-        {
-            host_vector to_send( data.data());
-            for( int rrank=0; rrank<size; rrank++)
-            {
-                for ( unsigned i=0; i<grid_ndims; i++)
-                    start[vara ? i+1 : i] = count[ vara ? i+1 : i]*coords[grid_ndims*rrank + grid_ndims-1-i];
-                if(rrank!=rank)
-                {
-                    err = detail::get_vara_T( ncid, varid, &start[0], &count[0],
-                        to_send.data()); // read data to send
-                    MPI_Send( to_send.data(), local_size, dg::getMPIDataType<get_value_type<host_vector>>(),
-                          rrank, rrank, comm);
-                }
-                else // read own data
-                    err = detail::get_vara_T( ncid, varid, &start[0], &count[0], data.data().data());
-            }
-        }
-        else
-            MPI_Recv( data.data().data(), local_size, dg::getMPIDataType<get_value_type<host_vector>>(),
-                      local_root_rank, rank, comm, &status);
-        MPI_Barrier( comm);
+        MPI_Recv( thrust::raw_pointer_cast(data.data()), num, mpitype,
+                  local_root_rank, rank, comm, &status);
+    }
+    MPI_Bcast( &err, 1, dg::getMPIDataType<int>(), local_root_rank, comm);
+    if( err)
+        throw NC_Error( err);
+    return;
+}
+
+// all comms must be same size
+template<class host_vector, class MPITopology>
+void get_vara_detail(int ncid, int varid, unsigned slice,
+        const MPITopology& grid, MPI_Vector<host_vector>& data,
+        bool vara, bool parallel = false)
+{
+    MPINcHyperslab slab( grid);
+    if( vara)
+        slab = MPINcHyperslab( slice, grid);
+    if( parallel)
+    {
+        file::NC_Error_Handle err;
+        err = detail::get_vara_T( ncid, varid,
+                slab.startp(), slab.countp(), data.data().data());
+    }
+    else
+    {
+        thrust::host_vector<dg::get_value_type<host_vector>> to_send;
+        get_vara_detail( ncid, varid, slab, data.data(), to_send);
     }
 }
 #endif // MPI_VERSION
@@ -140,7 +177,11 @@ void get_vara_detail(int ncid, int varid, unsigned slice, const MPITopology& gri
 ///@endcond
 
 /**
-* @brief Convenience wrapper around \c nc_get_var
+ * @addtogroup legacy
+ * @{
+ */
+/**
+* @brief DEPRECATED Convenience wrapper around \c nc_get_var
 *
 * The purpose of this function is mainly to simplify input in an MPI environment and to provide
 * the same interface also in a shared memory system for uniform programming.
@@ -168,7 +209,7 @@ void get_var( int ncid, int varid, const Topology& grid,
 }
 
 /**
-* @brief Convenience wrapper around \c nc_get_vara()
+* @brief DEPRECATED Convenience wrapper around \c nc_get_vara()
 *
 * The purpose of this function is mainly to simplify input in an MPI environment and to provide
 * the same interface also in a shared memory system for uniform programming.
@@ -193,18 +234,14 @@ void get_vara( int ncid, int varid, unsigned slice, const Topology& grid,
     host_vector& data, bool parallel = true)
 {
     file::NC_Error_Handle err;
-    auto cc = shape( grid);
-    std::reverse( cc.begin(), cc.end());
-    cc.insert( cc.begin(), 1);
-    std::vector<size_t> count( cc.begin(), cc.end());
-    std::vector<size_t> start( count.size(), 0);
-    start[0] = slice;
-    err = detail::get_vara_T( ncid, varid, &start[0], &count[0], data.data());
+    NcHyperslab slab( slice, grid);
+    err = detail::get_vara_T( ncid, varid, slab.startp(), slab.countp(),
+            data.data());
 }
 // scalar data
 
 /**
- * @brief Read a scalar from the netcdf file
+ * @brief DEPRECATED Read a scalar from the netcdf file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to read
@@ -225,14 +262,14 @@ void get_var( int ncid, int varid, const RealGrid0d<real_type>& grid,
     err = detail::get_var_T( ncid, varid, &data);
 }
 /**
- * @brief Read a scalar to the netcdf file
+ * @brief DEPRECATED Read a scalar to the netcdf file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to read
  * @tparam real_type ignored
  * @param ncid NetCDF file or group ID
  * @param varid Variable ID
- * @param slice The number of the time-slice to read (first element of the \c startp array in \c nc_put_vara)
+ * @param slice The number of the time-slice to read (first element of the \c startp array in \c nc_get_vara)
  * @param grid a Tag to signify scalar ouput (and help the compiler choose this function over the array input function). Can be of type <tt> dg::RealMPIGrid0d<real_type> </tt>
  * @param data The (single) datum to read.
  * @param parallel This parameter is ignored in both serial and MPI versions.
@@ -250,6 +287,7 @@ void get_vara( int ncid, int varid, unsigned slice, const RealGrid0d<real_type>&
     err = detail::get_vara_T( ncid, varid, &start, &count, &data);
 }
 
+///@}
 
 ///@cond
 #ifdef MPI_VERSION
@@ -287,6 +325,5 @@ void get_vara( int ncid, int varid, unsigned slice, const RealMPIGrid0d<real_typ
 #endif //MPI_VERSION
 ///@endcond
 
-///@}
 }//namespace file
 }//namespace dg

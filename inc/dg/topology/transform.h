@@ -1,5 +1,4 @@
 #pragma once
-#include "topological_traits.h"
 #include "multiply.h"
 #include "base_geometry.h"
 #include "weights.h"
@@ -7,6 +6,17 @@
 
 namespace dg
 {
+///@cond
+namespace detail{
+template< class Vector, class Functor, class RecursiveVector, size_t ...I>
+auto do_pullback( Vector& result, Functor f, const RecursiveVector& map,
+        std::index_sequence<I...>)
+{
+    return dg::blas1::evaluate( result, dg::equals(), f, map[I]...);
+}
+} //namespace detail
+///@endcond
+///
 /**
  * @brief \f$ f_i = f( x(\zeta_i, \eta_i), y(\zeta_i, \eta_i))\f$
  *
@@ -29,61 +39,16 @@ namespace dg
  * @ingroup pullback
  * @sa If the function is defined in computational space coordinates, then use \c dg::evaluate
  */
-template< class Functor, class real_type>
-thrust::host_vector<real_type> pullback( const Functor& f, const aRealGeometry2d<real_type>& g)
+template< class Functor, class Geometry>
+typename Geometry::host_vector pullback(
+        const Functor& f, const Geometry& g)
 {
-    std::vector<thrust::host_vector<real_type> > map = g.map();
-    thrust::host_vector<real_type> vec( g.size());
-    for( unsigned i=0; i<g.size(); i++)
-        vec[i] = f( map[0][i], map[1][i]);
-    return vec;
+    const std::vector<typename Geometry::host_vector >& map = g.map();
+    typename Geometry::host_vector result( map[0]);
+    detail::do_pullback( result, f, map,
+            std::make_index_sequence<Geometry::ndim()>());
+    return result;
 }
-
-/**
- * @brief \f$ f_i = f( x(\zeta_i, \eta_i, \nu_i), y(\zeta_i, \eta_i, \nu_i), z(\zeta_i,\eta_i,\nu_i))\f$
- * @copydetails pullback(const Functor&,const aRealGeometry2d&)
- * @ingroup pullback
- */
-template< class Functor, class real_type>
-thrust::host_vector<real_type> pullback( const Functor& f, const aRealGeometry3d<real_type>& g)
-{
-    std::vector<thrust::host_vector<real_type> > map = g.map();
-    thrust::host_vector<real_type> vec( g.size());
-    for( unsigned i=0; i<g.size(); i++)
-        vec[i] = f( map[0][i], map[1][i], map[2][i]);
-    return vec;
-}
-
-#ifdef MPI_VERSION
-
-///@copydoc pullback(const Functor&,const aRealGeometry2d&)
-///@ingroup pullback
-template< class Functor, class real_type>
-MPI_Vector<thrust::host_vector<real_type> > pullback( const Functor& f, const aRealMPIGeometry2d<real_type>& g)
-{
-    std::vector<MPI_Vector<thrust::host_vector<real_type> > > map = g.map();
-    thrust::host_vector<real_type> vec( g.local().size());
-    for( unsigned i=0; i<g.local().size(); i++)
-        vec[i] = f( map[0].data()[i], map[1].data()[i]);
-    return MPI_Vector<thrust::host_vector<real_type> >( vec, g.communicator());
-}
-
-/**
- * @brief \f$ f_i = f( x(\zeta_i, \eta_i, \nu_i), y(\zeta_i, \eta_i, \nu_i), z(\zeta_i,\eta_i,\nu_i))\f$
- * @copydetails pullback(const Functor&,const aRealGeometry2d&)
- * @ingroup pullback
- */
-template< class Functor, class real_type>
-MPI_Vector<thrust::host_vector<real_type> > pullback( const Functor& f, const aRealMPIGeometry3d<real_type>& g)
-{
-    std::vector<MPI_Vector<thrust::host_vector<real_type> > > map = g.map();
-    thrust::host_vector<real_type> vec( g.local().size());
-    for( unsigned i=0; i<g.local().size(); i++)
-        vec[i] = f( map[0].data()[i], map[1].data()[i], map[2].data()[i]);
-    return MPI_Vector<thrust::host_vector<real_type> >( vec, g.communicator());
-}
-
-#endif //MPI_VERSION
 
 /**
  * @brief \f$ \bar v = J v\f$
@@ -108,7 +73,7 @@ void pushForwardPerp( const Functor1& vR, const Functor2& vZ,
         container& vx, container& vy,
         const Geometry& g)
 {
-    using host_vec = get_host_vector<Geometry>;
+    using host_vec = typename Geometry::host_vector;
     host_vec out1 = pullback( vR, g);
     host_vec out2 = pullback( vZ, g);
     dg::tensor::multiply2d(g.jacobian(), out1, out2, out1, out2);
@@ -144,7 +109,7 @@ void pushForward( const Functor1& vR, const Functor2& vZ, const Functor3& vPhi,
         container& vx, container& vy, container& vz,
         const Geometry& g)
 {
-    using host_vec = get_host_vector<Geometry>;
+    using host_vec = typename Geometry::host_vector;
     host_vec out1 = pullback( vR, g);
     host_vec out2 = pullback( vZ, g);
     host_vec out3 = pullback( vPhi, g);
@@ -181,7 +146,7 @@ void pushForwardPerp( const FunctorRR& chiRR, const FunctorRZ& chiRZ, const Func
         SparseTensor<container>& chi,
         const Geometry& g)
 {
-    using host_vec = get_host_vector<Geometry>;
+    using host_vec = typename Geometry::host_vector;
     host_vec chiRR_ = pullback( chiRR, g);
     host_vec chiRZ_ = pullback( chiRZ, g);
     host_vec chiZZ_ = pullback( chiZZ, g);
@@ -208,7 +173,7 @@ void pushForwardPerp( const FunctorRR& chiRR, const FunctorRZ& chiRZ, const Func
 }
 
 namespace create{
-///@addtogroup metric
+///@addtogroup pullback
 ///@{
 
 
@@ -224,9 +189,9 @@ namespace create{
  * @return  The volume form
  */
 template< class Geometry>
-get_host_vector<Geometry> volume( const Geometry& g)
+typename Geometry::host_vector volume( const Geometry& g)
 {
-    using host_vector = get_host_vector<Geometry>;
+    using host_vector = typename Geometry::host_vector;
     host_vector vol = dg::tensor::volume(g.metric());
     host_vector weights = dg::create::weights( g);
     dg::blas1::pointwiseDot( weights, vol, vol);
@@ -243,9 +208,9 @@ get_host_vector<Geometry> volume( const Geometry& g)
  * @return  The inverse volume form
  */
 template< class Geometry>
-get_host_vector<Geometry> inv_volume( const Geometry& g)
+typename Geometry::host_vector inv_volume( const Geometry& g)
 {
-    using host_vector = get_host_vector<Geometry>;
+    using host_vector = typename Geometry::host_vector;
     using real_type = get_value_type<host_vector>;
     host_vector vol = volume(g);
     dg::blas1::transform( vol, vol, dg::INVERT<real_type>());

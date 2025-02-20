@@ -21,7 +21,7 @@ namespace create
  * @note basically the result is that it is usually not advantageous to use a modal filter
  * @tparam UnaryOp Model of Unary Function \c real_type \c sigma(unsigned) The input will be the modal number \c i where \f$ i=0,...,n-1\f$ and \c n is the number of polynomial coefficients in use. The output is the filter strength for the given mode number
  * @param op the unary function
- * @param dlt provide the forward, backward transformation and number of coefficients \c n
+ * @param n number of polynomial coefficients for forward and backward transformation
  * @return The product \f$ V D V^{-1}\f$
 
  * @note The idea is to use the result in connection with \c dg::create::fast_transform() to create a matrix that applies the filter to vectors. For example
@@ -36,13 +36,14 @@ namespace create
  * @endcode
  * @ingroup misc
  */
-template<class UnaryOp, class real_type>
-dg::Operator<real_type> modal_filter( UnaryOp op, const DLT<real_type>& dlt )
+template<class UnaryOp>
+dg::SquareMatrix<std::invoke_result_t<UnaryOp, unsigned>> modal_filter( UnaryOp op, unsigned n )
 {
-    Operator<real_type> backward=dlt.backward();
-    Operator<real_type> forward=dlt.forward();
-    Operator<real_type> filter( dlt.n(), 0);
-    for( unsigned i=0; i<dlt.n(); i++)
+    using real_type = std::invoke_result_t<UnaryOp, unsigned>;
+    SquareMatrix<real_type> backward=dg::DLT<real_type>::backward(n);
+    SquareMatrix<real_type> forward=dg::DLT<real_type>::forward(n);
+    SquareMatrix<real_type> filter( n, 0);
+    for( unsigned i=0; i<n; i++)
         filter(i,i) = op( i);
     filter = backward*filter*forward;
     return filter;

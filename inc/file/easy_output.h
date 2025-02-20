@@ -9,20 +9,19 @@
 #include "dg/backend/mpi_init.h"
 #endif //MPI_VERSION
 #include "nc_error.h"
+#include "nc_hyperslab.h"
 
 /*!@file
  *
  * Define variable writers
  */
 
-// Variable ids are persistent once created
-// Attribute ids can change if one deletes attributes
 namespace dg
 {
 namespace file
 {
 /**
- * @addtogroup Output
+ * @addtogroup legacy
  * @{
  * @class hide_tparam_host_vector
  * @tparam host_vector For shared Topology: Type with \c data() member that
@@ -71,7 +70,6 @@ namespace file
  *  grid with a Cartesian communicator containing only one process (using e.g. \c MPI_Comm_split on \c MPI_COMM_WORLD followed by \c MPI_Cart_create)
  *  - Manually assemble the data on the MPI group that contains the master process (cf \c MPI_Cart_sub)
  *  .
- * @sa \c dg::mpi_comm_global2local_rank
  * @class hide_parallel_write
  * @attention With the serial NetCDF library only a single "master" process can **write** in a
  * NetCDF file (creation, defining dimension ids, variables ids, writing etc).
@@ -105,125 +103,163 @@ namespace detail
 {
 
 template<class T>
-inline int put_var_T( int ncid, int varID, const T* data)
+inline int put_var_T( int ncid, int varid, const T* data)
 {
     assert( false && "Type not supported!\n" );
     return NC_EBADTYPE;
 }
 template<>
-inline int put_var_T<float>( int ncid, int varID, const float* data){
-    return nc_put_var_float( ncid, varID, data);
+inline int put_var_T<float>( int ncid, int varid, const float* data){
+    return nc_put_var_float( ncid, varid, data);
 }
 template<>
-inline int put_var_T<double>( int ncid, int varID, const double* data){
-    return nc_put_var_double( ncid, varID, data);
+inline int put_var_T<double>( int ncid, int varid, const double* data){
+    return nc_put_var_double( ncid, varid, data);
 }
 template<>
-inline int put_var_T<int>( int ncid, int varID, const int* data){
-    return nc_put_var_int( ncid, varID, data);
+inline int put_var_T<int>( int ncid, int varid, const int* data){
+    return nc_put_var_int( ncid, varid, data);
 }
 template<>
-inline int put_var_T<unsigned>( int ncid, int varID, const unsigned* data){
-    return nc_put_var_uint( ncid, varID, data);
+inline int put_var_T<unsigned>( int ncid, int varid, const unsigned* data){
+    return nc_put_var_uint( ncid, varid, data);
 }
 template<class T>
-inline int put_vara_T( int ncid, int varID, const size_t* startp, const size_t* countp, const T* data)
+inline int put_vara_T( int ncid, int varid, const size_t* startp, const size_t* countp, const T* data)
 {
     assert( false && "Type not supported!\n" );
     return NC_EBADTYPE;
 }
 template<>
-inline int put_vara_T<float>( int ncid, int varID, const size_t* startp, const size_t* countp, const float* data){
-    return nc_put_vara_float( ncid, varID, startp, countp, data);
+inline int put_vara_T<float>( int ncid, int varid, const size_t* startp, const size_t* countp, const float* data){
+    return nc_put_vara_float( ncid, varid, startp, countp, data);
 }
 template<>
-inline int put_vara_T<double>( int ncid, int varID, const size_t* startp, const size_t* countp, const double* data){
-    return nc_put_vara_double( ncid, varID, startp, countp, data);
+inline int put_vara_T<double>( int ncid, int varid, const size_t* startp, const size_t* countp, const double* data){
+    return nc_put_vara_double( ncid, varid, startp, countp, data);
 }
 template<>
-inline int put_vara_T<int>( int ncid, int varID, const size_t* startp, const size_t* countp, const int* data){
-    return nc_put_vara_int( ncid, varID, startp, countp, data);
+inline int put_vara_T<int>( int ncid, int varid, const size_t* startp, const size_t* countp, const int* data){
+    return nc_put_vara_int( ncid, varid, startp, countp, data);
 }
 template<>
-inline int put_vara_T<unsigned>( int ncid, int varID, const size_t* startp, const size_t* countp, const unsigned* data){
-    return nc_put_vara_uint( ncid, varID, startp, countp, data);
+inline int put_vara_T<unsigned>( int ncid, int varid, const size_t* startp, const size_t* countp, const unsigned* data){
+    return nc_put_vara_uint( ncid, varid, startp, countp, data);
 }
 #ifdef MPI_VERSION
-// we need to identify the global root rank within the groups and mark the entire group
-// all comms must be same size
-
-template<class host_vector, class MPITopology>
-void put_vara_detail(int ncid, int varid, unsigned slice, const MPITopology& grid, const MPI_Vector<host_vector>& data, bool vara, bool parallel = false)
+template<class host_vector>
+void put_vara_detail(int ncid, int varid,
+        const MPINcHyperslab& slab,
+        const host_vector& data,
+        thrust::host_vector<dg::get_value_type<host_vector>>& receive,
+        MPI_Comm global_comm = MPI_COMM_WORLD
+        )
 {
-    MPI_Comm comm = grid.communicator();
-    int local_root_rank = dg::mpi_comm_global2local_rank(comm);
+    MPI_Comm comm = slab.communicator();
+    // we need to identify the global root rank within the groups and mark the
+    // entire group
+    int local_root_rank = dg::file::detail::mpi_comm_global2local_rank(comm, 0,
+        global_comm);
     if (local_root_rank == MPI_UNDEFINED)
         return;
-    unsigned grid_ndims = grid.ndim();
-    auto cc = shape( grid.local());
-    std::reverse( cc.begin(), cc.end());
-    if( vara)
-        cc.insert( cc.begin(), 1);
-    std::vector<size_t> count( cc.begin(), cc.end());
+    unsigned ndim = slab.ndim(); // same on all processes
     int rank, size;
     MPI_Comm_rank( comm, &rank);
     MPI_Comm_size( comm, &size);
-    std::vector<size_t> start(vara ? grid_ndims+1 : grid_ndims,0);
-    if( vara)
-        start[0] = slice;
-    file::NC_Error_Handle err;
-    if( parallel)
+
+    // Send start and count vectors to root
+    std::vector<size_t> r_start( rank == local_root_rank ? size * ndim : 0);
+    std::vector<size_t> r_count( rank == local_root_rank ? size * ndim : 0);
+    MPI_Gather( slab.startp(), ndim, dg::getMPIDataType<size_t>(),
+                &r_start[0], ndim, dg::getMPIDataType<size_t>(),
+                local_root_rank, comm);
+    MPI_Gather( slab.countp(), ndim, dg::getMPIDataType<size_t>(),
+                &r_count[0], ndim, dg::getMPIDataType<size_t>(),
+                local_root_rank, comm);
+
+    MPI_Datatype mpitype = dg::getMPIDataType<get_value_type<host_vector>>();
+    int err = NC_NOERR; // store error flag
+    if( rank == local_root_rank )
     {
-        int coords[grid_ndims];
-        MPI_Cart_coords( comm, rank, grid_ndims, coords);
-        for( unsigned i=0; i<grid_ndims; i++)
-            start[vara ? i+1 : i] = count[ vara ? i+1 : i]*coords[grid_ndims-1-i];
-        err = detail::put_vara_T( ncid, varid, &start[0], &count[0],
-            data.data().data());
+        // Sanity check
+        int ndims;
+        int e = nc_inq_varndims( ncid, varid, &ndims);
+        if( not e)
+            err = e;
+        if( (unsigned)ndims != slab.ndim())
+            err = 1001; // Our own error code
+
+        std::vector<size_t> sizes( size, 1);
+        for( int r = 0 ; r < size; r++)
+            for( unsigned u=0; u<ndim; u++)
+                sizes[r]*= r_count[r*ndim + u];
+
+        // host_vector could be a View
+        unsigned max_size = *std::max_element( sizes.begin(), sizes.end());
+        receive.resize( max_size);
+        for( int r=0; r<size; r++)
+        {
+            if(r!=rank)
+            {
+                MPI_Status status;
+                MPI_Recv( receive.data(), (int)sizes[r], mpitype,
+                      r, r, comm, &status);
+                int e = detail::put_vara_T( ncid, varid, &r_start[r*ndim],
+                        &r_count[r*ndim], receive.data()); // write received
+                if( not e) err = e;
+
+            }
+            else // write own data
+            {
+                int e = detail::put_vara_T( ncid, varid, slab.startp(),
+                        slab.countp(), thrust::raw_pointer_cast(data.data()));
+                if( not e) err = e;
+            }
+        }
     }
     else
     {
-        MPI_Status status;
-        size_t local_size = data.data().size();
-        std::vector<int> coords( grid_ndims*size, 0);
-        for( int rrank=0; rrank<size; rrank++)
-            MPI_Cart_coords( comm, rrank, grid_ndims, &coords[grid_ndims*rrank]);
-        if( rank == local_root_rank )
-        {
-            host_vector receive( data.data());
-            for( int rrank=0; rrank<size; rrank++)
-            {
-                for ( unsigned i=0; i<grid_ndims; i++)
-                    start[vara ? i+1 : i] = count[ vara ? i+1 : i]*coords[grid_ndims*rrank + grid_ndims-1-i];
-                if(rrank!=rank)
-                {
-                    MPI_Recv( receive.data(), local_size, dg::getMPIDataType<get_value_type<host_vector>>(),
-                          rrank, rrank, comm, &status);
-                    err = detail::put_vara_T( ncid, varid, &start[0], &count[0],
-                        receive.data()); // write received data
-                }
-                else // write own data
-                {
-                    err = detail::put_vara_T( ncid, varid, &start[0], &count[0], data.data().data());
-                }
-            }
-        }
-        else
-        {
-            MPI_Send( data.data().data(), local_size, dg::getMPIDataType<get_value_type<host_vector>>(),
-                      local_root_rank, rank, comm);
-        }
+        size_t num = 1;
+        for( unsigned u=0; u<ndim; u++)
+            num*= slab.count()[u];
+        MPI_Send( thrust::raw_pointer_cast(data.data()), num, mpitype,
+            local_root_rank, rank, comm);
     }
-    MPI_Barrier( comm);
+    MPI_Bcast( &err, 1, dg::getMPIDataType<int>(), local_root_rank, comm);
+    if( err)
+        throw NC_Error( err);
     return;
+}
+
+// all comms must be same size
+template<class host_vector, class MPITopology>
+void put_vara_detail(int ncid, int varid, unsigned slice,
+        const MPITopology& grid, const MPI_Vector<host_vector>& data,
+        bool vara, bool parallel = false)
+{
+    MPINcHyperslab slab( grid);
+    if( vara)
+        slab = MPINcHyperslab( slice, grid);
+    if( parallel)
+    {
+        file::NC_Error_Handle err;
+        err = detail::put_vara_T( ncid, varid,
+                slab.startp(), slab.countp(), data.data().data());
+    }
+    else
+    {
+        thrust::host_vector<dg::get_value_type<host_vector>> receive;
+        put_vara_detail( ncid, varid, slab, data.data(), receive);
+    }
 }
 #endif // MPI_VERSION
 } // namespace detail
 ///@endcond
+//
 
 /**
 *
-* @brief Write an array to NetCDF file
+* @brief DEPRECATED Write an array to NetCDF file
 *
 * Convenience wrapper around \c nc_put_var
 *
@@ -253,7 +289,7 @@ void put_var( int ncid, int varid, const Topology& grid,
 }
 
 /**
-* @brief Write an array to NetCDF file
+* @brief DEPRECATED Write an array to NetCDF file
 *
 * Convenience wrapper around \c nc_put_vara
 *
@@ -281,18 +317,14 @@ void put_vara( int ncid, int varid, unsigned slice, const Topology& grid,
     const host_vector& data, bool parallel = false)
 {
     file::NC_Error_Handle err;
-    auto shape = dg::shape( grid);
-    std::vector<size_t> count( shape.begin(), shape.end());
-    std::reverse( count.begin(), count.end());
-    count.insert( count.begin(), 1);
-    std::vector<size_t> start( count.size(), 0);
-    start[0] = slice;
-    err = detail::put_vara_T( ncid, varid, &start[0], &count[0], data.data());
+    NcHyperslab slab( slice, grid);
+    err = detail::put_vara_T( ncid, varid, slab.startp(), slab.countp(),
+            data.data());
 }
 // scalar data
 
 /**
- * @brief Write a scalar to the NetCDF file
+ * @brief DEPRECATED Write a scalar to the NetCDF file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to write
@@ -313,7 +345,7 @@ void put_var( int ncid, int varid, const RealGrid0d<real_type>& grid,
     err = detail::put_var_T( ncid, varid, &data);
 }
 /**
- * @brief Write a scalar to the NetCDF file
+ * @brief DEPRECATED Write a scalar to the NetCDF file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to write
@@ -338,6 +370,7 @@ void put_vara( int ncid, int varid, unsigned slice, const RealGrid0d<real_type>&
     err = detail::put_vara_T( ncid, varid, &start, &count, &data);
 }
 
+///@}
 
 ///@cond
 #ifdef MPI_VERSION
@@ -399,6 +432,5 @@ void put_vara_double(int ncid, int varid, unsigned slice, const Topology& grid,
 }
 ///@endcond
 
-///@}
 }//namespace file
 }//namespace dg
