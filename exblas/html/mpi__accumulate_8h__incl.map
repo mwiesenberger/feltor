@@ -1,0 +1,17 @@
+<map id="mpi_accumulate.h" name="mpi_accumulate.h">
+<area shape="rect" id="Node000001" title="Primitives for an MPI Reduction." alt="" coords="129,5,271,31"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,79,64,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="174,33,75,76,73,71,172,28"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="88,79,144,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="188,33,142,72,139,67,185,29"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="169,79,231,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="203,31,203,65,197,65,197,31"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="256,79,307,104"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="215,29,260,68,256,72,211,33"/>
+<area shape="rect" id="Node000006" href="$accumulate_8h.html" title="Primitives for accumulation into superaccumulator." alt="" coords="331,79,442,104"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="231,28,344,71,343,76,229,33"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="293,152,368,177"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="380,106,350,143,346,140,375,103"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="393,152,493,177"/>
+<area shape="poly" id="edge7_Node000006_Node000008" title=" " alt="" coords="398,103,427,140,423,143,394,106"/>
+</map>

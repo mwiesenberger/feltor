@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['a_20flux_20function_0',['3.1 Creating a flux function',['../../../geometries/html/group__geom.html',1,'']]],
+  ['a_20large_20collection_1',['A large collection',['../group__functions.html',1,'']]],
+  ['additions_2',['additions',['../../../geometries/html/group__misc__geo.html',1,'5. Miscellaneous additions'],['../group__misc.html',1,'Level 99: Miscellaneous additions']]],
+  ['advanced_20numerical_20schemes_3',['Advanced numerical schemes',['../group__lvel4.html',1,'Level 4: Advanced numerical schemes'],['../../../matrix/html/group__matrixnumerical1.html',1,'Level 4: Advanced numerical schemes']]],
+  ['advection_20terms_4',['Advection terms',['../group__arakawa.html',1,'']]],
+  ['algorithms_5',['algorithms',['../group__lvevl2.html',1,'Level 2: Basic numerical algorithms'],['../../../matrix/html/group__matrixnumerical0.html',1,'Level 2: Basic numerical algorithms']]],
+  ['all_20tensortraits_20specialisations_6',['All TensorTraits specialisations',['../group__traits.html',1,'']]],
+  ['and_20associated_20functors_7',['3.2 Magnetic field, curvatures and associated functors',['../../../geometries/html/group__magnetic.html',1,'']]],
+  ['and_20basic_20operations_8',['Level 1: Vectors, Matrices and basic operations',['../group__level1.html',1,'']]],
+  ['and_20classes_9',['and classes',['../../../geometries/html/group__fluxfunctions.html',1,'3.4. Utility functors and classes'],['../group__lowlevel.html',1,'Lowlevel helper functions and classes']]],
+  ['and_20functors_10',['Functions and functors',['../group__blas1__helpers.html',1,'']]],
+  ['and_20gather_11',['Scatter and Gather',['../group__scatter.html',1,'']]],
+  ['and_20geometry_12',['Level 3: Topology and Geometry',['../group__level3.html',1,'']]],
+  ['and_20matrices_13',['Typedefs for Vectors and Matrices',['../group__typedefs.html',1,'']]],
+  ['and_20monitor_20metric_20functors_14',['3.3 Penalization, weight and monitor metric functors',['../../../geometries/html/group__profiles.html',1,'']]],
+  ['and_20nonlinear_20solvers_15',['Linear and nonlinear solvers',['../group__invert.html',1,'']]],
+  ['and_20operations_16',['Topological grids and operations',['../group__grid.html',1,'']]],
+  ['and_20partial_20reductions_17',['Averaging, prolongation and partial reductions',['../group__average.html',1,'']]],
+  ['and_20scatter_18',['MPI Distributed Gather and Scatter',['../group__mpi__comm.html',1,'']]],
+  ['and_20sheath_19',['Wall and Sheath',['../../../geometries/html/group__wall.html',1,'']]],
+  ['and_20tensor_20operations_20',['Geometric grids and tensor operations',['../group__geometry.html',1,'']]],
+  ['and_20vector_21',['Distributed Matrix and Vector',['../group__mpi__matvec.html',1,'']]],
+  ['any_20expansion_22',['Modification of any expansion',['../../../geometries/html/group__mod.html',1,'']]],
+  ['associated_20functors_23',['3.2 Magnetic field, curvatures and associated functors',['../../../geometries/html/group__magnetic.html',1,'']]],
+  ['averaging_20prolongation_20and_20partial_20reductions_24',['Averaging, prolongation and partial reductions',['../group__average.html',1,'']]]
+];

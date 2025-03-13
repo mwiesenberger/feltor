@@ -1,0 +1,22 @@
+var searchData=
+[
+  ['def_5fdim_0',['def_dim',['../structdg_1_1file_1_1_serial_nc_file.html#a7e6d005109a47d4c17ede892b6379d3f',1,'dg::file::SerialNcFile::def_dim()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a6c4a2f38be64487507df28292967817d',1,'dg::file::MPINcFile::def_dim()']]],
+  ['def_5fdimvar_5fas_1',['def_dimvar_as',['../structdg_1_1file_1_1_serial_nc_file.html#ad063d7e0b6998a7eafe7734781c50ade',1,'dg::file::SerialNcFile::def_dimvar_as()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#ae1c01f5cf648af661fcfe65438201c35',1,'dg::file::MPINcFile::def_dimvar_as()']]],
+  ['def_5fgrp_2',['def_grp',['../structdg_1_1file_1_1_serial_nc_file.html#a17498718cf4ca91c19b1f79f9e59dc3a',1,'dg::file::SerialNcFile::def_grp()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#aa26096f167a6560ab949af57cda72427',1,'dg::file::MPINcFile::def_grp()']]],
+  ['def_5fgrp_5fp_3',['def_grp_p',['../structdg_1_1file_1_1_serial_nc_file.html#a5d710a31300d41d1e6f5202a00ece4d8',1,'dg::file::SerialNcFile::def_grp_p()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a32c33999c5a57b6f7cc55c1bb434079c',1,'dg::file::MPINcFile::def_grp_p()']]],
+  ['def_5fvar_4',['def_var',['../structdg_1_1file_1_1_serial_nc_file.html#a5673d53ee9a27e9ff960640e5fd6e9da',1,'dg::file::SerialNcFile::def_var()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a258f0e4c25a918ebb3d196b49943367f',1,'dg::file::MPINcFile::def_var()']]],
+  ['def_5fvar_5fas_5',['def_var_as',['../structdg_1_1file_1_1_serial_nc_file.html#ae39facbe44837171a715f55fe8bfa52e',1,'dg::file::SerialNcFile::def_var_as()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a2122c8fb7346d9993f7817977dd1d9c9',1,'dg::file::MPINcFile::def_var_as()']]],
+  ['define_5fdimension_6',['define_dimension',['../group__legacy.html#ga2c9352cfdb1f5617ace7517aff9cd2a9',1,'dg::file']]],
+  ['define_5fdimensions_7',['define_dimensions',['../group__legacy.html#ga599a843015b888cef34158206305ab5b',1,'dg::file::define_dimensions(int ncid, int *dimsIDs, const Topology &amp;g, std::vector&lt; std::string &gt; name_dims={}, bool full_check=false)'],['../group__legacy.html#gad0a7b8c0cc3655732921631fab4a1c64',1,'dg::file::define_dimensions(int ncid, int *dimsIDs, int *tvarID, const Topology &amp;g, std::vector&lt; std::string &gt; name_dims={}, bool full_check=false)'],['../group__legacy.html#gacf6d0fc548abe0a86e74270bf3969964',1,'dg::file::define_dimensions(int ncid, int *dimsIDs, const MPITopology &amp;g, std::vector&lt; std::string &gt; name_dims={}, bool full_check=false)'],['../group__legacy.html#gabd73afba89cf1449ed1f87f9a40b988c',1,'dg::file::define_dimensions(int ncid, int *dimsIDs, int *tvarID, const MPITopology &amp;g, std::vector&lt; std::string &gt; name_dims={}, bool full_check=false)']]],
+  ['define_5flimited_5ftime_8',['define_limited_time',['../group__legacy.html#ga77dc6a6a355f5dc9bb7b90c00a282343',1,'dg::file']]],
+  ['define_5flimtime_5fxy_9',['define_limtime_xy',['../group__legacy.html#ga0f5d07e3ad0dd4cc28bc266a2122398c',1,'dg::file']]],
+  ['define_5freal_5ftime_10',['define_real_time',['../group__legacy.html#ga9a8124a7e611f88c559d73e7f8e6ed90',1,'dg::file']]],
+  ['define_5ftime_11',['define_time',['../group__legacy.html#ga34ea40baa3d8079e782feda4a8213d12',1,'dg::file']]],
+  ['defput_5fdim_12',['defput_dim',['../structdg_1_1file_1_1_serial_nc_file.html#a6084479d661566b6792b1ee40c10ee55',1,'dg::file::SerialNcFile::defput_dim()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a8b85e0725d2f4bac2ddefd321fcb5251',1,'dg::file::MPINcFile::defput_dim()']]],
+  ['defput_5fvar_13',['defput_var',['../structdg_1_1file_1_1_serial_nc_file.html#a199d3af4d6b9bc56fb33398e3067897c',1,'dg::file::SerialNcFile::defput_var()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a879a2ad4b306cb51536eb1cb7c70bf51',1,'dg::file::MPINcFile::defput_var()']]],
+  ['del_5fatt_14',['del_att',['../structdg_1_1file_1_1_serial_nc_file.html#a23e5dcdca187975f599a4146856583c2',1,'dg::file::SerialNcFile::del_att()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#a1e22484634ec392332e009eedfa9dfe5',1,'dg::file::MPINcFile::del_att()']]],
+  ['dg_15',['dg',['../namespacedg.html',1,'']]],
+  ['dg_3a_3afile_16',['file',['../namespacedg_1_1file.html',1,'dg']]],
+  ['diagnostics_20module_17',['The Probes diagnostics module',['../group__probes.html',1,'']]],
+  ['dim_5fis_5fdefined_18',['dim_is_defined',['../structdg_1_1file_1_1_serial_nc_file.html#a74c04274c697fc1109eee0fd97fbd319',1,'dg::file::SerialNcFile::dim_is_defined()'],['../structdg_1_1file_1_1_m_p_i_nc_file.html#af7124fd35d705525c044cd1c7c0698b7',1,'dg::file::MPINcFile::dim_is_defined()']]]
+];

@@ -1,0 +1,17 @@
+<map id="dg::file::SerialNcFile::defput_dim" name="dg::file::SerialNcFile::defput_dim">
+<area shape="rect" id="Node000001" title="Define a dimension and define and write to a dimension variable in one go." alt="" coords="5,133,156,173"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#ad063d7e0b6998a7eafe7734781c50ade" title="Define a dimension and dimension variable in one go." alt="" coords="204,69,355,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="143,131,203,111,205,116,144,136"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1file_1_1_serial_nc_file.html#ab4aac604038f5629578ca128acab8a94" title="Write data to a variable." alt="" coords="204,165,355,205"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="157,163,191,168,190,174,156,168"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#a7e6d005109a47d4c17ede892b6379d3f" title="Define a dimension named name of size size." alt="" coords="407,5,557,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="343,67,404,47,406,52,344,72"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_serial_nc_file.html#ae39facbe44837171a715f55fe8bfa52e" title="Define a variable with given type, dimensions and (optionally) attributes." alt="" coords="407,69,557,109"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="355,87,393,87,393,92,355,92"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1file_1_1_nc_hyperslab.html#a124f8ade60022bf87d97f8f371094a0b" title=" " alt="" coords="403,133,561,173"/>
+<area shape="poly" id="edge5_Node000005_Node000006" title=" " alt="" coords="355,171,389,165,390,171,356,176"/>
+<area shape="rect" id="Node000007" href="$structdg_1_1file_1_1_nc_hyperslab.html#a687535de3bdcc001cb9c4a2a62ac4494" title=" " alt="" coords="403,197,561,237"/>
+<area shape="poly" id="edge6_Node000005_Node000007" title=" " alt="" coords="356,195,390,200,389,205,355,200"/>
+<area shape="rect" id="Node000008" href="$structdg_1_1file_1_1_nc_hyperslab.html#a5e0d5fb46ee1d14e37347223ffe75a2d" title=" " alt="" coords="403,261,561,301"/>
+<area shape="poly" id="edge7_Node000005_Node000008" title=" " alt="" coords="318,203,404,247,418,253,416,258,402,252,316,208"/>
+</map>

@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['dg_0',['dg',['../namespacedg.html',1,'']]],
+  ['dg_3a_3ablas1_1',['blas1',['../namespacedg_1_1blas1.html',1,'dg']]],
+  ['dg_3a_3ablas2_2',['blas2',['../namespacedg_1_1blas2.html',1,'dg']]],
+  ['dg_3a_3ablas2_3a_3adetail_3',['detail',['../namespacedg_1_1blas2_1_1detail.html',1,'dg::blas2']]],
+  ['dg_3a_3acreate_4',['create',['../namespacedg_1_1create.html',1,'dg']]],
+  ['dg_3a_3aexblas_5',['exblas',['../../../exblas/html/namespacedg_1_1exblas.html',1,'dg']]],
+  ['dg_3a_3aexblas_3a_3acpu_6',['cpu',['../../../exblas/html/namespacedg_1_1exblas_1_1cpu.html',1,'dg::exblas']]],
+  ['dg_3a_3aexblas_3a_3agpu_7',['gpu',['../../../exblas/html/namespacedg_1_1exblas_1_1gpu.html',1,'dg::exblas']]],
+  ['dg_3a_3ageo_8',['geo',['../../../geometries/html/namespacedg_1_1geo.html',1,'dg']]],
+  ['dg_3a_3ageo_3a_3acircular_9',['circular',['../../../geometries/html/namespacedg_1_1geo_1_1circular.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3aguenter_10',['guenter',['../../../geometries/html/namespacedg_1_1geo_1_1guenter.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3amod_11',['mod',['../../../geometries/html/namespacedg_1_1geo_1_1mod.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3apolynomial_12',['polynomial',['../../../geometries/html/namespacedg_1_1geo_1_1polynomial.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3asolovev_13',['solovev',['../../../geometries/html/namespacedg_1_1geo_1_1solovev.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3ataylor_14',['taylor',['../../../geometries/html/namespacedg_1_1geo_1_1taylor.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3atoroidal_15',['toroidal',['../../../geometries/html/namespacedg_1_1geo_1_1toroidal.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3ax_16',['x',['../../../geometries/html/namespacedg_1_1geo_1_1x.html',1,'dg::geo']]],
+  ['dg_3a_3amat_17',['mat',['../../../matrix/html/namespacedg_1_1mat.html',1,'dg']]],
+  ['dg_3a_3atensor_18',['tensor',['../namespacedg_1_1tensor.html',1,'dg']]],
+  ['dg_3a_3ax_19',['x',['../namespacedg_1_1x.html',1,'dg']]]
+];

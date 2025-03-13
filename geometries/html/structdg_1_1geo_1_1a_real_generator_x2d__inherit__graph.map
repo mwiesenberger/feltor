@@ -1,0 +1,7 @@
+<map id="dg::geo::aRealGeneratorX2d&lt; real_type &gt;" name="dg::geo::aRealGeneratorX2d&lt; real_type &gt;">
+<area shape="rect" id="Node000001" title="The abstract generator base class." alt="" coords="77,5,283,45"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1geo_1_1_ribeiro_x.html" title="A two&#45;dimensional grid based on &quot;almost&#45;conformal&quot; coordinates by Ribeiro and Scott 2010." alt="" coords="5,93,149,133"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="148,56,102,95,98,91,145,52"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1geo_1_1_separatrix_orthogonal.html" title="Choose points on separatrix and construct grid from there." alt="" coords="174,93,391,133"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="215,52,262,91,258,95,212,56"/>
+</map>

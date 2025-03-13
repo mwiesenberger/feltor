@@ -1,0 +1,5 @@
+var searchData=
+[
+  ['kronecker_0',['kronecker',['../group__blas1.html#gadb2af43e4e5cf87153ede64c181ba61e',1,'dg::blas1::kronecker()'],['../group__blas1.html#ga04a5fec2b7e6325a3f4c44ab223cdc81',1,'dg::kronecker()']]],
+  ['kroneckertridiagonal2d_1',['KroneckerTriDiagonal2d',['../structdg_1_1_kronecker_tri_diagonal2d.html#af60523f91795aa8488987bf59744ddf6',1,'dg::KroneckerTriDiagonal2d::KroneckerTriDiagonal2d()=default'],['../structdg_1_1_kronecker_tri_diagonal2d.html#ab878b40be9b08453440292a238f22e19',1,'dg::KroneckerTriDiagonal2d::KroneckerTriDiagonal2d(TriDiagonal&lt; Container &gt; my, TriDiagonal&lt; Container &gt; mx)'],['../structdg_1_1_kronecker_tri_diagonal2d.html#a0a1601c59d400d96104851483f231926',1,'dg::KroneckerTriDiagonal2d::KroneckerTriDiagonal2d(unsigned nz, TriDiagonal&lt; Container &gt; my, TriDiagonal&lt; Container &gt; mx)'],['../structdg_1_1_kronecker_tri_diagonal2d.html#a5f81c02baf30488a120b26e47813016e',1,'dg::KroneckerTriDiagonal2d::KroneckerTriDiagonal2d(const KroneckerTriDiagonal2d&lt; Container2 &gt; &amp;other)']]]
+];

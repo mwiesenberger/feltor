@@ -1,0 +1,25 @@
+var classdg_1_1_elliptic2d =
+[
+    [ "container_type", "classdg_1_1_elliptic2d.html#af348fd58dbf7eeec26fcf4e6ed3575d0", null ],
+    [ "geometry_type", "classdg_1_1_elliptic2d.html#aa6eb4c963ad020030e3e8474cf5e9f44", null ],
+    [ "matrix_type", "classdg_1_1_elliptic2d.html#a5d72a42cfa02dcdee401b1ef9dfd25e3", null ],
+    [ "value_type", "classdg_1_1_elliptic2d.html#a1ee468e22b4421649a438a6ab30250d9", null ],
+    [ "Elliptic2d", "classdg_1_1_elliptic2d.html#a9788f6e2084e3e6d6a1da77e294be59c", null ],
+    [ "Elliptic2d", "classdg_1_1_elliptic2d.html#a95aa8320d03eaea5d775442b3d017b52", null ],
+    [ "Elliptic2d", "classdg_1_1_elliptic2d.html#af1c1f7ec218b1c35dd292ead3e6777c6", null ],
+    [ "construct", "classdg_1_1_elliptic2d.html#a5fa0f684f19f9c05665b7bb76062cb69", null ],
+    [ "get_jfactor", "classdg_1_1_elliptic2d.html#ad1dd963c15b00b90b6e92d85430e43fa", null ],
+    [ "get_jump_weighting", "classdg_1_1_elliptic2d.html#afdae5d672776c4ef1b7e0f2eee6966eb", null ],
+    [ "operator()", "classdg_1_1_elliptic2d.html#a390ff72adf6cd354ae15fd371fe64ed7", null ],
+    [ "precond", "classdg_1_1_elliptic2d.html#a9900c44105cad1e99a354fe222078c23", null ],
+    [ "set_chi", "classdg_1_1_elliptic2d.html#a7631e5247e5ff004647494c36238f659", null ],
+    [ "set_chi", "classdg_1_1_elliptic2d.html#acbdd68eb45378a1998e91f2638619b47", null ],
+    [ "set_jfactor", "classdg_1_1_elliptic2d.html#a0fae038a8f96b1501eb1727fabf9ab9e", null ],
+    [ "set_jump_weighting", "classdg_1_1_elliptic2d.html#a6f824d8755be9c482970ae79872629d2", null ],
+    [ "symv", "classdg_1_1_elliptic2d.html#a1b868f6e5f3de29afa2c4d90f998566b", null ],
+    [ "symv", "classdg_1_1_elliptic2d.html#aaf87f9f2b965def9ef61b9f8138a580f", null ],
+    [ "variation", "classdg_1_1_elliptic2d.html#af1d1e14350ccade2d3af688e99971491", null ],
+    [ "variation", "classdg_1_1_elliptic2d.html#ab9c88da48ca1ebde3aca38c2131ae07c", null ],
+    [ "variation", "classdg_1_1_elliptic2d.html#a879e5ab68aeca8669558da566dbd7aae", null ],
+    [ "weights", "classdg_1_1_elliptic2d.html#a6aa2dbcd20ee0dbbaa739e4c5ad4ef29", null ]
+];

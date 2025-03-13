@@ -1,0 +1,9 @@
+<map id="dg::ComplexTag" name="dg::ComplexTag">
+<area shape="rect" id="Node000001" title="complex number type" alt="" coords="9,225,136,251"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_any_scalar_tag.html" title="Scalar Tag base class." alt="" coords="6,152,139,177"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="75,191,75,225,70,225,70,191"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_any_vector_tag.html" title="Vector Tag base class, indicates the basic Vector/container concept." alt="" coords="5,79,140,104"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="75,118,75,152,70,152,70,118"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1_any_matrix_tag.html" title="tensor_category base class" alt="" coords="5,5,140,31"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="75,44,75,79,70,79,70,44"/>
+</map>

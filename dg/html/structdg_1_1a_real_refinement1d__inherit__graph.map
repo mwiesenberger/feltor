@@ -1,0 +1,13 @@
+<map id="dg::aRealRefinement1d&lt; real_type &gt;" name="dg::aRealRefinement1d&lt; real_type &gt;">
+<area shape="rect" id="Node000001" title="Abstract base class for 1d grid refinement that increases the number of grid cells of a fixed basis g..." alt="" coords="5,133,180,173"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_real_equidist_refinement.html" title="Cell refinement around a given node." alt="" coords="241,5,443,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="126,122,172,87,227,55,257,43,259,48,229,60,175,92,129,126"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_real_exponential_refinement.html" title="The exponential refinement around a node." alt="" coords="228,69,456,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="184,127,263,107,264,112,185,132"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1_real_fem_refinement.html" title="Insert equidistant points in between dG nodes." alt="" coords="253,133,431,173"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="194,151,252,151,252,156,194,156"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1_real_identity_refinement.html" title="No refinement." alt="" coords="241,197,443,237"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="185,174,264,195,263,200,184,179"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1_real_linear_refinement.html" title="Multiply every cell in the grid by a factor." alt="" coords="247,261,437,301"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="129,180,175,215,229,247,259,259,257,264,227,252,172,219,126,184"/>
+</map>

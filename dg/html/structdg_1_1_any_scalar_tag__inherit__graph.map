@@ -1,0 +1,15 @@
+<map id="dg::AnyScalarTag" name="dg::AnyScalarTag">
+<area shape="rect" id="Node000001" title="Scalar Tag base class." alt="" coords="173,152,307,177"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1_arithmetic_tag.html" title="Types where std::is_arithmetic is true." alt="" coords="95,225,231,251"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="219,189,177,227,174,223,216,185"/>
+<area shape="rect" id="Node000007" href="$structdg_1_1_complex_tag.html" title="complex number type" alt="" coords="255,225,382,251"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="265,185,308,223,304,227,261,189"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_any_vector_tag.html" title="Vector Tag base class, indicates the basic Vector/container concept." alt="" coords="173,79,307,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="243,118,243,152,237,152,237,118"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_any_matrix_tag.html" title="tensor_category base class" alt="" coords="173,5,307,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="243,44,243,79,237,79,237,44"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1_floating_point_tag.html" title="Types where std::is_floating_point is true." alt="" coords="5,299,160,324"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="142,262,98,300,94,296,138,258"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1_integral_tag.html" title="Types where std::is_integral is true." alt="" coords="185,299,303,324"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="188,258,232,296,229,300,184,262"/>
+</map>

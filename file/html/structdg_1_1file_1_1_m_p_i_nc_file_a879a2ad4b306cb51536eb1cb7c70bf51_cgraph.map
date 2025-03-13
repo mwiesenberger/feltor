@@ -1,0 +1,9 @@
+<map id="dg::file::MPINcFile::defput_var" name="dg::file::MPINcFile::defput_var">
+<area shape="rect" id="Node000001" title="Define and put a variable in one go." alt="" coords="5,37,144,77"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a2122c8fb7346d9993f7817977dd1d9c9" title="Define a variable with given type, dimensions and (optionally) attributes." alt="" coords="192,5,331,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,43,177,37,178,42,145,48"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a491de7aac14cf3f245168c96f54ae06a" title="Write data to a variable." alt="" coords="192,69,331,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="145,67,178,72,177,78,144,72"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_serial_nc_file.html#a8a4737691d422e1cc31976523fcc29df" title="Get the NetCDF&#45;C ID of the current group." alt="" coords="379,69,529,109"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="331,87,365,87,365,92,331,92"/>
+</map>

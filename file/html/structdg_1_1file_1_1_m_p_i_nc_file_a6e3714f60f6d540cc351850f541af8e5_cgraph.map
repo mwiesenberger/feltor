@@ -1,0 +1,7 @@
+<map id="dg::file::MPINcFile::get_att_vec_as" name="dg::file::MPINcFile::get_att_vec_as">
+<area shape="rect" id="Node000001" title="Short for &#160;get_att_as&lt;std::vector&lt;T&gt;&gt;( id, att_name);" alt="" coords="5,5,144,45"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#a853cb6655c7d5054c2b46c5297216195" title="Short for &#160;get_att_as&lt;std::vector&lt;T&gt;&gt;( id, att_name);" alt="" coords="192,5,343,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,23,179,23,179,28,144,28"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#a02f7028d2e6a221048cf2b63c98452ff" title="Get an attribute named att_name of the group or variable id." alt="" coords="391,5,541,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="343,23,377,23,377,28,343,28"/>
+</map>

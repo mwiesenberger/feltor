@@ -1,0 +1,26 @@
+<map id="dg::file::Probes::Probes" name="dg::file::Probes::Probes">
+<area shape="rect" id="Node000001" title="Construct from parameter struct." alt="" coords="5,170,176,195"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a6c4a2f38be64487507df28292967817d" title="Define a dimension named name of size size." alt="" coords="239,5,377,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="100,168,150,115,184,83,223,55,233,49,236,54,225,60,188,87,153,119,104,172"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#aa26096f167a6560ab949af57cda72427" title=" " alt="" coords="239,69,377,109"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="117,168,223,119,240,112,242,117,225,124,119,172"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1file_1_1_probes_params.html#a47fd5493a1cf839d191124fd524dd28b" title="Check that coords all have same size and return that size." alt="" coords="224,133,392,173"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="176,169,210,164,211,169,177,174"/>
+<area shape="rect" id="Node000007" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a324df27278d2b9d1c2078231df76b5c0" title="Get the absolute path of the current group." alt="" coords="445,184,585,224"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="177,184,432,197,432,203,176,190"/>
+<area shape="rect" id="Node000009" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a32faa7c38409660f29d9955d9e850f1d" title="Put an individual attribute." alt="" coords="239,248,377,288"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="125,193,244,240,242,245,123,198"/>
+<area shape="rect" id="Node000011" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a1140a548101026d93c10decd79e18602" title="Change group to path." alt="" coords="239,312,377,352"/>
+<area shape="poly" id="edge10_Node000001_Node000011" title=" " alt="" coords="105,194,155,243,189,272,225,298,236,304,234,308,223,302,185,276,151,247,102,198"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#a7e6d005109a47d4c17ede892b6379d3f" title="Define a dimension named name of size size." alt="" coords="440,5,591,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="377,23,426,23,426,28,377,28"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1file_1_1_serial_nc_file.html#a17498718cf4ca91c19b1f79f9e59dc3a" title=" " alt="" coords="440,69,591,109"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="377,87,426,87,426,92,377,92"/>
+<area shape="rect" id="Node000008" href="$structdg_1_1file_1_1_serial_nc_file.html#a6ba0f705938bbadf61abe2a123855a20" title="Get the absolute path of the current group." alt="" coords="639,248,789,288"/>
+<area shape="poly" id="edge7_Node000007_Node000008" title=" " alt="" coords="579,222,639,241,638,246,577,227"/>
+<area shape="rect" id="Node000010" href="$structdg_1_1file_1_1_serial_nc_file.html#a22fc57d30999c959f2969727f2ac9aa8" title="Put an individual attribute." alt="" coords="440,248,591,288"/>
+<area shape="poly" id="edge9_Node000009_Node000010" title=" " alt="" coords="377,265,426,265,426,271,377,271"/>
+<area shape="rect" id="Node000012" href="$structdg_1_1file_1_1_serial_nc_file.html#a62b2383a66602abff7f8e643b8bf4bad" title="Change group to path." alt="" coords="440,312,591,352"/>
+<area shape="poly" id="edge11_Node000011_Node000012" title=" " alt="" coords="377,329,426,329,426,335,377,335"/>
+<area shape="poly" id="edge12_Node000012_Node000008" title=" " alt="" coords="577,309,638,290,639,295,579,314"/>
+</map>

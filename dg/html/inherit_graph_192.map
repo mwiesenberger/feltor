@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" title=" " alt="" coords="5,31,120,56"/>
+<area shape="rect" id="Node000001" href="$classdg_1_1_error.html" title="class intended for the use in throw statements" alt="" coords="185,5,262,31"/>
+<area shape="poly" id="edge60_Node000000_Node000001" title=" " alt="" coords="133,30,184,21,185,27,134,35"/>
+<area shape="rect" id="Node000003" href="$classdg_1_1_no_root1d.html" title="Exception class, that stores boundaries for 1D root finding." alt="" coords="168,55,279,80"/>
+<area shape="poly" id="edge62_Node000000_Node000003" title=" " alt="" coords="134,51,168,56,167,62,133,57"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_fail.html" title="Indicate failure to converge." alt="" coords="327,5,396,31"/>
+<area shape="poly" id="edge61_Node000001_Node000002" title=" " alt="" coords="276,15,326,15,326,21,276,21"/>
+</map>

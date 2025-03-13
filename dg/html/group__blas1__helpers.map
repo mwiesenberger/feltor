@@ -1,0 +1,11 @@
+<map id="Functions and functors" name="Functions and functors">
+<area shape="rect" id="Node000003" href="$group__basics.html" title="For the dg::evaluate and dg::blas1::evaluate functions." alt="" coords="495,5,562,31"/>
+<area shape="rect" id="Node000006" href="$group__binary__operators.html" title="Binary subroutines for the dg::blas1::evaluate function." alt="" coords="455,55,602,95"/>
+<area shape="rect" id="Node000001" title=" " alt="" coords="232,191,401,216"/>
+<area shape="rect" id="Node000005" href="$group__composition.html" title=" " alt="" coords="454,119,603,159"/>
+<area shape="rect" id="Node000009" href="$group__filters.html" title="Functors to use in dg::blas2::stencil function." alt="" coords="463,183,595,223"/>
+<area shape="rect" id="Node000004" href="$group__functions.html" title="For the dg::evaluate and dg::blas1::evaluate functions." alt="" coords="461,248,596,273"/>
+<area shape="rect" id="Node000007" href="$group__variadic__evaluates.html" title="Functors to use in the dg::blas1::evaluate function." alt="" coords="455,298,602,338"/>
+<area shape="rect" id="Node000008" href="$group__variadic__subroutines.html" title="Functors to use in the dg::blas1::subroutine functions." alt="" coords="449,362,608,402"/>
+<area shape="rect" id="Node000002" href="$group__misc.html" title=" " alt="" coords="5,183,184,223"/>
+</map>
