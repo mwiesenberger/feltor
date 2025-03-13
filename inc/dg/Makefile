@@ -17,30 +17,26 @@ CUFILES=$(wildcard *.cu)
 TARGETS=blas_t\
 blas1_t\
 pcg_t\
+eve_t\
+bicgstabl_t\
+helmholtz_t\
 simpsons_t\
+poisson_t\
 extrapolation_t\
 nullstelle_t\
 runge_kutta_t\
 adaptive_t\
+implicit_t\
 multistep_t\
 arakawa_t\
 
-TARGETSMPI=mpi_average_t\
-mpi_arakawa_t\
+TARGETSMPI= mpi_arakawa_t\
+mpi_poisson_t\
+mpi_bicgstabl_t\
 mpi_blas_t\
 mpi_blas1_t\
 
 all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
-
-bathRZ_t: bathRZ_t.cu
-	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(GLFLAGS) $(INCLUDE)  -g
-
-backscatter_t: backscatter_t.cpp xspacelib.h
-	$(CC) $(CFLAGS) $< -o $@ $(GLFLAGS) $(INCLUDE) -g
-
-cluster_mpib: cluster_mpib.cu
-	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) $(JSONLIB) -g
-
 
 %_mpib: %_b.cpp
 	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) -DWITH_MPI
@@ -54,17 +50,10 @@ cluster_mpib: cluster_mpib.cu
 mpi_%_t.$(device).o: %_t.cpp
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 
-
-%_mpit.$(device).o: %_mpit.cpp %.h
-	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
-
 %_t: $(CATCH).$(device).o %_t.$(device).o
 	$(CC) $(OPT) -o $@ $^ -lCatch2
 
 mpi_%_t: $(CATCHMPI).$(device).o mpi_%_t.$(device).o
-	$(MPICC) $(OPT) -o $@ $^ -lCatch2
-
-%_mpit: $(CATCHMPI).$(device).o %_mpit.$(device).o
 	$(MPICC) $(OPT) -o $@ $^ -lCatch2
 
 $(CATCH).$(device).o: $(CATCH).cpp

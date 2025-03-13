@@ -241,7 +241,7 @@ struct MPISparseBlockMat
  */
 template<class real_type, class ConversionPolicyRows, class ConversionPolicyCols>
 auto make_mpi_sparseblockmat( // not actually communicating
-    const EllSparseBlockMat<real_type>& src,
+    const EllSparseBlockMat<real_type, thrust::host_vector>& src,
     const ConversionPolicyRows& g_rows, // must be 1d
     const ConversionPolicyCols& g_cols
 )
@@ -252,10 +252,10 @@ auto make_mpi_sparseblockmat( // not actually communicating
     // 1. some preliminary MPI tests
     // 2. grab the correct rows of src and mark rows that are communicating
     // we need to grab the entire row to ensure reproducibility (which is guaranteed by order of computations)
-    // 3. Convert inner rows to local and move outer rows to vectors (invalidating them in inner)
+    // 3. Convert inner rows to local and move outer rows to Coo format vectors (invalidating them in inner)
     // 4. Use global columns vector to construct MPI Kronecker Gather
     // 5. Use buffer index to construct local CooSparseBlockMat
-    constexpr int invalid_idx = EllSparseBlockMat<real_type>::invalid_index;
+    constexpr int invalid_idx = EllSparseBlockMat<real_type, thrust::host_vector>::invalid_index;
     int result;
     MPI_Comm_compare( g_rows.communicator(), g_cols.communicator(), &result);
     assert( result == MPI_CONGRUENT or result == MPI_IDENT);
@@ -268,12 +268,12 @@ auto make_mpi_sparseblockmat( // not actually communicating
     MPI_Cart_get( g_cols.communicator(), 1, &dim, &period, &coord); // coord of the calling process
     if( dim == 1)
     {
-        return MPISparseBlockMat<thrust::host_vector, EllSparseBlockMat<real_type>,
-            CooSparseBlockMat<real_type>>{ src, {}, {}};
+        return MPISparseBlockMat<thrust::host_vector, EllSparseBlockMat<real_type, thrust::host_vector>,
+            CooSparseBlockMat<real_type, thrust::host_vector>>{ src, {}, {}};
     }
     unsigned n = src.n, rn = g_rows.n()/n, cn = g_cols.n()/n;
     int bpl = src.blocks_per_line;
-    EllSparseBlockMat<real_type> inner(g_rows.local().N()*rn, g_cols.local().N()*cn, // number of blocks
+    EllSparseBlockMat<real_type, thrust::host_vector> inner(g_rows.local().N()*rn, g_cols.local().N()*cn, // number of blocks
         bpl, src.data.size()/(src.n*src.n), src.n);
     inner.set_left_size( src.left_size);
     inner.set_right_size( src.right_size);
@@ -297,11 +297,11 @@ auto make_mpi_sparseblockmat( // not actually communicating
         if ( pid != rank)
             local_row[i] = false;
     }
+    // 3. Convert inner rows to local and move outer rows to Coo format vectors (invalidating them in inner)
     thrust::host_vector<std::array<int,2>> gColIdx;
     thrust::host_vector<int> rowIdx;
     thrust::host_vector<int> dataIdx;
     for( int i=0; i<inner.num_rows; i++)
-    {
     for( int k=0; k<bpl; k++)
     {
         int gIdx = inner.cols_idx[i*bpl + k];
@@ -315,17 +315,19 @@ auto make_mpi_sparseblockmat( // not actually communicating
             lIdx = invalid_idx;
         if ( !local_row[i] )
         {
-            assert( lIdx != invalid_idx);
-            rowIdx.push_back( i);
-            dataIdx.push_back( inner.data_idx[i*bpl+k]);
-            gColIdx.push_back( {pid, lIdx});
-            inner.cols_idx[i*bpl + k] = invalid_idx;
+            // Simply skip invalid entries in Coo matrix
+            if( gIdx != invalid_idx)
+            {
+                rowIdx.push_back( i);
+                dataIdx.push_back( inner.data_idx[i*bpl+k]);
+                gColIdx.push_back( {pid, lIdx});
+                inner.cols_idx[i*bpl + k] = invalid_idx;
+            }
         }
         else
         {
             inner.cols_idx[i*bpl + k] = lIdx;
         }
-    }
     }
     // Now make MPI Gather object
     thrust::host_vector<int> lColIdx;
@@ -333,14 +335,14 @@ auto make_mpi_sparseblockmat( // not actually communicating
 
     MPIKroneckerGather<thrust::host_vector> mpi_gather( inner.left_size, gather_map, inner.n,
         inner.num_cols, inner.right_size, g_cols.communicator());
-    CooSparseBlockMat<real_type> outer(inner.num_rows, mpi_gather.buffer_size(),
+    CooSparseBlockMat<real_type, thrust::host_vector> outer(inner.num_rows, mpi_gather.buffer_size(),
         src.n, src.left_size, src.right_size);
     outer.data     = src.data; outer.cols_idx = lColIdx;
     outer.rows_idx = rowIdx;   outer.data_idx = dataIdx;
     outer.num_entries = rowIdx.size();
 
-    return MPISparseBlockMat<thrust::host_vector, EllSparseBlockMat<real_type>,
-        CooSparseBlockMat<real_type>>{ inner, outer, mpi_gather};
+    return MPISparseBlockMat<thrust::host_vector, EllSparseBlockMat<real_type, thrust::host_vector>,
+        CooSparseBlockMat<real_type, thrust::host_vector>>{ inner, outer, mpi_gather};
 }
 
 /*

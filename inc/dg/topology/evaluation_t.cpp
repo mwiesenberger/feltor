@@ -275,7 +275,7 @@ TEST_CASE( "Dot throws")
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
     // only some ranks throw?
-    dg::MDVec x { dg::DVec{10, rank%2 ? -10 : +10}, MPI_COMM_WORLD};
+    dg::MDVec x { dg::DVec{10, rank%2 == 0? -10 : +10}, MPI_COMM_WORLD};
 #else
     dg::DVec x(10, -10);
 #endif
@@ -309,14 +309,26 @@ TEST_CASE( "Complex scalar products")
         thrust::complex<double> cintegral = dg::blas1::dot( w3d, cc3d);
         dg::exblas::udouble res;
         res.d =cintegral.real();
-        double sol2d = 0;
+        double sol3d = (exp(2.)-exp(1))*(exp(4.)-exp(3))*(exp(6.)-exp(5));
         INFO( "3D integral (real)        "<<std::setw(6)<<cintegral.real());
-        INFO( "Correct integral is       "<<std::setw(6)<<sol2d);
-        INFO( "3d error is               "<<(cintegral.real()-sol2d));
-        CHECK( abs(res.i - 4675882723962622631) < 2);
+        INFO( "Correct integral is       "<<std::setw(6)<<sol3d);
+        INFO( "3d error is               "<<(cintegral.real()-sol3d));
+        // Note: Complex scalar products are not infinitely precise
+        // we choose lower accuracy than for double dot
+        CHECK( abs(res.i - 4675882723962622631) < 4);
         res.d =cintegral.imag();
         INFO( "3D integral (imag)        "<<std::setw(6)<<cintegral.imag());
-        CHECK( abs(res.i - 4675882723962622631) < 2);
+        CHECK( abs(res.i - 4675882723962622631) < 4);
+
+        double solution3d =
+            (exp(4.)-exp(2))/2.*(exp(8.)-exp(6.))/2.*(exp(12.)-exp(10));
+        double norm3d = dg::blas1::vdot( [] DG_DEVICE( double ww,
+            thrust::complex<double> zz){ return ww*norm(zz);}, w3d, cc3d);
+        res.d = norm3d;
+        INFO( "Square normalized 3D norm "<<std::setw(6)<<norm3d);
+        INFO( "Correct square norm is    "<<std::setw(6)<<solution3d);
+        INFO( "Relative 3d error is      "<<(norm3d-solution3d)/solution3d);
+        CHECK( abs( res.i - 4751268280629478772) < 4);
     }
 
     SECTION( "1d grid")
@@ -341,10 +353,10 @@ TEST_CASE( "Complex scalar products")
         double sol = (exp(2.) -exp(1));
         INFO( "Correct integral is       "<<std::setw(6)<<sol);
         INFO( "Relative 1d error is      "<<(cintegral.real()-sol)/sol);
-        CHECK( abs( res.i - 4616944842743393935) < 2);
+        CHECK( abs( res.i - 4616944842743393935) < 4);
         res.d =cintegral.imag();
         INFO( "1D integral (imag)        "<<std::setw(6)<<cintegral.imag());
-        CHECK( abs( res.i - 4616944842743393935) < 2);
+        CHECK( abs( res.i - 4616944842743393935) < 4);
     }
     SECTION( "Vector valued scalar product")
     {

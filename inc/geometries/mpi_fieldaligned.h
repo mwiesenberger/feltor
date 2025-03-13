@@ -6,7 +6,6 @@
 
 namespace dg{
 namespace geo{
-    //TODO bc_along does not do the same in MPI and shared memory!! Even with only 1 thread
 
 ///@cond
 
@@ -25,7 +24,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         double deltaPhi = -1, std::string interpolation_method = "linear-nearest",
         bool benchmark = true):
             Fieldaligned( dg::geo::createBHat(vec), grid, bcx, bcy, limit, eps,
-                    mx, my, deltaPhi, interpolation_method)
+                    mx, my, deltaPhi, interpolation_method, benchmark)
     {
     }
     template <class Limiter>
@@ -306,7 +305,6 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         t.toc();
         if(rank==0) std::cout << "# DS: Multiplication PI     took: "<<t.diff()<<"\n";
     }
-        m_have_adjoint = true;
     }
 };
 //////////////////////////////////////DEFINITIONS/////////////////////////////////////
@@ -419,7 +417,7 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     m_ghostM = m_ghostP = m_right = m_left;
     /// %%%%%%%%%%%%%%%%%%%%%%SETUP MPI in Z%%%%%%%%%%%%%%%%%%%%%%%%//
     int source, dest;
-    dg::detail::MsgChunk chunk { 0, (int)grid_transform->size()};
+    dg::detail::MsgChunk chunk { 0, (int)m_perp_size};
 
     MPI_Cart_shift( grid.comm(2), 0, +1, &source, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgP =
@@ -486,7 +484,7 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
     dg::split( f, m_f, *m_g);
     dg::split( fpe, m_temp, *m_g);
     MPI_Vector<dg::View<container>> send_buf(
-            {m_ghostP.data().data(), m_ghostP.size()}, m_g->communicator());
+            {m_ghostP.data().data(), m_ghostP.size()}, m_g->get_perp_comm());
     //1. compute 2d interpolation in every plane and store in m_temp
     for( unsigned i0=0; i0<m_Nz; i0++)
     {
@@ -533,7 +531,7 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
     dg::split( f, m_f, *m_g);
     dg::split( fme, m_temp, *m_g);
     MPI_Vector<dg::View<container>> send_buf(
-            {m_ghostM.data().data(), m_ghostM.size()}, m_g->communicator());
+            {m_ghostM.data().data(), m_ghostM.size()}, m_g->get_perp_comm());
     //1. compute 2d interpolation in every plane and store in m_temp
     for( unsigned i0=0; i0<m_Nz; i0++)
     {

@@ -1853,9 +1853,9 @@ void write_global_attributes( NcFile& file, int argc, char* argv[],
     att["source"] = "FELTOR";
     att["references"] = "https://github.com/feltor-dev/feltor";
     att["inputfile"] = inputfile;
-    file.put_atts( ".", att);
+    file.put_atts( att);
 
-    file.put_atts( ".", dg::file::version_flags);
+    file.put_atts( dg::file::version_flags);
 
 }
 
@@ -1875,12 +1875,12 @@ void write_static_list( NcFile& file, const HostList& records, Variables& var,
     {
         record.function( resultH, var, grid);
         dg::blas2::symv( projectH, resultH, transferH);
-        file.defput_var( record.name, {"Z", "R"}, record.atts, {*g2d_out_ptr},
+        file.defput_var( record.name, {"y", "x"}, record.atts, {*g2d_out_ptr},
                 transferH);
     }
     resultH = dg::pullback( transition, grid);
     dg::blas2::symv( projectH, resultH, transferH);
-    file.defput_var( "MagneticTransition", {"Z", "R"}, {{"long_name",
+    file.defput_var( "MagneticTransition", {"y", "x"}, {{"long_name",
         "The region where the magnetic field is modified"}},
         {*g2d_out_ptr}, transferH);
 }
@@ -1947,16 +1947,16 @@ struct WriteIntegrateDiagnostics2dList
         {
             std::string name = record.name + "_ta2d";
             std::string long_name = record.long_name + " (Toroidal average)";
-            m_file->template def_var_as<double>( name, {"time", "Z", "R"},
+            m_file->template def_var_as<double>( name, {"time", "y", "x"},
                     {{"long_name", long_name}});
             name = record.name + "_2d";
             long_name = record.long_name+ " (Evaluated on phi = 0 plane)";
-            m_file->template def_var_as<double>( name, {"time", "Z", "R"},
+            m_file->template def_var_as<double>( name, {"time", "y", "x"},
                     {{"long_name", long_name}});
         }
         m_slab = {*g2d_out_ptr};
         #ifdef WITH_MPI // only root group needs to track
-        if( dg::mpi_comm_global2local_rank( g2d_out_ptr->communicator()) == MPI_UNDEFINED)
+        if( dg::file::detail::mpi_comm_global2local_rank( g2d_out_ptr->communicator()) == MPI_UNDEFINED)
             m_track  = false;
         #endif
         m_resultD = dg::evaluate( dg::zero, grid);
@@ -2013,18 +2013,15 @@ struct WriteIntegrateDiagnostics2dList
         {
             if(record.integral) // we already computed the output...
             {
-                if( m_track)
-                {
                 std::string name = record.name+"_ta2d";
-                m_transferH2d = m_time_integrals.at(name).get_integral();
+                if(m_track) m_transferH2d = m_time_integrals.at(name).get_integral();
                 m_file->put_var( name, {m_start, m_slab}, m_transferH2d);
-                m_time_integrals.at(name).flush();
+                if(m_track) m_time_integrals.at(name).flush();
 
                 name = record.name + "_2d";
-                m_transferH2d = m_time_integrals.at(name).get_integral( );
+                if(m_track) m_transferH2d = m_time_integrals.at(name).get_integral( );
                 m_file->put_var( name, {m_start, m_slab}, m_transferH2d);
-                m_time_integrals.at(name).flush();
-                }
+                if(m_track) m_time_integrals.at(name).flush();
             }
             else // compute from scratch
             {

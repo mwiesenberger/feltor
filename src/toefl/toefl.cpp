@@ -238,13 +238,12 @@ int main( int argc, char* argv[])
             file.def_var_as<double>( record.name, {"y","x"}, record.atts);
             file.put_var( record.name, {grid_out}, resultP);
         }
-        dg::x::DVec volume = dg::create::volume( grid);
         for( auto& record : toefl::diagnostics2d_list.at( p.model))
         {
             record.function ( resultD, var);
             dg::assign( resultD, resultH);
             dg::blas2::symv( projection, resultH, resultP);
-            file.def_var_as<double>( record.name, {"y","x"}, record.atts);
+            file.def_var_as<double>( record.name, {"time", "y","x"}, record.atts);
             file.put_var( record.name, {0, grid_out}, resultP);
         }
         file.put_var( "time", {0}, time);

@@ -120,19 +120,12 @@ std::vector<real_type> choose_1d_abscissas( real_type X,
 {
     // Select points for nearest, linear or cubic interpolation
     // lx is needed for PER bondary conditions
-    // abs must be sorted for std::lower_bound to work
     assert( abs.size() >= points_per_line && "There must be more points to interpolate\n");
     //determine which cell (X) lies in
-    //real_type xnn = (X-g.x0())/g.h();
-    //unsigned n = (unsigned)floor(xnn);
-    ////intervall correction
-    //if (n==g.N() && bcx != dg::PER) {
-    //    n-=1;
-    //}
-    // look for closest abscissa
-    std::vector<real_type> xs( points_per_line, 0);
-    // X <= *it
+    // abs must be sorted for std::lower_bound to work
     auto it = std::lower_bound( abs.begin(), abs.end(), X);
+
+    std::vector<real_type> xs( points_per_line, 0);
     cols.resize( points_per_line, 0);
     switch( points_per_line)
     {
@@ -369,9 +362,15 @@ cusp::coo_matrix<int, dg::get_value_type<host_vector2>, cusp::host_memory> inter
         detail::shift( negative, X, bcx, x0, x1);
         // Test if point already exists since then no interpolation is needed
         int idxX = -1;
-        for( unsigned u=0; u<abs.size(); u++)
-            if( fabs( X - abs[u]) <1e-13)
-                idxX = u;
+        auto it = std::lower_bound( abs.begin(), abs.end(), X);
+        if( fabs( X - *it) < 1e-13)
+            idxX = it - abs.begin();
+        if( it != abs.begin() and fabs(  X - *(it-1)) < 1e-13)
+            idxX = (it - abs.begin())-1;
+        // THIS IS A VERY BAD IDEA PERFORMANCE WISE
+        //for( unsigned u=0; u<abs.size(); u++)
+        //    if( fabs( X - abs[u]) <1e-13)
+        //        idxX = u;
         if( idxX < 0) //no corresponding point
         {
             thrust::host_vector<unsigned> cols;
@@ -586,8 +585,8 @@ cusp::csr_matrix<int, real_type, cusp::host_memory> interpolation(
  * the dg::create::fast_interpolation %functions
  *
  * @param g_new The new grid
- * @param g_old The old grid.  The boundaries of the old grid must lie within
- * the boundaries of the new grid
+ * @param g_old The old grid. The boundaries of the new grid must lie within
+ * the boundaries of the old grid.
  * @copydoc hide_method
  *
  * @return Interpolation matrix with \c g_old.size() columns and \c
@@ -602,7 +601,11 @@ cusp::csr_matrix<int, real_type, cusp::host_memory> interpolation(
     //assert both grids are on the same box
     for( unsigned u=0; u<Nd; u++)
     {
+        if( g_new.p(u) < g_old.p(u))
+            std::cerr << "ERROR: New grid boundary number "<<u<<" with value "<<g_new.p(u)<<" lies outside old grid "<<g_old.p(u)<<" "<<g_old.p(u)-g_new.p(u)<<"\n";
         assert( g_new.p(u) >= g_old.p(u));
+        if( g_new.q(u) > g_old.q(u))
+            std::cerr << "ERROR: New grid boundary number "<<u<<" with value "<<g_new.q(u)<<" lies outside old grid "<<g_old.q(u)<<" "<<g_old.q(u)-g_new.q(u)<<"\n";
         assert( g_new.q(u) <= g_old.q(u));
     }
     std::array<cusp::csr_matrix<int,real_type,cusp::host_memory>,Nd> axes;
