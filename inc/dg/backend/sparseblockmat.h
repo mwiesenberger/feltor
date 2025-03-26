@@ -1,15 +1,13 @@
 #pragma once
 
 #include <cmath>
+#include <numeric>
 #include <thrust/host_vector.h>
-#include <cusp/coo_matrix.h>
 #include "exblas/exdot_serial.h"
 #include "config.h"
 #include "exceptions.h"
 #include "tensor_traits.h"
-
-//TODO To make it complex ready we possibly need to change value types in blas1 and blas2 functions
-//TODO Make ready for complex via value_type from dg::blas2::symv
+#include "sparsematrix.h"
 
 namespace dg
 {
@@ -103,11 +101,11 @@ struct EllSparseBlockMat
     }
 
     /**
-     * @brief Convert to a cusp coordinate sparse matrix
+     * @brief Convert to a sparse matrix
      *
-     * @return The matrix in coo sparse matrix format
+     * @return The matrix in sparse matrix format
      */
-    cusp::coo_matrix<int, real_type, cusp::host_memory> asCuspMatrix() const;
+    dg::SparseMatrix<int, real_type, thrust::host_vector> asCuspMatrix() const;
 
     /**
     * @brief Apply the matrix to a vector
@@ -120,12 +118,29 @@ struct EllSparseBlockMat
     * @tparam value_type value_type = real_type*value_type must be possible
     */
     template<class value_type>
-    void symv(SharedVectorTag, SerialTag, value_type alpha, const value_type* RESTRICT x, value_type beta, value_type* RESTRICT y) const;
+    void symv(SharedVectorTag, SerialTag, value_type alpha, const value_type* RESTRICT x, value_type beta, value_type* RESTRICT y) const
+    {
+        launch_multiply_kernel( SerialTag(), alpha, x, beta, y);
+    }
     template<class value_type>
-    void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const;
+    void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const
+    {
+        launch_multiply_kernel( CudaTag(), alpha, x, beta, y);
+    }
 #ifdef _OPENMP
     template<class value_type>
-    void symv(SharedVectorTag, OmpTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const;
+    void symv(SharedVectorTag, OmpTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const
+    {
+        if( !omp_in_parallel())
+        {
+            #pragma omp parallel
+            {
+                launch_multiply_kernel( OmpTag(), alpha, x, beta, y);
+            }
+            return;
+        }
+        launch_multiply_kernel( OmpTag(), alpha, x, beta, y);
+    }
 #endif //_OPENMP
 
     ///@brief Set <tt> right_range[0] = 0, right_range[1] = right_size</tt>
@@ -160,6 +175,15 @@ struct EllSparseBlockMat
     int n;  //!< each block has size n*n
     int left_size; //!< size of the left Kronecker delta
     int right_size; //!< size of the right Kronecker delta (is e.g 1 for a x - derivative)
+    private:
+    template<class value_type>
+    void launch_multiply_kernel(SerialTag, value_type alpha, const value_type* RESTRICT x, value_type beta, value_type* RESTRICT y) const;
+    template<class value_type>
+    void launch_multiply_kernel(CudaTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const;
+#ifdef _OPENMP
+    template<class value_type>
+    void launch_multiply_kernel(OmpTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const;
+#endif //_OPENMP
 
 };
 
@@ -279,12 +303,29 @@ struct CooSparseBlockMat
     * @attention beta == 1 (anything else is ignored)
     */
     template<class value_type>
-    void symv(SharedVectorTag, SerialTag, value_type alpha, const value_type** x, value_type beta, value_type* RESTRICT y) const;
+    void symv(SharedVectorTag, SerialTag, value_type alpha, const value_type** x, value_type beta, value_type* RESTRICT y) const
+    {
+        launch_multiply_kernel( SerialTag(), alpha, x, beta, y);
+    }
     template<class value_type>
-    void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const;
+    void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const
+    {
+        launch_multiply_kernel( CudaTag(), alpha, x, beta, y);
+    }
 #ifdef _OPENMP
     template<class value_type>
-    void symv(SharedVectorTag, OmpTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const;
+    void symv(SharedVectorTag, OmpTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const
+    {
+        if( !omp_in_parallel())
+        {
+            #pragma omp parallel
+            {
+                launch_multiply_kernel( OmpTag(), alpha, x, beta, y);
+            }
+            return;
+        }
+        launch_multiply_kernel( OmpTag(), alpha, x, beta, y);
+    }
 #endif //_OPENMP
 
     /**
@@ -305,6 +346,15 @@ struct CooSparseBlockMat
     int n;  //!< each block has size n*n
     int left_size; //!< size of the left Kronecker delta
     int right_size; //!< size of the right Kronecker delta (is e.g 1 for a x - derivative)
+    private:
+    template<class value_type>
+    void launch_multiply_kernel(SerialTag, value_type alpha, const value_type** x, value_type beta, value_type* RESTRICT y) const;
+    template<class value_type>
+    void launch_multiply_kernel(CudaTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const;
+#ifdef _OPENMP
+    template<class value_type>
+    void launch_multiply_kernel(OmpTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const;
+#endif //_OPENMP
 };
 ///@cond
 
@@ -337,11 +387,11 @@ struct CooSparseBlockMat
 //    }
 //}
 template<class real_type, template<class> class Vector>
-cusp::coo_matrix<int, real_type, cusp::host_memory> EllSparseBlockMat<real_type, Vector>::asCuspMatrix() const
+dg::SparseMatrix<int, real_type, thrust::host_vector> EllSparseBlockMat<real_type, Vector>::asCuspMatrix() const
 {
-    cusp::array1d<real_type, cusp::host_memory> values;
-    cusp::array1d<int, cusp::host_memory> row_indices;
-    cusp::array1d<int, cusp::host_memory> column_indices;
+    thrust::host_vector<real_type > values;
+    thrust::host_vector<int> row_indices;
+    thrust::host_vector<int> column_indices;
     for( int s=0; s<left_size; s++)
     for( int i=0; i<num_rows; i++)
     for( int k=0; k<n; k++)
@@ -351,20 +401,17 @@ cusp::coo_matrix<int, real_type, cusp::host_memory> EllSparseBlockMat<real_type,
         for( int d=0; d<blocks_per_line; d++)
         for( int q=0; q<n; q++) //multiplication-loop
         {
-            row_indices.push_back(I);
             int J = cols_idx[i*blocks_per_line+d];
             if ( J == invalid_index)
                 continue;
+            row_indices.push_back(I);
             column_indices.push_back(
                 ((s*num_cols + J)*n+q)*right_size+j);
             values.push_back(data[ (data_idx[i*blocks_per_line+d]*n + k)*n+q]);
         }
     }
-    cusp::coo_matrix<int, real_type, cusp::host_memory> A(
-        total_num_rows(), total_num_cols(), values.size());
-    A.row_indices = row_indices;
-    A.column_indices = column_indices;
-    A.values = values;
+    dg::SparseMatrix<int,real_type, thrust::host_vector> A;
+    A.setFromCoo( total_num_rows(), total_num_cols(), row_indices, column_indices, values);
     return A;
 }
 
@@ -474,12 +521,14 @@ struct TensorTraits<EllSparseBlockMat<T, V> >
 {
     using value_type  = T;
     using tensor_category = SparseBlockMatrixTag;
+    using execution_policy = dg::get_execution_policy<V<T>>;
 };
 template <class T, template<class> class V>
 struct TensorTraits<CooSparseBlockMat<T, V> >
 {
     using value_type  = T;
     using tensor_category = SparseBlockMatrixTag;
+    using execution_policy = dg::get_execution_policy<V<T>>;
 };
 ///@}
 

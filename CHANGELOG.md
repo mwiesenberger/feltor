@@ -15,6 +15,27 @@ far away from strictly following it really.
 > Only changes in code are reported here, we do not track changes in the
 > doxygen documentation, READMEs or tex writeups.
 > As of v7.0 we also stop reporting changes in test and benchmark programs.
+## [v8.1] Remove cusp dependency
+### Added
+ - New `dg::SparseMatrix` class to replace our previous `cusp::csr_matrix` and `cusp::coo_matrix`
+ - The `SPARSELIB` Makefile variables expands to `-lcusparse` when compiling with cuda
+ - resize method in `dg::TriDiagonal`
+ - Writeable data method in `dg::SquareMatrix`
+### Changed
+ - The `LIBS` Makefile variable includes `-lcusparse` dependency when compiling with cuda. This is rather trivial because cuda ships with cusparse.
+ - Default build should now use `https://github.com/nvidia/cccl` repository
+ - Default build should now use `https://github.com/vectorclass/version2` (instead of version1)
+ - All dg functions/classes/typedefs returning or depending on any cusp coo or csr matrix now use `dg::SparseMatrix`
+ - All dg functions/classes returning or depending on `cusp::dia_matrix` now use `dg::TriDiagonal`
+ - All dg functions/classes returning or depending on `cusp::array1d` now use `thrust::host_vector`
+ - All dg functions/classes returning or depending on `cusp::array2d` now use `dg::SquareMatrix`
+ - The inverse type of tridiagonal matrices in `dg/matrix/matrix.h` is `dg::SquareMatrix`
+### Deprecated
+ - `dg::InverseTriDiagonal` because untested and unused over `dg::mat::compute_Tinv_y`
+### Removed
+ - All cusp header files are removed from `dg/algorithm.h`, `dg/geometries/geometries.h` and `dg/matrix/matrix.h` (The relevant tensor traits for cusp can still manually be included though)
+### Fixed
+ - Thrust library can now be used at newest version
 
 ## [v8.0] Improved foundations
 ### Added
@@ -39,13 +60,13 @@ far away from strictly following it really.
  - Add `dg::exblas::fpedot_cpu`, `dg::exblas::fpedot_gpu` and `dg::exblas::fpedot_omp`
  - Add `dg::exblas::ufloat`
  - Probes module in feltor 3d code
- - Add experimental `dg::mat::ProductMatrixFunction` class
- - Add experimental shared memory functionality to store Eigen-decomposition of Laplace operator `dg::mat::LaplaceDecomposition` in `dg::mat` (but undocumented and not used much, may be removed again in future)
  - More general interfaces working with new N dimensional grid class to all topology functions like evaluate, interpolate, derivatives etc.
  - `dg::cHVec`, `dg::cDVec`, `dg::cMHVec` and `dg::cMDVec` typedefs for complex vector types
  - Expose `dg::is_scalar_v`, `dg::is_vector_v`, `dg::has_policy_v` and `dg::is_matrix_v` type predicates
  - Extended Tag system on scalar types in particular complex types (`std::complex` and `thrust::complex`)
- - Add predicate to `dg::geo::WallFieldlineDistance` and `dg::geo::WallFieldlineCoordinate`, which may accelerate sheath generation by  a factor 4
+ - Add `dg::geo::SOLRegion` and `dg::geo::ClosedFieldlineRegion` as predicates
+ - Add predicate parameter to `dg::geo::WallFieldlineDistance` and `dg::geo::WallFieldlineCoordinate`, which may accelerate sheath generation by  a factor 4
+ - Add double X-point switch in `dg::geo::createModifiedField` as "sol_pfr_2X"
 ### Changed
  - **std=c++17** Change C++ standard to C++-17
  - `dg::Average` has **one additional template parameter** (the interpolation matrix). Changed in all occurences in src programs.

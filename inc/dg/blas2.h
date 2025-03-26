@@ -3,10 +3,8 @@
 #include "backend/tensor_traits.h"
 #include "backend/tensor_traits_std.h"
 #include "backend/tensor_traits_thrust.h"
-#include "backend/tensor_traits_cusp.h"
 #include "backend/blas2_dispatch_scalar.h"
 #include "backend/blas2_dispatch_shared.h"
-#include "backend/blas2_cusp.h"
 #include "backend/blas2_sparseblockmat.h"
 #include "backend/blas2_selfmade.h"
 #include "backend/blas2_densematrix.h"
@@ -167,11 +165,12 @@ inline void doSymv( get_value_type<ContainerType1> alpha,
     static_assert( std::is_same_v<get_execution_policy<ContainerType1>,
                                   get_execution_policy<ContainerType2>>,
                                 "Vector types must have same execution policy");
-    static_assert( std::is_same_v<get_value_type<ContainerType1>,
-                                  get_value_type<MatrixType>> &&
-                   std::is_same_v<get_value_type<ContainerType2>,
-                                  get_value_type<MatrixType>>,
-                                "Vector and Matrix types must have same value type");
+    // We want to allow double matrix on complex vector ...
+    //static_assert( std::is_same_v<get_value_type<ContainerType1>,
+    //                              get_value_type<MatrixType>> &&
+    //               std::is_same_v<get_value_type<ContainerType2>,
+    //                              get_value_type<MatrixType>>,
+    //                            "Vector and Matrix types must have same value type");
     static_assert( std::is_same_v<get_tensor_category<ContainerType1>,
                                   get_tensor_category<ContainerType2>>,
                                 "Vector types must have same data layout");
@@ -188,11 +187,12 @@ inline void doSymv( MatrixType&& M,
     static_assert( std::is_same_v<get_execution_policy<ContainerType1>,
                                   get_execution_policy<ContainerType2>>,
                                 "Vector types must have same execution policy");
-    static_assert( std::is_same_v<get_value_type<ContainerType1>,
-                                  get_value_type<MatrixType>> &&
-                   std::is_same_v<get_value_type<ContainerType2>,
-                                  get_value_type<MatrixType>>,
-                                "Vector and Matrix types must have same value type");
+    // We want to allow double matrix on complex vector ...
+    //static_assert( std::is_same_v<get_value_type<ContainerType1>,
+    //                              get_value_type<MatrixType>> &&
+    //               std::is_same_v<get_value_type<ContainerType2>,
+    //                              get_value_type<MatrixType>>,
+    //                            "Vector and Matrix types must have same value type");
     static_assert( std::is_same_v<get_tensor_category<ContainerType1>,
                                   get_tensor_category<ContainerType2>>,
                                 "Vector types must have same data layout");
@@ -211,11 +211,12 @@ inline void doStencil(
     static_assert( std::is_same_v<get_execution_policy<ContainerType1>,
                                   get_execution_policy<ContainerType2>>,
                                 "Vector types must have same execution policy");
-    static_assert( std::is_same_v<get_value_type<ContainerType1>,
-                                  get_value_type<MatrixType>> &&
-                   std::is_same_v<get_value_type<ContainerType2>,
-                                  get_value_type<MatrixType>>,
-                                "Vector and Matrix types must have same value type");
+    // We want to allow double matrix on complex vector ...
+    //static_assert( std::is_same_v<get_value_type<ContainerType1>,
+    //                              get_value_type<MatrixType>> &&
+    //               std::is_same_v<get_value_type<ContainerType2>,
+    //                              get_value_type<MatrixType>>,
+    //                            "Vector and Matrix types must have same value type");
     static_assert( std::is_same_v<get_tensor_category<ContainerType1>,
                                   get_tensor_category<ContainerType2>>,
                                 "Vector types must have same data layout");
@@ -445,7 +446,7 @@ inline void parallel_for( Stencil f, unsigned N, ContainerType&& x, ContainerTyp
  * @tparam FunctorType A type that is callable
  *  <tt> void operator()( unsigned, pointer, [m_pointers], const_pointer) </tt>  For GPU vector the functor
  *  must be callable on the device.
- * @tparam MatrixType So far only one of the \c cusp::csr_matrix types and their MPI variants <tt> dg::MPIDistMat<cusp::csr_matrix, Comm> </tt> are allowed
+ * @tparam MatrixType So far only one of the \c dg::SparseMatrix types and their MPI variants are allowed
  * @sa dg::CSRMedianFilter, dg::create::window_stencil
  * @copydoc hide_ContainerType
  */

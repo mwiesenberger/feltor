@@ -9,12 +9,6 @@
 #include "matrixfunction.h"
 #include "matrixsqrt.h"
 
-#include <cusp/transpose.h>
-#include <cusp/array1d.h>
-#include <cusp/array2d.h>
-
-#include <cusp/lapack/lapack.h>
-
 const double lx = 2.*M_PI;
 const double ly = 2.*M_PI;
 dg::bc bcx = dg::DIR;
@@ -120,7 +114,7 @@ int main(int argc, char * argv[])
             auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( max, x);});
             auto T = krylovproduct.lanczos().tridiag( unary_func, A, b, w2d, eps, 1.,
                 "universal", 1.0, 1);
-            iter = T.num_rows;
+            iter = T.M.size();
             krylovproduct.compute_vlcl( func, d, A, T, x, b, krylovproduct.lanczos().get_bnorm());
             t.toc();
             time = t.diff();
@@ -133,7 +127,7 @@ int main(int argc, char * argv[])
             auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( x, max);});
             auto T = krylovproduct.lanczos().tridiag( unary_func, A, b, w2d, eps, 1.,
                 "universal", 1.0, 1);
-            iter = T.num_rows;
+            iter = T.M.size();
             krylovproduct.compute_vlcl_adjoint( func, A, d, T, x, b,
                 w2d, krylovproduct.lanczos().get_bnorm());
             t.toc();

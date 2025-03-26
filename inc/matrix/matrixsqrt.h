@@ -413,11 +413,10 @@ struct ProductMatrixFunction
     }
 
     template< class BinaryOp, class ContainerType0, class MatrixType,
-        class DiaMatrixType, class ContainerType1,
-        class ContainerType2>
+        class ContainerType1, class ContainerType2>
     void compute_vlcl( BinaryOp op, const ContainerType0& diag,
             MatrixType&& A,
-            const DiaMatrixType& T,
+            const TriDiagonal<thrust::host_vector<value_type>>& T,
             ContainerType1& x,
             const ContainerType2& b,
             value_type bnorm)
@@ -427,45 +426,45 @@ struct ProductMatrixFunction
         {
             return;
         }
-        unsigned iter = T.num_rows;
-        cusp::array2d< value_type, cusp::host_memory> evecs(iter,iter);
-        cusp::array1d< value_type, cusp::host_memory> evals(iter);
-        cusp::lapack::stev(T.values.column(1), T.values.column(2),
-                evals, evecs, 'V');
+        unsigned iter = T.O.size();
+        thrust::host_vector<value_type> evals = T.O, plus  = T.P;
+        thrust::host_vector<value_type> work (2*iter-2);
+        dg::SquareMatrix<value_type> EHt(iter);
+        //Compute Eigendecomposition
+        lapack::stev(LAPACK_COL_MAJOR, 'V', evals, plus, EHt.data(), work);
         dg::blas1::axpby(1./bnorm, b, 0.0, m_v); //m_v[1] = b/||b||
         dg::blas1::copy(0., m_vm);
         // compute c_1 v_1
         for ( unsigned k=0; k<iter; k++)
         {
             dg::blas1::evaluate( m_f, dg::equals(), op, diag, evals[k]);
-            dg::blas1::pointwiseDot( bnorm*evecs(0, k)*evecs(0,k), m_f, m_v, 1.,
+            dg::blas1::pointwiseDot( bnorm*EHt(k, 0)*EHt(k,0), m_f, m_v, 1.,
                     x);
         }
         for ( unsigned i=0; i<iter-1; i++)
         {
             dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
             dg::blas1::axpbypgz(
-                    -T.values(i,0)/T.values(i,2), m_vm,
-                    -T.values(i,1)/T.values(i,2), m_v,
-                               1.0/T.values(i,2), m_vp);
+                    -T.M[i]/T.P[i], m_vm,
+                    -T.O[i]/T.P[i], m_v,
+                        1.0/T.P[i], m_vp);
             m_vm.swap( m_v);
             m_v.swap( m_vp);
             // compute c_l v_l
             for ( unsigned k=0; k<iter; k++)
             {
                 dg::blas1::evaluate( m_f, dg::equals(), op, diag, evals[k]);
-                dg::blas1::pointwiseDot( bnorm*evecs(0, k)*evecs(i+1,k), m_f, m_v,
+                dg::blas1::pointwiseDot( bnorm*EHt(k,0)*EHt(k,i+1), m_f, m_v,
                         1., x);
             }
         }
     }
     template< class BinaryOp, class MatrixType, class ContainerType0,
-        class DiaMatrixType, class ContainerType1,
-        class ContainerType2, class ContainerType3>
+        class ContainerType1, class ContainerType2, class ContainerType3>
     void compute_vlcl_adjoint( BinaryOp op,
             MatrixType&& A,
             const ContainerType0& diag,
-            const DiaMatrixType& T,
+            const TriDiagonal<thrust::host_vector<value_type>>& T,
             ContainerType1& x,
             const ContainerType2& b,
             const ContainerType3& weights,
@@ -476,15 +475,16 @@ struct ProductMatrixFunction
         {
             return;
         }
-        unsigned iter = T.num_rows;
-        cusp::array2d< value_type, cusp::host_memory> evecs(iter,iter);
-        cusp::array1d< value_type, cusp::host_memory> evals(iter);
-        cusp::lapack::stev(T.values.column(1), T.values.column(2),
-                evals, evecs, 'V');
+        unsigned iter = T.O.size();
+        thrust::host_vector<value_type> evals = T.O, plus  = T.P;
+        thrust::host_vector<value_type> work (2*iter-2);
+        dg::SquareMatrix<value_type> EHt(iter);
+        //Compute Eigendecomposition
+        lapack::stev(LAPACK_COL_MAJOR, 'V', evals, plus, EHt.data(), work);
         dg::blas1::axpby(1./bnorm, b, 0.0, m_v); //m_v[1] = b/||b||
         dg::blas1::copy(0., m_vm);
         // compute alpha_i1
-        cusp::array2d< value_type, cusp::host_memory> alpha(iter,iter);
+        dg::SquareMatrix<value_type> alpha(iter);
         for ( unsigned k=0; k<iter; k++)
         {
             dg::blas1::evaluate( m_f, dg::equals(), op, evals[k], diag);
@@ -495,9 +495,9 @@ struct ProductMatrixFunction
         {
             dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
             dg::blas1::axpbypgz(
-                    -T.values(i,0)/T.values(i,2), m_vm,
-                    -T.values(i,1)/T.values(i,2), m_v,
-                               1.0/T.values(i,2), m_vp);
+                    -T.M[i]/T.P[i], m_vm,
+                    -T.O[i]/T.P[i], m_v,
+                        1.0/T.P[i], m_vp);
             m_vm.swap( m_v);
             m_v.swap( m_vp);
             for ( unsigned k=0; k<iter; k++)
@@ -513,7 +513,7 @@ struct ProductMatrixFunction
         for( unsigned l=0; l<iter; l++)
             for( unsigned i=0; i<iter; i++)
                 for( unsigned k=0; k<iter; k++)
-                    cl[l] += evecs(i,k)*alpha(k,i)*evecs(l,k);
+                    cl[l] += EHt(k,i)*alpha(k,i)*EHt(k,l);
         // 3rd Lanczos iteration
         dg::blas1::axpby(1./bnorm, b, 0.0, m_v); //m_v[1] = b/||b||
         dg::blas1::copy(0., m_vm);
@@ -522,9 +522,9 @@ struct ProductMatrixFunction
         {
             dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
             dg::blas1::axpbypgz(
-                    -T.values(i,0)/T.values(i,2), m_vm,
-                    -T.values(i,1)/T.values(i,2), m_v,
-                               1.0/T.values(i,2), m_vp);
+                    -T.M[i]/T.P[i], m_vm,
+                    -T.O[i]/T.P[i], m_v,
+                        1.0/T.P[i], m_vp);
             m_vm.swap( m_v);
             m_v.swap( m_vp);
             dg::blas1::axpby( cl[i+1], m_v, 1., x);

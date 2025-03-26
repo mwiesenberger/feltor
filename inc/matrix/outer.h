@@ -2,61 +2,29 @@
 
 
 #include <vector>
-#include <cusp/elementwise.h>
-#include <cusp/lapack/lapack.h>
-#include <cusp/print.h>
 #include "dg/algorithm.h"
+#include "tridiaginv.h" // lapack wrapper
 
 namespace dg{
 namespace mat{
 
-template<class ContainerType0, class ContainerType1, class ContainerType2>
-void outer_product( const ContainerType0& vx, const ContainerType1& vy, ContainerType2& y)
+/// @cond
+template<class index_type, class value_type>
+dg::SquareMatrix<value_type> asSquareMatrix( const dg::SparseMatrix<index_type, value_type, thrust::host_vector>& mat)
 {
-    using value_type = get_value_type<ContainerType0>;
-    unsigned size = y.size();
-    unsigned Nx = vx.size(), Ny = vy.size();
-    unsigned product_size = Nx*Ny;
-    if( size != product_size )
-        throw dg::Error( Message( _ping_) << "Size " << size << " incompatible with outer produt size "<<product_size<<"!");
-    dg::blas2::parallel_for([Nx ] DG_DEVICE(
-        unsigned i, value_type* y, const value_type* vx, const value_type* vy)
-    {
-        y[i] = vx[i%Nx]*vy[i/Nx];
-    }, size, y, vx, vy);
+    if( mat.num_rows() != mat.num_cols())
+        throw dg::Error( dg::Message( _ping_) << "Cannot convert non square sparse matrix with "<<mat.num_rows()<<" rows and "<<mat.num_cols()<<" columns\n");
+    dg::SquareMatrix<value_type> out( mat.num_rows(), 0);
+    for( unsigned row=0; row<mat.num_rows(); row++)
+        for( index_type jj = mat.row_offsets()[row]; jj< mat.row_offsets()[row+1]; jj++)
+        {
+            index_type col = mat.column_indices()[jj];
+            value_type val = mat.values()[jj];
+            out( row, col ) = val;
+        }
+    return out;
 }
-
-template<class ContainerType0, class ContainerType1, class ContainerType2, class ContainerType3>
-void outer_product( const ContainerType0& vx, const ContainerType1& vy, ContainerType2& vz, ContainerType3& y)
-{
-    using value_type = get_value_type<ContainerType0>;
-    unsigned size = y.size();
-    unsigned Nx = vx.size(), Ny = vy.size(), Nz = vz.size();
-    unsigned product_size = Nx*Ny*Nz;
-    if( size != product_size )
-        throw dg::Error( Message( _ping_) << "Size " << size << " incompatible with outer produt size "<<product_size<<"!");
-    dg::blas2::parallel_for( [Nx, Ny] DG_DEVICE(
-        unsigned i, value_type* y, const value_type* vx, const value_type* vy, const value_type* vz)
-    {
-        y[i] = vx[i%Nx]*vy[(i/Nx)%Ny]*vz[i/(Nx*Ny)];
-    }, size, y, vx, vy, vz);
-}
-
-#ifdef MPI_VERSION
-// Not tested yet
-template<class ContainerType0, class ContainerType1, class ContainerType2>
-void outer_product( const MPI_Vector<ContainerType0>& vx, const MPI_Vector<ContainerType1>& vy, MPI_Vector<ContainerType2>& y)
-{
-    outer_product( vx.data(), vy.data(), y.data());
-}
-template<class ContainerType0, class ContainerType1, class ContainerType2, class ContainerType3>
-void outer_product( const MPI_Vector<ContainerType0>& vx, const MPI_Vector<ContainerType1>& vy, MPI_Vector<ContainerType2>& vz, MPI_Vector<ContainerType3>& y)
-{
-    outer_product( vx.data(), vy.data(), vz.data(), y.data());
-}
-#endif // MPI_VERSION
-
-
+/// @endcond
 
 /**
 * @brief The dG discretization of the 1d Laplacian \f$ -\frac{1}{v} \partial_x ( v \partial_x ) \f$
@@ -66,33 +34,28 @@ void outer_product( const MPI_Vector<ContainerType0>& vx, const MPI_Vector<Conta
 solver *sygv* can be used in the form \f$ A x = \lambda B x\f$
 */
 template<class value_type>
-std::array<cusp::array2d< value_type, cusp::host_memory >,2> sym_laplace1d(
-const thrust::host_vector<value_type>& volume,
+std::array<dg::SquareMatrix<value_type>,2> sym_laplace1d(
+   const thrust::host_vector<value_type>& volume,
    RealGrid1d<value_type> g1d, bc bcx,
-       direction dir = forward,
-       value_type jfactor = 1.)
+   direction dir = forward,
+   value_type jfactor = 1.)
 {
-    auto leftx = dg::create::dx( g1d, inverse( bcx), inverse(dir)).asCuspMatrix();
-    dg::blas1::scal( leftx.values, -1.);
-    auto vol = dg::create::diagonal( volume );
-    auto rightx =  dg::create::dx( g1d, bcx, dir).asCuspMatrix();
-    auto jumpx = dg::create::jumpX(g1d, bcx).asCuspMatrix();
-    dg::blas1::scal( jumpx.values, jfactor);
-    cusp::coo_matrix<int, value_type, cusp::host_memory> A, CX, XX;
-    cusp::multiply( vol, rightx, CX );
-    cusp::multiply( leftx, CX, XX);
-    cusp::add( XX, jumpx, CX);
 
-    dg::HVec w1d = dg::create::weights( g1d);
-    auto B = dg::create::diagonal( w1d);
-    cusp::multiply( B, CX, A); // get symmetric part of A
+    auto w1d = dg::create::weights( g1d);
+    dg::SquareMatrix<value_type> VOL ( volume.size()),  W1D( volume.size());
+    for( unsigned u=0; u<volume.size(); u++)
+    {
+        VOL(u,u) = volume[u];
+        W1D(u,u) = w1d[u];
+    }
+    auto leftx =  asSquareMatrix( dg::create::dx( g1d, inverse( bcx), inverse(dir) ).asCuspMatrix() );
+    auto rightx = asSquareMatrix( dg::create::dx( g1d, bcx, dir).asCuspMatrix());
+    auto jumpx  = asSquareMatrix( dg::create::jumpX(g1d, bcx).asCuspMatrix());
 
-    dg::blas1::pointwiseDot( w1d, volume, w1d);
-    B = dg::create::diagonal( w1d);
-
-    std::array<cusp::array2d< value_type, cusp::host_memory >,2> out;
-    cusp::convert( A, out[0]);
-    cusp::convert( B, out[1]);
+    std::array<dg::SquareMatrix<value_type>,2> out;
+    out[0] = W1D * (- leftx * (VOL * rightx) + jfactor*jumpx); // get symmetric part of A
+    dg::blas1::pointwiseDot( W1D.data(), VOL.data(), W1D.data());
+    out[1] = W1D;
     return out;
 }
 
@@ -110,15 +73,18 @@ struct LaplaceDecomposition
         m_v = m_f = m_weights = dg::create::weights( g);
         auto lapX = sym_laplace1d(dg::evaluate( dg::one, g.gx()), g.gx(), bcx,
                                   dir, jfactor);
-        auto VX = lapX[0];
-        m_EX.resize( g.gx().size());
-        cusp::lapack::sygv( lapX[0], lapX[1], m_EX, VX);
+        unsigned Nx = g.gx().size();
+        m_EX.resize( Nx);
+        thrust::host_vector<value_type> work( 3*Nx-1);
+        lapack::sygv( LAPACK_COL_MAJOR, 1, 'V', 'U', Nx, lapX[0].data(), Nx, lapX[1].data(), Nx, m_EX, work);
         // Eigenvalues are sorted in ascending order
         // now convert to device vectors
-        m_VX.resize( m_EX.size());
-        for( unsigned i=0; i<m_EX.size(); i++)
+        m_VX.resize( Nx);
+        for( unsigned i=0; i<Nx; i++)
         {
-            dg::HVec temp(VX.column(i).begin(), VX.column(i).end());
+            dg::HVec temp(Nx);
+            for( unsigned u=0; u<Nx; u++)
+                temp[u] = lapX[0](i, u); // i-th row of lapX[0] is i-th Eigenvector
             dg::assign( temp, m_VX[i]);
         }
         // orthogonality is maintained with off-diagonal elements of order 1e-16
@@ -132,15 +98,18 @@ struct LaplaceDecomposition
 
         auto lapY = sym_laplace1d(dg::evaluate( dg::one, g.gy()), g.gy(), bcy,
                                   dir, jfactor);
-        auto VY = lapY[0];
-        m_EY.resize( g.gy().size());
-        cusp::lapack::sygv( lapY[0], lapY[1], m_EY, VY);
+        unsigned Ny = g.gy().size();
+        m_EY.resize( Ny);
+        work.resize( 3*Ny-1);
+        lapack::sygv( LAPACK_COL_MAJOR, 1, 'V', 'U', Ny, lapY[0].data(), Ny, lapY[1].data(), Ny, m_EY, work);
         // Eigenvalues are sorted in ascending order
         // now convert to device vectors
-        m_VY.resize( m_EY.size());
-        for( unsigned i=0; i<m_EY.size(); i++)
+        m_VY.resize( Ny);
+        for( unsigned i=0; i<Nx; i++)
         {
-            dg::HVec temp(VY.column(i).begin(), VY.column(i).end());
+            dg::HVec temp(Ny);
+            for( unsigned u=0; u<Ny; u++)
+                temp[u] = lapY[0](i, u); // i-th row of lapY[0] is i-th Eigenvector
             dg::assign( temp, m_VY[i]);
         }
         // Get the sorted indices of Eigenvalues
@@ -176,7 +145,7 @@ struct LaplaceDecomposition
             if( alpha*normb <= eps*(sqrt(normx2)+nrmb_correction))
                 return i;
             //func(lambda_i)*(vyXVx)_i .dot ( Mb) (vyXVx)_i
-            outer_product( m_VX[ix], m_VY[iy], m_v);
+            dg::blas1::kronecker( m_v, dg::equals(), dg::Product(), m_VX[ix], m_VY[iy]);
             alpha*=dg::blas2::dot( m_v, b, m_weights);
             dg::blas1::axpby( alpha, m_v, 1., x);
             normx2 += alpha*alpha;
@@ -209,7 +178,7 @@ struct LaplaceDecomposition
             if( err <= eps*(sqrt(normx2)+nrmb_correction))
                 return i;
             //func( d, lambda_ij)*(vyXVx)_ij .dot ( Mx) (vyXVx)_ij
-            outer_product( m_VX[ix], m_VY[iy], m_v);
+            dg::blas1::kronecker( m_v, dg::equals(), dg::Product(), m_VX[ix], m_VY[iy]);
             dg::blas1::evaluate( m_f, dg::equals(), op, m_EX[ix] + m_EY[iy], diag);
             dg::blas1::pointwiseDot( m_f, m_v, m_f);
             value_type gamma = dg::blas2::dot( m_f, b, m_weights);
@@ -243,7 +212,7 @@ struct LaplaceDecomposition
                 return i;
 
             //func( d, lambda_i)*(vyXVx)_i .dot ( Mx) (vyXVx)_i
-            outer_product( m_VX[ix], m_VY[iy], m_v);
+            dg::blas1::kronecker( m_v, dg::equals(), dg::Product(), m_VX[ix], m_VY[iy]);
             value_type beta = dg::blas2::dot( m_v, b, m_weights);
             dg::blas1::evaluate( m_f, dg::equals(), op, diag, m_EX[ix] + m_EY[iy]);
             dg::blas1::pointwiseDot( beta, m_f, m_v, 1., x);
@@ -251,7 +220,7 @@ struct LaplaceDecomposition
         return size;
     }
     private:
-    cusp::array1d<value_type, cusp::host_memory> m_EX, m_EY;
+    thrust::host_vector<value_type> m_EX, m_EY;
     std::vector<ContainerType> m_VX, m_VY;
     ContainerType m_weights, m_v, m_f;
     thrust::host_vector<unsigned> m_idx;

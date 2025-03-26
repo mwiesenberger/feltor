@@ -10,12 +10,6 @@
 #include "matrixfunction.h"
 #include "matrixsqrt.h"
 
-#include <cusp/transpose.h>
-#include <cusp/array1d.h>
-#include <cusp/array2d.h>
-
-#include <cusp/lapack/lapack.h>
-
 const double lx = 2.*M_PI;
 const double ly = 2.*M_PI;
 dg::bc bcx = dg::DIR;
