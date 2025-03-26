@@ -1,0 +1,5 @@
+<map id="dg::RealLinearRefinement&lt; real_type &gt;" name="dg::RealLinearRefinement&lt; real_type &gt;">
+<area shape="rect" id="Node000001" title="Multiply every cell in the grid by a factor." alt="" coords="5,93,196,133"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1a_real_refinement1d.html" title="Abstract base class for 1d grid refinement that increases the number of grid cells of a fixed basis g..." alt="" coords="13,5,188,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="103,59,103,93,98,93,98,59"/>
+</map>

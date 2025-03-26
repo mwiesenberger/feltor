@@ -1,0 +1,15 @@
+<map id="dg::file::MPINcFile::defput_dim" name="dg::file::MPINcFile::defput_dim">
+<area shape="rect" id="Node000001" title="Define a dimension and define and write to a dimension variable in one go." alt="" coords="5,69,144,109"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#ae1c01f5cf648af661fcfe65438201c35" title="Define a dimension and dimension variable in one go." alt="" coords="192,37,331,77"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,75,177,69,178,74,145,80"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1file_1_1_m_p_i_nc_file.html#a491de7aac14cf3f245168c96f54ae06a" title="Write data to a variable." alt="" coords="192,101,331,141"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="145,99,178,104,177,110,144,104"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#ad063d7e0b6998a7eafe7734781c50ade" title="Define a dimension and dimension variable in one go." alt="" coords="379,37,529,77"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="331,55,365,55,365,60,331,60"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_serial_nc_file.html#a7e6d005109a47d4c17ede892b6379d3f" title="Define a dimension named name of size size." alt="" coords="577,5,728,45"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="529,43,563,37,564,42,530,48"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1file_1_1_serial_nc_file.html#ae39facbe44837171a715f55fe8bfa52e" title="Define a variable with given type, dimensions and (optionally) attributes." alt="" coords="577,69,728,109"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="530,67,564,72,563,78,529,72"/>
+<area shape="rect" id="Node000007" href="$structdg_1_1file_1_1_serial_nc_file.html#a8a4737691d422e1cc31976523fcc29df" title="Get the NetCDF&#45;C ID of the current group." alt="" coords="379,101,529,141"/>
+<area shape="poly" id="edge6_Node000006_Node000007" title=" " alt="" coords="331,119,365,119,365,124,331,124"/>
+</map>

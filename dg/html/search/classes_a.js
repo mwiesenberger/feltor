@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['laguerrel_0',['LaguerreL',['../../../matrix/html/structdg_1_1mat_1_1_laguerre_l.html',1,'dg::mat']]],
+  ['lamb_1',['Lamb',['../structdg_1_1_lamb.html',1,'dg']]],
+  ['laplacepsip_2',['LaplacePsip',['../../../geometries/html/structdg_1_1geo_1_1_laplace_psip.html',1,'dg::geo']]],
+  ['leastsquaresextrapolation_3',['LeastSquaresExtrapolation',['../structdg_1_1_least_squares_extrapolation.html',1,'dg']]],
+  ['leastsquarespreconditioner_4',['LeastSquaresPreconditioner',['../structdg_1_1_least_squares_preconditioner.html',1,'dg']]],
+  ['lgmres_5',['LGMRES',['../classdg_1_1_l_g_m_r_e_s.html',1,'dg']]],
+  ['line_6',['Line',['../structdg_1_1_line.html',1,'dg']]],
+  ['linearx_7',['LinearX',['../structdg_1_1_linear_x.html',1,'dg']]],
+  ['lineary_8',['LinearY',['../structdg_1_1_linear_y.html',1,'dg']]],
+  ['linearz_9',['LinearZ',['../structdg_1_1_linear_z.html',1,'dg']]],
+  ['liseikin_5fxx_10',['Liseikin_XX',['../../../geometries/html/structdg_1_1geo_1_1_liseikin___x_x.html',1,'dg::geo']]],
+  ['liseikin_5fxy_11',['Liseikin_XY',['../../../geometries/html/structdg_1_1geo_1_1_liseikin___x_y.html',1,'dg::geo']]],
+  ['liseikin_5fyy_12',['Liseikin_YY',['../../../geometries/html/structdg_1_1geo_1_1_liseikin___y_y.html',1,'dg::geo']]],
+  ['ln_13',['LN',['../structdg_1_1_l_n.html',1,'dg']]],
+  ['lnb_14',['LnB',['../../../geometries/html/structdg_1_1geo_1_1_ln_b.html',1,'dg::geo']]],
+  ['logpolargenerator_15',['LogPolarGenerator',['../../../geometries/html/structdg_1_1geo_1_1_log_polar_generator.html',1,'dg::geo']]]
+];

@@ -1,0 +1,5 @@
+<map id="dg::RealFemRefinement&lt; real_type &gt;" name="dg::RealFemRefinement&lt; real_type &gt;">
+<area shape="rect" id="Node000001" title="Insert equidistant points in between dG nodes." alt="" coords="5,93,184,133"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1a_real_refinement1d.html" title="Abstract base class for 1d grid refinement that increases the number of grid cells of a fixed basis g..." alt="" coords="7,5,182,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="97,59,97,93,92,93,92,59"/>
+</map>

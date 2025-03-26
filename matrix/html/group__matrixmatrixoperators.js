@@ -1,0 +1,58 @@
+var group__matrixmatrixoperators =
+[
+    [ "dg::mat::PolCharge< Geometry, Matrix, Container >", "classdg_1_1mat_1_1_pol_charge.html", [
+      [ "value_type", "classdg_1_1mat_1_1_pol_charge.html#a183e5d497e21262843d6342763b107ad", null ],
+      [ "PolCharge", "classdg_1_1mat_1_1_pol_charge.html#a01fcf5e1c895d8c1eaee9e1093c93c95", null ],
+      [ "PolCharge", "classdg_1_1mat_1_1_pol_charge.html#afceb5f6a6a23e6fb8fb16916e77fc6fa", null ],
+      [ "PolCharge", "classdg_1_1mat_1_1_pol_charge.html#a007aee63c42fe3b5d60294088760510b", null ],
+      [ "construct", "classdg_1_1mat_1_1_pol_charge.html#a8e9ba1fd6b745072b2c04a2152a9c7d0", null ],
+      [ "get_commute", "classdg_1_1mat_1_1_pol_charge.html#a47be2dc1eb75714fae3d7c13126b2222", null ],
+      [ "operator()", "classdg_1_1mat_1_1_pol_charge.html#a7713d90d20888fcd259eb02897f155d2", null ],
+      [ "precond", "classdg_1_1mat_1_1_pol_charge.html#acf116a4ea4c3334e79f79281998c8d70", null ],
+      [ "set_chi", "classdg_1_1mat_1_1_pol_charge.html#ac86f1f66727cea55a87291db37bec516", null ],
+      [ "set_chi", "classdg_1_1mat_1_1_pol_charge.html#a55749459fd4e66caa000842981cd2ae7", null ],
+      [ "set_commute", "classdg_1_1mat_1_1_pol_charge.html#af2adc0da5b4afa914db13315c1ebc046", null ],
+      [ "set_iota", "classdg_1_1mat_1_1_pol_charge.html#a8c5c2edbce770f6240654880f58bb8c8", null ],
+      [ "symv", "classdg_1_1mat_1_1_pol_charge.html#a6958e219152873d3eccf20a6901d3f74", null ],
+      [ "symv", "classdg_1_1mat_1_1_pol_charge.html#a56f5c0cb3b8efba98c316e130333dc5a", null ],
+      [ "variation", "classdg_1_1mat_1_1_pol_charge.html#a56b8684f8d6f00365758cced498b8a65", null ],
+      [ "weights", "classdg_1_1mat_1_1_pol_charge.html#a12efe7bb2faeb0311b0a93fe7699f7d5", null ]
+    ] ],
+    [ "dg::mat::PolChargeN< Geometry, Matrix, Container >", "classdg_1_1mat_1_1_pol_charge_n.html", [
+      [ "container_type", "classdg_1_1mat_1_1_pol_charge_n.html#a4b767a38f330c0ab089a02ff901cd953", null ],
+      [ "geometry_type", "classdg_1_1mat_1_1_pol_charge_n.html#a16c6139771eeda35d603fccc58135593", null ],
+      [ "matrix_type", "classdg_1_1mat_1_1_pol_charge_n.html#a8065c9087b271a98aef7cef1af7307af", null ],
+      [ "value_type", "classdg_1_1mat_1_1_pol_charge_n.html#a9d9c9c8c8848fef11427edfd0909fbe3", null ],
+      [ "PolChargeN", "classdg_1_1mat_1_1_pol_charge_n.html#a9c6a8440258289674c6eb36b8aa3a9bb", null ],
+      [ "PolChargeN", "classdg_1_1mat_1_1_pol_charge_n.html#af5b275d9823f762e00f476238b2bd10f", null ],
+      [ "PolChargeN", "classdg_1_1mat_1_1_pol_charge_n.html#af24ccac301df9b0a09ca94e139e08f18", null ],
+      [ "construct", "classdg_1_1mat_1_1_pol_charge_n.html#ace931d4b38025bafb0cdf5a2570fbc5f", null ],
+      [ "operator()", "classdg_1_1mat_1_1_pol_charge_n.html#a392b6ca9b8edcced908d0352733d0ba5", null ],
+      [ "precond", "classdg_1_1mat_1_1_pol_charge_n.html#abd3ffc30012e9571a09b8544a629660b", null ],
+      [ "set_dxphi", "classdg_1_1mat_1_1_pol_charge_n.html#a6143097a0807ac306a06fbc07469b9ef", null ],
+      [ "set_dyphi", "classdg_1_1mat_1_1_pol_charge_n.html#a32a66c69c41d7679c93e025c832aedf9", null ],
+      [ "set_lapphi", "classdg_1_1mat_1_1_pol_charge_n.html#aca4d69dd237167054073538eba1fb6ef", null ],
+      [ "set_phi", "classdg_1_1mat_1_1_pol_charge_n.html#a0e66661a90315383bdf188bd97a8ef0f", null ],
+      [ "symv", "classdg_1_1mat_1_1_pol_charge_n.html#a9e83d1e8cd88e6f098cf8c2086290482", null ],
+      [ "symv", "classdg_1_1mat_1_1_pol_charge_n.html#a59a77bd9630d6f134171fd16dc35bfad", null ],
+      [ "weights", "classdg_1_1mat_1_1_pol_charge_n.html#a68a92e57774140cc300d69df04579028", null ]
+    ] ],
+    [ "dg::mat::TensorElliptic< Geometry, Matrix, Container >", "structdg_1_1mat_1_1_tensor_elliptic.html", [
+      [ "container_type", "structdg_1_1mat_1_1_tensor_elliptic.html#a17e12c0b9a8ac65e3804fa1c420b1466", null ],
+      [ "geometry_type", "structdg_1_1mat_1_1_tensor_elliptic.html#a44f446ae5356f5f1d5d26ea65479b7d8", null ],
+      [ "matrix_type", "structdg_1_1mat_1_1_tensor_elliptic.html#af75463ea4df7ed4e5c27e951c574632c", null ],
+      [ "value_type", "structdg_1_1mat_1_1_tensor_elliptic.html#ad5a081c256c0888240071fb49205570a", null ],
+      [ "TensorElliptic", "structdg_1_1mat_1_1_tensor_elliptic.html#a585dcb0b1bc8759d3a27ec31c7625da5", null ],
+      [ "TensorElliptic", "structdg_1_1mat_1_1_tensor_elliptic.html#a241fe4af1df69ee5ae10d2da2a3da6cd", null ],
+      [ "TensorElliptic", "structdg_1_1mat_1_1_tensor_elliptic.html#ab83f6580cade86e401a1f8544122e9bd", null ],
+      [ "construct", "structdg_1_1mat_1_1_tensor_elliptic.html#a569394b77a421fe6b9b88330dc5960ca", null ],
+      [ "operator()", "structdg_1_1mat_1_1_tensor_elliptic.html#ac03f35cddf1d0c60555a5b51b6d61c79", null ],
+      [ "precond", "structdg_1_1mat_1_1_tensor_elliptic.html#aa738b70a5f2f517fecad565b049deb2f", null ],
+      [ "set_chi", "structdg_1_1mat_1_1_tensor_elliptic.html#ac6c8d27ee186e2db22b6b6cc9460f3dc", null ],
+      [ "set_iota", "structdg_1_1mat_1_1_tensor_elliptic.html#a47dc52fac30be8dac614c3d9d8609554", null ],
+      [ "symv", "structdg_1_1mat_1_1_tensor_elliptic.html#ae4b009478277ff3494508a5a6656fe0f", null ],
+      [ "symv", "structdg_1_1mat_1_1_tensor_elliptic.html#a0f7173ed982f6b0d6964b7e174fbd9b7", null ],
+      [ "variation", "structdg_1_1mat_1_1_tensor_elliptic.html#ad1a8c8197905f0b92c0c6bdb63a44205", null ],
+      [ "weights", "structdg_1_1mat_1_1_tensor_elliptic.html#a16dbc07540b3f45e40779c9eabbff1c6", null ]
+    ] ]
+];

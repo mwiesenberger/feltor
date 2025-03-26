@@ -1,0 +1,7 @@
+<map id="dg::file::SerialNcFile::def_dimvar_as" name="dg::file::SerialNcFile::def_dimvar_as">
+<area shape="rect" id="Node000001" title="Define a dimension and dimension variable in one go." alt="" coords="5,37,156,77"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#a7e6d005109a47d4c17ede892b6379d3f" title="Define a dimension named name of size size." alt="" coords="204,5,355,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="156,43,190,37,191,42,157,48"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#ae39facbe44837171a715f55fe8bfa52e" title="Define a variable with given type, dimensions and (optionally) attributes." alt="" coords="204,69,355,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="157,67,191,72,190,78,156,72"/>
+</map>

@@ -1,0 +1,11 @@
+<map id="dg::file::MPINcFile::put_var" name="dg::file::MPINcFile::put_var">
+<area shape="rect" id="Node000001" title="Write a single data point." alt="" coords="5,69,144,109"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#ab4aac604038f5629578ca128acab8a94" title="Write data to a variable." alt="" coords="192,69,343,109"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,87,179,87,179,92,144,92"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_nc_hyperslab.html#a124f8ade60022bf87d97f8f371094a0b" title=" " alt="" coords="391,5,549,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="331,67,392,47,394,52,332,72"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_nc_hyperslab.html#a687535de3bdcc001cb9c4a2a62ac4494" title=" " alt="" coords="391,69,549,109"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="343,87,377,87,377,92,343,92"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1file_1_1_nc_hyperslab.html#a5e0d5fb46ee1d14e37347223ffe75a2d" title=" " alt="" coords="391,133,549,173"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="332,107,394,127,392,132,331,112"/>
+</map>

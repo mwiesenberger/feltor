@@ -1,0 +1,5 @@
+<map id="dg::CuspMatrixTag" name="dg::CuspMatrixTag">
+<area shape="rect" id="Node000001" title="One of cusp&#39;s matrices, for these only the blas2 transfer and the symv( m,x,y) are implemented." alt="" coords="5,79,148,104"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_any_matrix_tag.html" title="tensor_category base class" alt="" coords="9,5,144,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="79,44,79,79,74,79,74,44"/>
+</map>

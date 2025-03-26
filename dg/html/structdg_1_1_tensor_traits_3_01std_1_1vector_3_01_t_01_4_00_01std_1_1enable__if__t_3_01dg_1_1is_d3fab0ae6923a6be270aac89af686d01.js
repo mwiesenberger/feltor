@@ -1,0 +1,6 @@
+var structdg_1_1_tensor_traits_3_01std_1_1vector_3_01_t_01_4_00_01std_1_1enable__if__t_3_01dg_1_1is_d3fab0ae6923a6be270aac89af686d01 =
+[
+    [ "execution_policy", "structdg_1_1_tensor_traits_3_01std_1_1vector_3_01_t_01_4_00_01std_1_1enable__if__t_3_01dg_1_1is_d3fab0ae6923a6be270aac89af686d01.html#ad777f4b7684aca61ca66e2c86c7aeb45", null ],
+    [ "tensor_category", "structdg_1_1_tensor_traits_3_01std_1_1vector_3_01_t_01_4_00_01std_1_1enable__if__t_3_01dg_1_1is_d3fab0ae6923a6be270aac89af686d01.html#ad16050fb014927f7010bc0f4f82a0500", null ],
+    [ "value_type", "structdg_1_1_tensor_traits_3_01std_1_1vector_3_01_t_01_4_00_01std_1_1enable__if__t_3_01dg_1_1is_d3fab0ae6923a6be270aac89af686d01.html#adef25cd438d734021b8e77db6480a8a6", null ]
+];
