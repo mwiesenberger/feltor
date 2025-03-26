@@ -1,7 +1,6 @@
 #pragma once
 #include "dg/algorithm.h"
-#include <cusp/lapack/lapack.h>
-#include <cusp/transpose.h>
+#include "tridiaginv.h" // lapack wrapper
 
 /**
 * @brief Functions for optimizing Contours
@@ -43,14 +42,14 @@ unsigned levenberg_marquardt( Func fun, Jacobian jac,
     unsigned num_p = x0.size();
     auto x1 = x0, W = x0;
     auto rs(copyable), rs1(rs);
-    std::vector<ContainerType> jacs(num_p,copyable);
-    cusp::array2d<double, cusp::host_memory> HH( num_p, num_p, 0.), evHH( HH), evHH_T(HH), WW(HH);
-    cusp::array1d<double, cusp::host_memory> evs( num_p), grad(num_p),
-        gradbar(num_p), pk(num_p), pkbar(num_p);
-    //cusp::array1d<double, cusp::host_memory> crhs( rhs.begin(), rhs.end()), hinvcrhs( crhs);
+    std::vector<ContainerType> jacs(num_p, copyable);
+    dg::SquareMatrix<double> HH(num_p, 0.), evHH( HH), evHH_T(HH), WW(HH);
+    thrust::host_vector<double> evs( num_p), grad(num_p), gradbar(num_p),
+        pk(num_p), pkbar(num_p);
+    thrust::host_vector<double> work( 3*num_p-1);
     // init loop
     fun( x0, rs);
-    jac( x0, jacs);
+    jac( x0, jacs); // TODO FIX BUG HERE
     double delta = 0;
     for( unsigned p=0; p<num_p; p++)
         WW(p,p) = W[p] = dg::blas1::dot( jacs[p], jacs[p]);
@@ -75,8 +74,9 @@ unsigned levenberg_marquardt( Func fun, Jacobian jac,
                 HH(j,l) = HH(l,j) = dg::blas1::dot( jacs[l], jacs[j]);
             WW(l,l) = std::max( WW(l,l), HH(l,l));
         }
-        cusp::lapack::sygv( HH, WW, evs, evHH);
-        cusp::transpose( evHH, evHH_T);
+        lapack::sygv( LAPACK_COL_MAJOR, 1, 'V', 'U', num_p, HH.data(), num_p, WW.data(), num_p, evs, work);
+        evHH_T = HH;
+        evHH = HH.transpose();
         //std::cout << "#########Iteration "<<k<<"\n";
         //std::cout << "Eigenvalues are \n";
         //for( unsigned p=0; p<num_p; p++)
@@ -84,7 +84,7 @@ unsigned levenberg_marquardt( Func fun, Jacobian jac,
         //std::cout << "Weights are \n";
         //for( unsigned p=0; p<num_p; p++)
         //    std::cout << "W "<<WW(p,p)<<"\n";
-        cusp::multiply( evHH_T, grad, gradbar); // !! sygv gives A = WE_A Lambda E_A^TW
+        dg::blas2::gemv( evHH_T, grad, gradbar); // !! sygv gives A = WE_A Lambda E_A^TW
         double normp=0;
         auto target = [&]( double lambda)
         {
@@ -115,7 +115,7 @@ unsigned levenberg_marquardt( Func fun, Jacobian jac,
                 break;
             lambda += -tt/dtarget(lambda);
         }
-        cusp::multiply(evHH, pkbar, pk);
+        dg::blas2::gemv(evHH, pkbar, pk);
         // target(lambda) updates grad and normp
         // 2. Check termination
         //std::cout << "Norm p "<<normp<<" normx0 "<<normx0<<"\n";
@@ -605,27 +605,6 @@ struct CauchyHessian
         dg::create::lu_pivot( HH,  pivots);
         hessInvRhs = rhs;
         dg::create::lu_solve( HH, pivots, hessInvRhs);
-        //cusp::array2d<double, cusp::host_memory> cHH( ps, ps), evHH( cHH), evHH_T(cHH);
-        //cusp::array1d<double, cusp::host_memory> evs( ps);
-        //cusp::array1d<double, cusp::host_memory> crhs( rhs.begin(), rhs.end()), hinvcrhs( crhs);
-        //for( unsigned p=0; p<ps; p++)
-        //    for( unsigned q=0; q<ps; q++)
-        //        cHH(p,q) = m_hh[p*ps+q];
-        ////std::cout << "Determinant is "<<det<<" \n";
-        //cusp::lapack::syev( cHH, evs, evHH);
-        //cusp::transpose( evHH, evHH_T);
-        //std::cout << "Eigenvalues are \n";
-        //for( unsigned p=0; p<ps; p++)
-        //    std::cout << "p EV "<<evs[p]<<"\n";
-        //cusp::multiply( evHH_T, crhs, hinvcrhs); // !! syev gives A = E_A Lambda E_A^T
-        //for( unsigned p=0; p<ps; p++)
-        //    hinvcrhs[p]*= 1./fabs(evs[p]);
-        //cusp::multiply(evHH, hinvcrhs, crhs);
-        //for( unsigned p=0; p<ps; p++)
-        //    hessInvRhs[p] = crhs[p];
-        //std::cout << "comparison\n";
-        //for ( unsigned p=0; p<ps; p++)
-        //    std::cout << crhs[p] << " "<<hessInvRhs[p]<<"\n";
     }
     std::vector<double> last_hessian( ) const{ return m_hh;}
     private:
