@@ -69,3 +69,54 @@ TEST_CASE( "tridiaginv")
             CHECK( Tinv_error.data()[u] <1e-6); // The accuracy of the analytical solution is not better...
     }
 }
+
+TEST_CASE( "Lapack")
+{
+    // Mathematica: Eigensystem[N[ToeplitzMatrix[PadRight[{2,-1}, 5]],16]]
+    std::vector<double> lambda = {3.732050807568877, 3.000000000000000, 2.000000000000000, 1.000000000000000, 0.2679491924311227};
+    // Eigenvectors are analytical only up to a scalar!!
+    std::vector<double> evecs = {
+        -0.2886751345948129, 0.5000000000000000, -0.5773502691896258, 0.5000000000000000, -0.2886751345948129,
+    -0.5000000000000000, 0.5000000000000000, 0.0, -0.5000000000000000, 0.5000000000000000,
+    -0.5773502691896258, 0.0, 0.5773502691896258, 0.0, -0.5773502691896258,
+    0.5000000000000000, 0.5000000000000000, 0.0, -0.5000000000000000, -0.5000000000000000,
+    -0.2886751345948129, -0.5000000000000000, -0.5773502691896258, -0.5000000000000000, -0.2886751345948129};
+
+
+    dg::TriDiagonal<std::vector<double>> T(5);
+    for( unsigned u=0; u<5; u++)
+    {
+        T.O[u] = 2;
+        T.P[u] = T.M[u] = -1;
+    }
+    SECTION( "stev N")
+    {
+        dg::TriDiagonal<std::vector<double>> TT(T);
+        dg::mat::lapack::stev( LAPACK_COL_MAJOR, 'N', TT.O, TT.P, TT.M, TT.M);
+        for( unsigned u=0; u<5; u++)
+        {
+            INFO( "Eigenvalue "<<u<<" "<<TT.O[u]);
+            CHECK( fabs( TT.O[u] - lambda[4-u] ) < 1e-14);
+        }
+    }
+    SECTION( "stev V")
+    {
+        dg::TriDiagonal<std::vector<double>> TT(T);
+        dg::SquareMatrix<double> evs( 5);
+        dg::SquareMatrix<double> sol( evecs.begin(), evecs.end());
+        std::vector<double> work ( 2*5-2);
+        // In LAPACK_COL_MAJOR the eigenvectors become the rows of evs!
+        dg::mat::lapack::stev( LAPACK_COL_MAJOR, 'V', TT.O, TT.P, evs.data(), work);
+        for( unsigned u=0; u<5; u++)
+        {
+            INFO( "Eigenvalue "<<u<<" "<<TT.O[u]);
+            CHECK( fabs( TT.O[u] - lambda[4-u] ) < 1e-14);
+        }
+        for( unsigned u=0; u<5; u++)
+            for( unsigned k=0; k<5; k++)
+            {
+                INFO( "Eigenevector "<<u<<" "<<k<<" "<<evs(u,k));
+                CHECK ( fabs( evs(u,k) - sol( 4-u,k)) < 1e-14);
+            }
+    }
+}

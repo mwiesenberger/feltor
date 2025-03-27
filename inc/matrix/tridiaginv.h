@@ -30,7 +30,7 @@ template<class ContainerType0, class ContainerType1, class ContainerType2, class
 void stev(
     lapack_int order,  // LAPACK_ROW_MAJOR or LAPACK_COL_MAJOR
     char job,          // 'N' Compute Eigenvalues only, 'V' Compute Eigenvalues and Eigenvectors
-    ContainerType0& D, // diagonal of T on input, Eigenvalues on output
+    ContainerType0& D, // diagonal of T on input, Eigenvalues (in ascending order) on output
     ContainerType1& E, // subdiagonal of T on input |size D.size()-1 ; in E[0] - E[D.size()-2]|; destroyed on output
     ContainerType2& Z, // IF job = 'V' && column major then the i-th column contains i-th EV, if job = 'N' not referenced
     ContainerType3& work // If job = 'V' needs size max( 1, 2*D.size() - 2), else not referenced
@@ -76,6 +76,7 @@ void stev(
 
 
 // Look for dsygv on Lapack docu!
+// Compute Eigenvalues and, optionally, Eigenvectors of a real symmetric matrix system A x = lambda B x
 template<class ContainerType0, class ContainerType1, class ContainerType2, class ContainerType3>
 void sygv(
     lapack_int order,  // LAPACK_ROW_MAJOR or LAPACK_COL_MAJOR
