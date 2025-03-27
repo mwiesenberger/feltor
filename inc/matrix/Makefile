@@ -16,7 +16,8 @@ CUFILES=$(wildcard *.cu)
 
 TARGETS=functors_t\
 tridiaginv_t\
-exp_runge_kutta_t
+exp_runge_kutta_t\
+contours_t
 
 all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 
@@ -50,4 +51,4 @@ doc:
 	doxygen Doxyfile
 
 clean:
-	rm -f *_t *_b *_mpit *_mpib
+	rm -f *.o *_t *_b *_mpit *_mpib tests mpi-tests

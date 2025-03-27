@@ -3,8 +3,10 @@
 
 #include "contours.h"
 
+#include "catch2/catch_all.hpp"
 
-int main()
+
+TEST_CASE( "Contours")
 {
     unsigned n = 7;
     std::vector<double> params = {0.5017,0.6122,0.2645,dg::mat::finv_alpha(0.6407)};
@@ -126,5 +128,4 @@ int main()
     std::cout << "Found optimum in "<<steps<<" steps\n";
     cauchyTCV( params, results);
     std::cout << "Cauchy error "<<dg::blas1::dot( results, results)<<"\n";
-    return 0;
 }
