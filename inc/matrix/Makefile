@@ -8,13 +8,17 @@ include ../../config/devices/devices.mk
 INCLUDE+= -I../../ # other project libraries
 INCLUDE+= -I../    # other project libraries
 
+CATCH=../../tests/catch-tests
+CATCHMPI=../../tests/catch-tests-mpi
+
 CPPFILES=$(wildcard *.cpp)
 CUFILES=$(wildcard *.cu)
 
+TARGETS=functors_t\
+tridiaginv_t
+
 all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 
-%_t: %_t.cpp
-	$(CC) $(OPT)$(INCLUDE) $(CFLAGS) $< -o $@   $(LAPACKLIB)  -g
 
 %_b: %_b.cpp
 	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) -g
@@ -27,6 +31,18 @@ polarization_init_t: polarization_init_t.cpp polarization_init.h
 
 matrixprodexp_t: matrixprodexp_t.cpp
 	$(CC) $(OPT)$(INCLUDE) $(CFLAGS) $< -o $@   $(LAPACKLIB) $(LIBS) -g
+
+# CATCH2 TESTS
+
+%_t.$(device).o: %_t.cpp %.h
+	$(CC) $(OPT) $(CFLAGS) -c $< -o $@ -g $(INCLUDE)
+
+%_t: $(CATCH).$(device).o %_t.$(device).o
+	$(CC) $(OPT) -o $@ $^ -lCatch2 $(SPARSELIB) $(LAPACKLIB)
+
+tests: $(CATCH).$(device).o $(addsuffix .$(device).o,$(TARGETS))
+	$(CC) -o $@ $^ -lCatch2 $(SPARSELIB)
+
 .PHONY: clean doc
 
 doc:

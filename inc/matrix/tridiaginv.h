@@ -202,7 +202,6 @@ void compute_Tinv_y( const dg::TriDiagonal<thrust::host_vector<value_type>>
 *  Moawwad El-Mikkawy and Abdelrahman Karawi
 *  Is unstable for matrix size of roughly > 150. Fails for certain
 *  tridiagonal matrix forms.
-* @attention Not tested thoroughly!
 * @tparam real_type float or double
 */
 template< class real_type>
@@ -332,22 +331,20 @@ class TridiagInvHMGTI
         {
             for( unsigned j=0; j<ss; j++)
             {
-                Tinv.row_indices[i*ss+j]    = j;
-                Tinv.column_indices[i*ss+j] = i;
                 if (i<j) {
-                    Tinv(j, i) =
+                    Tinv(i, j) =
                         sign(j-i)*std::accumulate(std::next(b.begin(),i),
                                 std::next(b.begin(),j), 1.,
                                 std::multiplies<value_type>())*
-                        m_alphas[i]/m_alphas[j]*Tinv.values[j*ss+j];
+                        m_alphas[i]/m_alphas[j]*Tinv(j,j);
                 }
                 else if (i>j)
                 {
-                    Tinv(j, i) =
+                    Tinv(i, j) =
                         sign(i-j)*std::accumulate(std::next(c.begin(),j+1),
                                 std::next(c.begin(),i+1), 1.,
                                 std::multiplies<value_type>())*
-                        m_betas[i+1]/m_betas[j+1]*Tinv.values[j*ss+j];
+                        m_betas[i+1]/m_betas[j+1]*Tinv(j,j);
                 }
             }
         }
