@@ -24,8 +24,7 @@ namespace dg
 // and geometryX_elliptic_b and geometryX_refined_elliptic_b
 
 
-/*!
- * @class hide_note_jump
+/*! @class hide_note_jump
  *
  * @sa Our theory guide <a href="https://www.overleaf.com/read/rpbjsqmmfzyj" target="_blank">Introduction to dg methods</a> on overleaf holds a detailed derivation
  *
@@ -41,6 +40,17 @@ namespace dg
  The \f$ \chi_{on/off} \f$ in the jump term serves to weight the jump term with \f$ \chi \f$. This can be switched either on or off with off being the default.
  Also note that a forward discretization has more diffusion than a centered discretization.
  */
+/*! @class hide_ContainerTmp
+ * @tparam ContainerTmp The container type for temporary storage during the
+ * symv matrix-vector multiplication.  The intention is to allow \c
+ * ContainerTmp different from \c Container in order to allow a real operator
+ * to apply to a complex vector.  So, for example <tt>Container =
+ * thrust::device_vector<double></tt> and <tt>ContainerTmp =
+ * thrust::device_vector<thrust::complex<double>></tt>.  In all other cases \c
+ * ContainerTmp should equal \c Container.
+ *
+ */
+
 /**
  * @brief A 1d negative elliptic differential operator \f$ -\partial_x ( \chi \partial_x ) \f$
  *
@@ -54,6 +64,8 @@ namespace dg
   strictly positive though).
  * @copydoc hide_note_jump
  * @copydoc hide_geometry_matrix_container
+ * @copydoc hide_ContainerTmp
+ *
  * This class has the \c SelfMadeMatrixTag so it can be used in \c blas2::symv functions
  * and thus in a conjugate gradient solver.
  * @note The constructors initialize \f$ \chi=1\f$ so that a
@@ -61,7 +73,7 @@ namespace dg
  * @note The inverse of \f$ \chi\f$ makes a good general purpose preconditioner
  * @attention Pay attention to the negative sign which is necessary to make the matrix @b positive @b definite
  */
-template <class Geometry, class Matrix, class Container>
+template <class Geometry, class Matrix, class Container, class ContainerTmp = Container>
 class Elliptic1d
 {
     public:
@@ -109,7 +121,8 @@ class Elliptic1d
 
         dg::assign( dg::create::weights(g),       m_weights);
         dg::assign( dg::evaluate( dg::one, g),    m_precond);
-        m_tempx = m_sigma = m_precond;
+        dg::assign( m_precond, m_sigma);
+        dg::assign( m_precond, m_tempx);
     }
 
     ///@copydoc hide_construct
@@ -192,7 +205,7 @@ class Elliptic1d
     private:
     Matrix m_leftx, m_rightx, m_jumpX;
     Container m_weights, m_precond;
-    Container m_tempx;
+    ContainerTmp m_tempx; // could be complex
     Container m_sigma;
     value_type m_jfactor;
 };
@@ -220,6 +233,8 @@ class Elliptic1d
  The following code snippet demonstrates the use of \c Elliptic in an inversion problem
  * @snippet elliptic2d_b.cpp pcg
  * @copydoc hide_geometry_matrix_container
+ * @copydoc hide_ContainerTmp
+ *
  * This class has the \c SelfMadeMatrixTag so it can be used in \c blas2::symv functions
  * and thus in a conjugate gradient solver.
  * @note The constructors initialize \f$ \chi=\sqrt{g}g^{-1}\f$ so that a
@@ -229,7 +244,7 @@ class Elliptic1d
  * this class also can compute the variation integrand \f$ \lambda^2\nabla \phi\cdot \tau\cdot\nabla\phi\f$
  * @attention Pay attention to the negative sign which is necessary to make the matrix @b positive @b definite
  */
-template <class Geometry, class Matrix, class Container>
+template <class Geometry, class Matrix, class Container, class ContainerTmp = Container>
 class Elliptic2d
 {
     public:
@@ -291,7 +306,8 @@ class Elliptic2d
 
         dg::assign( dg::create::volume(g),        m_weights);
         dg::assign( dg::evaluate( dg::one, g),    m_precond);
-        m_temp = m_tempx = m_tempy = m_weights;
+        dg::assign( m_weights, m_temp);
+        m_tempx = m_tempy = m_temp;
         m_chi=g.metric();
         m_sigma = m_vol = dg::tensor::volume(m_chi);
     }
@@ -505,7 +521,7 @@ class Elliptic2d
     private:
     Matrix m_leftx, m_lefty, m_rightx, m_righty, m_jumpX, m_jumpY;
     Container m_weights, m_precond;
-    Container m_tempx, m_tempy, m_temp;
+    ContainerTmp m_tempx, m_tempy, m_temp;
     SparseTensor<Container> m_chi;
     Container m_sigma, m_vol;
     value_type m_jfactor;
@@ -514,8 +530,8 @@ class Elliptic2d
 
 ///@copydoc Elliptic2d
 ///@ingroup matrixoperators
-template <class Geometry, class Matrix, class Container>
-using Elliptic = Elliptic2d<Geometry, Matrix, Container>;
+template <class Geometry, class Matrix, class Container, class ContainerTmp = Container>
+using Elliptic = Elliptic2d<Geometry, Matrix, Container, ContainerTmp>;
 
 //Elliptic3d is tested in inc/geometries/elliptic3d_t.cu
 /**
@@ -544,6 +560,8 @@ using Elliptic = Elliptic2d<Geometry, Matrix, Container>;
  The following code snippet demonstrates the use of \c Elliptic3d in an inversion problem
  * @snippet elliptic_b.cpp invert
  * @copydoc hide_geometry_matrix_container
+ * @copydoc hide_ContainerTmp
+ *
  * This class has the \c SelfMadeMatrixTag so it can be used in \c blas2::symv functions
  * and thus in a conjugate gradient solver.
  * @note The constructors initialize \f$ \chi=\sqrt{g}g^{-1}\f$ so that a
@@ -553,7 +571,7 @@ using Elliptic = Elliptic2d<Geometry, Matrix, Container>;
  * this class also can compute the variation integrand \f$ \lambda^2\nabla \phi\cdot \tau\cdot\nabla\phi\f$
  * @attention Pay attention to the negative sign which is necessary to make the matrix @b positive @b definite
  */
-template <class Geometry, class Matrix, class Container>
+template <class Geometry, class Matrix, class Container, class ContainerTmp = Container>
 class Elliptic3d
 {
     public:
@@ -619,7 +637,8 @@ class Elliptic3d
 
         dg::assign( dg::create::volume(g),        m_weights);
         dg::assign( dg::evaluate( dg::one, g),    m_precond);
-        m_temp = m_tempx = m_tempy = m_tempz = m_weights;
+        dg::assign( m_weights, m_temp);
+        m_tempx = m_tempy = m_tempz = m_temp;
         m_chi=g.metric();
         m_sigma = m_vol = dg::tensor::volume(m_chi);
     }
@@ -765,7 +784,7 @@ class Elliptic3d
     private:
     Matrix m_leftx, m_lefty, m_leftz, m_rightx, m_righty, m_rightz, m_jumpX, m_jumpY, m_jumpZ;
     Container m_weights, m_precond;
-    Container m_tempx, m_tempy, m_tempz, m_temp;
+    ContainerTmp m_tempx, m_tempy, m_tempz, m_temp;
     SparseTensor<Container> m_chi;
     Container m_sigma, m_vol;
     value_type m_jfactor;
@@ -773,21 +792,21 @@ class Elliptic3d
     bool m_chi_weight_jump;
 };
 ///@cond
-template< class G, class M, class V>
-struct TensorTraits< Elliptic1d<G, M, V> >
+template< class G, class M, class V, class V2>
+struct TensorTraits< Elliptic1d<G, M, V, V2> >
 {
     using value_type      = get_value_type<V>;
     using tensor_category = SelfMadeMatrixTag;
 };
-template< class G, class M, class V>
-struct TensorTraits< Elliptic2d<G, M, V> >
+template< class G, class M, class V, class V2>
+struct TensorTraits< Elliptic2d<G, M, V, V2> >
 {
     using value_type      = get_value_type<V>;
     using tensor_category = SelfMadeMatrixTag;
 };
 
-template< class G, class M, class V>
-struct TensorTraits< Elliptic3d<G, M, V> >
+template< class G, class M, class V, class V2>
+struct TensorTraits< Elliptic3d<G, M, V, V2> >
 {
     using value_type      = get_value_type<V>;
     using tensor_category = SelfMadeMatrixTag;

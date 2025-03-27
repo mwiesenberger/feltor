@@ -23,14 +23,16 @@ namespace dg
  * @brief Hold nested grids and provide dg fast interpolation and projection matrices
  *
  * @copydoc hide_geometry_matrix_container
+ * @note The interpolation and projection matrices are real but can be applied to complex
+ * vectors. In that case choose \c Container as a complex vector
  */
 template<class Geometry, class Matrix, class Container>
 struct NestedGrids
 {
     using geometry_type = Geometry;
     using matrix_type = Matrix;
-    using container_type = Container;
-    using value_type = get_value_type<Container>;
+    using container_type = Container; // MultiMatrix<Matrix, Container>
+    using value_type = typename Geometry::value_type;
     ///@brief Allocate nothing, Call \c construct method before usage
     NestedGrids(): m_stages(0), m_grids(0), m_inter(0), m_project(0){}
     /**
@@ -494,15 +496,22 @@ void fmg_solve(
 *
 * @snippet elliptic2d_b.cpp multigrid
 * @copydoc hide_geometry_matrix_container
+* @note If the solution vector has complex value type then \c Container
+* should be a complex vector irrespective of the value type of \c Matrix
+* @tparam ComplexMode For complex value type you can choose between \c
+* dg::complex_symmetric or \c dg::complex_hermitian matrices. In the former
+* case the algorithm is the COCG algorithm in the latter the normal CG
+* algorithm. This parameter is ignored if \c ContainerType does not
+* have a complex value type
 * @sa \c Extrapolation to generate an initial guess
 */
-template< class Geometry, class Matrix, class Container>
+template< class Geometry, class Matrix, class Container, ComplexMode complex_mode = dg::complex_hermitian>
 struct MultigridCG2d
 {
     using geometry_type = Geometry;
     using matrix_type = Matrix;
     using container_type = Container;
-    using value_type = get_value_type<Container>;
+    using value_type = typename Geometry::value_type; // Type of eps needs to be real
     ///@brief Allocate nothing, Call \c construct method before usage
     MultigridCG2d() = default;
     /**

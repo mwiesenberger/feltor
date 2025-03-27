@@ -72,7 +72,7 @@ enum ComplexMode{
 * @attention beware the sign: a negative definite matrix does @b not work in
 * Conjugate gradient
 *
-* @snippet cg2d_t.cpp doxygen
+* @snippet bicgstabl_t.cpp pcg
 * @copydoc hide_ContainerType
 * @tparam ComplexMode For complex value type you can choose between \c
 * dg::complex_symmetric or \c dg::complex_hermitian matrices. In the former

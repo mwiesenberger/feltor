@@ -156,6 +156,7 @@ int main()
 
     std::cout << "\n\n";
     ////////////////////////////////////////////////////
+    {
     dg::MultigridCG2d<dg::aGeometry2d, dg::DMatrix, dg::DVec > multigrid(
         grid, stages);
     dg::Timer t;
@@ -166,23 +167,66 @@ int main()
     // same as
     multigrid.solve( multi_pol, x, b, {eps,eps,eps} );
     t.toc();
-    double norm = dg::blas2::dot( w2d, solution);
+    double nrm = dg::blas2::dot( w2d, solution);
     dg::DVec error( solution);
     dg::blas1::axpby( 1.,x,-1., solution, error);
     double err = dg::blas2::dot( w2d, error);
-    err = sqrt( err/norm);
+    err = sqrt( err/nrm);
     std::cout << " Error of nested iterations "<<err<<"\n";
     std::cout << "Took "<<t.diff()<<"s\n\n";
+    }
+    ////////////////////////////////////////////////////
+    {
+    dg::MultigridCG2d<dg::aGeometry2d, dg::DMatrix, dg::cDVec > cmultigrid(
+        grid, stages);
+    dg::Timer t;
+    std::cout << "MULTIGRID NESTED ITERATIONS COMPLEX SOLVE:\n";
+    dg::cDVec cx = dg::construct<dg::cDVec>( dg::evaluate(
+                    initial, grid));
+    dg::cDVec cb = dg::construct<dg::cDVec>( dg::evaluate(
+                    rhs, grid));
+    dg::cDVec csolution = dg::construct<dg::cDVec>( dg::evaluate(
+                    sol, grid));
+    dg::blas1::transform( cx,cx, []DG_DEVICE( thrust::complex<double>
+        x){ return thrust::complex{x.real(), x.real()};});
+    dg::blas1::transform( cb,cb, []DG_DEVICE( thrust::complex<double>
+        x){ return thrust::complex{x.real(), x.real()};});
+    dg::blas1::transform( csolution,csolution, []DG_DEVICE( thrust::complex<double>
+        x){ return thrust::complex{x.real(), x.real()};});
+    t.tic();
+    //nested_iterations( multi_pol, x, b, multi_inv_pol, nested);
+    // same as
+    std::vector<dg::Elliptic<dg::aGeometry2d, dg::DMatrix, dg::DVec, dg::cDVec> >
+        cmulti_pol( stages);
+    for(unsigned u=0; u<stages; u++)
+    {
+        cmulti_pol[u].construct( cmultigrid.grid(u),
+            dg::centered, jfactor);
+        cmulti_pol[u].set_chi( multi_chi[u]);
+    }
+    cmultigrid.solve( cmulti_pol, cx, cb, {eps,eps,eps} );
+    t.toc();
+    double nrm = dg::blas1::vdot([](double w, auto z){ return w*norm(z);},
+            w2d, csolution);
+    dg::cDVec cerror( csolution);
+    dg::blas1::axpby( 1.,cx,-1., csolution, cerror);
+    double err = dg::blas1::vdot([](double w, auto z){ return w*norm(z);},
+            w2d, cerror);
+    err = sqrt( err/nrm);
+    std::cout << " Error of nested iterations "<<err<<"\n";
+    std::cout << "Took "<<t.diff()<<"s\n\n";
+    }
     ////////////////////////////////////////////////////
     std::cout << "MULTIGRID NESTED ITERATIONS WITH CHEBYSHEV SOLVE:\n";
+    dg::Timer t;
     x = dg::evaluate( initial, grid);
     t.tic();
     dg::nested_iterations( multi_pol, x, b, multi_inv_cheby, nested);
     t.toc();
-    norm = dg::blas2::dot( w2d, solution);
-    error= solution;
+    double norm = dg::blas2::dot( w2d, solution);
+    auto error= solution;
     dg::blas1::axpby( 1.,x,-1., solution, error);
-    err = dg::blas2::dot( w2d, error);
+    double err = dg::blas2::dot( w2d, error);
     err = sqrt( err/norm);
     std::cout << " Error of nested iterations "<<err<<"\n";
     std::cout << "Took "<<t.diff()<<"s\n\n";

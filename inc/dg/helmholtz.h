@@ -123,23 +123,23 @@ struct GeneralHelmholtz
 ///@brief a 2d Helmholtz opereator \f$ (\chi - \alpha F)\f$ with \f$ F = -\Delta\f$
 ///@copydetails GeneralHelmholtz
 ///@ingroup matrixoperators
-template<class Geometry, class Matrix, class Container>
-using Helmholtz = GeneralHelmholtz<dg::Elliptic2d<Geometry,Matrix,Container>, Container>;
+template<class Geometry, class Matrix, class Container, class ContainerTmp = Container>
+using Helmholtz = GeneralHelmholtz<dg::Elliptic2d<Geometry,Matrix,Container,ContainerTmp>, Container>;
 ///@brief a 1d Helmholtz opereator \f$ (\chi - \alpha F)\f$ with \f$ F = -\partial_x^2\f$
 ///@copydetails GeneralHelmholtz
 ///@ingroup matrixoperators
-template<class Geometry, class Matrix, class Container>
-using Helmholtz1d = GeneralHelmholtz<dg::Elliptic1d<Geometry,Matrix,Container>, Container>;
+template<class Geometry, class Matrix, class Container, class ContainerTmp = Container>
+using Helmholtz1d = GeneralHelmholtz<dg::Elliptic1d<Geometry,Matrix,Container,ContainerTmp>, Container>;
 ///@brief a 2d Helmholtz opereator \f$ (\chi - \alpha F)\f$ with \f$ F = -\Delta\f$
 ///@copydetails GeneralHelmholtz
 ///@ingroup matrixoperators
-template<class Geometry, class Matrix, class Container>
-using Helmholtz2d = GeneralHelmholtz<dg::Elliptic2d<Geometry,Matrix,Container>, Container>;
+template<class Geometry, class Matrix, class Container, class ContainerTmp = Container>
+using Helmholtz2d = GeneralHelmholtz<dg::Elliptic2d<Geometry,Matrix,Container,ContainerTmp>, Container>;
 ///@brief a 3d Helmholtz opereator \f$ (\chi - \alpha F)\f$ with \f$ F = -\Delta\f$
 ///@copydetails GeneralHelmholtz
 ///@ingroup matrixoperators
-template<class Geometry, class Matrix, class Container>
-using Helmholtz3d = GeneralHelmholtz<dg::Elliptic3d<Geometry,Matrix,Container>, Container>;
+template<class Geometry, class Matrix, class Container, class ContainerTmp = Container>
+using Helmholtz3d = GeneralHelmholtz<dg::Elliptic3d<Geometry,Matrix,Container,ContainerTmp>, Container>;
 
 /**
  * @brief DEPRECATED, Matrix class that represents a more general Helmholtz-type operator
