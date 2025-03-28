@@ -258,51 +258,6 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
     }
     return std::make_pair( dzk, dwk);
 }
-std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
-    hessian_talbot( unsigned N, const std::vector<double>& params)
-{
-    thrust::complex<double> I( 0,1);
-    double h = M_PI/(double)N;
-    unsigned n = N/2;
-    std::vector<thrust::complex<double>> ddzk(16*n, 0);
-    std::vector<thrust::complex<double>> ddwk(16*n, 0);
-    double mu = params[0];
-    double alphabar = params[3];
-    double alpha = f_alpha( alphabar);
-    double dalpha = df_alpha( alphabar);
-    double ddalpha = ddf_alpha( alphabar);
-    if( alpha == 0)
-    {
-        std::cerr << "Warning alpha = 0 not allowed\n";
-        alpha = 1e-6;
-    }
-    if( alpha > 1)
-    {
-        std::cerr << "Warning alpha > 1 not allowed\n";
-        alpha = 1;
-    }
-    for( unsigned k=0; k<n; k++)
-    {
-        auto Nc = thrust::complex<double>(N);
-        auto x = thrust::complex<double>( 2.*h*k + h);
-        ddzk[(0*4+3)*n+k] = Nc*( -x*x/sin(alpha*x)/sin(alpha*x))*dalpha;
-        ddzk[(3*4+0)*n+k] = Nc*( -x*x/sin(alpha*x)/sin(alpha*x))*dalpha;
-        ddzk[(3*4+3)*n+k] = Nc*(mu*x*x*x*2.*cos(alpha*x)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x));
-        auto dzk = Nc*(-mu*x*x/sin(alpha*x)/sin(alpha*x));
-        ddzk[(3*4+3)*n+k] = ddzk[(3*4+3)*n+k]*dalpha*dalpha + dzk*ddalpha;
-
-        ddwk[(0*4+3)*n+k] = I*h/M_PI*Nc*(-2.*x/sin(alpha*x)/sin(alpha*x) +
-                             x*x*alpha*2.*cos(alpha*x)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x) )*dalpha;
-        ddwk[(3*4+0)*n+k] = I*h/M_PI*Nc*(-2.*x/sin(alpha*x)/sin(alpha*x) +
-                             x*x*alpha*2.*cos(alpha*x)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x) )*dalpha;
-        ddwk[(3*4+3)*n+k] = I*h/M_PI*Nc*(6.*mu*x*x*cos(alpha*x)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x) -
-                             mu*x*x*x*alpha*2.*(2.*cos(alpha*x)*cos(alpha*x)+1.)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x));
-        auto dwk = I*h/M_PI*Nc*(-2.*mu*x/sin(alpha*x)/sin(alpha*x) +
-                             mu*x*x*alpha*2.*cos(alpha*x)/sin(alpha*x)/sin(alpha*x)/sin(alpha*x) );
-        ddwk[(3*4+3)*n+k] = ddwk[(3*4+3)*n+k]*dalpha*dalpha + dwk*ddalpha;
-    }
-    return std::make_pair( ddzk, ddwk);
-}
 
 std::vector<double> weights_and_nodes2params( const
 std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>& zkwk)
@@ -357,6 +312,9 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
 
 /////////////////////////////////////////////////////////////////////////////
 
+// target_result
+// target_error
+//
 struct LeastSquaresCauchyError
 {
     /**! @brief
@@ -396,6 +354,9 @@ struct LeastSquaresCauchyError
         result( params, err);
         dg::blas1::axpby( -1., m_exact, 1., err);
     }
+    void set_order ( unsigned order){
+        m_order = order;
+    }
 
     void operator()( const std::vector<double>& params, std::vector<double>& res)
     {
@@ -406,7 +367,8 @@ struct LeastSquaresCauchyError
         //std::cout << "Computing result "<<t.diff()<<"\n";
         //t.tic();
         dg::blas1::axpby( -1., m_exact, 1., res);
-        dg::blas1::pointwiseDot( res, res, res); // least squares converge better in r^4
+        if ( m_order == 2)
+            dg::blas1::pointwiseDot( res, res, res); // least squares converge better in r^4
 
         //t.toc();
         //std::cout << "Computing error  "<<t.diff()<<"\n";
@@ -417,6 +379,7 @@ struct LeastSquaresCauchyError
     std::function<std::pair<std::vector<thrust::complex<double>>, std::vector<thrust::complex<double>>>(unsigned, const std::vector<double>&)> m_generate;
     std::vector<double> m_rrs, m_lls, m_exact;
     std::vector<thrust::complex<double>> m_func_rrs;
+    unsigned m_order = 2;
 };
 
 struct LeastSquaresCauchyJacobian
@@ -464,6 +427,7 @@ struct LeastSquaresCauchyJacobian
                 for( unsigned j=0; j<m_nr; j++)
                     m_result[i*m_nr+j]+= 2*(m_func_rrs[k*m_nr+j]/(-m_lls[i] - zk[k])).real();
         dg::blas1::axpby( -1., m_exact, 1., m_result);
+        std::cout << "In function result "<<dg::blas1::dot( m_result, m_result) << std::endl;
         //t.toc();
         //std::cout <<"Computing result "<<t.diff()<<"\n";
         //t.tic();
@@ -481,7 +445,9 @@ struct LeastSquaresCauchyJacobian
                         jac[p][i*m_nr+j]+= 2*(m_func_rrs[k*m_nr+j]*(
                         dzk[p*n+k]/(-m_lls[i] - zk[k]) +
                         tmp[k*m_nr+j])/(-m_lls[i] - zk[k])).real();
+            std::cout << "In function "<<p<<" "<<dg::blas1::dot( jac[p], jac[p]) << std::endl;
             dg::blas1::pointwiseDot( 2., jac[p], m_result, 0., jac[p]);
+            std::cout << "In function "<<p<<" "<<dg::blas1::dot( jac[p], jac[p]) << std::endl;
         }
         //t.toc();
         //std::cout <<"Computing jacobian "<<t.diff()<<"\n";
@@ -493,131 +459,6 @@ struct LeastSquaresCauchyJacobian
     std::vector<double> m_rrs, m_lls, m_exact, m_result;
     std::vector<thrust::complex<double>> m_func_rrs;
 };
-
-struct CauchyHessian
-{
-    /**! @brief
-     *
-     * @param func must accept complex values as arguments
-     */
-    template<class Generator, class GeneratorJac, class GeneratorHessian,
-        class UnaryFunction, class UnaryFunctionD, class UnaryFunctionDD>
-    CauchyHessian( unsigned N, Generator generate, GeneratorJac generateJac,
-        GeneratorHessian generateHess, UnaryFunction func, UnaryFunctionD dxlnfunc,
-        UnaryFunctionDD dxxlnfunc, const std::vector<double>& rrs, const
-        std::vector<double>& lls ):
-        m_N(N), m_func( func), m_dxlnfunc(dxlnfunc), m_dxxlnfunc( dxxlnfunc),
-        m_generate(generate), m_generateJac( generateJac), m_generateHess(generateHess),
-        m_rrs(rrs), m_lls(lls), m_exact( lls.size()*rrs.size()),
-        m_result( m_exact), m_hess(m_result),
-        m_func_rrs(N/2*rrs.size())
-        {
-            m_nl= lls.size();
-            m_nr= rrs.size();
-            for( unsigned i=0; i<m_nl; i++)
-                for( unsigned j=0; j<m_nr; j++)
-                    m_exact[i*m_nr+j] = (func( -thrust::complex<double>(m_lls[i]*m_rrs[j]))).real();
-        }
-
-    void operator()( const std::vector<double>& params, const std::vector<double>& rhs, std::vector<double>& hessInvRhs)
-    {
-        auto pair = m_generate( m_N, params);
-        const auto& zk = pair.first;
-        const auto& wk = pair.second;
-        auto Jacpair = m_generateJac( m_N, params);
-        const auto& dzk = Jacpair.first;
-        const auto& dwk = Jacpair.second;
-        auto Hesspair = m_generateHess( m_N, params);
-        const auto& ddzk = Hesspair.first;
-        const auto& ddwk = Hesspair.second;
-        unsigned n = zk.size();
-        dg::blas1::copy( 0, m_result);
-        assert( m_func_rrs.size() == n*m_nr);
-        for( unsigned k=0; k<n; k++)
-            for( unsigned j=0; j<m_nr; j++)
-                m_func_rrs[k*m_nr+j] = wk[k]*m_func( m_rrs[j]*zk[k]);
-        for( int k=n-1; k>=0; k--)
-            for( unsigned i=0; i<m_nl; i++)
-                for( unsigned j=0; j<m_nr; j++)
-                    m_result[i*m_nr+j]+= 2*(m_func_rrs[k*m_nr+j]/(-m_lls[i] - zk[k])).real();
-        dg::blas1::axpby( -1., m_exact, 1., m_result);
-        double norm = dg::blas1::dot( m_result, m_result)/2.;
-        std::vector<thrust::complex<double>> tmp( m_func_rrs.size());
-        unsigned ps = params.size();
-        m_jj.resize( ps);
-        m_jac.resize( ps);
-        for( unsigned p=0; p<ps; p++)
-        {
-            m_jac[p].resize( m_nl*m_nr);
-            for( unsigned k=0; k<n; k++)
-                for( unsigned j=0; j<m_nr; j++)
-                    tmp[k*m_nr+j] = dwk[p*n+k]/wk[k] +
-                            m_rrs[j]*dzk[p*n+k]*m_dxlnfunc(m_rrs[j]*zk[k]);
-            dg::blas1::copy( 0, m_jac[p]);
-            for( int k=n-1; k>=0; k--)
-                for( unsigned i=0; i<m_nl; i++)
-                    for( unsigned j=0; j<m_nr; j++)
-                        m_jac[p][i*m_nr+j]+= 2*(m_func_rrs[k*m_nr+j]*(
-                        dzk[p*n+k]/(-m_lls[i] - zk[k]) + tmp[k*m_nr+j]
-                            )/(-m_lls[i] - zk[k])).real();
-            m_jj[p] = dg::blas1::dot( m_result, m_jac[p]);
-        }
-        m_hh.resize( params.size()*params.size());
-        std::vector<thrust::complex<double>> tmpw( n);
-        std::vector<thrust::complex<double>> tmpp( m_func_rrs.size());
-        std::vector<thrust::complex<double>> tmpq( m_func_rrs.size());
-        for( unsigned p=0; p<ps; p++)
-        for( unsigned q=p; q<ps; q++) // Hessian is symmetric
-        {
-            dg::blas1::copy( 0, m_hess);
-            for( unsigned k=0; k<n; k++)
-                for( unsigned j=0; j<m_nr; j++)
-                {
-                    tmpp[k*m_nr+j] = dwk[p*n+k]/wk[k] +
-                            m_rrs[j]*dzk[p*n+k]*m_dxlnfunc(m_rrs[j]*zk[k]);
-                    tmpq[k*m_nr+j] = dwk[q*n+k]/wk[k] +
-                            m_rrs[j]*dzk[q*n+k]*m_dxlnfunc(m_rrs[j]*zk[k]);
-                    tmp[k*m_nr+j] = m_rrs[j]*ddzk[(p*4+q)*n+k]*m_dxlnfunc(m_rrs[j]*zk[k])
-                        +m_rrs[j]*m_rrs[j]*dzk[p*n+k]*dzk[q*n+k]*m_dxxlnfunc(m_rrs[j]*zk[k]);
-                }
-            for( unsigned k=0; k<n; k++)
-                tmpw[k] = ddwk[(p*4+q)*n+k]/wk[k] -
-                        dwk[p*n+k]*dwk[q*n+k]/wk[k]/wk[k];
-            for( int k=n-1; k>=0; k--)
-                for( unsigned i=0; i<m_nl; i++)
-                    for( unsigned j=0; j<m_nr; j++)
-                        m_hess[i*m_nr+j] += 2*( m_func_rrs[k*m_nr+j]*( (
-                        tmpp[k*m_nr+j]+dzk[p*n+k]/( -m_lls[i] -zk[k]))*(
-                        tmpq[k*m_nr+j]+dzk[q*n+k]/( -m_lls[i] -zk[k])) +
-                        tmpw[k] + tmp[k*m_nr+j]
-                        +ddzk[(p*4+q)*n+k]/(-m_lls[i]-zk[k]) +
-                        dzk[p*n+k]*dzk[q*n+k]/(-m_lls[i]-zk[k])/(-m_lls[i]-zk[k]))/(-m_lls[i]-
-                        zk[k] )).real();
-            m_hh[p*ps+q] = dg::blas1::dot( m_jac[p],m_jac[q]);
-            m_hh[p*ps+q] += dg::blas1::dot( m_result, m_hess);
-            m_hh[p*ps+q] = m_hh[p*ps+q]/norm - m_jj[p]*m_jj[q]/norm/norm;
-        }
-        for( unsigned p=0; p<ps; p++)
-            for( unsigned q=0; q<p; q++) // Hessian is symmetric
-                m_hh[p*ps+q] = m_hh[q*ps+p];
-        std::vector<unsigned> pivots;
-        dg::Operator<double> HH (m_hh);
-        dg::create::lu_pivot( HH,  pivots);
-        hessInvRhs = rhs;
-        dg::create::lu_solve( HH, pivots, hessInvRhs);
-    }
-    std::vector<double> last_hessian( ) const{ return m_hh;}
-    private:
-    unsigned m_N, m_nl, m_nr;
-    std::function<thrust::complex<double>(thrust::complex<double>)> m_func, m_dxlnfunc, m_dxxlnfunc;
-    std::function<std::pair<std::vector<thrust::complex<double>>,
-        std::vector<thrust::complex<double>>>(unsigned, const std::vector<double>&)>
-            m_generate, m_generateJac, m_generateHess;
-    std::vector<double> m_rrs, m_lls, m_exact, m_result, m_hess, m_jj, m_hh;
-    std::vector<std::vector<double>> m_jac;
-    std::vector<thrust::complex<double>> m_func_rrs;
-};
-
 
 std::vector<double> generate_range( double min, double max, unsigned per_order = 20)
 {
