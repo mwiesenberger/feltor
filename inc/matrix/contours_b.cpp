@@ -42,7 +42,7 @@ int main()
     std::cout << "Generating params took "<<t.diff()<<"\n";
     auto func = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
     auto dxlnfunc = dg::mat::DLnGyrolagK<thrust::complex<double>>(0,1);
-    auto dxxlnfunc = dg::mat::DDLnGyrolagK<thrust::complex<double>>(0,1);
+    //auto dxxlnfunc = dg::mat::DDLnGyrolagK<thrust::complex<double>>(0,1);
 
     // TCV
     auto rrs = dg::mat::generate_range( 0.0625, 12.5, 20);
@@ -69,6 +69,11 @@ int main()
     dg::mat::LeastSquaresCauchyJacobian IjacTCV( 2*n, dg::mat::weights_and_nodes_identity,
         dg::mat::jacobian_identity,
         func, dxlnfunc, rrs, lls);
+    // One can play between 1 and 2 here
+    cauchyTCV.set_order(1);
+    jacTCV.set_order(1);
+    IcauchyTCV.set_order(1);
+    IjacTCV.set_order(1);
 
     dg::assign( ps_cpu, ps_gpu);
     dg::DVec errors(ps_gpu[0].size());
@@ -89,6 +94,7 @@ int main()
         std::vector<double> params = {ps_cpu[0][min_idx], ps_cpu[1][min_idx], ps_cpu[2][min_idx], ps_cpu[3][min_idx]};
         unsigned steps = levenberg_marquardt( cauchyTCV, jacTCV, params, results, 1e-8, 1000);
         std::cout << "Found optimum in "<<steps<<" steps\n";
+        cauchyTCV.set_order(1);
         cauchyTCV.error( params, results);
         std::cout << "Cauchy error "<<dg::blas1::dot( results, results)<<" ";
         std::cout << " with params "<<params[0]<<" "<<params[1]<<" "<<params[2]<<" "<<params[3]<<"\n";
@@ -97,6 +103,7 @@ int main()
         auto paramsI = dg::mat::weights_and_nodes2params( zkwk);
         steps = levenberg_marquardt( IcauchyTCV, IjacTCV, paramsI, results, 1e-8, 1000);
         std::cout << "Found I optimum in "<<steps<<" steps\n";
+        IcauchyTCV.set_order(1);
         IcauchyTCV.error( paramsI, results);
         std::cout << "Cauchy I error "<<dg::blas1::dot( results, results)<<"\n";
         std::cout << "Abs max I error "<<dg::blas1::reduce( results, -1e300, thrust::maximum<double>(), dg::ABS<double>())<<"\n";

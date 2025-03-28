@@ -61,7 +61,7 @@ unsigned levenberg_marquardt( Func fun, Jacobian jac,
     //std::cout << "Norm gT g/W^2 " << sqrt(delta)<<"\n";
     double f0 = dg::blas1::dot( rs, rs);
     delta = 0.25*f0/sqrt(delta);
-    std::cout << "initial delta " << delta<<"\n";
+    //std::cout << "initial delta " << delta<<"\n";
     double normx0 = sqrt(dg::blas1::dot( x0, x0));
     for ( unsigned k=0; k<max_iter; k++)
     {
@@ -265,16 +265,16 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
     const auto& zk = zkwk.first;
     const auto& wk = zkwk.second;
     std::vector<double> params( 4*zk.size());
-    unsigned N = params.size()/2;
-    for( unsigned i=0; i<zk.size(); i++)
+    unsigned n = zk.size();
+    for( unsigned i=0; i<n; i++)
     {
-        params[2*i] = zk[i].real();
-        params[2*i+1] = zk[i].imag();
+        params[0*n+i] = zk[i].real();
+        params[1*n+i] = zk[i].imag();
     }
-    for( unsigned i=0; i<zk.size(); i++)
+    for( unsigned i=0; i<n; i++)
     {
-        params[N+2*i] = wk[i].real();
-        params[N+2*i+1] = wk[i].imag();
+        params[2*n+i] = wk[i].real();
+        params[3*n+i] = wk[i].imag();
     }
     return params;
 }
@@ -285,12 +285,13 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
 {
     if( N != params.size()/2)
         throw dg::Error(dg::Message(_ping_)<<"N "<<N<<" must match 0.5 params.size "<<params.size()/2<<"!");
-    std::vector<thrust::complex<double>> zk(N/2);
-    std::vector<thrust::complex<double>> wk(N/2);
-    for( unsigned i=0; i<zk.size(); i++)
-        zk[i] = thrust::complex<double>(params[2*i], params[2*i+1]);
-    for( unsigned i=0; i<zk.size(); i++)
-        wk[i] = thrust::complex<double>(params[N+2*i], params[N+2*i+1]);
+    unsigned n = N/2;
+    std::vector<thrust::complex<double>> zk(n);
+    std::vector<thrust::complex<double>> wk(n);
+    for( unsigned i=0; i<n; i++)
+        zk[i] = thrust::complex<double>(params[0*n+i], params[1*n+i]);
+    for( unsigned i=0; i<n; i++)
+        wk[i] = thrust::complex<double>(params[2*n+i], params[3*n+i]);
     return std::make_pair( zk, wk);
 }
 std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
@@ -301,10 +302,10 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
     std::vector<thrust::complex<double>> dwk(4*n*n, {0.});
     for( unsigned k=0; k<n; k++)
     {
-        dzk[(2*k+0)*n + k] = thrust::complex<double>(1,0);
-        dzk[(2*k+1)*n + k] = thrust::complex<double>(0,1);
-        dwk[(2*n+2*k+0)*n + k] = thrust::complex<double>(1,0);
-        dwk[(2*n+2*k+1)*n + k] = thrust::complex<double>(0,1);
+        dzk[(0*n+k)*n + k] = thrust::complex<double>(1,0);
+        dzk[(1*n+k)*n + k] = thrust::complex<double>(0,1);
+        dwk[(2*n+k)*n + k] = thrust::complex<double>(1,0);
+        dwk[(3*n+k)*n + k] = thrust::complex<double>(0,1);
     }
     return std::make_pair( dzk, dwk);
 }
@@ -382,6 +383,7 @@ struct LeastSquaresCauchyError
     unsigned m_order = 2;
 };
 
+// target_jacobian
 struct LeastSquaresCauchyJacobian
 {
     /**! @brief
@@ -404,6 +406,7 @@ struct LeastSquaresCauchyJacobian
                     m_exact[i*m_nr+j] = (func( -thrust::complex<double>(m_lls[i]*m_rrs[j]))).real();
         }
 
+    void set_order( unsigned order) { m_order = order;}
     void operator()( const std::vector<double>& params, std::vector<std::vector<double>>& jac)
     {
         //dg::Timer t;
@@ -427,7 +430,6 @@ struct LeastSquaresCauchyJacobian
                 for( unsigned j=0; j<m_nr; j++)
                     m_result[i*m_nr+j]+= 2*(m_func_rrs[k*m_nr+j]/(-m_lls[i] - zk[k])).real();
         dg::blas1::axpby( -1., m_exact, 1., m_result);
-        std::cout << "In function result "<<dg::blas1::dot( m_result, m_result) << std::endl;
         //t.toc();
         //std::cout <<"Computing result "<<t.diff()<<"\n";
         //t.tic();
@@ -445,9 +447,8 @@ struct LeastSquaresCauchyJacobian
                         jac[p][i*m_nr+j]+= 2*(m_func_rrs[k*m_nr+j]*(
                         dzk[p*n+k]/(-m_lls[i] - zk[k]) +
                         tmp[k*m_nr+j])/(-m_lls[i] - zk[k])).real();
-            std::cout << "In function "<<p<<" "<<dg::blas1::dot( jac[p], jac[p]) << std::endl;
-            dg::blas1::pointwiseDot( 2., jac[p], m_result, 0., jac[p]);
-            std::cout << "In function "<<p<<" "<<dg::blas1::dot( jac[p], jac[p]) << std::endl;
+            if( m_order == 2)
+                dg::blas1::pointwiseDot( 2., jac[p], m_result, 0., jac[p]);
         }
         //t.toc();
         //std::cout <<"Computing jacobian "<<t.diff()<<"\n";
@@ -458,6 +459,7 @@ struct LeastSquaresCauchyJacobian
     std::function<std::pair<std::vector<thrust::complex<double>>, std::vector<thrust::complex<double>>>(unsigned, const std::vector<double>&)> m_generate, m_generateJac;
     std::vector<double> m_rrs, m_lls, m_exact, m_result;
     std::vector<thrust::complex<double>> m_func_rrs;
+    unsigned m_order = 2;
 };
 
 std::vector<double> generate_range( double min, double max, unsigned per_order = 20)

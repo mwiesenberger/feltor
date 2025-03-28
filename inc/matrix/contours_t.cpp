@@ -11,6 +11,8 @@ TEST_CASE( "Contours")
     // A lot of the following tests are just consistency tests withe
     // "prodexp_cauchy" notebook in the mrheld/matrixfunction repository
     std::vector<double> params = {0.5017,0.6122,0.2645,dg::mat::finv_alpha(0.6407)};
+    auto func      = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
+    auto dxlnfunc  = dg::mat::DLnGyrolagK<thrust::complex<double>>(0,1);
     SECTION( "Talbot weights")
     {
         unsigned n = 7;
@@ -58,7 +60,6 @@ TEST_CASE( "Contours")
     {
         std::vector<double> rrs = {1};
         std::vector<double> lls = {0,1,2,10};
-        auto func = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
         unsigned n = 7;
         dg::mat::LeastSquaresCauchyError cauchy( 2*n, dg::mat::weights_and_nodes_talbot,
             func, rrs, lls);
@@ -88,88 +89,150 @@ TEST_CASE( "Contours")
         auto rrs = dg::mat::generate_range( 0.0625, 12.5);
         auto lls = dg::mat::generate_range( 21, 23401947);
         unsigned n = 7;
-        auto func      = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
-        auto dxlnfunc  = dg::mat::DLnGyrolagK<thrust::complex<double>>(0,1);
         dg::mat::LeastSquaresCauchyError cauchyTCV( 2*n, dg::mat::weights_and_nodes_talbot,
             func, rrs, lls);
         cauchyTCV.set_order( 1);
         dg::mat::LeastSquaresCauchyJacobian jacTCV( 2*n, dg::mat::weights_and_nodes_talbot,
             dg::mat::jacobian_talbot, func, dxlnfunc, rrs, lls);
+        jacTCV.set_order( 1);
         INFO( "problem size is "<<lls.size()*rrs.size());
         std::vector<double> results( lls.size()*rrs.size());
+
         cauchyTCV( params, results);
         double err = dg::blas1::dot( results, results);
         INFO( "Cauchy error "<<log( err/2.));
         CHECK( (log( err/2.)  - 49.6527560932954)  < 1e-6);
+
         std::vector<std::vector<double>> jac(4, {results});
         jacTCV( params, jac);
         INFO( "Cauchy Jacobian");
+        std::vector<double> jac_py = {3.95388423e+24, -2.55687962e+24, -1.10062347e+24, -1.13320849e+24};
         for( unsigned i=0; i<params.size(); i++)
         {
             double gradC = 2*dg::blas1::dot( jac[i], results);
-            std::cout << gradC<<std::endl;
+
+            INFO( "jj "<<i<<" = "<< gradC<<" vs "<<jac_py[i]);
+            CHECK( fabs (( gradC - jac_py[i])/jac_py[i]) < 1e-6);
+        }
+        INFO( "Numerical Jacobian");
+        auto results_eps = results;
+        for( unsigned i=0; i<params.size(); i++)
+        {
+            std::vector<double> eps( params.size(), 0);
+            double tol = 1e-6*params[i];
+            eps[i] = tol;
+            dg::blas1::axpby( 1., params, 1., eps);
+            cauchyTCV( eps, results_eps);
+            dg::blas1::axpby( 1, results_eps, -1, results, results_eps);
+            double gradN = 2*dg::blas1::dot( results_eps, results)/tol;
+            INFO( "jj "<<i<<" = "<< gradN<<" vs "<<jac_py[i]);
+            CHECK( fabs (( gradN - jac_py[i])/jac_py[i]) < 1e-4); // low accuracy
         }
     }
-    //std::cout << "Numerical Jacobian\n";
-    //auto results_eps = results;
-    //for( unsigned i=0; i<params.size(); i++)
-    //{
-    //    std::vector<double> eps( params.size(), 0);
-    //    double tol = 1e-6;
-    //    eps[i] = tol;
-    //    dg::blas1::axpby( 1., params, 1., eps);
-    //    cauchyTCV( eps, results_eps);
-    //    dg::blas1::axpby( 1, results_eps, -1, results, results_eps);
-    //    double gradN = 2*dg::blas1::dot( results_eps, results)/tol;
-    //    std::cout << gradN<<std::endl;
-    //}
-    //std::cout << "\n";
-    //auto zkwk = dg::mat::weights_and_nodes_talbot( 2*n, params);
-    //auto paramsI = dg::mat::weights_and_nodes2params( zkwk);
-    //dg::mat::LeastSquaresCauchyError IcauchyTCV( 2*n, dg::mat::weights_and_nodes_identity,
-    //    func, rrs, lls);
-    //dg::mat::LeastSquaresCauchyJacobian IjacTCV( 2*n, dg::mat::weights_and_nodes_identity,
-    //    dg::mat::jacobian_identity,
-    //    func, dxlnfunc, rrs, lls);
-    //std::cout << "Cauchy Talbot   error "<<dg::blas1::dot( results, results)<<"\n";
-    //IcauchyTCV( paramsI, results);
-    //std::cout << "Cauchy Identity error "<<dg::blas1::dot( results, results)<<"\n";
-    //std::vector<std::vector<double>> jacI(paramsI.size(), {results});
-    //IjacTCV( paramsI, jacI);
-    //std::cout << "Cauchy Identity Jacobian\n";
-    //for( unsigned i=0; i<paramsI.size(); i++)
-    //{
-    //    double gradC = 2*dg::blas1::dot( jacI[i], results);
-    //    std::cout << gradC<<std::endl;
-    //}
-    //std::cout << "Numerical Identity Jacobian\n";
-    //for( unsigned i=0; i<paramsI.size(); i++)
-    //{
-    //    std::vector<double> eps( paramsI.size(), 0);
-    //    double tol = 1e-10;
-    //    eps[i] = tol;
-    //    dg::blas1::axpby( 1., paramsI, 1., eps);
-    //    IcauchyTCV( eps, results_eps);
-    //    dg::blas1::axpby( 1, results_eps, -1, results, results_eps);
-    //    double gradN = 2*dg::blas1::dot( results_eps, results)/tol;
-    //    std::cout << gradN<<std::endl;
-    //}
-    //std::cout << "\n";
-    //dg::Timer t;
-    //t.tic();
-    //for( unsigned i=0; i<1000; i++)
-    //    cauchyTCV( params, results);
-    //t.toc();
-    //std::cout << "One cauchy eval took (s) "<<t.diff()/(double)1000<<"\n";
-    //t.tic();
-    //for( unsigned i=0; i<100; i++)
-    //    jacTCV( params, jac);
-    //t.toc();
-    //std::cout << "One jacobian eval took (s) "<<t.diff()/(double)100<<"\n";
-    //std::vector<double> tmp(params);
+    SECTION( "Identity curve")
+    {
+        unsigned n = 7;
+        auto rrs = dg::mat::generate_range( 0.0625, 12.5);
+        auto lls = dg::mat::generate_range( 21, 23401947);
+        std::vector<double> results( lls.size()*rrs.size());
+        auto zkwk = dg::mat::weights_and_nodes_talbot( 2*n, params);
+        auto paramsI = dg::mat::weights_and_nodes2params( zkwk);
+        dg::mat::LeastSquaresCauchyError IcauchyTCV( 2*n, dg::mat::weights_and_nodes_identity,
+            func, rrs, lls);
+        IcauchyTCV.set_order(1);
+        IcauchyTCV( paramsI, results);
+        double err = dg::blas1::dot( results, results);
+        INFO( "Cauchy Identity error "<<log( err/2.));
+        CHECK( (log( err/2.)  - 49.6527560932954)  < 1e-6);
+        dg::mat::LeastSquaresCauchyJacobian IjacTCV( 2*n, dg::mat::weights_and_nodes_identity,
+            dg::mat::jacobian_identity,
+            func, dxlnfunc, rrs, lls);
+        std::vector<std::vector<double>> jacI(paramsI.size(), {results});
+        IjacTCV.set_order(1);
+        IjacTCV( paramsI, jacI);
+        INFO("Cauchy Identity Jacobian");
+        std::vector<double> jacI_py = {
+  1.82854767e+23, -2.20508048e+20,  2.51337628e+13,  1.32854934e+02,
+  2.47839199e-04,  1.48498436e-03,  3.48181918e-03, -3.73897493e+23,
+  4.00596515e+19,  2.81102224e+13, -1.48124114e+02,  1.36623135e-03,
+  1.93296620e-03,  3.89479355e-03, -7.36886826e+22,  5.60865732e+19,
+  3.73404603e+11, -2.45104071e+01,  1.05162781e-01,  9.49438778e-02,
+  7.82647415e-02,  9.99218517e+22,  1.92197953e+19, -8.19957630e+12,
+ -1.11581990e+01, -9.15380670e-03, -4.15611745e-03,  1.13970241e-02};
+        CHECK ( jacI_py.size() == paramsI.size());
+        for( unsigned i=0; i<paramsI.size(); i++)
+        {
+            double gradC = 2*dg::blas1::dot( jacI[i], results);
+            INFO( "Identity Jac is "<<i<<" "<<gradC<<" vs "<<jacI_py[i]);
+            CHECK( fabs(( jacI_py[i] - gradC)/ jacI_py[i]) < 1e-6);
+        }
+        // This test fails for some values but not for all and I do not know if
+        // this indicates a bug or just a numerical problem because of the
+        // large numbers involved
+        //INFO( "Numerical Identity Jacobian");
+        //auto results_eps = results;
+        //for( unsigned i=0; i<paramsI.size(); i++)
+        //{
+        //    std::vector<double> eps( paramsI.size(), 0);
+        //    double tol = 1e-6*paramsI[i];
+        //    eps[i] = tol;
+        //    dg::blas1::axpby( 1., paramsI, 1., eps);
+        //    IcauchyTCV( eps, results_eps);
+        //    dg::blas1::axpby( 1, results_eps, -1, results, results_eps);
+        //    double gradN = 2*dg::blas1::dot( results_eps, results)/tol;
+        //    INFO( "jj "<<i<<" = "<< gradN<<" vs "<<jacI_py[i]);
+        //    CHECK( fabs (( gradN - jacI_py[i])/jacI_py[i]) < 1e-2); // low accuracy
+        //}
+    }
+    SECTION( "Performance")
+    {
+        auto rrs = dg::mat::generate_range( 0.0625, 12.5);
+        auto lls = dg::mat::generate_range( 21, 23401947);
+        unsigned n = 7;
+        dg::mat::LeastSquaresCauchyError cauchyTCV( 2*n, dg::mat::weights_and_nodes_talbot,
+            func, rrs, lls);
+        dg::mat::LeastSquaresCauchyJacobian jacTCV( 2*n, dg::mat::weights_and_nodes_talbot,
+            dg::mat::jacobian_talbot, func, dxlnfunc, rrs, lls);
+        std::vector<double> results( lls.size()*rrs.size());
+        std::vector<std::vector<double>> jac(4, {results});
+        dg::Timer t;
+        t.tic();
+        for( unsigned i=0; i<1000; i++)
+            cauchyTCV( params, results);
+        t.toc();
+        std::cout << "One cauchy eval took (s) "<<t.diff()/(double)1000<<"\n";
+        t.tic();
+        for( unsigned i=0; i<100; i++)
+            jacTCV( params, jac);
+        t.toc();
+        std::cout << "One jacobian eval took (s) "<<t.diff()/(double)100<<"\n";
+    }
+}
+TEST_CASE("Optimization")
+{
+    std::vector<double> params = {0.5017,0.6122,0.2645,dg::mat::finv_alpha(0.6407)};
+    auto func      = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
+    auto dxlnfunc  = dg::mat::DLnGyrolagK<thrust::complex<double>>(0,1);
+    auto rrs = dg::mat::generate_range( 0.0625, 12.5);
+    auto lls = dg::mat::generate_range( 21, 23401947);
+    unsigned n = 7;
+    dg::mat::LeastSquaresCauchyError cauchyTCV( 2*n, dg::mat::weights_and_nodes_talbot,
+        func, rrs, lls);
+    dg::mat::LeastSquaresCauchyJacobian jacTCV( 2*n, dg::mat::weights_and_nodes_talbot,
+        dg::mat::jacobian_talbot, func, dxlnfunc, rrs, lls);
+    std::vector<double> results( lls.size()*rrs.size());
 
-    //unsigned steps = levenberg_marquardt( cauchyTCV, jacTCV, params, results, 1e-4, 1000);
-    //std::cout << "Found optimum in "<<steps<<" steps\n";
-    //cauchyTCV( params, results);
-    //std::cout << "Cauchy error "<<dg::blas1::dot( results, results)<<"\n";
+    SECTION( "Levenberg-Marquardt")
+    {
+        unsigned steps = levenberg_marquardt( cauchyTCV, jacTCV, params, results, 1e-4, 1000);
+        INFO( "Found optimum in "<<steps<<" steps");
+        for( unsigned u=0; u<params.size(); u++)
+            INFO( "Optimum is "<<u<<" "<<params[u]);
+        cauchyTCV( params, results);
+        double err = dg::blas1::dot( results, results);
+        INFO( "Cauchy error "<<sqrt( err));
+        double absmax = dg::blas1::reduce( results, -1e308, thrust::maximum<double>());
+        INFO( "Cauchy error Abs max "<<sqrt( absmax));
+        CHECK( sqrt( absmax) < 1e-5);
+    }
 }
