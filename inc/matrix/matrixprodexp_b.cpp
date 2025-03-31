@@ -31,8 +31,6 @@ const double bgamp=1.0;
 double lhs( double x, double y){ return sin(x*m)*sin(y*n);}
 double lhss( double x, double y){ return sin(x*ms)*sin(y*ns);}
 double sin2( double x, double y){ return amp*sin(x*m)*sin(y*n)*sin(x*m)*sin(y*n);}
-using Matrix = dg::DMatrix;
-using Container = dg::DVec;
 
 int main(int argc, char * argv[])
 {
@@ -60,38 +58,45 @@ int main(int argc, char * argv[])
     double erel = 0;
 
     dg::Grid2d g( 0, lx, 0, ly,n, Nx, Ny, bcx, bcy);
-    const Container w2d = dg::create::weights( g);
-    Container w2d_scaled(w2d);
+    const dg::DVec w2d = dg::create::weights( g);
+    dg::DVec w2d_scaled(w2d);
 
     double max_weights = dg::blas1::reduce(w2d, 0., dg::AbsMax<double>() );
     double min_weights = dg::blas1::reduce(w2d, max_weights, dg::AbsMin<double>() );
     std::cout << "#   min(W)  = "<<min_weights <<"  max(W) = "<<max_weights << "\n";
-    dg::Elliptic<dg::CartesianGrid2d, Matrix, Container> A( {g, dg::centered, 1.0});
+    dg::Elliptic<dg::CartesianGrid2d, dg::DMatrix, dg::DVec> A( {g, dg::centered, 1.0});
 
     std::vector<std::string> outs = {
-            "K_0(-alpha A)",
-            "K_0(d, -alpha A)",
-            "K_0(-alpha A, d)",
+            "K_0(-alpha A)",    // UniversalLanczos
+            "K_0(d, -alpha A)", // ProductMatrixFunction
+            "K_0(-alpha A, d)", // ProductMatrixFunction
+            "K_0(-A, alpha d)"  // CauchyMatrixProductAdj
     };
+    dg::mat::UniversalLanczos<dg::DVec> krylovfunceigen( w2d, max_iter);
+    dg::mat::ProductMatrixFunction<dg::DVec> krylovproduct( w2d, max_iter);
+    unsigned num_nodes = 10, num_stages = 3;
+    dg::mat::CauchyMatrixProductAdj<dg::CartesianGrid2d, dg::DMatrix, dg::cDVec> cauchy( num_nodes, g, num_stages);
+    std::vector<dg::Elliptic<dg::CartesianGrid2d, dg::DMatrix, dg::DVec, dg::cDVec>> multipol( num_stages);
+    for( unsigned u=0; u<num_stages; u++)
+        multipol[u].construct( cauchy.multigrid().grid(u), dg::centered, 1.0);
+
+
 
     for( unsigned u=0; u<outs.size(); u++)
     {
         std::cout << "\n#Compute x = "<<outs[u]<<" b " << std::endl;
 
-        Container x = dg::evaluate(lhs, g), x_exac(x), x_h(x), b(x), error(x);
-        Container b_h(b);
-        Container one = dg::evaluate(dg::ONE(), g);
+        dg::DVec x = dg::evaluate(lhs, g), x_exac(x), x_h(x), b(x), error(x);
+        dg::DVec b_h(b);
+        dg::DVec one = dg::evaluate(dg::ONE(), g);
 
         //note that d must fulfill boundary conditions and should be positive definite!
-        Container d = dg::evaluate(dg::Cauchy(lx/2., ly/2., 3., 3., amp), g);
+        dg::DVec d = dg::evaluate(dg::Cauchy(lx/2., ly/2., 3., 3., amp), g);
         //add constant background field to d
         dg::blas1::plus(d, bgamp);
 
         std::cout << outs[u] << ":\n";
 
-        dg::mat::UniversalLanczos<Container> krylovfunceigen( x, max_iter);
-        dg::mat::UniversalLanczos<Container> krylovfunceigend( x, max_iter);
-        dg::mat::ProductMatrixFunction<Container> krylovproduct( x, max_iter);
 
 
         dg::mat::GyrolagK<double> func(0, -alpha);
@@ -133,6 +138,17 @@ int main(int argc, char * argv[])
             t.toc();
             time = t.diff();
         }
+        if( u == 3)
+        {
+            cauchy.set_verbose(true);
+            t.tic();
+            auto func = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
+            auto dxlnfunc = dg::mat::DLnGyrolagK<thrust::complex<double>>(0,1);
+            cauchy.solve( x, func , dxlnfunc, multipol, d, b, std::vector<double>(num_stages, eps));
+            t.toc();
+            time = t.diff();
+        }
+
         //Compute errors
         if (u==0)
         {
@@ -140,9 +156,9 @@ int main(int argc, char * argv[])
         }
         else
         {
-            Container fd(d); // helper variable
+            dg::DVec fd(d); // helper variable
             //Compute absolute and relative error in adjointness
-            if (u==2 )
+            if (u==2 || u == 3)
             {
                 x_h = dg::evaluate(lhss, g); // -> g
                 dg::blas1::axpby(ell_facs, d, 0.0, fd);
