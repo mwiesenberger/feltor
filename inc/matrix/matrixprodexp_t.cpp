@@ -8,7 +8,7 @@
 #include "mcg.h"
 #include "outer.h"
 #include "matrixfunction.h"
-#include "matrixsqrt.h"
+#include "matrixprod.h"
 
 const double lx = 2.*M_PI;
 const double ly = 2.*M_PI;
