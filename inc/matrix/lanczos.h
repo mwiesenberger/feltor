@@ -107,7 +107,7 @@ class UniversalLanczos
 
     ///@brief Norm of \c b from last call to \c operator()
     ///@return bnorm
-    value_type get_bnorm() const{return m_bnorm;}
+    double get_bnorm() const{return m_bnorm;}
 
     ///@brief Get the number of iterations in the last call to \c tridiag or \c solve
     /// (same as T.num_rows)
@@ -145,10 +145,10 @@ class UniversalLanczos
              class ContainerType2, class FuncTe1>
     unsigned solve(ContainerType0& x, FuncTe1 f,
             MatrixType&& A, const ContainerType1& b,
-            const ContainerType2& weights, value_type eps,
-            value_type nrmb_correction = 1.,
+            const ContainerType2& weights, double eps,
+            double nrmb_correction = 1.,
             std::string error_norm = "universal",
-            value_type res_fac = 1.,
+            double res_fac = 1.,
             unsigned q = 1 )
     {
         tridiag( f, std::forward<MatrixType>(A), b, weights, eps,
@@ -188,11 +188,11 @@ class UniversalLanczos
      *  The number of iterations is given by \c T.num_rows
       */
     template< class MatrixType, class ContainerType0, class ContainerType1>
-    const dg::TriDiagonal<thrust::host_vector<value_type>>& tridiag( MatrixType&& A, const ContainerType0& b,
-            const ContainerType1& weights, value_type eps = 1e-12,
-            value_type nrmb_correction = 1.,
+    const dg::TriDiagonal<thrust::host_vector<double>>& tridiag( MatrixType&& A, const ContainerType0& b,
+            const ContainerType1& weights, double eps = 1e-12,
+            double nrmb_correction = 1.,
             std::string error_norm = "universal",
-            value_type res_fac = 1.,
+            double res_fac = 1.,
             unsigned q = 1 )
     {
         auto op = make_Linear_Te1( -1);
@@ -216,10 +216,10 @@ class UniversalLanczos
     template< class MatrixType, class ContainerType0,
         class ContainerType1,class ContainerType2>
     void normMbVy( MatrixType&& A,
-            const dg::TriDiagonal<thrust::host_vector<value_type>>& T,
+            const dg::TriDiagonal<thrust::host_vector<double>>& T,
             const ContainerType0& y,
             ContainerType1& x,
-            const ContainerType2& b, value_type bnorm)
+            const ContainerType2& b, double bnorm)
     {
         dg::blas1::copy(0., x);
         if( 0 == bnorm )
@@ -271,19 +271,19 @@ class UniversalLanczos
       */
     template < class UnaryOp, class MatrixType,
              class ContainerType1, class ContainerType2>
-    const dg::TriDiagonal<thrust::host_vector<value_type>>& tridiag(UnaryOp f,
+    const dg::TriDiagonal<thrust::host_vector<double>>& tridiag(UnaryOp f,
             MatrixType&& A, const ContainerType1& b,
-            const ContainerType2& weights, value_type eps,
-            value_type nrmb_correction,
+            const ContainerType2& weights, double eps,
+            double nrmb_correction,
             std::string error_norm = "residual",
-            value_type res_fac = 1.,
+            double res_fac = 1.,
             unsigned q = 1 )
     {
 #ifdef MPI_VERSION
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif //MPI
-        m_bnorm = sqrt(dg::blas2::dot(b, weights, b));
+        m_bnorm = nrm( weights, b);
         if( m_verbose)
         {
             DG_RANK0 std::cout << "# Norm of b  "<<m_bnorm <<"\n";
@@ -295,19 +295,19 @@ class UniversalLanczos
             set_iter(1);
             return m_TH;
         }
-        value_type residual;
+        double residual;
         dg::blas1::axpby(1./m_bnorm, b, 0.0, m_v); //m_v[1] = x/||x||
-        value_type betaip = 0.;
-        value_type alphai = 0.;
+        double betaip = 0.;
+        double alphai = 0.; // For Hermitian matrices all dot products in CG are real
         for( unsigned i=0; i<m_max_iter; i++)
         {
             m_TH.M[i] =  betaip; // -1 diagonal
             dg::blas2::symv(std::forward<MatrixType>(A), m_v, m_vp);
             dg::blas1::axpby(-betaip, m_vm, 1.0, m_vp);  // only - if i>0, therefore no if (i>0)
-            alphai  = dg::blas2::dot(m_vp, weights, m_v);
+            alphai  = dot(m_vp, weights, m_v);
             m_TH.O[i] = alphai;
             dg::blas1::axpby(-alphai, m_v, 1.0, m_vp);
-            betaip = sqrt(dg::blas2::dot(m_vp, weights, m_vp));
+            betaip = nrm( weights, m_vp);
             if (betaip == 0)
             {
                 if( m_verbose)
@@ -317,7 +317,7 @@ class UniversalLanczos
             }
             m_TH.P[i] = betaip;  // +1 diagonal
 
-            value_type xnorm = 0.;
+            double xnorm = 0.;
             if( "residual" == error_norm)
             {
                 residual = compute_residual_error( m_TH, i)*m_bnorm;
@@ -352,18 +352,54 @@ class UniversalLanczos
         return m_TH;
     }
     private:
-    value_type compute_residual_error( const dg::TriDiagonal<thrust::host_vector<value_type>>& TH, unsigned iter)
+    struct NORM
     {
-        value_type T1 = compute_Tinv_m1( TH, iter+1);
+        template<class T, class Z>
+        DG_DEVICE
+        auto operator()( T w, Z z) {
+            return w*norm(z);} // returns floating point
+    };
+    struct DOT
+    {
+        template<class Z0, class T, class Z1>
+        DG_DEVICE
+        auto operator()( Z0 z0, T w, Z1 z1) { // returns floating point
+            return w*(z0.real()*z1.real() + z0.imag()*z1.imag());
+        }
+    };
+    // !! Calling this "norm" would shadow std::norm in NORM
+    template<class ContainerType1, class ContainerType2>
+    auto nrm( const ContainerType1& w, const ContainerType2& x)
+    {
+        using value_type_x = dg::get_value_type<ContainerType2>;
+        constexpr bool is_complex = dg::is_scalar_v<value_type_x, dg::ComplexTag>;
+        if constexpr (is_complex)
+            return sqrt( blas1::vdot( NORM(), w, x));
+        else
+            return sqrt( blas2::dot( w, x));
+    }
+    template<class ContainerType0, class ContainerType1, class ContainerType2>
+    auto dot( const ContainerType0& x0, const ContainerType1& w, const ContainerType2& x1)
+    {
+        using value_type_x1 = dg::get_value_type<ContainerType2>;
+        constexpr bool is_complex = dg::is_scalar_v<value_type_x1, dg::ComplexTag>;
+        if constexpr (not is_complex )// or complex_mode == dg::complex_symmetric)
+            return blas2::dot( x0, w, x1); // this returns value_type
+        else // For Hermitian matrices all dot products in CG are real
+            return blas1::vdot( DOT(), x0, w, x1); // this returns floating point
+    }
+    double compute_residual_error( const dg::TriDiagonal<thrust::host_vector<double>>& TH, unsigned iter)
+    {
+        double T1 = compute_Tinv_m1( TH, iter+1);
         return TH.P[iter]*fabs(T1); //Tinv_i1
     }
     template<class UnaryOp>
-    value_type compute_universal_error( const dg::TriDiagonal<thrust::host_vector<value_type>>& TH, unsigned iter,
+    double compute_universal_error( const dg::TriDiagonal<thrust::host_vector<double>>& TH, unsigned iter,
             unsigned q, UnaryOp f, HVec& yH)
     {
         unsigned new_iter = iter + 1 + q;
         set_iter( iter+1);
-        dg::TriDiagonal<thrust::host_vector<value_type>> THtilde( new_iter);
+        dg::TriDiagonal<thrust::host_vector<double>> THtilde( new_iter);
         for( unsigned u=0; u<iter+1; u++)
         {
             THtilde.M[u] = TH.M[u];
@@ -381,7 +417,7 @@ class UniversalLanczos
         HVec yHtilde = f( THtilde);
         for( unsigned u=0; u<yH.size(); u++)
             yHtilde[u] -= yH[u];
-        value_type norm = dg::fast_l2norm( yHtilde);
+        double norm = dg::fast_l2norm( yHtilde);
         return norm;
     }
 
@@ -392,11 +428,11 @@ class UniversalLanczos
         m_iter = new_iter;
     }
     ContainerType  m_v, m_vp, m_vm;
-    dg::TriDiagonal<thrust::host_vector<value_type>> m_TH;
+    dg::TriDiagonal<thrust::host_vector<double>> m_TH;
     HVec m_yH;
     unsigned m_iter, m_max_iter;
     bool m_verbose = false;
-    value_type m_bnorm = 0.;
+    double m_bnorm = 0.;
 };
 
 

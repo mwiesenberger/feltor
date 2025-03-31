@@ -203,6 +203,7 @@ double ddf_alpha( double alphabar, double lambda = 1)
     return -lambda*lambda*exp( -alphabar*lambda);
 }
 
+// There are 2*N real params and there will be N/2 nodes
 std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
     weights_and_nodes_talbot( unsigned N, const std::vector<double>& params)
 {
@@ -280,6 +281,7 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
 }
 
 
+// There are 2*N real params and there will be N/2 nodes
 std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
     weights_and_nodes_identity( unsigned N, const std::vector<double>& params )
 {
