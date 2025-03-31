@@ -221,10 +221,10 @@ struct LeastSquaresExtrapolation
 * @ingroup extrapolation
 * @sa https://en.wikipedia.org/wiki/Extrapolation
 */
-template<class ContainerType>
+template<class ContainerType, class real_type = dg::get_value_type<ContainerType>> // The real_type is if ContainerType is complex
 struct Extrapolation
 {
-    using value_type = get_value_type<ContainerType>;
+    using value_type = real_type;
     using container_type = ContainerType;
     /*! @brief Leave values uninitialized
      */
