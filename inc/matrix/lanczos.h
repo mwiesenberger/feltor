@@ -352,21 +352,6 @@ class UniversalLanczos
         return m_TH;
     }
     private:
-    struct NORM
-    {
-        template<class T, class Z>
-        DG_DEVICE
-        auto operator()( T w, Z z) {
-            return w*norm(z);} // returns floating point
-    };
-    struct DOT
-    {
-        template<class Z0, class T, class Z1>
-        DG_DEVICE
-        auto operator()( Z0 z0, T w, Z1 z1) { // returns floating point
-            return w*(z0.real()*z1.real() + z0.imag()*z1.imag());
-        }
-    };
     // !! Calling this "norm" would shadow std::norm in NORM
     template<class ContainerType1, class ContainerType2>
     auto nrm( const ContainerType1& w, const ContainerType2& x)
@@ -374,7 +359,7 @@ class UniversalLanczos
         using value_type_x = dg::get_value_type<ContainerType2>;
         constexpr bool is_complex = dg::is_scalar_v<value_type_x, dg::ComplexTag>;
         if constexpr (is_complex)
-            return sqrt( blas1::vdot( NORM(), w, x));
+            return sqrt( blas1::vdot( dg::detail::NORM(), w, x));
         else
             return sqrt( blas2::dot( w, x));
     }
@@ -383,10 +368,11 @@ class UniversalLanczos
     {
         using value_type_x1 = dg::get_value_type<ContainerType2>;
         constexpr bool is_complex = dg::is_scalar_v<value_type_x1, dg::ComplexTag>;
-        if constexpr (not is_complex )// or complex_mode == dg::complex_symmetric)
+        // There is no complex_symmetric in Lanczos...
+        if constexpr (not is_complex ) // or complex_mode == dg::complex_symmetric)
             return blas2::dot( x0, w, x1); // this returns value_type
         else // For Hermitian matrices all dot products in CG are real
-            return blas1::vdot( DOT(), x0, w, x1); // this returns floating point
+            return blas1::vdot( dg::detail::DOT(), x0, w, x1); // this returns floating point
     }
     double compute_residual_error( const dg::TriDiagonal<thrust::host_vector<double>>& TH, unsigned iter)
     {
