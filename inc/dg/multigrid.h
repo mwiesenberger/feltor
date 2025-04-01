@@ -667,7 +667,7 @@ struct MultigridCG2d
 
   private:
     dg::NestedGrids<Geometry, Matrix, Container> m_nested;
-    std::vector< PCG<Container> > m_pcg;
+    std::vector< PCG<Container, complex_mode> > m_pcg;
     unsigned m_stages;
     bool m_benchmark = true;
     std::string m_message = "Nested Iterations";
