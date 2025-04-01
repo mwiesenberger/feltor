@@ -352,10 +352,11 @@ struct CauchyMatrixProductAdj
         {1, m_multi.copyable()}), m_z( m_multi.copyable()), m_rhs( m_multi.copyable())
     {
     }
+
     const dg::MultigridCG2d<Geometry, Matrix, ComplexContainer, dg::complex_symmetric>& multigrid() { return m_multi;}
     template<class MatrixType, class UnaryFunc, class UnaryFuncD,
         class ContainerType0, class ContainerType1, class ContainerType2>
-    void solve( ContainerType0& x, UnaryFunc func, UnaryFuncD dxlnfunc, std::vector<MatrixType>& ops,
+    void solve( ContainerType0& x, UnaryFunc func, UnaryFuncD dxlnfunc, double alpha, std::vector<MatrixType>& ops,
         const ContainerType1& d, const ContainerType2& b, std::vector<double> eps)
     {
         bool zeroInit = false;
@@ -370,33 +371,37 @@ struct CauchyMatrixProductAdj
         if( dmin < m_dmin || dmax > m_dmax)
             update_zkwk( func, dxlnfunc, dmin, dmax);
 
-        thrust::complex<double> zk;
+        thrust::complex<double> zk, wk;
         ///////////////
         struct ShiftedOp
         {
-            ShiftedOp( MatrixType& mat, const thrust::complex<double>& z)
-            : m_z(z), m_mat(mat){}
+            ShiftedOp( MatrixType& mat, const thrust::complex<double>& z, double alpha)
+            : m_z(z), m_mat(mat), m_alpha(alpha){}
             void operator()( const ComplexContainer& x, ComplexContainer& y)
             {
+                // Question: does COCG not care if matrix is positive/negative definite?
+                // maybe not, since matrix does not have real EV anyways?
                 dg::blas2::symv( m_mat, x, y);
-                dg::blas1::axpby( -m_z, x, 1., y);
+                dg::blas1::axpby( -m_z, x, -m_alpha, y);
             }
             auto weights() const { return m_mat.weights();}
             auto precond() const { return m_mat.precond();}
             private:
             const thrust::complex<double>& m_z;
             MatrixType& m_mat;
+            double m_alpha;
         };
         ///////////////
         std::vector<ShiftedOp > shifted_ops;
         for( unsigned u=0; u<m_multi.stages(); u++)
-            shifted_ops.push_back( ShiftedOp{ ops[u], zk});
+            shifted_ops.push_back( ShiftedOp{ ops[u], zk, alpha});
 
         dg::blas1::copy( 0., x);
-        for( unsigned k=0; k<m_zk.size(); k++)
+        for( unsigned k=0; k<m_num_nodes; k++)
         {
             zk = m_zk[k];
-            std::cout << "Zk is "<<zk<<"\n";
+            wk = m_wk[k];
+            // std::cout << "Zk wk "<<zk<<" "<<wk<<"\n";
             // The very first m_z is zero: this should work in COCG as an allowed initial guess
             if( zeroInit && k == 0)
                 dg::blas1::copy( 0., m_z);
@@ -406,12 +411,16 @@ struct CauchyMatrixProductAdj
                 m_previous[k].extrapolate( m_z);
             dg::blas1::axpby( zk, d, 0., m_rhs);
             dg::blas1::transform ( m_rhs, m_rhs, func);
-            dg::blas1::pointwiseDot( m_wk[k], m_rhs, b, 0., m_rhs);
+            dg::blas1::pointwiseDot( wk, m_rhs, b, 0., m_rhs);
             m_multi.solve( shifted_ops, m_z, m_rhs, eps);
             m_previous[k].update( m_z);
             dg::blas1::subroutine([]DG_DEVICE( thrust::complex<double> z, double& x) {
                 x += 2*z.real();}, m_z, x );
         }
+        //std::cout << "SOL\n";
+        //for( unsigned u=0; u<10; u++)
+        //    std::cout << x[u]<<" ";
+        //std::cout << std::endl;
     }
 
     void clear_cache(){
@@ -476,7 +485,7 @@ struct CauchyMatrixProductAdj
         Ijac.set_order(1);
         auto zkwk = dg::mat::weights_and_nodes_talbot( 2*m_num_nodes, params);
         auto paramsI = dg::mat::weights_and_nodes2params( zkwk);
-        unsigned steps = levenberg_marquardt( Icauchy, Ijac, paramsI, results, 1e-7, 1000);
+        unsigned steps = levenberg_marquardt( Icauchy, Ijac, paramsI, results, 1e-6, 1000);
         Icauchy.error( paramsI, results);
         if( m_verbose)
         {
@@ -497,6 +506,7 @@ struct CauchyMatrixProductAdj
         auto EVs = dg::mat::compute_extreme_EV( T);
         m_lmin = EVs[0], m_lmax = EVs[1];
     }
+
     unsigned m_num_nodes;
     double m_lmin, m_lmax, m_dmin, m_dmax;
     std::vector<thrust::complex<double>> m_zk, m_wk;

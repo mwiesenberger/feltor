@@ -17,20 +17,20 @@ dg::bc bcy = dg::DIR;
 // const double n=4.;
 // const double m=1./2.;
 // const double n=1.;
-const double m=1./2.;
-const double n=1.;
-const double ms=1./2.;
+const double ms=3./2.;
 const double ns=2.;
+const double ms_s=1./2.;
+const double ns_s=2.;
 const double alpha = 1./2.;
-const double ell_fac = (m*m+n*n);
-const double ell_facs = (ms*ms+ns*ns);
-
+const double ell_fac = (ms*ms+ns*ns);
+const double ell_facs = (ms_s*ms_s+ns_s*ns_s);
+const double sigmax=2.;
+const double sigmay=3.;
 const double amp=10.0;
 const double bgamp=1.0;
 
-double lhs( double x, double y){ return sin(x*m)*sin(y*n);}
-double lhss( double x, double y){ return sin(x*ms)*sin(y*ns);}
-double sin2( double x, double y){ return amp*sin(x*m)*sin(y*n)*sin(x*m)*sin(y*n);}
+double lhs( double x, double y){ return sin(x*ms)*sin(y*ns);}
+double lhss( double x, double y){ return sin(x*ms_s)*sin(y*ns_s);}
 
 int main(int argc, char * argv[])
 {
@@ -91,7 +91,7 @@ int main(int argc, char * argv[])
         dg::DVec one = dg::evaluate(dg::ONE(), g);
 
         //note that d must fulfill boundary conditions and should be positive definite!
-        dg::DVec d = dg::evaluate(dg::Cauchy(lx/2., ly/2., 3., 3., amp), g);
+        dg::DVec d = dg::evaluate(dg::Cauchy(lx/2., ly/2., sigmax, sigmay, amp), g);
         //add constant background field to d
         dg::blas1::plus(d, bgamp);
 
@@ -144,7 +144,7 @@ int main(int argc, char * argv[])
             t.tic();
             auto func = dg::mat::GyrolagK<thrust::complex<double>>(0,1);
             auto dxlnfunc = dg::mat::DLnGyrolagK<thrust::complex<double>>(0,1);
-            cauchy.solve( x, func , dxlnfunc, multipol, d, b, std::vector<double>(num_stages, eps));
+            cauchy.solve( x, func , dxlnfunc, alpha, multipol, d, b, std::vector<double>(num_stages, eps));
             t.toc();
             time = t.diff();
         }
