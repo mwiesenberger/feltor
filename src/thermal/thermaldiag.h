@@ -1781,38 +1781,31 @@ std::vector<dg::file::Record<double(Variables&, double)>> diagnostics1d_list = {
 ///%%%%%%%%%%%%%%%%%%%%%%%%%%END DIAGNOSTICS LIST%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ///%%%%%%%%%%%%%%%%%%%%%%%%%%END DIAGNOSTICS LIST%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ///%%%%%%%%%%%%%%%%%%%%%%%%%%END DIAGNOSTICS LIST%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-void write_global_attributes( int ncid, int argc, char* argv[], std::string inputfile)
+template<class NcFile>
+void write_global_attributes(NcFile& file, int argc, char* argv[], std::string inputfile)
 {
     // called only by master thread
-    dg::file::JsonType att;
+    std::map<std::string, dg::file::nc_att_t> att;
     att["title"] = "Output file of feltor/src/thermal/thermal.cpp";
     att["Conventions"] = "CF-1.8";
-    ///Get local time and begin file history
-    auto ttt = std::time(nullptr);
-    std::ostringstream oss;
-    ///time string  + program-name + args
-    oss << std::put_time(std::localtime(&ttt), "%F %T %Z");
-    for( int i=0; i<argc; i++) oss << " "<<argv[i];
-    att["history"] = oss.str();
+    att["history"] = dg::file::timestamp( argc, argv);
     att["comment"] = "Find more info in feltor/src/thermal/thermal.tex";
     att["source"] = "FELTOR";
-    att["git-hash"] = GIT_HASH;
-    att["git-branch"] = GIT_BRANCH;
-    att["compile-time"] = COMPILE_TIME;
     att["references"] = "https://github.com/feltor-dev/feltor";
     att["inputfile"] = inputfile;
-    dg::file::json2nc_attrs( att, ncid, NC_GLOBAL);
+    file.put_atts( att);
+
+    file.put_atts( dg::file::version_flags);
 }
 
-template<class HostList>
-void write_static_list( int ncid, const HostList& records, Variables& var,
+template<class NcFile, class HostList>
+void write_static_list( NcFile& file, const HostList& records, Variables& var,
     const dg::x::CylindricalGrid3d& grid, const dg::x::CylindricalGrid3d& g3d_out,
     dg::geo::CylindricalFunctor transition )
 {
     // the unique thing here is that we evaluate 3d but only write 2d
     std::unique_ptr<dg::x::aGeometry2d> g2d_out_ptr( g3d_out.perp_grid());
 
-    dg::file::Writer<dg::x::aGeometry2d> writer2d( ncid, *g2d_out_ptr, {"y", "x"});
     dg::x::HVec resultH = dg::evaluate( dg::zero, grid);
     dg::x::HVec transferH( dg::evaluate(dg::zero, g3d_out));
     dg::MultiMatrix<dg::x::HMatrix,dg::x::HVec> projectH =
@@ -1821,14 +1814,14 @@ void write_static_list( int ncid, const HostList& records, Variables& var,
     {
         record.function( resultH, var, grid);
         dg::blas2::symv( projectH, resultH, transferH);
-        writer2d.def_and_put( record.name, dg::file::long_name( record.long_name),
-            transferH
-        );
+        file.defput_var( record.name, {"Z", "R"}, record.atts, {*g2d_out_ptr},
+                transferH);
     }
     resultH = dg::pullback( transition, grid);
     dg::blas2::symv( projectH, resultH, transferH);
-    writer2d.def_and_put( "MagneticTransition", dg::file::long_name(
-        "The region where the magnetic field is modified"), transferH);
+    file.defput_var( "MagneticTransition", {"Z", "R"}, {{"long_name",
+        "The region where the magnetic field is modified"}},
+        {*g2d_out_ptr}, transferH);
 }
 
 void append_equations( std::vector<thermal::Record>& list, const std::vector<thermal::Record>& b)
@@ -1874,37 +1867,42 @@ std::vector<thermal::Record> generate_equation_list( const dg::file::WrappedJson
     return list;
 }
 
+template< class NcFile>
 struct WriteIntegrateDiagnostics2dList
 {
-    WriteIntegrateDiagnostics2dList( const int& ncid,
+    WriteIntegrateDiagnostics2dList( NcFile& file,
         const dg::x::CylindricalGrid3d& grid,
         const dg::x::CylindricalGrid3d& g3d_out,
         const std::vector<thermal::Record>& equation_list) :
-            m_grid(grid), m_g3d_out(g3d_out), m_equation_list(equation_list)
+            m_file(&file), m_slab(grid), m_grid(grid), m_g3d_out(g3d_out),
+            m_equation_list(equation_list)
     {
 #ifdef WITH_MPI
         int rank;
         MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif //WITH_MPI
         std::unique_ptr<dg::x::aGeometry2d> g2d_out_ptr( g3d_out.perp_grid());
-        m_writer = {ncid, *g2d_out_ptr, {"time", "y", "x"}};
         for( auto& record : m_equation_list)
         {
-            m_writer.def( record.name + "_ta2d",
-                dg::file::long_name( record.long_name + " (Toroidal average)"));
-            m_writer.def( record.name + "_2d",
-                dg::file::long_name( record.long_name + " (Evaluated on phi = 0 plane)"));
+            std::string name = record.name + "_ta2d";
+            std::string long_name = record.long_name + " (Toroidal average)";
+            m_file->template def_var_as<double>( name, {"time", "Z", "R"},
+                    {{"long_name", long_name}});
+            name = record.name + "_2d";
+            long_name = record.long_name+ " (Evaluated on phi = 0 plane)";
+            m_file->template def_var_as<double>( name, {"time", "Z", "R"},
+                    {{"long_name", long_name}});
         }
         #ifdef WITH_MPI // only root group needs to track
-        if( dg::mpi_comm_global2local_rank( m_writer.grid().communicator()) == MPI_UNDEFINED)
+        if( dg::file::detail::mpi_comm_global2local_rank( g2d_out_ptr->communicator()) == MPI_UNDEFINED)
             m_track  = false;
         #endif
         m_resultD = dg::evaluate( dg::zero, grid);
         m_transferD = dg::evaluate(dg::zero, g3d_out);
         m_transferH = dg::evaluate(dg::zero, g3d_out);
         m_projectD = dg::create::fast_projection( grid, 1, grid.Nx()/g3d_out.Nx(), grid.Ny()/g3d_out.Ny());
-        m_transferH2d = dg::evaluate( dg::zero, m_writer.grid());
-        m_toroidal_average = { g3d_out, dg::coo3d::z, "simple"};
+        m_transferH2d = dg::evaluate( dg::zero, *g2d_out_ptr);
+        m_toroidal_average = { g3d_out, dg::coo3d::z};
     }
     // same as buffer and flush
     void write( double time, Variables& var)
@@ -1956,14 +1954,14 @@ struct WriteIntegrateDiagnostics2dList
                 if( m_track)
                 {
                 std::string name = record.name+"_ta2d";
-                m_transferH2d = m_time_integrals.at(name).get_integral();
-                m_writer.put( name, m_transferH2d, m_start);
-                m_time_integrals.at(name).flush();
+                if(m_track) m_transferH2d = m_time_integrals.at(name).get_integral();
+                m_file->put_var( name, {m_start, m_slab}, m_transferH2d);
+                if(m_track) m_time_integrals.at(name).flush();
 
                 name = record.name + "_2d";
-                m_transferH2d = m_time_integrals.at(name).get_integral( );
-                m_writer.put( name, m_transferH2d, m_start);
-                m_time_integrals.at(name).flush();
+                if(m_track) m_transferH2d = m_time_integrals.at(name).get_integral( );
+                m_file->put_var( name, {m_start, m_slab}, m_transferH2d);
+                if(m_track) m_time_integrals.at(name).flush();
                 }
             }
             else // compute from scratch
@@ -1973,17 +1971,19 @@ struct WriteIntegrateDiagnostics2dList
 
                 dg::assign( m_transferD, m_transferH);
                 m_toroidal_average( m_transferH, m_transferH2d, false);
-                m_writer.put( record.name+"_ta2d", m_transferH2d, m_start);
+                m_file->put_var( record.name+"_ta2d", {m_start, m_slab}, m_transferH2d);
 
                 // 2d data of plane varphi = 0
                 dg::split( m_transferD, transferD2d_view, m_g3d_out);
                 dg::assign( transferD2d_view[0], m_transferH2d);
-                m_writer.put( record.name +"_2d", m_transferH2d, m_start);
+                m_file->put_var( record.name +"_2d", {m_start, m_slab}, m_transferH2d);
             }
         }
         m_start++;
     }
     private:
+    NcFile * m_file;
+    typename NcFile::Hyperslab m_slab;
     bool m_first_buffer = true;
     bool m_track = true;
     int m_start = 0;
@@ -1992,7 +1992,6 @@ struct WriteIntegrateDiagnostics2dList
     dg::x::HVec m_transferH;
     dg::MultiMatrix<dg::x::DMatrix,dg::x::DVec> m_projectD;
     dg::x::HVec m_transferH2d;
-    dg::file::Writer<dg::x::aGeometry2d> m_writer;
     dg::Average<dg::x::HVec> m_toroidal_average;
     std::map<std::string, dg::Simpsons<dg::x::HVec>> m_time_integrals;
     const dg::x::CylindricalGrid3d m_grid, m_g3d_out;

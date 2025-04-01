@@ -164,16 +164,17 @@ int main( int argc, char* argv[])
                     << argv[0]<<" [input.json] [output.nc] [initial.nc] "<<std::endl;
             dg::abort_program();
         }
-        dg::file::NC_Error_Handle err;
         std::string file_name = argv[2];
-        int ncid=-1;
+        dg::file::NcFile file;
         try{
-            DG_RANK0 err = nc_create( file_name.data(), NC_NETCDF4|NC_CLOBBER, &ncid);
-            DG_RANK0 thermal::write_global_attributes( ncid, argc, argv, inputfile);
+            file.open( file_name, dg::file::nc_clobber);
+            thermal::write_global_attributes( file, argc, argv, inputfile);
 #ifdef WRITE_POL_FILE
-            DG_RANK0 err_pol = nc_create( "polarisation.nc", NC_NETCDF4|NC_CLOBBER, &ncid_pol);
-            DG_RANK0 thermal::write_global_attributes( ncid_pol, argc, argv, inputfile);
-            pol_writer = {ncid_pol, grid, {"z", "y", "x"}};
+            file_pol.open( "polarisation.nc", dg::file::nc_clobber);
+            thermal::write_global_attributes( file_pol, argc, argv, inputfile);
+            file_pol.defput_dim( "x", {{"axis", "X"}}, grid.abscissas(0));
+            file_pol.defput_dim( "y", {{"axis", "Y"}}, grid.abscissas(1));
+            file_pol.defput_dim( "z", {{"axis", "Z"}}, grid.abscissas(2));
 #endif
 
         }catch( std::exception& e)
@@ -203,16 +204,22 @@ int main( int argc, char* argv[])
 
         // STATIC OUTPUT
         //create & output static 3d variables into file
-        dg::file::WriteRecordsList<dg::x::CylindricalGrid3d>(ncid, g3d_out,
-            {"z", "y", "x"}
-            ).write( thermal::diagnostics3d_static_list, var, g3d_out );
+        file.defput_dim( "R", {{"axis", "X"}, {"long_name", "R coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(0));
+        file.defput_dim( "Z", {{"axis", "Y"}, {"long_name", "Z coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(1));
+        file.defput_dim( "P", {{"axis", "Z"}, {"long_name", "Phi coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rad"}}, g3d_out.abscissas(2));
+        for( auto& record: thermal::diagnostics3d_static_list)
+        {
+            record.function( resultH_out, var.mag, g3d_out);
+            file.defput_var( record.name, {"P", "Z", "R"}, record.atts,
+                    {g3d_out}, resultH_out);
+        }
         //create & output static 2d variables into file
-        thermal::write_static_list( ncid, thermal::diagnostics2d_static_list,
+        thermal::write_static_list( file, thermal::diagnostics2d_static_list,
             var, grid, g3d_out, transition);
 
         if( p.calibrate)
         {
-            DG_RANK0 err = nc_close(ncid);
+            file.close();
 #ifdef WITH_MPI
             MPI_Finalize();
 #endif //WITH_MPI
@@ -220,15 +227,17 @@ int main( int argc, char* argv[])
         }
         // DYNAMIC OUTPUT
 
-        dg::file::WriteRecordsList<dg::x::Grid0d> diag1d( ncid, {}, {"time"});
-        thermal::WriteIntegrateDiagnostics2dList diag2d( ncid, grid, g3d_out,
+        file.def_dimvar_as<double>( "time", NC_UNLIMITED, {{"axis", "T"}, {"units", "Omega_ci^-1"}});
+
+        thermal::WriteIntegrateDiagnostics2dList diag2d( file, grid, g3d_out,
             thermal::generate_equation_list( js));
-        dg::file::WriteRecordsList<dg::x::CylindricalGrid3d> diag4d(
-            ncid, g3d_out, {"time", "z", "y", "x"});
-        dg::file::WriteRecordsList<dg::x::CylindricalGrid3d> restart( ncid,
-            grid, {"zr", "yr", "xr"});
+        file.defput_dim( "xr", {{"axis", "X"}}, grid.abscissas(0));
+        file.defput_dim( "yr", {{"axis", "Y"}}, grid.abscissas(1));
+        file.defput_dim( "zr", {{"axis", "Z"}}, grid.abscissas(2));
+        for( auto& record: thermal::restart3d_list)
+            file.def_var_as<double>( record.name, {"zr", "yr", "xr"}, record.atts);
         // Probes need to be the last because they define dimensions in subgroup
-        dg::file::Probes<dg::x::CylindricalGrid3d> probes( ncid, grid, dg::file::parse_probes(js));
+        dg::file::Probes probes( file, grid, dg::file::parse_probes(js));
 
         ///////////////////////////////////first output/////////////////////////
         DG_RANK0 std::cout << "# First output ... \n";
@@ -240,23 +249,37 @@ int main( int argc, char* argv[])
             } catch( dg::Fail& fail) {
                 DG_RANK0 std::cerr << "CG failed to converge in first step to "
                                   <<fail.epsilon()<<std::endl;
-                DG_RANK0 err = nc_close(ncid);
+                file.close();
                 dg::abort_program();
             }
         }
 
         DG_RANK0 std::cout << "# Write restart ...\n";
-        restart.write( thermal::restart3d_list, thermal);
+        for( auto& record: thermal::restart3d_list)
+        {
+            record.function( resultD, thermal);
+            file.put_var( record.name, {grid}, resultD);
+        }
 
         DG_RANK0 std::cout << "# Write diag1d ...\n";
-        diag1d.write( thermal::diagnostics1d_list, var, time);
+        file.put_var( "time", {0}, time);
+        for( auto& record: thermal::diagnostics1d_list)
+        {
+            file.def_var_as<double>( record.name, {"time"}, record.atts);
+            file.put_var( record.name, {0}, record.function( var));
+        }
         DG_RANK0 std::cout << "# Write diag2d ...\n";
         diag2d.write( time, var );
         DG_RANK0 std::cout << "# Write diag4d ...\n";
-        diag4d.transform_write(
-            dg::MultiMatrix<dg::x::DMatrix, dg::x::DVec>(
-            dg::create::fast_projection( grid, 1, p.cx, p.cy)),
-            thermal::diagnostics3d_list, dg::evaluate( dg::zero, grid), var);
+        dg::MultiMatrix<dg::x::DMatrix, dg::x::DVec> project(
+            dg::create::fast_projection( grid, 1, p.cx, p.cy));
+        for( auto& record : thermal::diagnostics3d_list)
+        {
+            record.function ( resultD, var);
+            dg::apply( project, resultD, resultD_out);
+            file.defput_var( record.name, {"time", "P", "Z", "R"},
+                    record.atts, {0, g3d_out}, resultD_out);
+        }
 
 
         DG_RANK0 std::cout << "# Write static probes ...\n";
@@ -265,7 +288,8 @@ int main( int argc, char* argv[])
         probes.write( time, thermal::probe_list, var);
 
         DG_RANK0 std::cout << "# Close file ...\n";
-        DG_RANK0 err = nc_close(ncid);
+        file.close();
+        size_t start = 1;
         DG_RANK0 std::cout << "# First write successful!\n";
         ///////////////////////////////Timeloop/////////////////////////////////
 
@@ -334,19 +358,28 @@ int main( int argc, char* argv[])
 
             ti.tic();
             //////////////////////////write fields////////////////////////
-            DG_RANK0 err = nc_open(file_name.data(), NC_WRITE, &ncid);
+            file.open( file_name, dg::file::nc_write);
             probes.flush();
             diag2d.flush( var);
 
-            restart.write( thermal::restart3d_list, thermal);
+            for( auto& record: feltor::restart3d_list)
+            {
+                record.function( resultD, thermal);
+                file.put_var( record.name, {grid}, resultD);
+            }
 
-            diag1d.write( thermal::diagnostics1d_list, var, time);
-            diag4d.transform_write(
-                dg::MultiMatrix<dg::x::DMatrix, dg::x::DVec>(
-                dg::create::fast_projection( grid, 1, p.cx, p.cy)),
-                thermal::diagnostics3d_list, dg::evaluate( dg::zero, grid), var);
+            file.put_var( "time", {start}, time);
+            for( auto& record: thermal::diagnostics1d_list)
+                file.put_var( record.name, {start}, record.function( var));
+            for( auto& record : thermal::diagnostics3d_list)
+            {
+                record.function ( resultD, var);
+                dg::apply( project, resultD, resultD_out);
+                file.put_var( record.name, {start, g3d_out}, resultD_out);
+            }
 
-            DG_RANK0 err = nc_close(ncid);
+            file.close();
+            start++;
             ti.toc();
             DG_RANK0 std::cout << "\n\t Time for output: "<<ti.diff()<<"s\n\n"<<std::flush;
             if( abort) break;
