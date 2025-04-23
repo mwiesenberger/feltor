@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dg/algorithm.h"
+#include "dg/geometries/geometries.h"
 
 namespace feltor
 {
