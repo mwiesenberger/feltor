@@ -66,7 +66,7 @@ The wall density is a list of values
         // length must equal number of species (see \ref{sec:species})
         // Quasineutrality must be observed $\sum_s z_s n_{s,wall} = 0$
         "uwall" : 0.0, // $U_{\parallel,w}$
-        "twall" : 0.1, // $T_w > 0$ wall temperature
+        "twall" : 0.1, // $T_w > 0$ wall temperature (see also tbc)
         "qwall" : 0, // $Q_{w}$
     }
     "sheath":
@@ -87,7 +87,7 @@ The second exception is the box boundary conditions section:
 \begin{tcolorbox}[title=Note]
 The box boundary conditions are the same as in `feltor.pdf`. The density boundary
 condition also applies to $T_\perp$ and $T_\parallel$ and the velocity
-also applies to $Q_\perp$ and $Q_\paralllel$. The nbc value for density
+also applies to $Q_\perp$ and $Q_\parallel$. The nbc value for density
 in case of Dirichlet must now have a value for each species and there must
 be a tbc value for temperature.
 \end{tcolorbox}
@@ -554,11 +554,7 @@ scheme. Here, we have some choices regarding the slope-limiter to use
 In order to stabilize the advection schemes and/or remove cascading energy
 from small scale wave components
 we implement an artificial viscosity of order $s$ Eq.~\eqref{eq:perpdiffNU}
-for the perpendicular terms.
-The finite volume scheme is shock capturing and thus does not need
-parallel viscosity in the density equations.
-The velocity equations already have a high physical
-viscosity and thus should not need additional damping.
+for the perpendicular terms and artificial viscosity of order 1 of the parallel terms.
 \begin{tcolorbox}[title=Note]
     We apply the viscosity to the parallel velocities $U_\parallel$ and
     not to the parallel canonical velocities $W_\parallel$.
@@ -566,13 +562,12 @@ viscosity and thus should not need additional damping.
 \begin{minted}[texcomments]{js}
 "regularization",
 {
-    "order" : 2,  // order of the artifical diffusion
+    "order" : 2,  // order of the perpendicular artifical diffusion
     "direction" : "centered",  // The direction of the Laplacian
-    "nu_perp_n" : 1e-6, // The strength of the diffusion for density
-    "nu_perp_u" : 1e-6 // The strength of the diffusion for velocity
-    // increase this or the resolution if you see vertical or horizontal
-    // oscillations in your simulation box, decrease if simulation
-    // looks "out of focus"
+    "nu_perp" : [1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4],
+    // The strength of the perpendicular diffusion for density, tperp, tpara, ...
+    "nu_parallel" : [1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4],
+    // The strength of the parallel diffusion for density, tperp, tpara, ...
 }
 \end{minted}
 Simply set the diffusion to 0 if you do not want any regularization.
@@ -1315,8 +1310,8 @@ can be computed in post processing.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Diagnostics}\label{sec:diagnostics}
 \mintinline{bash}{feltor/src/feltor/feltordiag.cu}
-reads one or more previously generated simulation file(s) \mintinline{bash}{input0.nc
- ... inputN.nc} described in Section~\ref{sec:output_file} and writes into a
+reads one or more previously generated simulation file(s) \mintinline{bash}{input0.nc ... inputN.nc}
+described in Section~\ref{sec:output_file} and writes into a
  single second output file \mintinline{bash}{output.nc} described as follows. \\
 Compilation
 \mint{bash}{make feltordiag device={gpu,omp}}

@@ -33,17 +33,16 @@ class ParallelDynamics
     const std::vector<Container>& get_staggered_density() const{
         return m_STN;
     }
-    // only call once
-    void update_apar( const Container& aparST)
+
+    void update_apar( const Container& aparST, Container& apar)
     {
         m_faST( dg::geo::einsMinus, aparST, m_minusST[0]);
         m_faST( dg::geo::zeroPlus,  aparST, m_plusST[0]);
         update_parallel_bc_1st( m_minusST[0], m_plusST[0], m_p.bcxA, 0.);
-        dg::blas1::axpby( 0.5, m_minusST[0], 0.5, m_plusST[0], m_apar);
+        dg::blas1::axpby( 0.5, m_minusST[0], 0.5, m_plusST[0], apar);
     }
-    const Container& get_apar() const{ return m_apar;}
 
-    // call once per species
+    // call once per species ( also updates m_minusST, ...)
     void update_quantities(
         unsigned s,
         const Container& aparST,
@@ -54,14 +53,14 @@ class ParallelDynamics
     const std::array<Container,6>& get_qST( ) const{return m_qST;}
     const std::array<Container,6>& get_psiST( ) const{return m_psiST;}
 
-    void add_para_density_dynamics(
+    // Call after update_quantities
+    void add_para_densities_advection(
         unsigned s,
         const std::array<Container,4>& psi,
         const std::array<std::vector<Container>,6>& y,
         std::array<std::vector<Container>,6>& yp);
-    void add_para_velocity_dynamics(
+    void add_para_velocities_advection(
         unsigned s,
-        const std::array<Container,4>& psi,
         const std::array<std::vector<Container>,6>& y,
         std::array<std::vector<Container>,6>& yp);
 
@@ -116,7 +115,7 @@ ParallelDynamics<Grid, IMatrix, Matrix, Container>::ParallelDynamics( const Grid
     ): m_p(p), m_js(js)
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp );
-    m_tminus = m_tplus = m_apar = m_temp;
+    m_tminus = m_tplus = m_temp;
 
     m_minusSTN.resize( m_p.num_species);
     std::fill( m_minusSTN.begin(), m_minusSTN.end(), m_temp);
@@ -236,7 +235,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::update_quantities(
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_density_dynamics(
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_densities_advection(
         unsigned s,
         const std::array<Container,4>& psi,
         const std::array<std::vector<Container>,6>& y,
@@ -273,7 +272,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_density_dynami
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocity_dynamics(
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_advection(
         unsigned s,
         const std::array<std::vector<Container>,6>& y,
         std::array<std::vector<Container>,6>& yp)

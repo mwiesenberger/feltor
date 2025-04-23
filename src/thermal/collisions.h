@@ -145,6 +145,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_collisions(
             }, m_temp0, densityST[s], densityST[k], m_tparaST[s], m_tparaST[k], y[3][s], y[3][k], aparST);
         }
 
+        // TODO we have access to R0 through mag so replace landau with qlandau*R_0
         // SQperp Lorentz
         double kappas = m_p.kappa[s];
         double landau = m_p.landau;

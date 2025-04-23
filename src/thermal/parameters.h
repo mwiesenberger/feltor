@@ -24,15 +24,18 @@ struct Parameters
     double rk4eps;
     std::string interpolation_method;
     std::vector<double> nbc; // boundary condition for density
+    double tbc; // boundary condition for  temperature
 
     double nu_ref, beta;
 
     unsigned diff_order;
-    double nu_perp_n, nu_perp_u, nu_parallel_n;
+    std::array<double, 6> nu_perp, nu_parallel;
     enum dg::direction diff_dir;
     std::string slope_limiter;
 
-    double source_rate, nwall, uwall, wall_rate;
+    std::vector<double> nwall;
+    double uwall, twall, qwall, wall_rate;
+    double source_rate;
 
     enum dg::bc bcxN, bcyN, bcxU, bcyU, bcxP, bcyP, bcxA, bcyA;
     enum dg::direction pol_dir;
@@ -95,9 +98,11 @@ struct Parameters
         diff_order  = js["regularization"].get( "order", 2).asUInt();
         diff_dir    = dg::str2direction(
                 js["regularization"].get( "direction", "centered").asString() );
-        nu_perp_n   = js["regularization"].get( "nu_perp_n", 0.).asDouble();
-        nu_perp_u   = js["regularization"].get( "nu_perp_u", 0.).asDouble();
-        nu_parallel_n = js["regularization"].get( "nu_parallel_n", 0.).asDouble();
+        for( unsigned u=0; u<6; u++)
+        {
+            nu_perp[u]   = js["regularization"]["nu_perp"].get( u, 0.).asDouble();
+            nu_parallel[u] = js["regularization"]["nu_parallel"].get( u, 0.).asDouble();
+        }
         slope_limiter = js["advection"].get("slope-limiter", "none").asString();
         if( (slope_limiter != "none") && (slope_limiter != "minmod")
              && (slope_limiter != "vanLeer")
@@ -132,25 +137,39 @@ struct Parameters
         source_rate = 0.;
         if( js["source"].get("type", "zero").asString() != "zero")
             source_rate = js[ "source"].get( "rate", 0.).asDouble();
-        sheath_bc = js["boundary"]["sheath"].get("type", "bohm").asString();
-        if( (sheath_bc != "bohm") && (sheath_bc != "insulating") &&
+        sheath_bc = js["boundary"]["sheath"].get("type", "insulating").asString();
+        if( (sheath_bc != "insulating") && // "bohm" is not valid
                 (sheath_bc != "none") && (sheath_bc != "wall"))
             throw std::runtime_error( "ERROR: Sheath bc "+sheath_bc+" not recognized!\n");
 
+        // Pperp and Ppara bc are same as N
         bcxN = dg::str2bc(js["boundary"]["bc"][  "density"].get( 0, "").asString());
         bcyN = dg::str2bc(js["boundary"]["bc"][  "density"].get( 1, "").asString());
-        nbc = 0.;
-        if( bcxN == dg::DIR || bcxN == dg::DIR_NEU || bcxN == dg::NEU_DIR
-            || bcyN == dg::DIR || bcyN == dg::DIR_NEU || bcyN == dg::NEU_DIR)
-            nbc = js["boundary"]["bc"].get( "nbc", 1.0).asDouble();
-            // assert that sum z[s] nbc[s] gives 0
-
+        // Qperp and Qpara bc are same as U
         bcxU = dg::str2bc(js["boundary"]["bc"][ "velocity"].get( 0, "").asString());
         bcyU = dg::str2bc(js["boundary"]["bc"][ "velocity"].get( 1, "").asString());
+
         bcxP = dg::str2bc(js["boundary"]["bc"]["potential"].get( 0, "").asString());
         bcyP = dg::str2bc(js["boundary"]["bc"]["potential"].get( 1, "").asString());
         bcxA = dg::str2bc(js["boundary"]["bc"]["aparallel"].get( 0, "").asString());
         bcyA = dg::str2bc(js["boundary"]["bc"]["aparallel"].get( 1, "").asString());
+        nbc.resize( num_species, 0);
+        if( bcxN == dg::DIR || bcxN == dg::DIR_NEU || bcxN == dg::NEU_DIR
+            || bcyN == dg::DIR || bcyN == dg::DIR_NEU || bcyN == dg::NEU_DIR)
+        {
+            double sum_n = 0;
+            tbc = js["boundary"]["bc"].get( "tbc", 1.0).asDouble();
+            for( unsigned s=0; s<num_species; s++)
+            {
+                nbc[s] = js["boundary"]["bc"]["nbc"].get( s, 1.0).asDouble();
+                sum_n += z[s] * nbc[s];
+            }
+            if( fabs( sum_n) > 1e-15)
+                throw std::runtime_error( "Sum of wall charge nbc " + std::to_string( sum_n) +" is not zero \n");
+            if( bcxN != dg::DIR || bcyN != dg::DIR)
+                throw std::runtime_error( "Density boundary condition must be dg::DIR or dg::NEU in both x and y direction \n");
+        }
+
 
         if( fci_bc == "along_field" || fci_bc == "perp")
         {
@@ -167,15 +186,25 @@ struct Parameters
 
         curvmode    = js["magnetic_field"].get( "curvmode", "toroidal").asString();
         penalize_wall = penalize_sheath = false;
-        nwall = uwall = wall_rate = 0.;
+        nwall.resize( num_species);
+        twall = uwall = qwall = wall_rate = 0.;
         if( js["boundary"]["wall"].get("type","none").asString() != "none")
         {
             penalize_wall = js["boundary"]["wall"].get( "penalize-rhs",
                     false).asBool();
             wall_rate = js ["boundary"]["wall"].get( "penalization",
                     0.).asDouble();
-            nwall = js["boundary"]["wall"].get( "nwall", 1.0).asDouble();
-            uwall = js["boundary"]["wall"].get( "uwall", 0.0).asDouble();
+            double sum_n = 0;
+            for( unsigned s=0; s<num_species; s++)
+            {
+                nwall[s] = js["boundary"]["wall"]["nwall"].get( s, 1.0).asDouble();
+                sum_n += z[s] * nwall[s];
+            }
+            if( fabs( sum_n) > 1e-15)
+                throw std::runtime_error( "Sum of wall charge densities " + std::to_string( sum_n) +" is not zero \n");
+            uwall = js["boundary"]["uwall"].get( "uwall", 0.0).asDouble();
+            qwall = js["boundary"]["qwall"].get( "qwall", 0.0).asDouble();
+            twall = js["boundary"]["twall"].get( "twall", 1.0).asDouble();
         }
         if( sheath_bc != "none")
         {

@@ -4,6 +4,7 @@
 #include "parameters.h"
 #include "dg/matrix/matrix.h"
 #include "dg/geometries/geometries.h"
+#include "../feltor/common.h"
 
 
 namespace thermal
@@ -25,16 +26,24 @@ struct ThermalSolvers
         bool penalize_wall, const Container& wall,
         bool penalize_sheath, const Container& sheath
     );
-    void compute_aparST( double t, const std::vector<Container>&,
-            std::vector<Container>&, Container&, bool);
 
+    void compute_aparST( double time, const std::vector<Container>& densityST,
+        const std::vector<Container>& wST, Container& aparST,
+        // update determines if old solution is updated (or start iteration from 0)
+        bool update);
+
+    // Only valid directly after compute_phi, because it stores tridiag from phi
     void compute_psi(
         double time, const std::vector<Container>& density,
         const std::vector<Container>& pperp,
         const Container& phi,
         std::array<Container,4>& psi, unsigned s);
 
-    prviate:
+    const Geometry& grid() const {
+        return m_multigrid.grid(0);
+    }
+
+    private:
     thermal::Parameters m_p;
     Container m_temp0, m_temp1, m_temp2, m_rhoinv2, m_B2, m_vol;
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
@@ -46,21 +55,20 @@ struct ThermalSolvers
 
     dg::Elliptic2d<Geometry, Matrix, Container> m_laplaceM;
     dg::mat::ProductMatrixFunction<Container> m_prod;
-    cusp::dia_matrix<int, double, cusp::host_memory> m_T;
+    dg::TriDiagonal<thrust::host_vector<double>> m_T;
 
-    dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
     dg::Extrapolation<Container> m_old_phi, m_old_aparST;
     std::vector<dg::Extrapolation<Container>> m_old_gammaN;
 };
 
 template<class Geometry, class Matrix, class Container>
-Explicit<Geometry, Matrix, Container>::Explicit( const Geometry& g,
+ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
     thermal::Parameters p, dg::geo::TokamakMagneticField mag,
     dg::file::WrappedJsonValue js
     ): m_p(p),
     m_multigrid( g, p.stages),
     m_old_phi( 2, dg::evaluate( dg::zero, g)), m_old_aparST( m_old_phi),
-    m_old_gammaN( p.num_species - p.num_trivial, m_old_phi),
+    m_old_gammaN( p.num_species - p.num_trivial, m_old_phi)
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
     m_rhoinv2 = m_temp2, m_temp1 = m_temp0;
@@ -146,7 +154,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
         dg::blas1::axpby( m_p.z[s], m_temp2, 1., m_temp0);
     }
     // Add penalization method
-    feltor::common::multiply_rhs_penalization( m_temp0, penalize_wall, wall, penalize_sheath, sheath );
+    common::multiply_rhs_penalization( m_temp0, penalize_wall, wall, penalize_sheath, sheath );
     //----------Invert polarisation----------------------------//
     m_old_phi.extrapolate( time, phi);
     m_multigrid.set_benchmark( true, "Polarisation");
@@ -159,21 +167,21 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     t.tic();
     dg::mat::GyrolagK<double> func(0, -1.);
     auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( x, 1./min);});
-    m_T = krylovproduct.lanczos().tridiag( unary_func, m_laplaceM, phi, m_vol, m_p.eps_pol, 1.,
+    m_T = m_prod.lanczos().tridiag( unary_func, m_laplaceM, phi, m_vol, m_p.eps_pol, 1.,
                 "universal", 1.0, 1);
     t.toc();
 #ifdef MPI_VERSION
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
-    DG_RANK0 std::cout << "# Lanczos tridiag "<<m_T.iter<<" iterations took "<<t.diff()<<"s\n";
+    DG_RANK0 std::cout << "# Lanczos tridiag "<<m_T.size()<<" iterations took "<<t.diff()<<"s\n";
 
 
 
 }
 
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_aparST(
+template<class Geometry, class Matrix, class Container>
+void ThermalSolvers<Geometry, Matrix, Container>::compute_aparST(
     double time, const std::vector<Container>& densityST,
     const std::vector<Container>& wST, Container& aparST,
     // update determines if old solution is updated (or start iteration from 0)
@@ -185,7 +193,7 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_aparST(
     for( unsigned s=0; s<m_p.num_species; s++)
     {
         dg::blas1::axpby(  m_p.beta*m_p.z[s]*m_p.z[s]/m_p.mu[s],
-            m_densityST[s], 1., m_temp0);
+            densityST[s], 1., m_temp0);
     }
     m_multigrid.project( m_temp0, m_multi_chi);
     for( unsigned u=0; u<m_p.stages; u++)
@@ -210,8 +218,8 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_aparST(
         throw dg::Fail( m_p.eps_ampere);
 }
 
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_psi(
+template<class Geometry, class Matrix, class Container>
+void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
     double time, const std::vector<Container>& density,
     const std::vector<Container>& pperp,
     const Container& phi, std::array<Container,4>& psi, unsigned s
@@ -235,11 +243,11 @@ void ThermalSolvers<Geometry, IMatrix, Matrix, Container>::compute_psi(
         dg::mat::GyrolagK<double> func(u, -1.);
         m_prod.compute_vlcl( func, m_rhoinv2, m_laplaceM, m_T, psi[u], phi, m_prod.lanczos().get_bnorm());
     }
-    dg::blas1::axpbypgz( -6., m_psi[1], 12., m_psi[2], -6., m_psi[3]);
-    dg::blas1::axpby(    -2., m_psi[1],  2., m_psi[2]);
-    dg::blas1::scal( -1., m_psi[1]);
+    dg::blas1::axpbypgz( -6., psi[1], 12., psi[2], -6., psi[3]);
+    dg::blas1::axpby(    -2., psi[1],  2., psi[2]);
+    dg::blas1::scal( -1., psi[1]);
     m_laplaceM.variation( phi, m_temp0);
-    dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., m_psi[0]);
+    dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., psi[0]);
 }
 
 }//namespace thermal
