@@ -79,8 +79,8 @@ int main( int argc, char* argv[])
         dg::x::DMatrix, dg::x::DVec> thermal( grid, p, mag, js);
     DG_RANK0 std::cout << "# Done!\n";
 
-    thermal.set_wall( p.wall_rate, dg::construct<dg::x::DVec>( dg::pullback(
-                    wall, grid)), p.nwall, p.uwall );
+    thermal.set_wall( dg::construct<dg::x::DVec>( dg::pullback(
+                    wall, grid)) );
 
     dg::geo::CylindricalFunctor sheath, sheath_coordinate =
         [](double x, double y){return 0.;};

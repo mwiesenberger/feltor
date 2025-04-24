@@ -234,16 +234,11 @@ struct Explicit
                 swap( temp0, temp1);
                 dg::blas2::symv( 1., m_lapperpU, temp1, 0., temp0);
             }
-            if( !m_modify_diff)
-                dg::blas1::pointwiseDivide( -alpha*m_p.nu_perp_u, temp0, density, beta, result);
-            else
-                dg::blas1::axpby( -alpha*m_p.nu_perp_u, temp0, beta, result);
+            dg::blas1::pointwiseDivide( -alpha*m_p.nu_perp_u, temp0, density, beta, result);
         }
         else
             dg::blas1::scal( result, beta);
         double nu = m_p.nu_perp_n;
-        if( m_modify_diff)
-            nu += m_p.nu_perp_u;
         if( nu > 0 )
         {
 
@@ -282,7 +277,6 @@ struct Explicit
         }
     }
 
-    bool modify_diff() const {return m_modify_diff;}
     void compute_parallel_diffusiveN( int i, Container& result)
     {
         dg::blas1::axpby( m_p.nu_parallel_n, lapParN(i), 0., result);
@@ -290,8 +284,6 @@ struct Explicit
     void compute_parallel_diffusiveU( int i, Container& result)
     {
         double nu = m_p.nu_parallel_n;
-        if( m_modify_diff)
-            nu += m_p.nu_parallel_u[i];
         if( nu > 0)
         {
             dg::blas1::pointwiseDot( dsN(i), dsU(i), result);
@@ -301,10 +293,7 @@ struct Explicit
             dg::blas1::copy( 0, result);
         if( m_p.nu_parallel_u[i] > 0)
         {
-            if( !m_modify_diff)
-                dg::blas1::pointwiseDivide( m_p.nu_parallel_u[i], lapParU(i), density(i), 1., result);
-            else
-                dg::blas1::axpby( m_p.nu_parallel_u[i], lapParU(i), 1., result);
+            dg::blas1::pointwiseDivide( m_p.nu_parallel_u[i], lapParU(i), density(i), 1., result);
         }
     }
 
@@ -464,22 +453,17 @@ struct Explicit
         m_minrate = minrate;
         m_minalpha = minalpha;
     }
-    void set_wall(double wall_rate, const Container& wall, double nwall, double uwall)
+    void set_wall(const Container& wall)
     {
-        m_wall_rate = wall_rate;
         dg::blas1::copy( wall, m_wall);
-        m_nwall = nwall;
-        m_uwall = uwall;
     }
     void set_sheath(double sheath_rate, const Container& sheath,
             const Container& sheath_coordinate)
     {
-        m_sheath_rate = sheath_rate;
-        dg::blas1::copy( sheath, m_sheath);
-        dg::blas1::copy( sheath_coordinate, m_sheath_coordinate);
+        m_parallel.set_sheath( sheath_rate, sheath, sheath_coordinate);
     }
-    void add_wall_and_sheath_terms( std::array<std::array<Container,2>,2>& yp);
-    void add_source_terms(          std::array<std::array<Container,2>,2>& yp);
+    void add_wall_terms(   std::array<std::vector<Container>,6>& yp);
+    void add_source_terms( std::array<std::vector<Container>,6>& yp);
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
     {
         return m_parallel.fieldaligned();
@@ -493,8 +477,7 @@ struct Explicit
     //
     Container m_phi, m_apar, m_aparST;
 
-    Container m_source, m_profne, m_sheath_coordinate;
-    Container m_wall, m_sheath;
+    Container m_source, m_profne, m_wall;
     dg::Extrapolation<Container> m_old_apar;
     std::array<Container,4> m_psi;
 
@@ -503,11 +486,9 @@ struct Explicit
     const dg::file::WrappedJsonValue m_js;
     std::vector<bool> m_upToDate;
 
-    double m_source_rate = 0., m_sheath_rate = 0., m_wall_rate = 0.;
+    double m_source_rate = 0.;
     double m_minne = 0., m_minrate  = 0., m_minalpha = 0.;
-    double m_nwall = 0., m_uwall = 0.;
     bool m_fixed_profile = true;
-    bool m_modify_diff = false;
     unsigned m_called = 0;
 
 };
@@ -531,15 +512,6 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
         m_psi[i] = m_phi;
 
     //--------------------------Construct-------------------------//
-    // An optional hidden parameter
-    if( m_js["regularization"].isMember("modify-diff") )
-        m_modify_diff = m_js["regularization"]["modify-diff"].asBool();
-#ifdef MPI_VERSION
-    int rank;
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-#endif
-    if( m_modify_diff)
-        DG_RANK0 std::cout << "# Optional parameter \"modify-diff\" activated\n";
     m_upToDate.resize( m_p.num_species);
     for( unsigned s=0; s<m_p.num_species; s++)
         m_upToDate[s] = false;
@@ -550,7 +522,7 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
-    std::array<std::array<Container,2>,2>& yp)
+    std::array<std::vector<Container>,6>& yp)
 {
     if( m_source_rate != 0.0)
     {
@@ -604,77 +576,22 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
     //Add all to the right hand side
     dg::blas1::axpby( 1., m_s, 1.0, yp);
 }
+
 template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::add_wall_and_sheath_terms(
-        std::array<std::vector<Container>,4>& yp)
+void Explicit<Geometry, IMatrix, Matrix, Container>::add_wall_terms(
+        std::array<std::vector<Container>,6>& yp)
 {
-    // add sheath boundary conditions
-    if( m_sheath_rate != 0)
-    {
-        ////density
-        ////Here, we need to find out where "downstream" is
-        //!! Simulations does not really work without
-        for( unsigned i=0; i<2; i++)
-        {
-            //The coordinate automatically sees the reversed field
-            //but m_plus and m_minus are defined wrt the angle coordinate
-            if( m_reversed_field) //bphi negative (exchange + and -)
-                dg::blas1::evaluate( m_temp0, dg::equals(), dg::Upwind(),
-                     m_sheath_coordinate, m_plusN[i], m_minusN[i]);
-            else
-                dg::blas1::evaluate( m_temp0, dg::equals(), dg::Upwind(),
-                     m_sheath_coordinate, m_minusN[i], m_plusN[i]);
-            dg::blas1::pointwiseDot( m_sheath_rate, m_temp0, m_sheath, 1.,
-                    yp[0][i]);
-        }
-        //compute sheath velocity
-        if( "wall" == m_p.sheath_bc)
-        {
-            for( unsigned i=0; i<2; i++)
-            {
-                //dg::blas1::axpby( +m_sheath_rate*m_nwall, m_sheath, 1., yp[0][i] );
-                dg::blas1::axpby( +m_sheath_rate*m_uwall, m_sheath, 1., yp[1][i] );
-            }
-        }
-        else
-        {
-            //velocity c_s
-            double cs = sqrt(1.+m_p.tau[1]), sheath_rate = m_sheath_rate;
-            if( "insulating" == m_p.sheath_bc)
-            {
-                // u_e,sh = s*sqrt(1+tau) Ni/ne
-                dg::blas1::evaluate( yp[1][0], dg::plus_equals(),
-                        [cs, sheath_rate]DG_DEVICE( double sheath_coord, double
-                            sheath, double ne, double ni) {
-                            return cs*sheath_rate*sheath_coord*ni/ne*sheath;
-                        },
-                        m_sheath_coordinate, m_sheath, m_densityST[0],
-                        m_densityST[1]);
-            }
-            else // "bohm" == m_p.sheath_bc
-            {
-                //u_e,sh = s*1/sqrt(|mu_e|2pi) exp(-phi)
-                double mue = fabs(m_p.mu[0]), tau = m_p.tau[1];
-                dg::blas1::evaluate( yp[1][0], dg::plus_equals(),
-                    [mue, sheath_rate, tau]DG_DEVICE(
-                        double sheath_coord, double sheath, double phi) {
-                        return sheath_rate * sheath_coord * sheath *
-                            sqrt(1.+tau) * exp(-phi) / sqrt( mue*2.*M_PI);
-                    },
-                    m_sheath_coordinate, m_sheath, m_potentialST[0]);
-            }
-            // u_i,sh = s*sqrt(1+tau)
-            dg::blas1::pointwiseDot( sheath_rate*cs,
-                    m_sheath, m_sheath_coordinate, 1.,  yp[1][1]);
-        }
-    }
     // add wall boundary conditions
-    if( m_wall_rate != 0)
+    if( m_p.wall_rate != 0)
     {
-        for( unsigned i=0; i<2; i++)
+        for( unsigned s=0; s<m_p.num_species; s++)
         {
-            dg::blas1::axpby( +m_wall_rate*m_nwall, m_wall, 1., yp[0][i] );
-            dg::blas1::axpby( +m_wall_rate*m_uwall, m_wall, 1., yp[1][i] );
+            dg::blas1::axpby( +m_p.wall_rate*m_p.nwall[s], m_wall, 1., yp[0][s] );
+            dg::blas1::axpby( +m_p.wall_rate*m_p.twall*m_p.nwall[s], m_wall, 1., yp[1][s] );
+            dg::blas1::axpby( +m_p.wall_rate*m_p.twall*m_p.nwall[s], m_wall, 1., yp[2][s] );
+            dg::blas1::axpby( +m_p.wall_rate*m_p.uwall, m_wall, 1., yp[3][s] );
+            dg::blas1::axpby( +m_p.wall_rate*m_p.qwall, m_wall, 1., yp[4][s] );
+            dg::blas1::axpby( +m_p.wall_rate*m_p.qwall, m_wall, 1., yp[5][s] );
         }
     }
 }
@@ -753,127 +670,54 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
         // Add parallel dynamics
         m_parallel.add_para_densities_advection( s, m_psi, y, yp);
         m_parallel.add_para_velocities_advection( s, y, yp);
-        // TODO Add perp & parallel diffusion and collisions
 
-        m_collisions.gather_quantities( s, )
+        m_parallel.add_perp_densities_diffusion( s, y, m_parallel.get_q(), yp);
+        m_parallel.add_perp_velocities_diffusion( s, y, m_parallel.get_qST(), yp);
+        m_parallel.add_para_densities_diffusion( s, y, yp);
+        m_parallel.add_para_velocities_diffusion( s, y, yp);
+
+        m_parallel.add_sheath_neumann_terms( s, yp);
+
+        m_collisions.gather_quantities( s, m_parallel.get_q(), m_parallel.get_qST() )
+
+        timer.toc();
+        accu += timer.diff();
+        DG_RANK0 std::cout << "## Compute para dynamics             took "
+                           << timer.diff() << "s\t A: "<<accu<<"s\n";
+        timer.tic();
 
     } // species loops
 
-    m_collisions.add_collisions(  , m_aparST, y, yp);
-    if( !m_p.partitioned)
+    m_collisions.add_collisions( m_parallel.get_qST()[0], m_aparST, y, yp);
+    m_parallel.add_sheath_velocity_terms( m_collisions.get_tparaST(), yp);
+
+    for( unsigned i=0; i<6; i++)
     {
-        // explicit and implicit timestepper
-        add_implicit_density( t, m_density, 1., yp[0]);
-        add_implicit_velocityST( t, m_densityST, m_velocityST, 1., yp[1]);
-    }
-    else
-    {
-        // partitioned means imex timestepper
-        for( unsigned i=0; i<4; i++)
+        for( unsigned s=0; s<m_p.num_species; s++)
         {
-            for( unsigned s=0; s<m_p.num_species; s++)
-                multiply_rhs_penalization( yp[i][s]); // F*(1-chi_w-chi_s)
+            common::multiply_rhs_penalization( yp[i][s], m_p.penalize_wall,
+                m_wall, m_p.penalize_sheath, m_sheath); // F*(1-chi_w-chi_s)
+            if( i != 3)
+                dg::blas1::pointwiseDot( -m_wall_rate, m_wall, y[i][s],
+                    -m_sheath_rate, m_sheath, y[i][s], 1., yp[i][s]);
+            else
+                // Apply to U, not W
+                dg::blas1::pointwiseDot( -m_wall_rate, m_wall, m_parallel.get_qST[3],
+                    -m_sheath_rate, m_sheath, m_parallel.get_qST[3], 1., yp[i][s]);
         }
     }
 
-    add_wall_and_sheath_terms( yp);
+    add_wall_terms( yp);
     //Add source terms
     // set m_s
     add_source_terms( yp );
 
     timer.toc();
     accu += timer.diff();
-    #ifdef MPI_VERSION
-        if(rank==0)
-    #endif
-    std::cout << "## Add parallel dynamics and sources took "<<timer.diff()
+    DG_RANK0 std::cout << "## Add parallel dynamics and sources took "<<timer.diff()
               << "s\t A: "<<accu<<"\n";
 }
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::add_implicit_density(
-    double t,
-    const std::vector<Container>& density,
-    double beta,
-    std::vector<Container>& yp)
-{
-    for( unsigned i=0; i<m_p.num_species; i++)
-        compute_perp_diffusiveN( 1., density[i], m_temp0,
-                m_temp1, beta, yp[i]);
-    for( unsigned i=0; i<m_p.num_species; i++)
-    {
-        if( m_p.nu_parallel_n > 0)
-        {
-            dg::geo::dssd_centered( m_fa, m_p.nu_parallel_n,
-                    m_minusN[i], m_zeroN[i], m_plusN[i], 1., yp[i]);
-        }
-    }
-    for( unsigned i=0; i<m_p.num_species; i++)
-    {
-        multiply_rhs_penalization( yp[i]); // F*(1-chi_w-chi_s)
-        dg::blas1::pointwiseDot( -m_wall_rate, m_wall, density[i],
-            -m_sheath_rate, m_sheath, density[i], 1., yp[i]); // -r N
-    }
-}
 
-template<class Geometry, class IMatrix, class Matrix, class Container>
-template<size_t N>
-void Explicit<Geometry, IMatrix, Matrix, Container>::add_implicit_velocityST(
-    double t,
-    const std::vector<Container>& densityST,
-    const std::vector<Container>& velocityST,
-    double beta,
-    std::vector<Container>& yp)
-{
-    // velocityST[s] := u_s^dagger
-    for( unsigned i=0; i<m_p.num_species; i++)
-    {
-        compute_perp_diffusiveU( 1., velocityST[i], densityST[i], m_temp0,
-                m_temp1, m_dFU[i][0], m_dFU[i][1], beta, yp[i]);
-    }
-    for( unsigned i=0; i<m_p.num_species; i++)
-    {
-        // Add parallel viscosity
-        if( m_p.nu_parallel_u[i] > 0)
-        {
-            dg::geo::dssd_centered( m_fa, m_p.nu_parallel_u[i],
-                    m_minusU[i], m_zeroU[i], m_plusU[i], 0., m_temp0);
-            if( !m_modify_diff)
-                dg::blas1::pointwiseDivide( 1., m_temp0, densityST[i], 1., yp[i]);
-            else
-                dg::blas1::axpby( 1., m_temp0, 1., yp[i]);
-        }
-        double nu = m_p.nu_parallel_n;
-        if( m_modify_diff)
-            nu += m_p.nu_parallel_u[i];
-        if( nu > 0)
-        {
-            // Add density gradient correction
-            double delta = m_fa.deltaPhi();
-            dg::blas1::subroutine( [delta, nu]DG_DEVICE ( double& WDot,
-                        double QN, double PN, double UM, double U0, double UP,
-                        double bphi)
-                    {
-                        //upwind scheme
-                        double nST = (PN+QN)/2.;
-                        double current = -nu*bphi*(PN-QN)/delta/nST;
-                        if( current > 0)
-                            WDot += - current*bphi*(U0-UM)/delta;
-                        else
-                            WDot += - current*bphi*(UP-U0)/delta;
-
-                    },
-                    yp[i], m_minusSTN[i], m_plusSTN[i], m_minusU[i], m_zeroU[i],
-                    m_plusU[i], m_fa.bphi()
-            );
-        }
-    }
-    for( unsigned i=0; i<m_p.num_species; i++)
-    {
-        multiply_rhs_penalization( yp[i]); // F*(1-chi_w-chi_s)
-        dg::blas1::pointwiseDot( -m_wall_rate, m_wall, velocityST[i],
-            -m_sheath_rate, m_sheath, velocityST[i], 1., yp[i]); // -r U
-    }
-}
 
 
 } //namespace thermal

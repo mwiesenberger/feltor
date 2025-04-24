@@ -17,6 +17,14 @@ class ParallelDynamics
     {
         return m_fa;
     }
+
+    void set_sheath(double sheath_rate, const Container& sheath,
+            const Container& sheath_coordinate)
+    {
+        m_sheath_rate = sheath_rate;
+        dg::blas1::copy( sheath, m_sheath);
+        dg::blas1::copy( sheath_coordinate, m_sheath_coordinate);
+    }
     // call before computing AparST
     void udpate_staggered_density( const std::vector<Container>& density)
     {
@@ -29,9 +37,6 @@ class ParallelDynamics
                     m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc[s] : 0.);
             dg::blas1::axpby( 0.5, m_minusSTN[s], 0.5, m_STN[s], m_STN[s]);
         }
-    }
-    const std::vector<Container>& get_staggered_density() const{
-        return m_STN;
     }
 
     void update_apar( const Container& aparST, Container& apar)
@@ -52,6 +57,7 @@ class ParallelDynamics
     const std::array<Container,6>& get_q( ) const{return m_q;}
     const std::array<Container,6>& get_qST( ) const{return m_qST;}
     const std::array<Container,6>& get_psiST( ) const{return m_psiST;}
+    const std::vector<Container>& get_staggered_density() const{ return m_STN; }
 
     // Call after update_quantities
     void add_para_densities_advection(
@@ -62,6 +68,24 @@ class ParallelDynamics
     void add_para_velocities_advection(
         unsigned s,
         const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp);
+    void add_para_densities_diffusion(
+        unsigned s,
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp);
+    void add_para_velocities_diffusion(
+        unsigned s,
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp);
+
+    // Has to be called together with add_para_dynamics
+    void add_sheath_neumann_terms(
+        unsigned s,
+        std::array<std::vector<Container>,6>& yp);
+
+    // Has to be called once tparaST could be collected in collisions
+    void add_sheath_velocity_terms(
+        const std::vector<Container>& tparaST, // from collisions
         std::array<std::vector<Container>,6>& yp);
 
     private:
@@ -86,16 +110,17 @@ class ParallelDynamics
     }
     dg::geo::Fieldaligned<Geometry, IMatrix, Container> m_fa, m_faST;
 
-    Container m_temp, m_apar, m_tminus, m_tplus;
+    Container m_temp, m_tminus, m_tplus;
     Container m_divb;
 
     std::vector<Container> m_minusSTN, m_STN;
     // m_plusSTN = 2*m_STN - m_minusSTN
 
     // Everything is:
+    // N, Tperp, Tpara, UST, UperpST, UparaST
+    std::array<Container,6> m_minus, m_zero, m_plus, m_minusST, m_plusST;
     // N, Tperp, Tpara, U, Uperp, Upara
-    std::array<Container,6> m_minus, m_zero, m_plus;
-    std::array<Container,6> m_minusST, m_plusST, m_q, m_qST;
+    std::array<Container,6> m_q, m_qST;
     // ds Psi
     std::array<Container,2> m_dsP, m_dsPST;
     // PsiST
@@ -103,9 +128,12 @@ class ParallelDynamics
 
     std::array<Container,6> m_divNUb;
 
+    Container m_sheath_coordinate, m_sheath;
+
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
     bool m_reversed_field = false;
+    double m_sheath_rate = 0.;
 };
 
 template<class Grid, class IMatrix, class Matrix, class Container>
@@ -337,5 +365,130 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_adv
 
 }
 
+template<class Grid, class IMatrix, class Matrix, class Container>
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_densities_diffusion(
+        unsigned s,
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp)
+{
+    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[0],
+            m_minus[0], m_zero[0], m_plus[0], 1., yp[0][s]);
+    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[1],
+            m_minus[1], m_zero[1], m_plus[1], 1., yp[1][s]);
+    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[2],
+            m_minus[2], m_zero[2], m_plus[2], 1., yp[2][s]);
+    // Add para temp generation through friction
+    dg::geo::ds_centered( m_fa, 1., m_minus[3], m_plus[3],0., m_temp); //dsU
+    dg::blas1::pointwiseDot( +2.*m_p.mu[s]*m_p.nu_parallel[3], m_temp, m_temp, 1., yp[2][s]);
+}
+template<class Grid, class IMatrix, class Matrix, class Container>
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_diffusion(
+        unsigned s,
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp)
+{
+
+    // Add parallel viscosity
+    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[3],
+            m_minus[3], m_zero[3], m_plus[3], 0., m_temp0);
+    dg::blas1::pointwiseDivide( 1., m_temp0, m_qST[3], 1., yp[3][s]);
+    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[4],
+            m_minus[4], m_zero[4], m_plus[4], 1., yp[4][s]);
+    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[5],
+            m_minus[5], m_zero[5], m_plus[5], 0., yp[5][s]);
+    // Add density gradient correction
+    double delta = m_fa.deltaPhi(), nu = m_p.nu_parallel[0];
+    dg::blas1::subroutine( [delta, nu]DG_DEVICE ( double& WDot,
+                double QN, double PN, double UM, double U0, double UP,
+                double bphi)
+            {
+                //upwind scheme
+                double nST = (PN+QN)/2.;
+                double current = -nu*bphi*(PN-QN)/delta/nST;
+                if( current > 0)
+                    WDot += - current*bphi*(U0-UM)/delta;
+                else
+                    WDot += - current*bphi*(UP-U0)/delta;
+
+            },
+            yp[3][s], m_minusST[0], m_plusST[0], m_minus[3], m_zero[3],
+            m_plus[3], m_fa.bphi()
+    );
+}
+
+// Has to be called together with add_para_dynamics
+template<class Grid, class IMatrix, class Matrix, class Container>
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_terms(
+        unsigned s,
+        std::array<std::vector<Container>,6>& yp)
+{
+    // add sheath boundary conditions
+    if( m_sheath_rate != 0)
+    {
+        ////densities sheath
+        ////Here, we need to find out where "downstream" is
+        // !! Simulations do not really work without
+        for( unsigned i=0; i<6; i++)
+        {
+            if( i == 3) continue;
+            //The coordinate automatically sees the reversed field
+            //but m_plus and m_minus are defined wrt the angle coordinate
+            if( m_reversed_field) //bphi negative (exchange + and -)
+                dg::blas1::evaluate( m_temp0, dg::equals(), dg::Upwind(),
+                     m_sheath_coordinate, m_plus[i], m_minus[i]);
+            else
+                dg::blas1::evaluate( m_temp0, dg::equals(), dg::Upwind(),
+                     m_sheath_coordinate, m_minus[i], m_plus[i]);
+            dg::blas1::pointwiseDot( m_sheath_rate, m_temp0, m_sheath, 1.,
+                    yp[i][s]);
+        }
+    }
+}
+template<class Grid, class IMatrix, class Matrix, class Container>
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_terms(
+    const std::vector<Container>& tparaST, // from collisions
+    std::array<std::vector<Container>,6>& yp)
+{
+    for( unsigned s=0; s<m_p.num_species; s++)
+    {
+        // Velocity sheath
+        if( m_sheath_rate != 0)
+        {
+            if( "wall" == m_p.sheath_bc)
+            {
+                // No densities wall sheath boundary
+                dg::blas1::axpby( +m_p.sheath_rate*m_p.uwall, m_sheath, 1., yp[3][s] );
+            }
+            else if( "insulating" == m_p.sheath_bc)
+            {
+                //velocity c_s
+                double sheath_rate = m_sheath_rate;
+                if( s == 0) // electron species
+                {
+                    dg::blas1::copy( 0, m_temp);
+                    for( unsigned k=1; k<m_p.num_species; k++)
+                    {
+                        dg::blas1::evaluate( m_temp, dg::plus_equals(),
+                            [ zk = m_p.z[k], mk = m_p.mu[k]] DG_DEVICE( double nk, double ne, double tk, double te)
+                            {
+                                double ck = sqrt( ( tk + zk * te )/mk);
+                                return ck * nk / ne * ck;
+                            }, m_STN[k], m_STN[0], tparaST[k], tparaST[0])
+                    }
+                }
+                else
+                {
+                    dg::blas1::evaluate( m_temp, dg::equals(),
+                        [ zs = m_p.z[s], ms = m_p.mu[s]] DG_DEVICE( double ts, double te)
+                        {
+                            return sqrt( ( ts + zs * te )/ms);
+                        }, tparaST[k], tparaST[0])
+                }
+                dg::blas1::pointwiseDot( sheath_rate, m_sheath,
+                    m_sheath_coordinate, m_temp, 1.,  yp[3][s]);
+            }
+        }
+    }
+}
 
 }//namespace thermal
