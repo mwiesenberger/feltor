@@ -68,7 +68,7 @@ ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
     ): m_p(p),
     m_multigrid( g, p.stages),
     m_old_phi( 2, dg::evaluate( dg::zero, g)), m_old_aparST( m_old_phi),
-    m_old_gammaN( p.num_species - p.num_trivial, m_old_phi)
+    m_old_gammaN( p.num_species - 1, m_old_phi)
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
     m_rhoinv2 = m_temp2, m_temp1 = m_temp0;
@@ -109,12 +109,10 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
 {
     //----------Compute and set chi----------------------------//
     dg::blas1::copy( 0., m_temp0);
-    for( unsigned s = 0; s<m_p.num_species; s++)
+    // The first species is the electron species where mass is neglected
+    for( unsigned s = 1; s<m_p.num_species; s++)
     {
-        if( !m_p.neglect_mass[s] )
-        {
-            dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B2, 0., m_temp1);
-        }
+        dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B2, 0., m_temp1);
     }
     m_multigrid.project( m_temp0, m_multi_chi);
     for( unsigned u=0; u<m_p.stages; u++)
@@ -123,14 +121,11 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     //----------Compute right hand side------------------------//
     dg::blas1::copy( 0, m_temp0);
     double min = 0.;
-    for( unsigned s = 0; s<m_p.num_species; s++)
+    // Electrons
+    dg::blas1::transform( density[0], m_temp1, dg::PLUS<double>(-m_p.nbc[0]));
+    dg::blas1::axpby( m_p.z[0], m_temp1, 1., m_temp0);
+    for( unsigned s = 1; s<m_p.num_species; s++)
     {
-        if( m_p.neglect_mass[s] )
-        {
-            dg::blas1::transform( density[s], m_temp1, dg::PLUS<double>(-m_p.nbc[s]));
-            dg::blas1::axpby( m_p.z[s], m_temp1, 1., m_temp0);
-            continue;
-        }
         // compute 2/rho_s^2
         dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // T_perp = P_perp / N
         dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B2, m_temp1, 0., m_rhoinv2);
@@ -226,7 +221,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
     )
 {
     // it's easy to get confused about minusses here
-    if( m_p.neglect_mass[s] )
+    if( s == 0 )
     {
         dg::blas1::copy( phi, psi[0]);
         for( unsigned u=1; u<4; u++)

@@ -134,13 +134,14 @@ where $\hat n$ is the normal vector to the boundary.
 
 In order to setup a number of species the input file needs to contain the "species" field, which
 consists of a list of dictionaries describing the physical parameters, the initialisation and the sources
-for each species in the simulation:
+for each species in the simulation. The first species must be the electron species and its mass
+    must be negligible ( $\mu <10^{-3}$)
 \begin{minted}[texcomments]{js}
 "species":
-[ // list of dictionaries; its length determines the number of species
+[   // list of dictionaries; its length determines the number of species
     {
         "name" : "e", // determines field names in output file
-        "mu" : 2.72121e-4, // mass relative to reference mass: $m_s/m_i$. $\mu<10^{-3}$
+        "mu" : 2.72121e-4, // mass relative to reference mass: $m_s/m_i$.
         // results in the neglect of gyro-radius effects for that species (s.a. \ref{sec:physical})
         "z" : -1, //charge number of species
         "kappa" : 3.2, // Braginskii numerical prefactor for heat flux ($\kappa_i=3.9$)
@@ -153,9 +154,8 @@ for each species in the simulation:
         }
     },
     {
-        // ... another species
+        // ... more species
     }
-    // ... more species
 ]
 \end{minted}
 

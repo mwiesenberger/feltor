@@ -48,9 +48,8 @@ struct Parameters
     bool partitioned;
     //
     //
-    unsigned num_species, num_trivial; // number of species and number of species with neglected mass ( electrons)
+    unsigned num_species; // number of species
     double qlandau;
-    std::vector<bool> neglect_mass;
     std::vector<int> z;
     std::vector<double> mu;
     std::vector<double> pi, kappa; // prefactors for Braginskii viscosity and conductivity
@@ -112,22 +111,19 @@ struct Parameters
         num_species = js["physical"]["species"].size();
         mu.resize( num_species);
         z.resize( num_species);
-        neglect_mass.resize( num_species);
-        num_trivial = 0;
-        for( unsigned u=0; u<num_species; u++)
+        for( unsigned s=0; s<num_species; s++)
         {
-            std::string name = js["physical"]["species"][u].asString();
-            mu[u] = js["physical"]["mu"][u].asDouble();
-            z[u] = js["physical"]["z"][u].asDouble();
-            pi[u] = js["physical"]["pi"][u].asDouble();
-            kappa[u] = js["physical"]["kappa"][u].asDouble();
+            std::string name = js["physical"]["species"][s].asString();
+            mu[s] = js["physical"]["mu"][s].asDouble();
+            z[s] = js["physical"]["z"][s].asDouble();
+            pi[s] = js["physical"]["pi"][s].asDouble();
+            kappa[s] = js["physical"]["kappa"][s].asDouble();
 
-            neglect_mass[u] = false;
-            if( fabs(mu[u] ) < 1e-3)
-            {
-                neglect_mass[u] = true;
-                num_trivial++;
-            }
+        }
+        if( fabs(mu[0] ) > 1e-3)
+        {
+            throw std::runtime_error( "ERROR: First species must be electrons with negligible mass "
+                +std::to_string(mu[0])+" !\n");
         }
         beta        = js["physical"].get( "beta", 0.).asDouble();
         nu_ref      = js["physical"].get( "collisionality", 0.).asDouble();
