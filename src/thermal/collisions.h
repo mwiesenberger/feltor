@@ -22,12 +22,17 @@ class Collisions
         m_lapperpN.construct ( g, p.bcxN, p.bcyN,  p.diff_dir),
     }
 
-    void gather_quantities( unsigned s, const Container& tperpST, const Container& tparaST, const Container& u)
+    void gather_quantities( unsigned s, const std::array<Container, 6>& q, const std::array<Container,6>& qST)
     {
-        dg::blas1::copy( tperpST, m_tperpST[s]);
-        dg::blas1::copy( tparaST, m_tparaST[s]);
-        dg::blas1::copy( u, m_u[s]);
+        dg::blas1::copy( qST[1], m_tperpST[s]);
+        dg::blas1::copy( qST[2], m_tparaST[s]);
+        dg::blas1::copy( q[3], m_u[s]);
     }
+
+    // After calling gather_quantities for all s:
+    const std::vector<Container>& get_velocity() const{ return m_u;}
+    const std::vector<Container>& get_tperpST() const{ return m_tperpST;}
+    const std::vector<Container>& get_tparaST() const{ return m_tparaST;}
 
     void add_collisions(
         const std::vector<Container>& densityST,
