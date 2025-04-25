@@ -2,448 +2,219 @@
 
 #include "dg/file/json_utilities.h"
 #include "init_from_file.h"
+#include "../feltor/init.h"
 
 namespace thermal
 {
 
-namespace detail
-{
-
-
-struct Radius : public dg::geo::aCylindricalFunctor<Radius>
-{
-    Radius ( double R0, double Z0): m_R0(R0), m_Z0(Z0) {}
-    DG_DEVICE
-    double do_compute( double R, double Z) const{
-        return sqrt( (R-m_R0)*(R-m_R0) + (Z-m_Z0)*(Z-m_Z0));
-    }
-    private:
-    double m_R0, m_Z0;
-};
-
-
-dg::x::HVec xpoint_damping(
-    const dg::x::CylindricalGrid3d& grid,
-    const dg::geo::TokamakMagneticField& mag ) // unmodified field
-{
-    dg::x::HVec xpoint_damping = dg::evaluate( dg::one, grid);
-    if( mag.params().getDescription() == dg::geo::description::standardX)
-    {
-        double RX = mag.R0() - 1.1*mag.params().triangularity()*mag.params().a();
-        double ZX = -1.1*mag.params().elongation()*mag.params().a();
-        dg::geo::findXpoint( mag.get_psip(), RX, ZX);
-        xpoint_damping = dg::pullback(
-            dg::geo::ZCutter(ZX), grid);
-    }
-    if( mag.params().getDescription() == dg::geo::description::doubleX)
-    {
-        double RX1 = mag.R0() - 1.1*mag.params().triangularity()*mag.params().a();
-        double ZX1 = -1.1*mag.params().elongation()*mag.params().a();
-        dg::geo::findXpoint( mag.get_psip(), RX1, ZX1);
-        double RX2 = mag.R0() - 1.1*mag.params().triangularity()*mag.params().a();
-        double ZX2 = +1.1*mag.params().elongation()*mag.params().a();
-        dg::geo::findXpoint( mag.get_psip(), RX2, ZX2);
-        auto mod1 = dg::geo::ZCutter(ZX1);
-        auto mod2 = dg::geo::ZCutter(ZX2, -1);
-        auto mod = dg::geo::mod::SetIntersection( mod1, mod2);
-        xpoint_damping = dg::pullback( mod, grid);
-    }
-    return xpoint_damping;
-}
-dg::x::HVec pfr_damping(
-    const dg::x::CylindricalGrid3d& grid,
-    const dg::geo::TokamakMagneticField& mag, // unmodified field
-    dg::file::WrappedJsonValue js
-    )
-{
-    dg::x::HVec xpoint = xpoint_damping( grid, mag); // zero outside
-    dg::x::HVec damping = dg::evaluate( dg::one, grid);
-    if( mag.params().getDescription() == dg::geo::description::standardX
-        || mag.params().getDescription() == dg::geo::description::doubleX)
-    {
-        double alpha0 = js["alpha"].get(0, 0.2).asDouble();
-        double alpha1 = js["alpha"].get(1, 0.1).asDouble();
-        if( alpha0 == 0)
-            throw dg::Error(dg::Message()<< "Invalid parameter: damping alpha must not be 0\n");
-        double boundary0 = js["boundary"].get(0, 1.1).asDouble();
-        double boundary1 = js["boundary"].get(1, 1.0).asDouble();
-        dg::x::HVec damping0 = damping, damping1 = damping;
-        damping0 = dg::pullback(
-            dg::compose(dg::PolynomialHeaviside(
-                boundary0-alpha0/2., alpha0/2., -1),
-                    dg::geo::RhoP(mag)), grid);
-        damping1 = dg::pullback(
-            dg::compose(dg::PolynomialHeaviside(
-                boundary1+alpha1/2., alpha1/2., +1),
-                    dg::geo::RhoP(mag)), grid);
-        // Set Union
-        dg::blas1::evaluate( damping1, dg::equals(), []DG_DEVICE(double x, double y)
-                { return x+y-x*y;}, xpoint, damping1);
-        // Set Intersection
-        dg::blas1::pointwiseDot( damping0, damping1, damping);
-    }
-    return damping;
-}
-
-dg::x::HVec make_profile(
-    const dg::x::CylindricalGrid3d& grid,
-    const dg::geo::TokamakMagneticField& mag,
-    dg::file::WrappedJsonValue js, double& nbg )
-{
-    //js = input["profile"]
-    std::string type = js.get("type","const").asString();
-    nbg      = js.get( "background", 1.0).asDouble();
-    dg::x::HVec profile = dg::evaluate( dg::zero, grid);
-    if( "const" == type)
-        dg::blas1::plus( profile, nbg);
-    else if( "aligned" == type)
-    {
-        double RO=mag.R0(), ZO=0.;
-        dg::geo::findOpoint( mag.get_psip(), RO, ZO);
-        double psipO = mag.psip()( RO, ZO);
-        double npeak = js.get( "npeak", 1.0).asDouble();
-        double nsep = js.get( "nsep", 1.0).asDouble();
-        profile = dg::pullback( dg::compose(
-                [npeak,nsep,nbg, psipO]DG_DEVICE ( double psip){
-                    if( psip/psipO  > 0)
-                        return npeak*psip/psipO + nsep*(psipO-psip)/psipO;
-                    else
-                        return nbg + exp( (npeak-nsep)/psipO/(nsep-nbg)* psip) *( nsep-nbg);
-                }, mag.psip()), grid);
-    }
-    else if ( "gaussian" == type )
-    {
-        double x0  = mag.R0() + js.get( "posX", 0.).asDouble() *mag.params().a();
-        double y0  = mag.params().a()*js.get( "posY", 0.).asDouble();
-        double sigma    = js.get( "sigma", 1.0).asDouble();
-        double nprofamp = js.get( "amplitude", 1.0).asDouble();
-        if( sigma == 0)
-            throw dg::Error(dg::Message()<< "Invalid parameter: sigma must not be 0 in turbulence on gaussian\n");
-        dg::Gaussian prof( x0, y0, sigma, sigma, nprofamp);
-        profile = dg::pullback( prof, grid);
-        dg::blas1::plus( profile, nbg);
-    }
-    else if( "Compass_L_mode" == type)
-        {
-        profile = dg::pullback( dg::compose([]DG_DEVICE ( double rho_p){
-                        return -2.4 + (8.5 +2.4)/(1 + pow(rho_p/0.784,2.88));
-                }, dg::geo::RhoP( mag)), grid);
-        }
-    else
-        throw dg::Error(dg::Message()<< "Invalid profile type "<<type<<"\n");
-    return profile;
-}
-
-dg::x::HVec make_damping(
-    const dg::x::CylindricalGrid3d& grid,
-    const dg::geo::TokamakMagneticField& mag, //unmodified field
-    dg::file::WrappedJsonValue js)
-{
-    //js = input["damping"]
-    std::string type = js.get("type","none").asString();
-    dg::x::HVec damping = dg::evaluate( dg::one, grid);
-    if( "none" == type)
-        ;
-    else if( "aligned" == type || "alignedX" == type)
-    {
-        double damping_alpha = js.get("alpha", 0.2).asDouble();
-        if( damping_alpha == 0)
-            throw dg::Error(dg::Message()<< "Invalid parameter: damping alpha must not be 0\n");
-        double damping_boundary = js.get("boundary", 0.2).asDouble();
-        //we also need to avoid being too far in the PFR where psi can become very negative
-        damping = dg::pullback(
-            dg::compose(dg::PolynomialHeaviside(
-                damping_boundary-damping_alpha/2., damping_alpha/2., -1),
-                    dg::geo::RhoP(mag)), grid);
-        if( "alignedX" == type)
-            dg::blas1::pointwiseDot( xpoint_damping(grid,mag),
-                damping, damping); // SetIntersection
-    }
-    else if( "alignedPFR" == type)
-    {
-        damping = pfr_damping( grid, mag, js);
-    }
-    else if ( "circular" == type)
-    {
-        double damping_alpha = js.get("alpha", 0.2).asDouble();
-        double radius = js.get("boundary", 1.0).asDouble();
-        if( damping_alpha == 0)
-            throw dg::Error(dg::Message()<< "Invalid parameter: damping alpha must not be 0\n");
-        damping =  dg::pullback( dg::compose(
-                dg::PolynomialHeaviside( radius*mag.params().a(),
-                    mag.params().a()*damping_alpha/2., -1),
-                Radius( mag.R0(), 0.)), grid);
-    }
-    else
-        throw dg::Error(dg::Message()<< "Invalid damping type "<<type<<"\n");
-    return damping;
-}
-dg::x::HVec make_ntilde(
-    Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
-    const dg::x::CylindricalGrid3d& grid,
-    const dg::geo::TokamakMagneticField& mag,
-    dg::file::WrappedJsonValue js )
-{
-    //js = input["ntilde"]
-    std::string type = js.get("type","zero").asString();
-    dg::x::HVec ntilde = dg::evaluate( dg::zero, grid);
-    if( "zero" == type)
-    {
-    }
-    else if( "blob" == type || "circle" == type)
-    {
-        double amp   = js.get( "amplitude", 0.).asDouble();
-        double sigma = js.get( "sigma", 0.).asDouble() * mag.params().a();
-        double x0  = mag.R0() + js.get( "posX", 0.).asDouble() *mag.params().a();
-        double y0  = mag.params().a()*js.get( "posY", 0.).asDouble();
-        if( sigma == 0)
-            throw dg::Error(dg::Message()<< "Invalid parameter: sigma must not be 0 in straight blob initial condition\n");
-        dg::geo::CylindricalFunctor init0 = dg::Gaussian(
-                x0, y0, sigma, sigma, amp);
-        if( type == "circle")
-            init0 = [amp, sigma, x0, y0]( double x, double y) {
-                if( (x-x0)*(x-x0) + (y-y0)*(y-y0) < sigma*sigma)
-                    return amp;
-                return 0.;
-            };
-        if( grid.Nz() == 1 )
-            ntilde = dg::pullback( init0, grid);
-        else
-        {
-            std::string parallel = js.get( "parallel", "gaussian").asString();
-            unsigned revolutions = js.get( "revolutions", 1).asUInt();
-            double sigma_z = js.get( "sigma_z", 0.).asDouble()*M_PI;
-            auto bhat = dg::geo::createBHat(mag);
-            if( sigma_z == 0)
-                throw dg::Error(dg::Message()<< "Invalid parameter: sigma_z must not be 0 in blob initial condition\n");
-            if( parallel == "gaussian")
-            {
-                dg::GaussianZ gaussianZ( 0., sigma_z, 1.0);
-                ntilde = thermal.fieldaligned().evaluate( init0,
-                        gaussianZ, 0, revolutions);
-            }
-            else if( parallel == "exact-gaussian")
-            {
-                double rk4eps = js.get("rk4eps", 1e-6).asDouble();
-                dg::GaussianZ gaussianZ( 0., sigma_z, 1.0);
-                ntilde = dg::geo::fieldaligned_evaluate( grid, bhat, init0,
-                        gaussianZ, 0, revolutions, rk4eps);
-            }
-            else if( parallel == "toroidal-gaussian")
-            {
-                std::function<double(double,double,double)> initT = dg::Gaussian3d(
-                        x0, y0, M_PI, sigma, sigma, sigma_z, amp);
-                if( type == "circle")
-                    initT = [amp, sigma, sigma_z, x0, y0]( double x, double y, double z) {
-                        if( (x-x0)*(x-x0) + (y-y0)*(y-y0) < sigma*sigma)
-                            return amp*exp( -(z-M_PI)*(z-M_PI)/2/sigma_z/sigma_z);
-                        return 0.;
-                    };
-                ntilde = dg::pullback( initT, grid);
-            }
-            else if( parallel == "toroidal")
-            {
-                std::function<double(double,double,double)> initT = dg::Gaussian(
-                        x0, y0, sigma, sigma, amp);
-                if( type == "circle")
-                    initT = [amp, sigma, sigma_z, x0, y0]( double x, double y, double z) {
-                        if( (x-x0)*(x-x0) + (y-y0)*(y-y0) < sigma*sigma)
-                            return amp;
-                        return 0.;
-                    };
-                ntilde = dg::pullback( initT, grid);
-            }
-            else if( parallel == "step")
-            {
-                double rk4eps = js.get("rk4eps", 1e-6).asDouble();
-                dg::Iris gaussianZ( -sigma_z, +sigma_z);
-                ntilde = dg::geo::fieldaligned_evaluate( grid, bhat, init0,
-                        gaussianZ, 0, revolutions, rk4eps);
-            }
-            else if( parallel == "double-step")
-            {
-                double rk4eps = js.get("rk4eps", 1e-6).asDouble();
-                ntilde = dg::geo::fieldaligned_evaluate( grid, bhat, init0,
-                        [sigma_z](double s) {
-                        if( (s <  0) && (s > -sigma_z)) return 0.5;
-                        if( (s >= 0) && (s < +sigma_z)) return 1.0;
-                        return 0.;}, 0, revolutions, rk4eps);
-            }
-            else
-                throw dg::Error(dg::Message()<< "Invalid parallel initial condition: "<<parallel<<"\n");
-        }
-    }
-    else if ( "turbulence" == type)
-    {
-        double amp = js.get("amplitude", 0.).asDouble();
-        dg::BathRZ init0(16,16,grid.x0(),grid.y0(), 30.,2.,amp);
-        if( grid.Nz() == 1)
-            ntilde = dg::pullback( init0, grid);
-        else
-        {
-            std::string parallel = js.get( "parallel", "gaussian").asString();
-            unsigned revolutions = js.get( "revolutions", 1).asUInt();
-            double sigma_z = js.get( "sigma_z", 0.).asDouble()*M_PI;
-            auto bhat = dg::geo::createBHat(mag);
-            if( sigma_z == 0)
-                throw dg::Error(dg::Message()<< "Invalid parameter: sigma_z must not be 0 in turbulence initial condition\n");
-            if( parallel == "gaussian")
-            {
-                dg::GaussianZ gaussianZ( 0., sigma_z, 1.0);
-                ntilde = thermal.fieldaligned().evaluate( init0,
-                        gaussianZ, 0, revolutions);
-            }
-            else if( parallel == "exact-gaussian")
-            {
-                double rk4eps = js.get("rk4eps", 1e-6).asDouble();
-                dg::GaussianZ gaussianZ( 0., sigma_z, 1.0);
-                ntilde = dg::geo::fieldaligned_evaluate( grid, bhat, init0,
-                        gaussianZ, 0, revolutions, rk4eps);
-            }
-            else if( parallel == "step")
-            {
-                double rk4eps = js.get("rk4eps", 1e-6).asDouble();
-                dg::Iris gaussianZ( -sigma_z, +sigma_z);
-                ntilde = dg::geo::fieldaligned_evaluate( grid, bhat, init0,
-                        gaussianZ, 0, revolutions, rk4eps);
-
-            }
-            else
-                throw dg::Error(dg::Message()<< "Invalid parallel initial condition for turbulence: "<<parallel<<"\n");
-        }
-    }
-    else if(  "zonal" == type)
-    {
-        dg::x::HVec ntilde = dg::evaluate(dg::zero, grid);
-        double k_psi  = js.get( "k_psi", 0.).asDouble();
-        double amp    = js.get( "amplitude", 0.).asDouble();
-        dg::SinX sinX( amp, 0., 2.*M_PI*k_psi);
-        ntilde = dg::pullback( dg::compose( sinX, mag.psip()), grid);
-    }
-    else
-        throw dg::Error(dg::Message()<< "Invalid ntilde type "<<type<<"\n");
-    return ntilde;
-}
-
-}//namespace detail
-
 /* The purpose of this file is to provide an interface for custom initial conditions and
  * source profiles.  Just add your own to the relevant map below.
- * @note y0[1] has to be the staggered velocity
+ * @note y0[3,4,5] havec to be staggered velocity, qperp and qpara
  */
 
-std::array<std::array<dg::x::DVec,2>,2> initial_conditions(
+std::array<std::vector<dg::x::DVec>,6> initial_conditions(
     Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
     const dg::x::CylindricalGrid3d& grid, const thermal::Parameters& p,
     const dg::geo::TokamakMagneticField& mag,
     const dg::geo::TokamakMagneticField& unmod_mag,
-    dg::file::WrappedJsonValue js,
+    dg::file::WrappedJsonValue jsspecies, // input["species"]
     double & time, dg::geo::CylindricalFunctor& sheath_coordinate )
 {
 #ifdef WITH_MPI
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
-    time = 0;
-    //js = input["init"]
-    std::array<std::array<dg::x::DVec,2>,2> y0;
-    y0[0][0] = y0[0][1] = y0[1][0] = y0[1][1] = dg::construct<dg::x::DVec>(
-        dg::evaluate( dg::zero, grid));
-    std::string type = js.get("type", "zero").asString();
-    if( "fields" == type)
+    // First, let's scan for restart
+    for( unsigned s=0; s<p.num_species; s++)
     {
-        std::string ntype = js["density"].get("type", "zero").asString();
-        DG_RANK0 std::cout << "# Initialize density with "<<ntype << std::endl;
-        if ( "const" == ntype)
+        dg::file::WrappedJsonValue js = jsspecies[s]["init"];
+        std::string type = js["type"].asString();
+        if( "fields" == type)
+            continue;
+        else if( "restart" == type)
         {
-            double nbg = js["density"].get("background", 0.1).asDouble();
-            y0[0][0] = y0[0][1] = dg::construct<dg::x::DVec>(
-                    dg::evaluate( dg::CONSTANT( nbg), grid));
-        }
-        else if( "ne" == ntype || "ni" == ntype)
-        {
-            double nbg = 0.;
-            dg::x::HVec ntilde  = detail::make_ntilde(  thermal, grid, mag,
-                    js["density"]["ntilde"]);
-            dg::x::HVec profile = detail::make_profile( grid, mag,
-                    js["density"]["profile"], nbg);
-            dg::x::HVec damping = detail::make_damping( grid, unmod_mag,
-                    js["density"]["damping"]);
-            dg::x::HVec density = profile;
-            dg::blas1::subroutine( [nbg]( double profile, double ntilde, double
-                        damping, double& density)
-                    { density = (profile+ntilde-nbg)*damping+nbg;},
-                    profile, ntilde, damping, density);
-            //actually we should always invert according to Markus
-            //because the dG direct application is supraconvergent
-            std::string ptype = js["potential"].get("type", "zero_pol").asString();
-            DG_RANK0 std::cout << "# Initialize potential with "<<ptype << std::endl;
-            if( "ne" == ntype)
-            {
-                dg::assign( density, y0[0][0]);
-                thermal.initializeni( y0[0][0], y0[0][1], ptype);
-                double minimalni = dg::blas1::reduce( y0[0][1], 1e10,
-                        thrust::minimum<double>());
-                DG_RANK0 std::cerr << "# Minimum Ni value "<<minimalni<<std::endl;
-                if( minimalni <= 0.0)
-                {
-                    throw dg::Error(dg::Message()<< "ERROR: invalid initial condition. Increase value for alpha since now the ion gyrocentre density is negative!\n"
-                        << "Minimum Ni value "<<minimalni);
-                }
-            }
-            else if( "ni" == ntype)
-            {
-                dg::assign( density, y0[0][1]);
-                thermal.initializene( y0[0][1], y0[0][0], ptype);
-            }
+            std::string file = js["file"].asString();
+            return init_from_file( file, grid, p, time);
         }
         else
-            throw dg::Error(dg::Message()<< "Invalid density initial condition "<<ntype<<"\n");
+            throw dg::Error(dg::Message()<< "Invalid initial condition "<<type<<"\n");
+    }
+    time = 0;
+    std::array<std::vector<dg::x::DVec>,6> y0;
+    for( unsigned i=0; i<6; i++)
+    for( unsigned s=0; s<p.num_species; s++)
+        y0[i][s] = dg::construct<dg::x::DVec>( dg::evaluate( dg::zero, grid));
+    unsigned num_quasineutral_n = 0, idx_quasineutral_n;
+    // Init physical n, pperp, ppara
+    for( unsigned s=0; s<p.num_species; s++)
+    {
+        dg::file::WrappedJsonValue js = jsspecies[s]["init"];
+        DG_RANK0  std::cout << "# Initializing species "<<p.name[s]<<"\n";
+        bool tperp = js.isMember( "tperp");
+        bool pperp = js.isMember( "pperp");
+        bool tpara = js.isMember( "tpara");
+        bool ppara = js.isMember( "ppara");
+        if( tperp and pperp)
+            throw std::runtime_error( "Tperp and Pperp cannot be set at the same time");
+        if( tpara and ppara)
+            throw std::runtime_error( "Tpara and Ppara cannot be set at the same time");
+        if( not tperp and not pperp)
+            throw std::runtime_error( "Either Tperp or Pperp must be present");
+        if( not tpara and not ppara)
+            throw std::runtime_error( "Either Tpara or Ppara must be present");
+
+        const std::array<std::string,3> eqs =
+            { "density", tperp ? "tperp" : "pperp", tpara ? "tpara" : "ppara"};
+        // Think of this as initialising the **physical** quantities
+        for( int eq = 0; eq<3; eq ++)
+        {
+            std::string ntype = js[eqs[eq]].get("type", "zero").asString();
+            DG_RANK0 std::cout << "# Initialize "<<eqs[eq]<<" with "<<ntype << std::endl;
+            if ( "const" == ntype)
+            {
+                double nbg = js[eqs[eq]].get("background", 0.1).asDouble();
+                y0[eq][s] = dg::construct<dg::x::DVec>(
+                        dg::evaluate( dg::CONSTANT( nbg), grid));
+            }
+            else if( "ne" == ntype )
+            {
+                double nbg = 0.;
+                dg::x::HVec ntilde  = detail::make_ntilde(  thermal, grid, mag,
+                        js["density"]["ntilde"]);
+                dg::x::HVec profile = detail::make_profile( grid, mag,
+                        js["density"]["profile"], nbg);
+                dg::x::HVec damping = detail::make_damping( grid, unmod_mag,
+                        js["density"]["damping"]);
+                dg::x::HVec density = profile;
+                dg::blas1::subroutine( [nbg]( double profile, double
+                    ntilde, double damping, double& density)
+                        { density = (profile+ntilde-nbg)*damping+nbg;},
+                        profile, ntilde, damping, density);
+                dg::assign( density, y0[eq][s]);
+            }
+            else if ( 0 == eq and "quasineutral" == ntype)
+            {
+                num_quasineutral_n ++ ;
+                idx_quasineutral_n = s;
+            }
+            else
+                throw dg::Error(dg::Message()<< "Invalid "<<eqs[eq]<<" initial condition "<<ntype<<"\n");
+        }
+        if( tperp)
+            dg::blas1::pointwiseDot( y0[0][s], y0[1][s], y0[1][s]); // P = NT
+        if( tpara)
+            dg::blas1::pointwiseDot( y0[0][s], y0[2][s], y0[2][s]); // P = NT
+    }
+    // Check quasineutrality
+    if( num_quasineutral_n > 1)
+        throw std::runtime_error( "There cannot be more than one quasineutral density");
+    if( num_quasineutral_n == 0)
+        ;//TODO Check that species indeed add up to 0
+    else
+    {
+        for( unsigned s=0; s<p.num_species and s != idx_quasineutral_n; s++)
+            dg::blas1::axpby( -p.z[s]/ p.z[idx_quasineutral_n], y0[0][s], 1.,
+                y0[0][idx_quasineutral_n]);
+    }
+    // Now transform to gyro-centre density
+    for( unsigned s=0; s<p.num_species; s++)
+    {
+        dg::file::WrappedJsonValue js = jsspecies[s]["init"];
+        std::string invert = js["density"].get("invert", "none").asString();
+        if( "none" == invert)
+            continue; // N_s = n_s
+        //TODO Fix lwl
+        //else if( "lwl" == invert)
+        //{
+        //    //add FLR correction -0.5*tau*mu*Delta n_e
+        //    dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc));
+        //    dg::blas2::symv( 0.5*m_p.tau[1]*m_p.mu[1],
+        //        m_lapperpN, m_temp0, 1.0, target);
+        //    double minimalni = dg::blas1::reduce( y0[0][1], 1e10,
+        //            thrust::minimum<double>());
+        //    DG_RANK0 std::cerr << "# Minimum Ni value "<<minimalni<<std::endl;
+        //    //actually we should always invert according to Markus
+        //    //because the dG direct application is supraconvergent
+        //    std::string ptype = js["potential"].get("type", "zero_pol").asString();
+        //    DG_RANK0 std::cout << "# Initialize potential with "<<ptype << std::endl;
+        //    if( minimalni <= 0.0)
+        //    {
+        //        throw dg::Error(dg::Message()<< "ERROR: invalid initial condition. Increase value for alpha since now the ion gyrocentre density is negative!\n"
+        //            << "Minimum Ni value "<<minimalni);
+        //    }
+        //}
+        else
+            throw dg::Error(dg::Message()<< "Invalid density invert type "<<invert<<"\n");
+
+    }
+
+    unsigned num_quasineutral_u = 0, idx_quasineutral_u;
+    // Init physical u, qperp, qpara
+    for( unsigned s=0; s<p.num_species; s++)
+    {
         // init (staggered) velocity and thus canonical W
         std::string utype = js["velocity"].get("type", "zero").asString();
         DG_RANK0 std::cout << "# Initialize velocity with "<<utype << std::endl;
         if( "zero" == utype)
             ; // velocity already is zero
-        else if( "ui" == utype )
+        else if( "linear_cs" == utype )
         {
-            std::string uprofile = js["velocity"].get("profile", "linear_cs").asString();
-            if( !(uprofile == "linear_cs"))
-                throw dg::Error(dg::Message(_ping_)<<"Warning! Unkown velocity profile '"<<uprofile<<"'! I don't know what to do! I exit!\n");
+            // TODO fix sheath init, assume toroidal alignment ot T in sheath
+            //std::string uprofile = js["velocity"].get("profile", "linear_cs").asString();
 
-            std::unique_ptr<dg::x::aGeometry2d> perp_grid_ptr( grid.perp_grid());
-            dg::x::HVec coord2d = dg::pullback( sheath_coordinate,
-                    *perp_grid_ptr);
-            dg::x::HVec ui;
-            dg::assign3dfrom2d( coord2d, ui, grid);
-            dg::blas1::scal( ui, sqrt( 1.0+p.tau[1]));
-            dg::assign( ui, y0[1][1]); // Wi = Ui
-
-            std::string atype = js["aparallel"].get("type", "zero").asString();
-            DG_RANK0 std::cout << "# Initialize aparallel with "<<atype << std::endl;
-            // ue = Ui
-            if( atype == "zero")
-            {
-                dg::blas1::subroutine( [] DG_DEVICE( double ne, double ni,
-                            double& ue, double ui)
-                        { ue = ni*ui/ne;}, y0[0][0], y0[0][1],
-                        y0[1][0], y0[1][1]);
-            }
-            else if( !(atype == "zero"))
-            {
-                throw dg::Error(dg::Message(_ping_)<<"Warning! aparallel type '"<<atype<<"' not recognized. I have beta = "<<p.beta<<" ! I don't know what to do! I exit!\n");
-            }
-
+            //dg::blas1::evaluate( m_temp, dg::equals(),
+            //    [ zs = m_p.z[s], ms = m_p.mu[s]] DG_DEVICE( double ts, double te)
+            //    {
+            //        return sqrt( ( ts + zs * te )/ms);
+            //    }, tparaST[k], tparaST[0])
+            //std::unique_ptr<dg::x::aGeometry2d> perp_grid_ptr( grid.perp_grid());
+            //dg::x::HVec coord2d = dg::pullback( sheath_coordinate,
+            //        *perp_grid_ptr);
+            //dg::x::HVec ui;
+            //dg::assign3dfrom2d( coord2d, ui, grid);
+            //dg::blas1::scal( ui, sqrt( 1.0+p.tau[1]));
+            //dg::assign( ui, y0[1][1]); // Wi = Ui
+        }
+        else if( "quasineutral" == utype)
+        {
+            num_quasineutral_u ++;
+            idx_quasineutral_u = s;
         }
         else
             throw dg::Error(dg::Message()<< "Invalid velocity initial condition "<<utype<<"\n");
+
+        std::string qperptype = js["qperp"].get("type", "zero").asString();
+        DG_RANK0 std::cout << "# Initialize qperp with "<<utype << std::endl;
+        if( "zero" == qperptype)
+            ; // qperp already is zero
+        else
+            throw dg::Error(dg::Message()<< "Invalid qperp initial condition "<<qperptype<<"\n");
+
+        std::string qparatype = js["qpara"].get("type", "zero").asString();
+        DG_RANK0 std::cout << "# Initialize qperp with "<<utype << std::endl;
+        if( "zero" == qparatype)
+            ; // qpara
+        else
+            throw dg::Error(dg::Message()<< "Invalid qpara initial condition "<<qparatype<<"\n");
     }
-    else if( "restart" == type)
-    {
-        std::string file = js["init"]["file"].asString();
-        return init_from_file( file, grid, p, time);
-    }
+    // Init quasineutral species
+    if( num_quasineutral_u > 1)
+        throw std::runtime_error( "There cannot be more than one quasineutral velocity");
+    if( num_quasineutral_u == 0)
+        ;//TODO Check that species indeed add up to 0
     else
-        throw dg::Error(dg::Message()<< "Invalid initial condition "<<type<<"\n");
+    {
+        // Assume densities are toroidally aligned (so nST = n)
+        for( unsigned s=0; s<p.num_species and s != idx_quasineutral_u; s++)
+            dg::blas1::evaluate( y0[3][idx_quasineutral_u], dg::plus_equals(),
+                [ zk = p.z[idx_quasineutral_u], zs = p.z[s]] DG_DEVICE(
+                    double nk, double ns, double us)
+                {
+                    return -zs * ns * us / (zk * nk);
+                }, y0[0][idx_quasineutral_u], y0[0][s], y0[3][s])
+    }
+    // Since total current is 0, we have A_\parallel = 0
+
     return y0;
 };
 

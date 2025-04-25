@@ -166,7 +166,9 @@ See the file {\tt init.h} to add your own custom condition.
 
 We have the possibility to
 initialize a species with the output of a previously
-run simulation:
+run simulation. Note that this can only be done for all species, i.e. it is not possible
+to initialise one species from a file and the rest with a profile say.
+Also, all species names, mass charge, kappa and pi values in the input file must be identical to the ones in the restart file.
 % We have to see how this is implemented to see if we can add more / less flexibiltiy here
 % also I don't foresee this option to be used much
 \begin{minted}[texcomments]{js}
@@ -174,11 +176,12 @@ run simulation:
 {
     "type" : "restart",
     // only the "file" parameter is needed (also see Section \ref{sec:restart})
+    // Whenever any one species is restarted, all species are restarted
+    // The species names and parameters in the previous simulation must match the current ones.
     "file" : "path/to/file.nc"
     // the file to use as a restart for $N_s$, $U_{\parallel,s}$, $T_{\parallel,s}$, $T_{\perp,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
 }
 \end{minted}
-For this to work the species name in the previous simulation must match the current one.
 
 In contrast, we can initialize the fields $N_s$, $U_{\parallel,s}$, $T_{\parallel,s}$, $T_{\perp,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
 directly:
@@ -194,7 +197,7 @@ directly:
     {
         //...
     },
-    "tparallel": // or "pparallel"
+    "tpara": // or "ppara"
     {
         //...
     },
@@ -206,7 +209,7 @@ directly:
     {
         //...
     },
-    "qparallel"
+    "qpara"
     {
         //...
     }
@@ -215,15 +218,15 @@ directly:
 
 \noindent
 \begin{tcolorbox}[title=Note]
-    Instead of temperature one can choose to initializse the pressure as well
+    Instead of temperature one can choose to initialise the pressure as well
     by writing `p` instead of `t` in the relevant field. However, only one of
     the two may be present not both.
 \end{tcolorbox}
-The "density", "tperp" and "tparallel" fields all allow the following:
+The "density", "tperp" and "tpara" fields all allow the following:
 \begin{minted}[texcomments]{js}
 "init":
 {
-    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
+    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
     {
         "type" : "const"  // $N_s = const$
         "background" : 0.1, // $const>0$
@@ -231,7 +234,7 @@ The "density", "tperp" and "tparallel" fields all allow the following:
         //(see also nbc, minne and nwall)
     }
     // OR
-    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
+    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
     {
         "type" : "ne",  // $n_s = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
         "ntilde":
@@ -265,7 +268,7 @@ For the velocity and heat fluxes we have
     {
         "type" : "zero" // currently the only option for $Q_\perp$
     },
-    "qparallel":
+    "qpara":
     {
         "type" : "zero" // currently the only option for $Q_\parallel$
     }
@@ -282,8 +285,8 @@ This is achieved by integrating fieldlines towards the positive and negative div
         "type" : "linear_cs" // $ U_{\parallel,i}= s\sqrt{\frac{T_{i,\parallel} + z_i T_{e,\parallel}}{\mu_i}}$ in the SOL
         // where "s" is the fieldline coordinate defined in section\ref{sec:sheath}
         // if the sheath type is "none" then $s=0$
-        // the "electrons" are the first massless species found
         // this type does not work for electrons
+        // (electrons are the first species)
     }
 }
 \end{minted}
@@ -315,54 +318,39 @@ above conditions setting
     }
 }
 \end{minted}
+The result of the velocity initialisation is that the initial $A_\parallel=0$ and thus $W_\parallel = U_\parallel$.
 
 
 \paragraph{Transformation to gyro-center quantities}
-Per default we think of the initialisation of determining the physical, particle quantities however, the
+Per default we think of the initialisation as determining the physical, particle quantities, however, the
 model is derived in terms of gyro-centre quantities.
 The physical quantities therefore need to be transformed to gyro-centre quantities. This is in general a
 difficult task and may only be possible approximately.
-
-% We should maybe start with 2 possibilities: "none" or "lwl"
-% The question of how to do quasineutrality is somewhat related but also not
-% and how to do it for source terms is also still open
-We have three possibilities to initialize the ion density
-\begin{align} \label{eq:initphi}
-    N_i = n_e \text{ or }N_i = \Gamma_{1,i}^{-1} n_e \text{ or } N_i = \Gamma_{1,i}n_e\approx \left(1+\frac{1}{2}\tau_i\mu_i\Delta_\perp\right)n_e
-\end{align}
-In the first case the potential $\phi= 0$ while in the second case
-the $E\times B$ and ion diamagnetic vorticity coincide $\Delta_\perp N_i \propto \Delta_\perp \phi$ in the long-wavelength limit.
-Note that $\alpha$ must not be too small to avoid $N_i < 0$.
-\begin{minted}[texcomments]{js}
-"init":
-{
-    "potential" :
-    {
-        "type" : "zero_pol",// $N_i = n_e$ (polarization charge is 0)
-        "type" : "zero",    // $N_i = \left( 1 - \frac{1}{2}\tau_i\mu_i\Delta_\perp \right) n_e= \Gamma_{1,i}^{-1} n_e $ (same as zero\_pol if $\tau_i = 0$)
-        "type" : "balance", // $N_i = \left(1+\frac{1}{2}\tau_i\mu_i\Delta_\perp\right)n_e\approx \Gamma_{1,i}n_e$ (same as zero\_pol if $\tau_i = 0$)
-    }
-}
-\end{minted}
-\noindent
-We can also reverse the roles of electron and ion densities like so:
+For the densities we allow two different invert modes
 \begin{minted}[texcomments]{js}
 "init":
 {
     "density" :
     {
-        "type" : "ni",  // $N_i = (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z) + n_{bg}$
-        // \ldots ntilde\ref{sec:ntilde}, profile\ref{sec:profile} and damping\ref{sec:damping} parameters
-    }
-    "potential" :
+        "invert" : "none"  // $N_s = n_s$
+    },
+    "density":
     {
-        "type" : "zero_pol",// $n_e = N_i$ (polarization charge is 0)
-        "type" : "zero",    // $n_e = \Gamma_{1,i}N_i$ (ignored if $\tau_i = 0$)
-        "type" : "balance", // $n_e = \left(1-\frac{1}{2}\tau_i\mu_i\Delta_\perp\right)N_i = \Gamma_{1,i}^{-1}N_i$ (ignored if $\tau_i = 0$)
+        "invert" : "lwl" // $N_s = n_s - \Delta_\perp \left( \frac{\mu_s p_\perp }{2 z_s^2 B}\right)$
     }
 }
 \end{minted}
-\noindent
+For the remaining quantities we use
+\begin{align}
+U_\parallel &= u_\parallel\\
+P_\perp &= p_\perp = n t_\perp \\
+P_\parallel &= p_\parallel = n t_\parallel\\
+Q_\perp &= 0 \\
+Q_\parallel &= 0
+\end{align}
+
+
+% How to do it for source terms is also still open
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Sources} \label{sec:sources}
@@ -381,7 +369,7 @@ parallel temperature equations. The parallel momentum and heat flux sources are 
     {
         //...
     },
-    "tparallel":
+    "tpara":
     {
         //...
     }
@@ -445,7 +433,7 @@ profile of the form $n \propto n_{prof}+(n_{prof}-n_{0})e^{-\omega_st}$.
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
+    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
     {
         "type" : "fixed_profile",
         "rate" : 1e-3 // source strength $\omega_s$
@@ -482,7 +470,7 @@ the source with the parameters below generates and compare to
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "density" : // or "tperp"/"pperp" or "tparallel"/"pparallel"
+    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
     {
         "type" : "influx",
         "rate" : 1e-3, // source strength $\omega_s$
@@ -627,7 +615,7 @@ The section `FCI: Parallel derivatives` in `feltor.pdf` applies verbatim.
 {
     "beta" : 5e-5, // Plasma beta $5\cdot 10^{-6}$ (TJK), $4\cdot 10^{-3}$ (Compass),
     // If $0$, then the model is electrostatic
-    "collisionality" : 1e-4, // parallel resistivity parameter Eq.\eqref{eq:resistivity}
+    "collisionality" : 1e-4, // Rerefence collisionality $\nu_{ref}$
     "mue" : 2.72121e-4, // $\mu_e =m_e/m_i$. [IGNORED]  This parameter is
     // ignored by all codes, its sole purpose is to make the set of numerical
     // parameters uniquely invertible for analysis purposes (see discussion below)
@@ -673,7 +661,8 @@ of physical parameters.
 The section `Timestepper` in `feltor.pdf` applies verbatim.
 
 \subsection{Steering the file output} \label{sec:output}
-The section `Steering the file output` in `feltor.pdf` applies verbatim.
+The section `Steering the file output` in `feltor.pdf` applies verbatim except
+that "GLFW" output is not possible.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -720,8 +709,6 @@ We can simplify the full simulation in a few ways:
     "calibrate", // Simulation stops after initialization,
     // no right hand side calls
     // not possible for glfw output
-    "modify-diff", // see text below
-    "no-diff-penalization" //Perp Diffusion is not penalized
 ]
 \end{minted}
 You can combine the flags in any way you want: you can have 1 or more
@@ -731,21 +718,11 @@ flags present or leave the field empty.
     which takes a long time) and quickly fine-tune
     magnetic field, wall, sheath, init, source and grid parameters
 \end{tcolorbox}
-If the  "modify-diff" parameter is set to true, the parallel and perpendicular
-momentum diffusion parameters $\nu_{U,\perp}$ and $\nu_\parallel$ are
-multiplied by density $N$. This means they must appear inside the
-divergence, e.g. $\npar^\dagger (\nu_{\parallel} \npar U_\parallel)$.
-The hope is that with this modification the minne parameter can be set
-to lower values without the small densities affecting the CFL condition.
-By default this does not happen.
-
-For the "no-diff-penalization" the idea is to at the same time set
-the "wall": "penalization" parameter to $0$ such that a semblance of
-Neumann boundary conditions result for the wall.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Restarting} \label{sec:restart}
 The section `Restarting` in `feltor.pdf` applies verbatim except that the code is called `thermal` instead of `feltor` and the computational fields include
 $N$, $U_\parallel$, $T_\perp$, $T_\parallel$, $Q_\perp$ and $Q_\parallel$ for all species s.
+Also, all species names, mass charge, kappa and pi values in the input file must be identical to the ones in the restart file.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Output} \label{sec:output_file}
