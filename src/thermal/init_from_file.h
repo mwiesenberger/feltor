@@ -10,53 +10,40 @@ namespace thermal
 
 using Feltor = thermal::Explicit< dg::x::CylindricalGrid3d, dg::x::IDMatrix,
         dg::x::DMatrix, dg::x::DVec>;
+using Vector = std::array<std::vector<dg::x::DVec>, 6>;
 
-std::vector<dg::file::Record<void(dg::x::DVec&, Feltor&, unsigned)>> restart3d_list = {
+std::vector<dg::file::Record<void(dg::x::DVec&, const Vector&, unsigned)>> restart3d_list = {
     {"n", "gyro-centre density",
-        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
-             dg::blas1::copy(f.restart_density(s), result);
+        []( dg::x::DVec& result, const Vector& y, unsigned s ) {
+             dg::blas1::copy(y[0][s], result);
         }
     },
     {"pperp", "perpendicular pressure",
-        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
-             dg::blas1::copy(f.restart_pperp(s), result);
+        []( dg::x::DVec& result, const Vector& y, unsigned s ) {
+             dg::blas1::copy(y[1][s], result);
         }
     },
     {"ppara", "parallel pressure",
-        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
-             dg::blas1::copy(f.restart_ppara(s), result);
+        []( dg::x::DVec& result, const Vector& y, unsigned s ) {
+             dg::blas1::copy(y[2][s], result);
         }
     },
     {"w", "canonical parallel velocity",
-        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
-             dg::blas1::copy(f.restart_velocity(s), result);
+        []( dg::x::DVec& result, const Vector& y, unsigned s ) {
+             dg::blas1::copy(y[3][s], result);
         }
     },
     {"qperp", "perpendicular heat flux",
-        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
-             dg::blas1::copy(f.restart_qperp(s), result);
+        []( dg::x::DVec& result, const Vector& y, unsigned s ) {
+             dg::blas1::copy(y[4][s], result);
         }
     },
     {"qpara", "parallel heat flux",
-        []( dg::x::DVec& result, Feltor& f, unsigned s ) {
-             dg::blas1::copy(f.restart_qpara(s), result);
+        []( dg::x::DVec& result, const Vector& y, unsigned s ) {
+             dg::blas1::copy(y[5][s], result);
         }
     },
 };
-
-std::vector<std::vector<dg::file::Record<void(dg::x::DVec&, Feltor&, unsigned)>>> make_restart3d_list( std::vector<std::string> names)
-{
-    unsigned num_species = names.size();
-    for( unsigned s =0; s<num_species; s++)
-    {
-        for( auto record : restart3d_list)
-        {
-            records[s].append( {names[s] + "_restart_" + record.name, record.long_name, record.function});
-        }
-    }
-    return records;
-}
-
 
 std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
         const dg::x::CylindricalGrid3d& grid, const Parameters& p,
@@ -107,19 +94,13 @@ std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
     DG_RANK0 std::cout << "# Current time = "<< time <<  std::endl;
 
     dg::x::HVec transferOUTvec = dg::evaluate( dg::zero, grid);
-    dg::x::HVec apar = transferOUTvec;
-    file.get( "restart_aparallel", transferIN);
-    dg::blas2::gemv( interpolateIN, transferIN, apar);
     for( unsigned s=0; s<pIN.num_species; s++)
     {
-        for( unsigned k=0; k<restart3d_list.size()-1; k++) // skip aparallel
+        for( unsigned k=0; k<restart3d_list.size(); k++)
         {
-            file.get_var( restart3d_list[k].name + "_" + pIN.species[s].name, transferIN);
+            file.get_var( "restart_" + pIN.name[s] + "_" + restart3d_list.name, {grid_IN}, transferIN);
             dg::blas2::gemv( interpolateIN, transferIN, transferOUTvec);
-            if( k == 1) // velocity: convert to W
-                dg::blas1::axpby( 1., transferOUTvec, 1./p.species[s].mu,
-                    apar, transferOUTvec);
-            dg::assign( transferOUTvec, y0[k][i]);
+            dg::assign( transferOUTvec, y0[k][s]);
         }
     }
     file.close();

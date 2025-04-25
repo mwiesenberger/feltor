@@ -234,8 +234,10 @@ int main( int argc, char* argv[])
         file.defput_dim( "xr", {{"axis", "X"}}, grid.abscissas(0));
         file.defput_dim( "yr", {{"axis", "Y"}}, grid.abscissas(1));
         file.defput_dim( "zr", {{"axis", "Z"}}, grid.abscissas(2));
-        for( auto& record: thermal::restart3d_list)
-            file.def_var_as<double>( record.name, {"zr", "yr", "xr"}, record.atts);
+        for( unsigned s=0; s<p.num_species; s++)
+            for( auto& record: thermal::restart3d_list)
+                file.def_var_as<double>( "restart_"+p.name[s] +"_"+ record.name,
+                    {"zr", "yr", "xr"}, record.atts);
         // Probes need to be the last because they define dimensions in subgroup
         dg::file::Probes probes( file, grid, dg::file::parse_probes(js));
 
@@ -255,10 +257,12 @@ int main( int argc, char* argv[])
         }
 
         DG_RANK0 std::cout << "# Write restart ...\n";
+        for( unsigned s=0; s<p.num_species; s++)
         for( auto& record: thermal::restart3d_list)
         {
-            record.function( resultD, thermal);
-            file.put_var( record.name, {grid}, resultD);
+            record.function( resultD, y0, s);
+            file.put_var( "restart_" + pIN.name[s] + "_" + restart3d_list.name,
+                {grid}, resultD);
         }
 
         DG_RANK0 std::cout << "# Write diag1d ...\n";
@@ -362,10 +366,12 @@ int main( int argc, char* argv[])
             probes.flush();
             diag2d.flush( var);
 
-            for( auto& record: feltor::restart3d_list)
+            for( unsigned s=0; s<p.num_species; s++)
+            for( auto& record: thermal::restart3d_list)
             {
-                record.function( resultD, thermal);
-                file.put_var( record.name, {grid}, resultD);
+                record.function( resultD, y0, s);
+                file.put_var( "restart_" + pIN.name[s] + "_" + restart3d_list.name,
+                    {grid}, resultD);
             }
 
             file.put_var( "time", {start}, time);
