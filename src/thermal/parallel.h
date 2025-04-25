@@ -4,8 +4,6 @@
 #include "dg/geometries/geometries.h"
 #include "parameters.h"
 
-#define FELTORPARALLEL 1
-
 namespace thermal
 {
 template< class Geometry, class IMatrix, class Matrix, class Container >
@@ -24,6 +22,12 @@ class ParallelDynamics
         m_sheath_rate = sheath_rate;
         dg::blas1::copy( sheath, m_sheath);
         dg::blas1::copy( sheath_coordinate, m_sheath_coordinate);
+    }
+    const Container& get_sheath() const{
+        return m_sheath;
+    }
+    const Container& get_sheath_coordinate() const{
+        return m_sheath_coordinate;
     }
     // call before computing AparST
     void udpate_staggered_density( const std::vector<Container>& density)
@@ -465,6 +469,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_ter
                 double sheath_rate = m_sheath_rate;
                 if( s == 0) // electron species
                 {
+                    // TODO: Is it better to assume toroidal alignment of T and N in sheath?
                     dg::blas1::copy( 0, m_temp);
                     for( unsigned k=1; k<m_p.num_species; k++)
                     {

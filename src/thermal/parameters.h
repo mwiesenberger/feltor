@@ -66,10 +66,8 @@ struct Parameters
         output      = js["output"].get( "type", "netcdf").asString();
         if( !("netcdf" == output) && !("glfw" == output))
             throw std::runtime_error( "Output type "+output+" not recognized!\n");
-#ifdef WITHOUT_GLFW
         if( "glfw" == output)
             throw std::runtime_error( "Output type glfw not possible without glfw compiled!\n");
-#endif
         cx = js["output"]["compression"].get(0u,1).asUInt();
         cy = js["output"]["compression"].get(1u,1).asUInt();
 

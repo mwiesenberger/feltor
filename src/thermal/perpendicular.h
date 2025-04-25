@@ -4,8 +4,6 @@
 #include "dg/geometries/geometries.h"
 #include "parameters.h"
 
-#define FELTORPERP 1
-
 namespace thermal
 {
 
@@ -144,6 +142,18 @@ class PerpDynamics
         else
             dg::blas1::scal( result, beta);
     }
+    const std::array<Container, 2> & curvNabla () const {
+        return m_curvNabla;
+    }
+    const std::array<Container, 2> & curvKappa () const {
+        return m_curvKappa;
+    }
+    const Container& divCurvKappa() const {
+        return m_divCurvKappa;
+    }
+    const Container& bphi( ) const { return m_b_2; }
+    const Container& divb( ) const { return m_divb; }
+    const Container& binv( ) const { return m_binv; }
     private:
     //these should be considered const
     std::array<Container,2> m_curvNabla, m_curvKappa, m_gradLnB;

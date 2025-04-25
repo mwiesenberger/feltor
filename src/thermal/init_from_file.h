@@ -64,6 +64,18 @@ std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
     DG_RANK0 std::cout << "#  file parameters:" << std::endl;
     DG_RANK0 std::cout << pIN.n<<" x "<<pIN.Nx<<" x "<<pIN.Ny<<" x "<<pIN.Nz
                 <<" : symmetric "<<std::boolalpha<<pIN.symmetric<<std::endl;
+    if ( pIn.num_species != p.num_species)
+        throw std::runtime_error( "Cannot restart simulation with different number of species!");
+    if ( pIn.name != p.name)
+        throw std::runtime_error( "Cannot restart simulation with different species names!");
+    if ( pIn.mu != p.mu)
+        throw std::runtime_error( "Cannot restart simulation with different species mass!");
+    if ( pIn.z != p.z)
+        throw std::runtime_error( "Cannot restart simulation with different species charge!");
+    if ( pIn.kappa != p.kappa)
+        throw std::runtime_error( "Cannot restart simulation with different species kappa!");
+    if ( pIn.pi != p.pi)
+        throw std::runtime_error( "Cannot restart simulation with different species pi!");
 
     // Now read in last timestep
     dg::x::CylindricalGrid3d grid_IN( grid.x0(), grid.x1(), grid.y0(),

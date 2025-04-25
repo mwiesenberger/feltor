@@ -26,47 +26,57 @@ struct Explicit
         dg::geo::TokamakMagneticField mag, dg::file::WrappedJsonValue js );
 
     void operator()( double t,
-        const std::array<std::array<Container,2>,2>& y,
-        std::array<std::array<Container,2>,2>& yp);
-    /// ///////////////////RESTART    MEMBERS //////////////////////
-    const Container& restart_density(unsigned s) const{
-    }
-    const Container& restart_pperp(unsigned s) const{
-    }
-    const Container& restart_ppara(unsigned s) const{
-    }
-    const Container& restart_velocity(unsigned s) const{
-    }
-    const Container& restart_qperp(unsigned s) const{
-    }
-    const Container& restart_qpara(unsigned s) const{
-    }
-    const Container& restart_aparallel() const{
-        return m_aparST;
-    }
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp);
     /// ///////////////////DIAGNOSTIC MEMBERS //////////////////////
+    /// 3d output
     const Geometry& grid() const {
         return m_solvers.grid();
     }
-    //potential[0]: electron potential, potential[1]: ion potential
+    const Container& potential() const {
+        return m_phi;
+    }
+    const Container& aparallel() const {
+        return m_apar;
+    }
+    /// 2d static output
+    const std::array<Container, 2> & curvNabla () const {
+        return m_perp.curvNabla();
+    }
+    const std::array<Container, 2> & curvKappa () const {
+        return m_perp.curvKappa();
+    }
+    const Container& divCurvKappa() const {
+        return m_perp.divCurvKappa();
+    }
+    const Container& bphi( ) const { return m_perp.bphi(); }
+    const Container& divb( ) const { return m_perp.divb(); }
+    const Container& get_wall() const{
+        return m_wall;
+    }
+    const Container& get_sheath() const{
+        return m_parallel.get_sheath();
+    }
+    const Container& get_sheath_coordinate() const{
+        return m_parallel.get_sheath_coordinate();
+    }
+
+    // Chanes after each species
+    const std::array<Container, 4>& psi() const {
+        return m_psi;
+    }
+
+
+
     const Container& uE2() const {
         return m_UE2;
     }
-    const Container& density(int i)const{
-        return m_density[i];
-    }
     const Container&  gammaNi() const{
-        if( m_p.tau[1] == 0)
-            return m_density[1];
         return m_old_gammaN.head();
     }
     const Container&  gammaPhi() const{
-        if( m_p.tau[1] == 0)
-            return m_psi[0];
         return m_old_psi.head();
     }
-
-
     const Container& density_source(int i)const{
         return m_s[0][i];
     }
@@ -76,12 +86,6 @@ struct Explicit
     const Container& velocity_source(int i){
         update_diag();
         return m_s[1][i];
-    }
-    const Container& potential(int i) const {
-        return m_psi[i];
-    }
-    const Container& aparallel() const {
-        return m_apar;
     }
     const std::array<Container, 3> & gradN (int i) {
         update_diag();
@@ -138,21 +142,7 @@ struct Explicit
     void compute_dot_aparallel( Container& tmp) const {
         m_old_apar.derive( tmp);
     }
-    const dg::SparseTensor<Container>& projection() const{
-        return m_hh;
-    }
-    const std::array<Container, 2> & curvNabla () const {
-        return m_curvNabla;
-    }
-    const std::array<Container, 2> & curvKappa () const {
-        return m_curvKappa;
-    }
-    const Container& divCurvKappa() const {
-        return m_divCurvKappa;
-    }
-    const Container& bphi( ) const { return m_bphi; }
-    const Container& binv( ) const { return m_binv; }
-    const Container& divb( ) const { return m_divb; }
+
     //volume with dG weights
     const Container& vol3d() const { return m_lapperpN.weights();}
     const Container& weights() const { return m_lapperpN.weights();}
@@ -190,15 +180,6 @@ struct Explicit
     }
     const Container& get_source_prof() const{
         return m_profne;
-    }
-    const Container& get_wall() const{
-        return m_wall;
-    }
-    const Container& get_sheath() const{
-        return m_sheath;
-    }
-    const Container& get_sheath_coordinate() const{
-        return m_sheath_coordinate;
     }
     void compute_perp_diffusiveN( double alpha, const Container& density,
             Container& temp0, Container& temp1, double beta, Container& result )
@@ -475,11 +456,11 @@ struct Explicit
     Collisions<Geometry, IMatrix, Matrix, Container> m_collisions;
 
     //
-    Container m_phi, m_apar, m_aparST;
+    Container m_phi, m_apar, m_aparST; // same for all species
 
     Container m_source, m_profne, m_wall;
     dg::Extrapolation<Container> m_old_apar;
-    std::array<Container,4> m_psi;
+    std::array<Container,4> m_psi; // different for each species
 
 
     const thermal::Parameters m_p;
