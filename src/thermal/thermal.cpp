@@ -126,7 +126,7 @@ int main( int argc, char* argv[])
     {
         try{
             y0 = thermal::initial_conditions(thermal, grid, p, mag, unmod_mag,
-                    js["init"], time, sheath_coordinate );
+                    js["species"], time, sheath_coordinate );
 #ifdef WITH_NAVIER_STOKES
             std::string advection = js["advection"].get("type", "velocity-staggered").asString();
             if( advection == "log-staggered" || advection == "staggered-direct")
@@ -229,8 +229,8 @@ int main( int argc, char* argv[])
 
         file.def_dimvar_as<double>( "time", NC_UNLIMITED, {{"axis", "T"}, {"units", "Omega_ci^-1"}});
 
-        thermal::WriteIntegrateDiagnostics2dList diag2d( file, grid, g3d_out,
-            thermal::generate_equation_list( js));
+        //thermal::WriteIntegrateDiagnostics2dList diag2d( file, grid, g3d_out,
+        //    thermal::generate_equation_list( js));
         file.defput_dim( "xr", {{"axis", "X"}}, grid.abscissas(0));
         file.defput_dim( "yr", {{"axis", "Y"}}, grid.abscissas(1));
         file.defput_dim( "zr", {{"axis", "Z"}}, grid.abscissas(2));
@@ -239,7 +239,7 @@ int main( int argc, char* argv[])
                 file.def_var_as<double>( "restart_"+p.name[s] +"_"+ record.name,
                     {"zr", "yr", "xr"}, record.atts);
         // Probes need to be the last because they define dimensions in subgroup
-        dg::file::Probes probes( file, grid, dg::file::parse_probes(js));
+        //dg::file::Probes probes( file, grid, dg::file::parse_probes(js));
 
         ///////////////////////////////////first output/////////////////////////
         DG_RANK0 std::cout << "# First output ... \n";
@@ -272,24 +272,29 @@ int main( int argc, char* argv[])
             file.def_var_as<double>( record.name, {"time"}, record.atts);
             file.put_var( record.name, {0}, record.function( var));
         }
-        DG_RANK0 std::cout << "# Write diag2d ...\n";
-        diag2d.write( time, var );
+        //DG_RANK0 std::cout << "# Write diag2d ...\n";
+        //diag2d.write( time, var );
         DG_RANK0 std::cout << "# Write diag4d ...\n";
         dg::MultiMatrix<dg::x::DMatrix, dg::x::DVec> project(
             dg::create::fast_projection( grid, 1, p.cx, p.cy));
+        for( unsigned s=0; s<p.num_species; s++)
         for( auto& record : thermal::diagnostics3d_list)
         {
-            record.function ( resultD, var);
+            record.function ( resultD, var, s);
             dg::apply( project, resultD, resultD_out);
-            file.defput_var( record.name, {"time", "P", "Z", "R"},
+            if( record.species_dependent)
+                file.defput_var( p.name[s] + "_" + record.name, {"time", "P", "Z", "R"},
+                    record.atts, {0, g3d_out}, resultD_out);
+            else if( s == 0)
+                file.defput_var( record.name, {"time", "P", "Z", "R"},
                     record.atts, {0, g3d_out}, resultD_out);
         }
 
 
-        DG_RANK0 std::cout << "# Write static probes ...\n";
-        probes.static_write( thermal::diagnostics2d_static_list, var, grid);
-        DG_RANK0 std::cout << "# Write probes ...\n";
-        probes.write( time, thermal::probe_list, var);
+        //DG_RANK0 std::cout << "# Write static probes ...\n";
+        //probes.static_write( thermal::diagnostics2d_static_list, var, grid);
+        //DG_RANK0 std::cout << "# Write probes ...\n";
+        //probes.write( time, thermal::probe_list, var);
 
         DG_RANK0 std::cout << "# Close file ...\n";
         file.close();
@@ -324,8 +329,8 @@ int main( int argc, char* argv[])
                 dg::Timer tti;
                 tti.tic();
 
-                probes.buffer(time, thermal::probe_list, var);
-                diag2d.buffer( time, var);
+                //probes.buffer(time, thermal::probe_list, var);
+                //diag2d.buffer( time, var);
 
                 DG_RANK0 std::cout << "\tTime "<<time<<"\n";
                 double max_ue = dg::blas1::reduce(
@@ -363,8 +368,8 @@ int main( int argc, char* argv[])
             ti.tic();
             //////////////////////////write fields////////////////////////
             file.open( file_name, dg::file::nc_write);
-            probes.flush();
-            diag2d.flush( var);
+            //probes.flush();
+            //diag2d.flush( var);
 
             for( unsigned s=0; s<p.num_species; s++)
             for( auto& record: thermal::restart3d_list)
@@ -377,11 +382,16 @@ int main( int argc, char* argv[])
             file.put_var( "time", {start}, time);
             for( auto& record: thermal::diagnostics1d_list)
                 file.put_var( record.name, {start}, record.function( var));
+
+            for( unsigned s=0; s<p.num_species; s++)
             for( auto& record : thermal::diagnostics3d_list)
             {
-                record.function ( resultD, var);
+                record.function ( resultD, var, s);
                 dg::apply( project, resultD, resultD_out);
-                file.put_var( record.name, {start, g3d_out}, resultD_out);
+                if( record.species_dependent)
+                    file.put_var( p.name[s] + "_" + record.name, {start, g3d_out}, resultD_out);
+                else if( s == 0)
+                    file.put_var( record.name, {start, g3d_out}, resultD_out);
             }
 
             file.close();
@@ -398,120 +408,6 @@ int main( int argc, char* argv[])
         DG_RANK0 std::cout <<"Computation Time \t"<<hour<<":"<<std::setw(2)<<minute<<":"<<second<<"\n";
         DG_RANK0 std::cout <<"which is         \t"<<t.diff()/p.itstp/p.maxout<<"s/inner loop\n";
     }
-#ifndef WITHOUT_GLFW
-    if( p.output == "glfw")
-    {
-        dg::Timer t;
-
-        std::map<std::string, const dg::x::DVec* > v4d;
-        v4d["ne-1 / "] = &thermal.density(0),  v4d["ni-1 / "] = &thermal.density(1);
-        v4d["Ue / "]   = &thermal.velocity(0), v4d["Ui / "]   = &thermal.velocity(1);
-        v4d["Phi / "] = &thermal.potential(0); v4d["Apar / "] = &thermal.aparallel();
-        /////////////////////////set up transfer for glfw
-        dg::DVec dvisual( grid.size(), 0.);
-        dg::HVec hvisual( grid.size(), 0.), visual(hvisual), avisual(hvisual);
-        dg::IHMatrix equi = dg::create::backscatter( grid);
-        draw::ColorMapRedBlueExtMinMax colors(-1.0, 1.0);
-
-        /////////glfw initialisation ////////////////////////////////////////////
-        //
-        std::stringstream title;
-        unsigned red = js["output"]["window"].get("reduction", 1).asUInt();
-        double rows = js["output"]["window"]["rows"].asDouble(), cols = p.Nz/red+1,
-               width = js["output"]["window"]["width"].asDouble(), height = js["output"]["window"]["height"].asDouble();
-        if ( p.symmetric ) cols = rows, rows = 1;
-        GLFWwindow* w = draw::glfwInitAndCreateWindow( cols*width, rows*height, "");
-        draw::RenderHostData render(rows, cols);
-
-        std::cout << "Begin computation \n";
-        std::cout << std::scientific << std::setprecision( 2);
-        dg::Average<dg::HVec> toroidal_average( grid, dg::coo3d::z, "simple");
-        title << std::setprecision(2) << std::scientific;
-        while ( !glfwWindowShouldClose( w ))
-        {
-            title << std::fixed;
-            title << "t = "<<time<<"   ";
-            for( auto pair : v4d)
-            {
-                if(pair.first == "Phi / ")
-                {
-                    //dg::assign( thermal.lapMperpP(0), hvisual);
-                    dg::assign( *pair.second, hvisual);
-                }
-                else if(pair.first == "ne-1 / " || pair.first == "ni-1 / ")
-                {
-                    dg::assign( *pair.second, hvisual);
-                    //dg::blas1::axpby( 1., hvisual, -1., profile, hvisual);
-                }
-                else
-                    dg::assign( *pair.second, hvisual);
-                dg::blas2::gemv( equi, hvisual, visual);
-                colors.scalemax() = dg::blas1::reduce(
-                    visual, 0., dg::AbsMax<double>() );
-                colors.scalemin() = -colors.scalemax();
-                title <<pair.first << colors.scalemax()<<"   ";
-                if ( p.symmetric )
-                    render.renderQuad( hvisual, grid.n()*grid.Nx(),
-                                                grid.n()*grid.Ny(), colors);
-                else
-                {
-                    for( unsigned k=0; k<p.Nz/red;k++)
-                    {
-                        unsigned size=grid.n()*grid.n()*grid.Nx()*grid.Ny();
-                        dg::HVec part( visual.begin() +  k*red   *size,
-                                       visual.begin() + (k*red+1)*size);
-                        render.renderQuad( part, grid.n()*grid.Nx(),
-                                                 grid.n()*grid.Ny(), colors);
-                    }
-                    dg::blas1::scal(avisual,0.);
-                    toroidal_average(visual,avisual);
-                    render.renderQuad( avisual, grid.n()*grid.Nx(),
-                                                grid.n()*grid.Ny(), colors);
-                }
-            }
-            glfwSetWindowTitle(w,title.str().c_str());
-            title.str("");
-            glfwPollEvents();
-            glfwSwapBuffers( w);
-
-            //step
-            t.tic();
-            for( unsigned i=1; i<=p.itstp; i++)
-            {
-                odeint->integrate( time, y0, t_output + i*p.deltaT, y0,
-                         i<p.itstp ? dg::to::at_least :  dg::to::exact);
-                std::cout << "Time "<<time<<" t_out "<<t_output<<" deltaT "<<p.deltaT<<" i "<<i<<" itstp "<<p.itstp<<"\n";
-
-                double max_ue = dg::blas1::reduce(
-                    thermal.velocity(0), 0., dg::AbsMax<double>() );
-                std::cout << "\tMaximum ue "<<max_ue<<"\n";
-                if( adaptive )
-                {
-                    std::cout << "\tdt "<<odeint->get_dt()<<"\n";
-                    std::cout << "\tfailed "<<failed<<"\n";
-                }
-                //----------------Test if ampere equation holds
-                // Does not work due to direct application of Laplace
-                // The Laplacian of Aparallel looks smooth in paraview
-                //if( p.beta != 0)
-                //{
-                //    thermal.compute_lapMperpA( dvisual);
-                //    double norm  = dg::blas2::dot( dvisual, thermal.vol3d(), dvisual);
-                //    dg::blas1::pointwiseDot( -p.beta,
-                //        thermal.density(0), thermal.velocity(0), p.beta,
-                //        thermal.density(1), thermal.velocity(1), -1., dvisual);
-                //    double error = dg::blas2::dot( dvisual, thermal.vol3d(), dvisual);
-                //    DG_RANK0 std::cout << "\tRel. Error Ampere "<<sqrt(error/norm) <<"\n";
-                //}
-            }
-            t_output += p.itstp*p.deltaT;
-            t.toc();
-            std::cout << "\n\t Time  "<<time<<" of "<<p.Tend;
-            std::cout << "\n\t Average time for one inner loop: "<<t.diff()/(double)p.itstp<<"\n\n";
-        }
-        glfwTerminate();
-    }
-#endif //WITHOUT_GLFW
 #ifdef WITH_MPI
     MPI_Finalize();
 #endif //WITH_MPI
