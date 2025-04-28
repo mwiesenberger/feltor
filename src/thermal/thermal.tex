@@ -179,11 +179,11 @@ Also, all species names, mass charge, kappa and pi values in the input file must
     // Whenever any one species is restarted, all species are restarted
     // The species names and parameters in the previous simulation must match the current ones.
     "file" : "path/to/file.nc"
-    // the file to use as a restart for $N_s$, $U_{\parallel,s}$, $T_{\parallel,s}$, $T_{\perp,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
+    // the file to use as a restart for $N_s$, $T_{\parallel,s}$, $T_{\perp,s}$, $U_{\parallel,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
 }
 \end{minted}
 
-In contrast, we can initialize the fields $N_s$, $U_{\parallel,s}$, $T_{\parallel,s}$, $T_{\perp,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
+In contrast, we can initialize the fields $N_s$, $P_{\parallel,s}$, $P_{\perp,s}$, $U_{\parallel,s}$, $Q_{\parallel,s}$ and $Q_{\perp,s}$
 directly:
 \begin{minted}[texcomments]{js}
 "init":
@@ -193,11 +193,11 @@ directly:
     {
         //...
     },
-    "tperp": // or "pperp"
+    "pperp":
     {
         //...
     },
-    "tpara": // or "ppara"
+    "ppara":
     {
         //...
     },
@@ -217,16 +217,11 @@ directly:
 \end{minted}
 
 \noindent
-\begin{tcolorbox}[title=Note]
-    Instead of temperature one can choose to initialise the pressure as well
-    by writing `p` instead of `t` in the relevant field. However, only one of
-    the two may be present not both.
-\end{tcolorbox}
-The "density", "tperp" and "tpara" fields all allow the following:
+The "density", "pperp" and "ppara" fields all allow the following:
 \begin{minted}[texcomments]{js}
 "init":
 {
-    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
+    "density" : // or "pperp" or "ppara"
     {
         "type" : "const"  // $N_s = const$
         "background" : 0.1, // $const>0$
@@ -234,7 +229,7 @@ The "density", "tperp" and "tpara" fields all allow the following:
         //(see also nbc, minne and nwall)
     }
     // OR
-    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
+    "density" : // or "pperp" or "ppara"
     {
         "type" : "ne",  // $n_s = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
         "ntilde":
@@ -350,14 +345,12 @@ Q_\parallel &= 0
 \end{align}
 
 
-% How to do it for source terms is also still open
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Sources} \label{sec:sources}
+\subsubsection{Sources} \label{sec:sources}
 See the file {\tt init.h} to add your own custom source.
 
-At this stage we can have sources only in the density, perpendicular temperature and
-parallel temperature equations. The parallel momentum and heat flux sources are always zero.
+At this stage we can have sources only in the density, perpendicular pressure and
+parallel pressure equations. The parallel momentum and heat flux sources are always zero.
 \begin{minted}[texcomments]{js}
 "source":
 {
@@ -365,11 +358,11 @@ parallel temperature equations. The parallel momentum and heat flux sources are 
     {
         //...
     },
-    "tperp":
+    "pperp":
     {
         //...
     },
-    "tpara":
+    "ppara":
     {
         //...
     }
@@ -403,6 +396,7 @@ is below the lower limit. $n_{\min}=0$ disables this term.
     "density":
     {
         "minne" : 0.1 // $n_{\min}$ in Eq.\eqref{eq:minimumne}
+        // Note that $\sum_s z_s n_{\min, s} = 0$ must be fulfilled
         //if 0 then the other two parameters are ignored
         "minrate" : 1 // $\omega_{\min}$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
         "minalpha" : 0.01 // $\alpha$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
@@ -422,18 +416,18 @@ In order to disable any additional source terms choose
 \end{minted}
 
 \paragraph{Profile forcing}
-\noindent We can choose the source terms $S_N$, $S_{T,\perp}$ and $S_{T,\parallel}$ to force a profile
+\noindent We can choose the source terms $S_N$, $S_{P,\perp}$ and $S_{P,\parallel}$ to force a profile
 \begin{align} \label{eq:electron_source}
     S_{N,s}(R,Z,\varphi, t) &= \omega_s (n_{prof}(R,Z) - N_s(R,Z,\varphi, t))D(R,Z)
 \end{align}
-and analogously for the temperature / pressure sources,
+and analogously for the pressure sources,
 where $\omega_s$ is the source strength parameter.
 The forced source will result in exponential adaption of the core
 profile of the form $n \propto n_{prof}+(n_{prof}-n_{0})e^{-\omega_st}$.
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
+    "density" : // or "pperp" or "ppara"
     {
         "type" : "fixed_profile",
         "rate" : 1e-3 // source strength $\omega_s$
@@ -470,7 +464,7 @@ the source with the parameters below generates and compare to
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "density" : // or "tperp"/"pperp" or "tpara"/"ppara"
+    "density" : // or "pperp" or "ppara"
     {
         "type" : "influx",
         "rate" : 1e-3, // source strength $\omega_s$

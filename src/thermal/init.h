@@ -50,29 +50,16 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
     {
         dg::file::WrappedJsonValue js = jsspecies[s]["init"];
         DG_RANK0  std::cout << "# Initializing species "<<p.name[s]<<"\n";
-        bool tperp = js.isMember( "tperp");
-        bool pperp = js.isMember( "pperp");
-        bool tpara = js.isMember( "tpara");
-        bool ppara = js.isMember( "ppara");
-        if( tperp and pperp)
-            throw std::runtime_error( "Tperp and Pperp cannot be set at the same time");
-        if( tpara and ppara)
-            throw std::runtime_error( "Tpara and Ppara cannot be set at the same time");
-        if( not tperp and not pperp)
-            throw std::runtime_error( "Either Tperp or Pperp must be present");
-        if( not tpara and not ppara)
-            throw std::runtime_error( "Either Tpara or Ppara must be present");
 
-        const std::array<std::string,3> eqs =
-            { "density", tperp ? "tperp" : "pperp", tpara ? "tpara" : "ppara"};
+        const std::array<std::string,3> eqs = { "density", "pperp", "ppara"};
         // Think of this as initialising the **physical** quantities
-        for( int eq = 0; eq<3; eq ++)
+        for( std::string field : eqs)
         {
-            std::string ntype = js[eqs[eq]].get("type", "zero").asString();
-            DG_RANK0 std::cout << "# Initialize "<<eqs[eq]<<" with "<<ntype << std::endl;
+            std::string ntype = js[field].get("type", "zero").asString();
+            DG_RANK0 std::cout << "# Initialize "<<field<<" with "<<ntype << std::endl;
             if ( "const" == ntype)
             {
-                double nbg = js[eqs[eq]].get("background", 0.1).asDouble();
+                double nbg = js[field].get("background", 0.1).asDouble();
                 y0[eq][s] = dg::construct<dg::x::DVec>(
                         dg::evaluate( dg::CONSTANT( nbg), grid));
             }
@@ -80,11 +67,11 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
             {
                 double nbg = 0.;
                 dg::x::HVec ntilde  = detail::make_ntilde(  thermal, grid, mag,
-                        js["density"]["ntilde"]);
+                        js[field]["ntilde"]);
                 dg::x::HVec profile = detail::make_profile( grid, mag,
-                        js["density"]["profile"], nbg);
+                        js[field]["profile"], nbg);
                 dg::x::HVec damping = detail::make_damping( grid, unmod_mag,
-                        js["density"]["damping"]);
+                        js[field]["damping"]);
                 dg::x::HVec density = profile;
                 dg::blas1::subroutine( [nbg]( double profile, double
                     ntilde, double damping, double& density)
@@ -92,18 +79,14 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
                         profile, ntilde, damping, density);
                 dg::assign( density, y0[eq][s]);
             }
-            else if ( 0 == eq and "quasineutral" == ntype)
+            else if ( "density" == field and "quasineutral" == ntype)
             {
                 num_quasineutral_n ++ ;
                 idx_quasineutral_n = s;
             }
             else
-                throw dg::Error(dg::Message()<< "Invalid "<<eqs[eq]<<" initial condition "<<ntype<<"\n");
+                throw dg::Error(dg::Message()<< "Invalid "<<field<<" initial condition "<<ntype<<"\n");
         }
-        if( tperp)
-            dg::blas1::pointwiseDot( y0[0][s], y0[1][s], y0[1][s]); // P = NT
-        if( tpara)
-            dg::blas1::pointwiseDot( y0[0][s], y0[2][s], y0[2][s]); // P = NT
     }
     // Check quasineutrality
     if( num_quasineutral_n > 1)
@@ -218,75 +201,95 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
     return y0;
 };
 
-dg::x::HVec source_profiles(
+std::array<std::vector<dg::x::HVec>,3> source_profiles(
     Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
-    bool& fixed_profile, //indicate whether a profile should be forced (yes or no)
-    dg::x::HVec& ne_profile,    // if fixed_profile is yes you need to construct something here, if no then you can ignore the parameter; if you construct something it will show in the output file
+    bool& fixed_profile,        //indicate whether a profile should be forced (yes or no)
+    std::vector<dg::x::HVec>& ns_profile,    // if fixed_profile is yes you need to construct something here, if no then you can ignore the parameter; if you construct something it will show in the output file
+    std::vector<dg::x::HVec>& pperp_profile,
+    std::vector<dg::x::HVec>& ppara_profile,
     const dg::x::CylindricalGrid3d& grid,
     const dg::geo::TokamakMagneticField& mag,
     const dg::geo::TokamakMagneticField& unmod_mag,
-    const dg::file::WrappedJsonValue& js,
-    double& minne, double& minrate, double& minalpha
+    dg::file::WrappedJsonValue jsspecies, // input["species"]
+    std::vector<double>& minne,
+    std::vector<double>& minrate,
+    std::vector<double>& minalpha
     )
 {
-    //js = input["source"]
-    minne = js.get("minne", 0.).asDouble();
-    minrate =  minalpha = 0;
-    if( minne != 0)
+    unsigned num_species = jsspecies.size();
+    minne.resize( num_species);
+    minrate.resize( num_species);
+    minalpha.resize( num_species);
+    std::array<std::vector<dg::x::HVec>,3> source;
+    for( unsigned s=0; s<num_species; s++)
     {
-        minrate = js.get("minrate", 1.).asDouble();
-        minalpha = js.get("minalpha", 0.05).asDouble();
-    }
+        dg::file::WrappedJsonValue js = jsspecies[s]["source"];
+        minne[s] = js["density"].get("minne", 0.).asDouble();
+        minrate[s] =  minalpha[s] = 0;
+        if( minne != 0)
+        {
+            minrate[s] = js["density"].get("minrate", 1.).asDouble();
+            minalpha[s] = js["density"].get("minalpha", 0.05).asDouble();
+        }
 
-    std::string type  = js.get( "type", "zero").asString();
-    dg::x::HVec source = dg::evaluate( dg::zero, grid);
-    ne_profile = source;
-    if( "zero" == type)
-    {
+        const std::array<std::string,3> eqs = { "density", "pperp", "ppara"};
+        // Think of this as initialising the **physical** quantities
+        for( unsigned u=0; u<3; u++)
+        {
+            source[u][s] = dg::evaluate( dg::zero, grid);
+
+            std::string type  = js[eqs[u]].get( "type", "zero").asString();
+
+            ne_profile = dg::evaluate( dg::zero, grid);
+            if( "zero" == type)
+            {
+                ;
+            }
+            else if( "fixed_profile" == type)
+            {
+                fixed_profile = true;
+                double nbg = 0;
+                ne_profile = detail::make_profile(grid, mag, js["profile"], nbg);
+                source = detail::make_damping( grid, unmod_mag, js["damping"]);
+            }
+            else if("influx" == type)
+            {
+                fixed_profile = false;
+                double nbg = 0.;
+                source  = detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
+                ne_profile = detail::make_profile( grid, mag, js["profile"], nbg);
+                dg::x::HVec damping = detail::make_damping( grid, unmod_mag, js["damping"]);
+                dg::blas1::subroutine( [nbg]( double& profile, double& ntilde, double
+                            damping) {
+                            ntilde  = (profile+ntilde-nbg)*damping+nbg;
+                            profile = (profile-nbg)*damping +nbg;
+                        },
+                        ne_profile, source, damping);
+            }
+            else if( "torpex" == type)
+            {
+                fixed_profile = false;
+                double rhosinm = 0.98 / mag.R0();
+                double rhosinm2 = rhosinm*rhosinm;
+                source = dg::pullback( detail::TorpexSource(
+                0.98/rhosinm, -0.02/rhosinm, 0.0335/rhosinm, 0.05/rhosinm, 565*rhosinm2),
+                    grid);
+            }
+            else if( "tcv" == type)
+            {
+                fixed_profile = false;
+                const double R_0 = 1075., Z_0 = -10.;
+                const double psip0 = mag.psip()( R_0, Z_0);
+                const double sigma = 9.3e-3*psip0/0.4;
+                source = dg::pullback(
+                    dg::compose( dg::GaussianX( psip0, sigma, 1.),  mag.psip() ), grid);
+                dg::blas1::pointwiseDot( detail::xpoint_damping(grid,mag),
+                       source, source);
+            }
+            else
+                throw dg::Error(dg::Message()<< "Invalid source type "<<type<<"\n");
+        }
     }
-    else if( "fixed_profile" == type)
-    {
-        fixed_profile = true;
-        double nbg = 0;
-        ne_profile = detail::make_profile(grid, mag, js["profile"], nbg);
-        source = detail::make_damping( grid, unmod_mag, js["damping"]);
-    }
-    else if("influx" == type)
-    {
-        fixed_profile = false;
-        double nbg = 0.;
-        source  = detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
-        ne_profile = detail::make_profile( grid, mag, js["profile"], nbg);
-        dg::x::HVec damping = detail::make_damping( grid, unmod_mag, js["damping"]);
-        dg::blas1::subroutine( [nbg]( double& profile, double& ntilde, double
-                    damping) {
-                    ntilde  = (profile+ntilde-nbg)*damping+nbg;
-                    profile = (profile-nbg)*damping +nbg;
-                },
-                ne_profile, source, damping);
-    }
-    else if( "torpex" == type)
-    {
-        fixed_profile = false;
-        double rhosinm = 0.98 / mag.R0();
-        double rhosinm2 = rhosinm*rhosinm;
-        source = dg::pullback( detail::TorpexSource(
-        0.98/rhosinm, -0.02/rhosinm, 0.0335/rhosinm, 0.05/rhosinm, 565*rhosinm2),
-            grid);
-    }
-    else if( "tcv" == type)
-    {
-        fixed_profile = false;
-        const double R_0 = 1075., Z_0 = -10.;
-        const double psip0 = mag.psip()( R_0, Z_0);
-        const double sigma = 9.3e-3*psip0/0.4;
-        source = dg::pullback(
-            dg::compose( dg::GaussianX( psip0, sigma, 1.),  mag.psip() ), grid);
-        dg::blas1::pointwiseDot( detail::xpoint_damping(grid,mag),
-               source, source);
-    }
-    else
-        throw dg::Error(dg::Message()<< "Invalid source type "<<type<<"\n");
     return source;
 };
 
