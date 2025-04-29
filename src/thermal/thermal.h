@@ -424,12 +424,18 @@ struct Explicit
     }
 
     //source strength, profile - 1
-    void set_source( bool fixed_profile, Container profile, double source_rate, Container source, double minne, double minrate, double minalpha)
+    void set_source( bool fixed_profile, const std::array<std::vector<Container>,3>& profile,
+        const std::array<std::vector<double>,3>& source_rate,
+        Container source,
+        const std::vector<double>& minne,
+        double minrate,
+        const std::vector<double>& minalpha)
     {
         m_fixed_profile = fixed_profile;
         m_profne = profile;
         m_source_rate = source_rate;
         m_source = source;
+
         m_minne = minne;
         m_minrate = minrate;
         m_minalpha = minalpha;
@@ -462,13 +468,15 @@ struct Explicit
     dg::Extrapolation<Container> m_old_apar;
     std::array<Container,4> m_psi; // different for each species
 
+    std::array<std::vector<Container>,3> m_s; // source terms for all species
 
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
     std::vector<bool> m_upToDate;
 
     double m_source_rate = 0.;
-    double m_minne = 0., m_minrate  = 0., m_minalpha = 0.;
+    std::vector<double> m_minne, m_minalpha;
+    double m_minrate  = 0.;
     bool m_fixed_profile = true;
     unsigned m_called = 0;
 
@@ -503,59 +511,51 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
+    const std::array<std::vector<Container>,6>& y,
     std::array<std::vector<Container>,6>& yp)
 {
-    if( m_source_rate != 0.0)
+    for( unsigned s=0; s<m_p.num_species; s++)
     {
-        if( m_fixed_profile )
-            dg::blas1::subroutine(
-                [] DG_DEVICE ( double& result, double ne, double profne,
-                    double source, double source_rate){
-                    result = source_rate*source*(profne - ne);
-                    },
-                m_s[0][0], m_density[0], m_profne, m_source, m_source_rate);
+        // First, add minimum density source
+        // add prevention to get below lower limit
+        if( m_minrate != 0.0)
+        {
+            // do not make lower forcing a velocity source
+            // MW it may be that this form does not go well with the potential
+            dg::blas1::transform( y[0][s], m_temp0, dg::PolynomialHeaviside(
+                        m_minne[s]-m_minalpha[s]/2., m_minalpha[s]/2., -1) );
+            dg::blas1::transform( y[0][s], m_temp1, dg::PLUS<double>( -m_minne[s]));
+            dg::blas1::pointwiseDot( -m_minrate, m_temp1, m_temp0, 1., yp[0][s]);
+        }
+
+        if( m_source_rate[s] != 0.0)
+        {
+            if( m_fixed_profile )
+                dg::blas1::subroutine(
+                    [] DG_DEVICE ( double& result, double ne, double profne,
+                        double source, double source_rate){
+                        result = source_rate*source*(profne - ne);
+                        },
+                    m_s[0][0], m_density[0], m_profne, m_source, m_source_rate);
+            else
+                dg::blas1::axpby( m_source_rate, m_source, 0., m_s[0][s]);
+        }
         else
-            dg::blas1::axpby( m_source_rate, m_source, 0., m_s[0][0]);
-    }
-    else
-        dg::blas1::copy( 0., m_s[0][0]);
-    // add prevention to get below lower limit
-    if( m_minrate != 0.0)
-    {
-        // do not make lower forcing a velocity source
-        // MW it may be that this form does not go well with the potential
-        dg::blas1::transform( m_density[0], m_temp0, dg::PolynomialHeaviside(
-                    m_minne-m_minalpha/2., m_minalpha/2., -1) );
-        dg::blas1::transform( m_density[0], m_temp1, dg::PLUS<double>( -m_minne));
-        dg::blas1::pointwiseDot( -m_minrate, m_temp1, m_temp0, 1., yp[0][0]);
-        dg::blas1::transform( m_density[1], m_temp0, dg::PolynomialHeaviside(
-                    m_minne-m_minalpha/2., m_minalpha/2., -1) );
-        dg::blas1::transform( m_density[1], m_temp1, dg::PLUS<double>( -m_minne));
-        dg::blas1::pointwiseDot( -m_minrate, m_temp1, m_temp0, 1., yp[0][1]);
-    }
+            dg::blas1::copy( 0., m_s[0][0]);
 
-    //compute FLR corrections S_N = (1-0.5*mu*tau*Lap)*S_n
-    dg::blas2::gemv( m_lapperpN, m_s[0][0], m_temp0);
-    dg::blas1::axpby( 1., m_s[0][0], 0.5*m_p.tau[1]*m_p.mu[1], m_temp0, m_s[0][1]);
-    // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
-    dg::blas1::pointwiseDot( m_p.mu[1], m_s[0][0], m_binv, m_binv, 0., m_temp0);
-    m_lapperpP.set_chi( m_temp0);
-    m_lapperpP.symv( 1., m_psi[0], 1., m_s[0][1]);
+        //compute FLR corrections S_N = (1-0.5*mu*tau*Lap)*S_n
+        dg::blas2::gemv( m_lapperpN, m_s[0][0], m_temp0);
+        dg::blas1::axpby( 1., m_s[0][s], 0.5*m_p.tau[1]*m_p.mu[1], m_temp0, m_s[0][s]);
+        // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
+        dg::blas1::pointwiseDot( m_p.mu[1], m_s[0][0], m_binv, m_binv, 0., m_temp0);
+        m_lapperpP.set_chi( m_temp0);
+        m_lapperpP.symv( 1., m_psi[0], 1., m_s[0][1]);
 
-    // S_U = - U S_N/N
-    for(int i=0; i<2; i++)
-    {
-        // transform to adjoint plane and add to velocity source
-        m_faST( dg::geo::zeroMinus, m_s[0][i], m_minus);
-        m_faST( dg::geo::einsPlus,  m_s[0][i], m_plus);
-        update_parallel_bc_1st( m_minus, m_plus, m_p.bcxN, 0.);
-        dg::geo::ds_average( m_faST, 1., m_minus, m_plus, 0., m_temp0);
-        dg::blas1::evaluate( m_s[1][i], dg::equals(), []DG_DEVICE(
-                    double sn, double u, double n){ return -u*sn/n;},
-                m_temp0, m_velocityST[i], m_densityST[i]);
     }
     //Add all to the right hand side
-    dg::blas1::axpby( 1., m_s, 1.0, yp);
+    for( unsigned u=0; u<3; u++)
+        for( unsigned s=0; s<m_p.num_species; s++)
+            dg::blas1::axpby( 1., m_s[u][s], 1.0, yp[u][s]);
 }
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
@@ -672,19 +672,19 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     m_collisions.add_collisions( m_parallel.get_qST()[0], m_aparST, y, yp);
     m_parallel.add_sheath_velocity_terms( m_collisions.get_tparaST(), yp);
 
-    for( unsigned i=0; i<6; i++)
+    for( unsigned u=0; u<6; u++)
     {
         for( unsigned s=0; s<m_p.num_species; s++)
         {
-            common::multiply_rhs_penalization( yp[i][s], m_p.penalize_wall,
+            common::multiply_rhs_penalization( yp[u][s], m_p.penalize_wall,
                 m_wall, m_p.penalize_sheath, m_sheath); // F*(1-chi_w-chi_s)
-            if( i != 3)
-                dg::blas1::pointwiseDot( -m_wall_rate, m_wall, y[i][s],
-                    -m_sheath_rate, m_sheath, y[i][s], 1., yp[i][s]);
-            else
+            if( u == 3)
                 // Apply to U, not W
                 dg::blas1::pointwiseDot( -m_wall_rate, m_wall, m_parallel.get_qST[3],
-                    -m_sheath_rate, m_sheath, m_parallel.get_qST[3], 1., yp[i][s]);
+                    -m_sheath_rate, m_sheath, m_parallel.get_qST[3], 1., yp[u][s]);
+            else
+                dg::blas1::pointwiseDot( -m_wall_rate, m_wall, y[u][s],
+                    -m_sheath_rate, m_sheath, y[u][s], 1., yp[u][s]);
         }
     }
 
@@ -692,6 +692,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     //Add source terms
     // set m_s
     add_source_terms( yp );
+    m_parallel.add_velocity_source_term( m_s[0], wST, m_aparST, yp);
 
     timer.toc();
     accu += timer.diff();

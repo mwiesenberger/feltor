@@ -204,9 +204,7 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
 std::array<std::vector<dg::x::HVec>,3> source_profiles(
     Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
     bool& fixed_profile,        //indicate whether a profile should be forced (yes or no)
-    std::vector<dg::x::HVec>& ns_profile,    // if fixed_profile is yes you need to construct something here, if no then you can ignore the parameter; if you construct something it will show in the output file
-    std::vector<dg::x::HVec>& pperp_profile,
-    std::vector<dg::x::HVec>& ppara_profile,
+    std::array<std::vector<dg::x::HVec>,3>& profiles,    // if fixed_profile is yes you need to construct something here, if no then you can ignore the parameter; if you construct something it will show in the output file
     const dg::x::CylindricalGrid3d& grid,
     const dg::geo::TokamakMagneticField& mag,
     const dg::geo::TokamakMagneticField& unmod_mag,
@@ -231,6 +229,8 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
             minrate[s] = js["density"].get("minrate", 1.).asDouble();
             minalpha[s] = js["density"].get("minalpha", 0.05).asDouble();
         }
+        if( minrate[s] != minrate[0])
+            throw dg::Error(dg::Message()<< "Minrate must be equal among species "<<minrate[s]<<" vs "<<minrate[0]<<"!\n");
 
         const std::array<std::string,3> eqs = { "density", "pperp", "ppara"};
         // Think of this as initialising the **physical** quantities
@@ -240,7 +240,7 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
 
             std::string type  = js[eqs[u]].get( "type", "zero").asString();
 
-            ne_profile = dg::evaluate( dg::zero, grid);
+            profiles[u][s] = dg::evaluate( dg::zero, grid);
             if( "zero" == type)
             {
                 ;

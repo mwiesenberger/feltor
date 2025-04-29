@@ -395,11 +395,12 @@ is below the lower limit. $n_{\min}=0$ disables this term.
 {
     "density":
     {
-        "minne" : 0.1 // $n_{\min}$ in Eq.\eqref{eq:minimumne}
+        "minne" : 0.1 // $n_{\min,s}$ in Eq.\eqref{eq:minimumne}
         // Note that $\sum_s z_s n_{\min, s} = 0$ must be fulfilled
         //if 0 then the other two parameters are ignored
         "minrate" : 1 // $\omega_{\min}$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
-        "minalpha" : 0.01 // $\alpha$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
+        // Must be equal for all species
+        "minalpha" : 0.01 // $\alpha_s$ in Eq.\eqref{eq:minimumne} (only if $n_{\min}>0$)
     }
 }
 \end{minted}
@@ -449,7 +450,7 @@ profile of the form $n \propto n_{prof}+(n_{prof}-n_{0})e^{-\omega_st}$.
 \paragraph{Constant influx}
 Another option is to provide a constant influx of particles and/or heat
 \begin{align}
-    S_{N,s}(R,Z,\varphi, t) &= \omega_s \left( (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg})D(R,Z) + n_{bg}\right)
+    s_{n,s}(R,Z,\varphi, t) &= \omega_s \left( (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg})D(R,Z) + n_{bg}\right)
 \end{align}
 where $\omega_s$ is the source strength parameter.
 The idea is that you can start with zero density and evolve the profile purely
@@ -468,6 +469,8 @@ the source with the parameters below generates and compare to
     {
         "type" : "influx",
         "rate" : 1e-3, // source strength $\omega_s$
+        // Density source rates must be equal among species
+        // Pressure source rates can be different
         "ntilde" :
         {
             // Determine $\tilde n(R,Z,\varphi)$
@@ -490,19 +493,27 @@ the source with the parameters below generates and compare to
 \end{minted}
 
 \paragraph{Quasineutrality}
-In order to not generate potential with the source term the
-ion source needs to fulfill $S_{n_e} = \Gamma_{1,i}S_{N_i} + \nc\left( \frac{\mu_i S_{N_i}}{B^2}\np \phi\right)$ which in the long wavelength limit can be inverted to (the long wavelength limit should be well-fulfilled for a realistic source term since the amplitude is typically quite small)
+In order to not generate potential with the source term the density source
+terms need to fulfill $\sum_s z_s s_{n,s}  = 0$. Generally, we achieve this by
+requiring all density source rates $\omega_{n,s}$ be equal among species and
+the profiles (both influx or fixed) fulfill the quasineutrality condition.
+
+$S_{n_e} = \Gamma_{1,i}S_{N_i} + \nc\left( \frac{\mu_i S_{N_i}}{B^2}\np
+\phi\right)$ which in the long wavelength limit can be inverted to (the long
+wavelength limit should be well-fulfilled for a realistic source term since the
+amplitude is typically quite small)
 \begin{align}
-    S_{N_i} = \left(1-\frac{1}{2}\mu_i \tau_i \Delta_\perp\right) S_{n_e} -\nc\left( \frac{\mu_i S_{n_e}}{B^2}\np \phi\right)
+    S_{N_s} = s_{n,s}-\frac{\mu_s }{2z_s^2} \Delta_\perp \frac{s_{p,\perp}}{B^2} -\nc\left( \frac{\mu_s s_{n,s}}{z_sB^2}\np \phi\right)
   \label{eq:ion_source}
 \end{align}
-Note that the additional terms besides $S_{n_e}$ are total divergences which means
-they do not change the volume integrated "total" particle number created by the source.
-Note that $S_{n_e}$ needs to be smooth
-so that $\np^2 S_{n_e}$ is well defined.
-Also note that with our definition of $\Lambda_{n_e}$ and $\Lambda_{N_i}$ and
-the polarisation equation we have $\Lambda_{n_e} = \Gamma_{1,i}\Lambda_{N_i} + \nc\left( \frac{\mu_i \Lambda_{N_i}}{B^2}\np \phi\right)$ in the long wavelength limit (swap the operators).
-This means that diffusion does not generate potential either.
+Note that the additional terms besides $S_{n_e}$ are total divergences which
+means they do not change the volume integrated "total" particle number created
+by the source.  Note that $S_{n_e}$ needs to be smooth so that $\np^2 S_{n_e}$
+is well defined.  Also note that with our definition of $\Lambda_{n_e}$ and
+$\Lambda_{N_i}$ and the polarisation equation we have $\Lambda_{n_e} =
+\Gamma_{1,i}\Lambda_{N_i} + \nc\left( \frac{\mu_i \Lambda_{N_i}}{B^2}\np
+\phi\right)$ in the long wavelength limit (swap the operators).  This means
+that diffusion does not generate potential either.
 
 \paragraph{Velocity source}
 The velocity source is chosen such that the density source does not introduce
@@ -511,7 +522,7 @@ net momentum
     S_U = -\frac{U_\parallel}{N} S_N
     \label{eq:velocity_source}
 \end{align}
-for all species.
+for all species. Note that this requires the density source to be transformed to the staggered grid.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Advection}

@@ -92,6 +92,32 @@ class ParallelDynamics
         const std::vector<Container>& tparaST, // from collisions
         std::array<std::vector<Container>,6>& yp);
 
+    void add_velocity_source_term(
+        const std::vector<Container>& sn,
+        const std::vector<Container>& wST,
+        const Container& aparST,
+        std::array<std::vector<Container>,6>& yp);
+    {
+        for( unsigned s=0; s<m_p.num_species; s++)
+        {
+            // S_U = - U S_N / N
+            // transform to adjoint plane and add to velocity source
+            m_faST( dg::geo::zeroMinus, m_sn[s], m_tminus);
+            m_faST( dg::geo::einsPlus,  m_sn[s], m_tplus);
+            update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcxN, 0.);
+            dg::geo::ds_average( m_faST, 1., m_tminus, m_tplus, 0., m_temp);
+
+            double mus = m_p.mu[s], zs = m_p.z[s];
+            dg::blas1::evaluate( yp[3][s], dg::plus_equals(), [mus, zs]DG_DEVICE(
+                        double snST, double wST, double nST, double aparST)
+                    {
+                        double uST = wST - zs/mus * aparST;
+                        return -uST*snST/nST;
+                    },
+                m_temp0, y[3][s], m_STN[s], aparST);
+        }
+    }
+
     private:
     // could be a free function?
     void compute_parallel_flux( const Container& velocity,
