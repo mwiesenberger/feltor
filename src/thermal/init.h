@@ -13,7 +13,7 @@ namespace thermal
  */
 
 std::array<std::vector<dg::x::DVec>,6> initial_conditions(
-    Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
+    Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal, // for fieldaligned
     const dg::x::CylindricalGrid3d& grid, const thermal::Parameters& p,
     const dg::geo::TokamakMagneticField& mag,
     const dg::geo::TokamakMagneticField& unmod_mag,
@@ -106,26 +106,18 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
         std::string invert = js["density"].get("invert", "none").asString();
         if( "none" == invert)
             continue; // N_s = n_s
-        //TODO Fix lwl
-        //else if( "lwl" == invert)
-        //{
-        //    //add FLR correction -0.5*tau*mu*Delta n_e
-        //    dg::blas1::transform(src, m_temp0, dg::PLUS<double>(-m_p.nbc));
-        //    dg::blas2::symv( 0.5*m_p.tau[1]*m_p.mu[1],
-        //        m_lapperpN, m_temp0, 1.0, target);
-        //    double minimalni = dg::blas1::reduce( y0[0][1], 1e10,
-        //            thrust::minimum<double>());
-        //    DG_RANK0 std::cerr << "# Minimum Ni value "<<minimalni<<std::endl;
-        //    //actually we should always invert according to Markus
-        //    //because the dG direct application is supraconvergent
-        //    std::string ptype = js["potential"].get("type", "zero_pol").asString();
-        //    DG_RANK0 std::cout << "# Initialize potential with "<<ptype << std::endl;
-        //    if( minimalni <= 0.0)
-        //    {
-        //        throw dg::Error(dg::Message()<< "ERROR: invalid initial condition. Increase value for alpha since now the ion gyrocentre density is negative!\n"
-        //            << "Minimum Ni value "<<minimalni);
-        //    }
-        //}
+        else if( "lwl" == invert)
+        {
+            // Thermal trafo runs on device so we need to move data back and forth
+            dg::x::DVec density = y0[0][s], pperp = y0[1][s], phi = dg::evaluate( dg::zero, grid);
+            thermal.transform_density_pperp( p.mu[s], p.z[s], density, pperp, phi, density, pperp);
+            y0[0][s] = density;
+            double minimalni = dg::blas1::reduce( y0[0][s], 1e10,
+                    thrust::minimum<double>());
+            DG_RANK0 std::cerr << "# Minimum Ns "<<s<<" value "<<minimalni<<std::endl;
+            //actually we should always invert according to Markus
+            //because the dG direct application is supraconvergent
+        }
         else
             throw dg::Error(dg::Message()<< "Invalid density invert type "<<invert<<"\n");
 
@@ -142,21 +134,21 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
             ; // velocity already is zero
         else if( "linear_cs" == utype )
         {
-            // TODO fix sheath init, assume toroidal alignment ot T in sheath
-            //std::string uprofile = js["velocity"].get("profile", "linear_cs").asString();
-
-            //dg::blas1::evaluate( m_temp, dg::equals(),
-            //    [ zs = m_p.z[s], ms = m_p.mu[s]] DG_DEVICE( double ts, double te)
-            //    {
-            //        return sqrt( ( ts + zs * te )/ms);
-            //    }, tparaST[k], tparaST[0])
-            //std::unique_ptr<dg::x::aGeometry2d> perp_grid_ptr( grid.perp_grid());
-            //dg::x::HVec coord2d = dg::pullback( sheath_coordinate,
-            //        *perp_grid_ptr);
-            //dg::x::HVec ui;
-            //dg::assign3dfrom2d( coord2d, ui, grid);
-            //dg::blas1::scal( ui, sqrt( 1.0+p.tau[1]));
-            //dg::assign( ui, y0[1][1]); // Wi = Ui
+            if( s == 0)
+                throw std::runtime_error( "Linear_cs velocity not available for electrons!");
+            // Assume toroidal alignment ot T in sheath
+            dg::blas1::evaluate( y0[3][s], dg::equals(),
+                [ zs = m_p.z[s], ms = m_p.mu[s]] DG_DEVICE( double ns, double ps, double ne, double pe)
+                {
+                    return sqrt( ( ps/ns + zs * pe/ne )/ms);
+                }, y0[0][s], y0[2][s], y0[0][0], y0[2][0]) // n, ppara and ppara_e initialized previously
+            // sheath coordinate
+            std::unique_ptr<dg::x::aGeometry2d> perp_grid_ptr( grid.perp_grid());
+            dg::x::HVec coord2d = dg::pullback( sheath_coordinate,
+                    *perp_grid_ptr);
+            dg::x::HVec ui;
+            dg::assign3dfrom2d( coord2d, ui, grid);
+            dg::blas1::pointwiseDot( ui, y0[3][s], y0[3][s]);
         }
         else if( "quasineutral" == utype)
         {
@@ -201,10 +193,12 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
     return y0;
 };
 
+// init physical influx / forced profiles for n, pperp, ppara
 std::array<std::vector<dg::x::HVec>,3> source_profiles(
     Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
-    bool& fixed_profile,        //indicate whether a profile should be forced (yes or no)
-    std::array<std::vector<dg::x::HVec>,3>& profiles,    // if fixed_profile is yes you need to construct something here, if no then you can ignore the parameter; if you construct something it will show in the output file
+    std::array<std::vector<bool>,3>& fixed_profile,     //indicate whether a profile should be forced (yes or no)
+    std::array<std::vector<double>,3>& source_rate,     // source rates
+    std::array<std::vector<dg::x::HVec>,3>& profile,    // if fixed_profile is yes you need to construct something here, if no then you can ignore the parameter; if you construct something it will show in the output file
     const dg::x::CylindricalGrid3d& grid,
     const dg::geo::TokamakMagneticField& mag,
     const dg::geo::TokamakMagneticField& unmod_mag,
@@ -215,10 +209,11 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
     )
 {
     unsigned num_species = jsspecies.size();
+
+    // Minimum density
     minne.resize( num_species);
     minrate.resize( num_species);
     minalpha.resize( num_species);
-    std::array<std::vector<dg::x::HVec>,3> source;
     for( unsigned s=0; s<num_species; s++)
     {
         dg::file::WrappedJsonValue js = jsspecies[s]["source"];
@@ -231,63 +226,79 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
         }
         if( minrate[s] != minrate[0])
             throw dg::Error(dg::Message()<< "Minrate must be equal among species "<<minrate[s]<<" vs "<<minrate[0]<<"!\n");
+    }
 
+    // Source profiles
+    std::array<std::vector<dg::x::HVec>,3> source;
+    for( unsigned u=0; u<3; u++)
+    {
+        profile[u].resize( num_species);
+        fixed_profile[u].resize( num_species);
+        source[u].resize( num_species);
+        source_rate[u].resize( num_species);
+    }
+    for( unsigned s=0; s<num_species; s++)
+    {
+        dg::file::WrappedJsonValue js = jsspecies[s]["source"];
         const std::array<std::string,3> eqs = { "density", "pperp", "ppara"};
         // Think of this as initialising the **physical** quantities
         for( unsigned u=0; u<3; u++)
         {
+            fixed_profile[u][s] = false;
+            profile[u][s] = dg::evaluate( dg::zero, grid);
             source[u][s] = dg::evaluate( dg::zero, grid);
 
             std::string type  = js[eqs[u]].get( "type", "zero").asString();
-
-            profiles[u][s] = dg::evaluate( dg::zero, grid);
+            source_rate[u][s] = js[eqs[u]].get( "rate", 1e-3).asDouble();
             if( "zero" == type)
             {
                 ;
             }
             else if( "fixed_profile" == type)
             {
-                fixed_profile = true;
+                fixed_profile[u][s] = true;
                 double nbg = 0;
-                ne_profile = detail::make_profile(grid, mag, js["profile"], nbg);
-                source = detail::make_damping( grid, unmod_mag, js["damping"]);
+                profile[u][s] = detail::make_profile(grid, mag, js["profile"], nbg);
+                source[u][s] = detail::make_damping( grid, unmod_mag, js["damping"]);
             }
             else if("influx" == type)
             {
-                fixed_profile = false;
                 double nbg = 0.;
-                source  = detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
-                ne_profile = detail::make_profile( grid, mag, js["profile"], nbg);
+                source[u][s]  = detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
+                profile[u][s] = detail::make_profile( grid, mag, js["profile"], nbg);
                 dg::x::HVec damping = detail::make_damping( grid, unmod_mag, js["damping"]);
                 dg::blas1::subroutine( [nbg]( double& profile, double& ntilde, double
                             damping) {
                             ntilde  = (profile+ntilde-nbg)*damping+nbg;
                             profile = (profile-nbg)*damping +nbg;
                         },
-                        ne_profile, source, damping);
+                        profile[u][s], source[u][s], damping);
             }
-            else if( "torpex" == type)
-            {
-                fixed_profile = false;
-                double rhosinm = 0.98 / mag.R0();
-                double rhosinm2 = rhosinm*rhosinm;
-                source = dg::pullback( detail::TorpexSource(
-                0.98/rhosinm, -0.02/rhosinm, 0.0335/rhosinm, 0.05/rhosinm, 565*rhosinm2),
-                    grid);
-            }
-            else if( "tcv" == type)
-            {
-                fixed_profile = false;
-                const double R_0 = 1075., Z_0 = -10.;
-                const double psip0 = mag.psip()( R_0, Z_0);
-                const double sigma = 9.3e-3*psip0/0.4;
-                source = dg::pullback(
-                    dg::compose( dg::GaussianX( psip0, sigma, 1.),  mag.psip() ), grid);
-                dg::blas1::pointwiseDot( detail::xpoint_damping(grid,mag),
-                       source, source);
-            }
+            //else if( "torpex" == type)
+            //{
+            //    double rhosinm = 0.98 / mag.R0();
+            //    double rhosinm2 = rhosinm*rhosinm;
+            //    source[u][s] = dg::pullback( detail::TorpexSource(
+            //        0.98/rhosinm, -0.02/rhosinm, 0.0335/rhosinm, 0.05/rhosinm, 565*rhosinm2),
+            //        grid);
+            //}
+            //else if( "tcv" == type)
+            //{
+            //    fixed_profile = false;
+            //    const double R_0 = 1075., Z_0 = -10.;
+            //    const double psip0 = mag.psip()( R_0, Z_0);
+            //    const double sigma = 9.3e-3*psip0/0.4;
+            //    source = dg::pullback(
+            //        dg::compose( dg::GaussianX( psip0, sigma, 1.),  mag.psip() ), grid);
+            //    dg::blas1::pointwiseDot( detail::xpoint_damping(grid,mag),
+            //           source, source);
+            //}
             else
                 throw dg::Error(dg::Message()<< "Invalid source type "<<type<<"\n");
+            if( fixed_profile[u][s] != fixed_profile[0][0])
+                throw dg::Error(dg::Message()<< "Profile types cannot be mixed among species or equations!");
+            if( source_rate[0][s] != source_rate[0][0])
+                throw dg::Error(dg::Message()<< "Density source rates must be equal among species "<<source_rate[0][s]<<" vs "<<source_rate[0][0]<<"!\n");
         }
     }
     return source;

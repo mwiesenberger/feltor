@@ -229,7 +229,12 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
     },
     { "Divb", "The divergence of the magnetic unit vector",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
-            dg::assign( v.f.divb(), result);
+            dg::assign(  dg::pullback(dg::geo::Divb(v.mag), grid), result);
+        }
+    },
+    { "InvB", "Inverse of Bmodule",
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
+            dg::assign(  dg::pullback(dg::geo::InvB(v.mag), grid), result);
         }
     },
     { "CurvatureKappaR", "R-component of the Kappa B curvature vector",

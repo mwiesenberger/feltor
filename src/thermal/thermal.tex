@@ -409,9 +409,9 @@ In order to disable any additional source terms choose
 \begin{minted}[texcomments]{js}
 "source":
 {
-    "density":
+    "density": // or "perp" or "ppara"
     {
-        "type" : "zero" // $S_{n_e} = 0$
+        "type" : "zero" // $S_{N} = 0$ or $S_{P,\perp}=0$ or $S_{P,\parallel} = 0$
     }
 }
 \end{minted}
@@ -419,18 +419,20 @@ In order to disable any additional source terms choose
 \paragraph{Profile forcing}
 \noindent We can choose the source terms $S_N$, $S_{P,\perp}$ and $S_{P,\parallel}$ to force a profile
 \begin{align} \label{eq:electron_source}
-    S_{N,s}(R,Z,\varphi, t) &= \omega_s (n_{prof}(R,Z) - N_s(R,Z,\varphi, t))D(R,Z)
+    S_{N,s}(R,Z,\varphi, t) &= \omega_N (N_{prof}(R,Z) - N_s(R,Z,\varphi, t))D(R,Z) \\
 \end{align}
 and analogously for the pressure sources,
-where $\omega_s$ is the source strength parameter.
+where $\omega_N$ is the source strength parameter (Must be equal among species).
 The forced source will result in exponential adaption of the core
-profile of the form $n \propto n_{prof}+(n_{prof}-n_{0})e^{-\omega_st}$.
+profile of the form $N \propto N_{prof}+(N_{prof}-N_{0})e^{-\omega_Nt}$.
+
+The source profile is chosen in physical space, i.e. $n_{prof}$, $p_{\perp,prof}$ and $p_{\parallel,prof}$.
 \begin{minted}[texcomments]{js}
 "source":
 {
     "density" : // or "pperp" or "ppara"
     {
-        "type" : "fixed_profile",
+        "type" : "fixed_profile", // must be equal for all species and equations
         "rate" : 1e-3 // source strength $\omega_s$
         "profile" :
         {
@@ -446,13 +448,19 @@ profile of the form $n \propto n_{prof}+(n_{prof}-n_{0})e^{-\omega_st}$.
     }
 }
 \end{minted}
+To ensure quasineutrality we transform these to gyrocentre space via
+\begin{align}
+   N_{prof} &= n_{prof} - \Delta_\perp \left( \frac{\mu_s p_{\perp,prof}}{2z_s^2B^2}\right) - \nc\left( \frac{\mu_s n_{prof} \vn_\perp \phi}{z_sB^2}\right) \\
+   P_{\perp,prof} &= p_{\perp,prof} - \nc\left( \frac{\mu_s p_{\perp,prof}\vn_\perp \phi}{z_sB^2}\right) \\
+   P_{\parallel,prof} &= p_{\parallel,prof}
+\end{align}
 
 \paragraph{Constant influx}
-Another option is to provide a constant influx of particles and/or heat
+Another option is to provide a constant influx of particles and/or heat (again, in physical space)
 \begin{align}
-    s_{n,s}(R,Z,\varphi, t) &= \omega_s \left( (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg})D(R,Z) + n_{bg}\right)
+    s_{n,s}(R,Z,\varphi, t) &= \omega_n \left( (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg})D(R,Z) + n_{bg}\right)
 \end{align}
-where $\omega_s$ is the source strength parameter.
+where $\omega_n$ is the source strength parameter (equal for all species for density, but can be different for pressure).
 The idea is that you can start with zero density and evolve the profile purely
 with the source. Destabilization of the profile works if you put a turbulent
 bath on top of it.
@@ -492,28 +500,23 @@ the source with the parameters below generates and compare to
 }
 \end{minted}
 
-\paragraph{Quasineutrality}
-In order to not generate potential with the source term the density source
+In order to not generate potential with the constant influx source term the density source
 terms need to fulfill $\sum_s z_s s_{n,s}  = 0$. Generally, we achieve this by
-requiring all density source rates $\omega_{n,s}$ be equal among species and
-the profiles (both influx or fixed) fulfill the quasineutrality condition.
+requiring all density source rates $\omega_{n,s}$ be equal among species and the source
+profile fulfill the quasineutrality condition.
 
-$S_{n_e} = \Gamma_{1,i}S_{N_i} + \nc\left( \frac{\mu_i S_{N_i}}{B^2}\np
-\phi\right)$ which in the long wavelength limit can be inverted to (the long
-wavelength limit should be well-fulfilled for a realistic source term since the
-amplitude is typically quite small)
+Thereafter we transform the physical sources to gyro-centre space via
 \begin{align}
-    S_{N_s} = s_{n,s}-\frac{\mu_s }{2z_s^2} \Delta_\perp \frac{s_{p,\perp}}{B^2} -\nc\left( \frac{\mu_s s_{n,s}}{z_sB^2}\np \phi\right)
-  \label{eq:ion_source}
+   S_N &= s_n - \Delta_\perp \left( \frac{\mu_s s_{p,\perp}}{2z_s^2B^2}\right) - \nc\left( \frac{\mu_s s_n \vn_\perp \phi}{z_sB^2}\right) \\
+   S_{P,\perp} &= s_{p,\perp} - \nc\left( \frac{\mu_s s_{p,\perp}\vn_\perp \phi}{z_sB^2}\right) \\
+   S_{P,\parallel} &= s_{p,\parallel}
 \end{align}
-Note that the additional terms besides $S_{n_e}$ are total divergences which
+for all species.
+
+Note that the additional terms besides $s_{n}$ are total divergences which
 means they do not change the volume integrated "total" particle number created
-by the source.  Note that $S_{n_e}$ needs to be smooth so that $\np^2 S_{n_e}$
-is well defined.  Also note that with our definition of $\Lambda_{n_e}$ and
-$\Lambda_{N_i}$ and the polarisation equation we have $\Lambda_{n_e} =
-\Gamma_{1,i}\Lambda_{N_i} + \nc\left( \frac{\mu_i \Lambda_{N_i}}{B^2}\np
-\phi\right)$ in the long wavelength limit (swap the operators).  This means
-that diffusion does not generate potential either.
+by the source (analogous for pressure).  Note that $s_{n}$ needs to be smooth so that $\np^2 s_{n}$
+is well defined.
 
 \paragraph{Velocity source}
 The velocity source is chosen such that the density source does not introduce

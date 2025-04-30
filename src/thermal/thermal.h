@@ -51,6 +51,7 @@ struct Explicit
     }
     const Container& bphi( ) const { return m_perp.bphi(); }
     const Container& divb( ) const { return m_perp.divb(); }
+    const Container& binv( ) const { return m_perp.binv(); }
     const Container& get_wall() const{
         return m_wall;
     }
@@ -424,18 +425,27 @@ struct Explicit
     }
 
     //source strength, profile - 1
-    void set_source( bool fixed_profile, const std::array<std::vector<Container>,3>& profile,
+    void set_source(
+        bool fixed_profile, // cannot be mixed among species or equations due to quasineutrality and transformation
         const std::array<std::vector<double>,3>& source_rate,
-        Container source,
+        const std::array<std::vector<dg::x::HVec>,3>& profile, // for influx this can be ignored
+        const std::array<std::vector<dg::x::HVec>,3>& source,  // for fixed profile this contains damping
         const std::vector<double>& minne,
         double minrate,
         const std::vector<double>& minalpha)
     {
         m_fixed_profile = fixed_profile;
-        m_profne = profile;
         m_source_rate = source_rate;
-        m_source = source;
-
+        for( unsigned u=0; u<3; u++)
+        {
+            m_profile.resize( m_p.num_species);
+            m_source.resize( m_p.num_species);
+            for( unsigned s=0; s<m_p.num_species; s++)
+            {
+                m_profile[u][s] = profile[u][s];
+                m_source[u][s]  = source[u][s];
+            }
+        }
         m_minne = minne;
         m_minrate = minrate;
         m_minalpha = minalpha;
@@ -455,6 +465,12 @@ struct Explicit
     {
         return m_parallel.fieldaligned();
     }
+    // Called in init
+    void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
+        Container& gydensity, Container& gypperp) // can be called inplace!
+    {
+        m_perp.transform_density_pperp( mus, zs, density, pperp, phi, gydensity, gypperp);
+    }
   private:
     PerpDynamics<Geometry, IMatrix, Matrix, Container> m_perp;
     ParallelDynamics<Geometry, IMatrix, Matrix, Container> m_parallel;
@@ -464,20 +480,23 @@ struct Explicit
     //
     Container m_phi, m_apar, m_aparST; // same for all species
 
-    Container m_source, m_profne, m_wall;
+    Container m_temp0, m_temp1;
+    Container m_wall;
     dg::Extrapolation<Container> m_old_apar;
     std::array<Container,4> m_psi; // different for each species
 
     std::array<std::vector<Container>,3> m_s; // source terms for all species
+    std::array<std::vector<Container>,3> m_source, m_profile; // (physical) source terms for all species
 
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
     std::vector<bool> m_upToDate;
 
-    double m_source_rate = 0.;
+    std::array<std::vector<double>,3> m_source_rate;
+    bool m_nixed_profile = false;
+
     std::vector<double> m_minne, m_minalpha;
     double m_minrate  = 0.;
-    bool m_fixed_profile = true;
     unsigned m_called = 0;
 
 };
@@ -497,6 +516,7 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     //--------------------------init vectors to 0-----------------//
     dg::assign( dg::evaluate( dg::zero, g), m_phi );
     m_apar = m_aparST = m_phi;
+    m_temp0 = m_temp1 = m_phi;
     for( int i=0; i<4; i++)
         m_psi[i] = m_phi;
 
@@ -528,29 +548,42 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
             dg::blas1::pointwiseDot( -m_minrate, m_temp1, m_temp0, 1., yp[0][s]);
         }
 
-        if( m_source_rate[s] != 0.0)
+        if( m_fixed_profile )
         {
-            if( m_fixed_profile )
-                dg::blas1::subroutine(
-                    [] DG_DEVICE ( double& result, double ne, double profne,
-                        double source, double source_rate){
-                        result = source_rate*source*(profne - ne);
-                        },
-                    m_s[0][0], m_density[0], m_profne, m_source, m_source_rate);
-            else
-                dg::blas1::axpby( m_source_rate, m_source, 0., m_s[0][s]);
+            // If fixed profile transform profiles first
+            transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],  m_profile[1][s], m_phi,
+                m_s[0][s], m_s[1][s]);
+            dg::blas1::copy( m_profile[2][s], m_s[2][s]);
+            for( unsigned u=0; u<3; u++)
+            {
+                if( m_source_rate[u][s] != 0.0)
+                {
+                    dg::blas1::subroutine(
+                        [] DG_DEVICE ( double& result, double ne, double profne,
+                            double source, double source_rate){
+                            result = source_rate*source*(profne - ne);
+                            },
+                        m_s[u][s], y[u][s], m_s[u][s], m_source[u][s], m_source_rate[u][s]);
+                }
+                else
+                    dg::blas1::copy( 0., m_s[u][s]);
+            }
         }
-        else
-            dg::blas1::copy( 0., m_s[0][0]);
-
-        //compute FLR corrections S_N = (1-0.5*mu*tau*Lap)*S_n
-        dg::blas2::gemv( m_lapperpN, m_s[0][0], m_temp0);
-        dg::blas1::axpby( 1., m_s[0][s], 0.5*m_p.tau[1]*m_p.mu[1], m_temp0, m_s[0][s]);
-        // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
-        dg::blas1::pointwiseDot( m_p.mu[1], m_s[0][0], m_binv, m_binv, 0., m_temp0);
-        m_lapperpP.set_chi( m_temp0);
-        m_lapperpP.symv( 1., m_psi[0], 1., m_s[0][1]);
-
+        else // influx
+        {
+            for( unsigned u=0; u<3; u++)
+            {
+                if( m_source_rate[u][s] != 0.0)
+                {
+                    dg::blas1::axpby( m_source_rate[u][s], m_source[u][s], 0., m_s[u][s]);
+                }
+                else
+                    dg::blas1::copy( 0., m_s[u][s]);
+            }
+            // if influx transform sources last
+            transform_density_pperp( m_p.mu[s], m_p.z[s], m_s[0][s],  m_s[1][s], m_phi,
+                m_s[0][s], m_s[1][s]);
+        }
     }
     //Add all to the right hand side
     for( unsigned u=0; u<3; u++)

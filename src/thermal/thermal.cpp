@@ -92,15 +92,17 @@ int main( int argc, char* argv[])
 
     DG_RANK0 std::cout << "# Set Source \n";
     try{
-        bool fixed_profile;
+        std::array<std::vector<bool>,3> fixed_profile;
+        std::array<std::vector<double>,3> source_rate;
         std::array<std::vector<dg::x::HVec>,3> profiles, source_profiles;
         std::vector<double> minne, minrate, minalpha;
         source_profile = thermal::source_profiles( thermal,
-            fixed_profile, ne_profile, grid, mag, unmod_mag, js["source"],
-            minne, minrate, minalpha);
-        thermal.set_source( fixed_profile,
-                dg::construct<dg::x::DVec>(ne_profile), p.source_rate,
-                dg::construct<dg::x::DVec>(source_profile),
+            fixed_profile, source_rate, profiles,
+            grid, mag, unmod_mag,
+            js["species"], minne, minrate, minalpha);
+        thermal.set_source( fixed_profile[0][0], source_rate,
+                dg::construct<std::array<std::vector<dg::x::DVec>,3>(profile),
+                dg::construct<std::array<std::vector<dg::x::DVec>,3>(source_profile),
                 minne, minrate[0], minalpha);
     }catch ( std::out_of_range& error){
         DG_RANK0 std::cerr << "ERROR: in source: "<<error.what();

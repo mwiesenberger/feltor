@@ -142,6 +142,29 @@ class PerpDynamics
         else
             dg::blas1::scal( result, beta);
     }
+    void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
+        Container& gydensity, Container& gypperp) // can be called inplace!
+    {
+        if( fabs(mus ) < 1e-3) // electrons
+        {
+            dg::blas1::copy( density, gydensity);
+            dg::blas1::copy( pperp, gypperp);
+            return;
+        }
+        //compute FLR corrections S_N = (S_n-0.5 Lap S_p) - Div ( S_n phi)
+        dg::blas1::pointwiseDot( mus/zs/zs, pperp, m_binv, m_binv, 0., m_temp0);
+        dg::blas2::gemv( m_lapperpN, m_temp0, m_temp1);
+        dg::blas1::axpby( 1., density, 0.5, m_temp1);
+        // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
+        dg::blas1::pointwiseDot( mus/zs, density, m_binv, m_binv, 0., m_temp0);
+        m_lapperpP.set_chi( m_temp0);
+        m_lapperpP.symv( 1., phi, 1., m_temp1);
+        dg::blas1::copy( m_temp1, gydensity); //gydensity can alias density!
+        dg::blas1::pointwiseDot( mus/zs, pperp, m_binv, m_binv, 0., m_temp0);
+        m_lapperpP.set_chi( m_temp0);
+        dg::blas1::copy( pperp, gypperp);
+        m_lapperpP.symv( 1., phi, 1., gypperp);
+    }
     const std::array<Container, 2> & curvNabla () const {
         return m_curvNabla;
     }
@@ -157,11 +180,11 @@ class PerpDynamics
     private:
     //these should be considered const
     std::array<Container,2> m_curvNabla, m_curvKappa, m_gradLnB;
-    Container m_divCurvKappa, m_b_2, m_divb; //m_bphiB is bhat/ sqrt(g) / B (covariant component)
+    Container m_divCurvKappa, m_b_2, m_divb, m_binv; //m_bphiB is bhat/ sqrt(g) / B (covariant component)
 
     Matrix m_dxF_N, m_dxB_N, m_dxF_U, m_dxB_U, m_dx_N, m_dx_U, m_dx_P, m_dx_A;
     Matrix m_dyF_N, m_dyB_N, m_dyF_U, m_dyB_U, m_dy_N, m_dy_U, m_dy_P, m_dy_A;
-    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperpN, m_lapperpU;
+    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperpN, m_lapperpU, m_lapperpP;
 
     Container m_temp0, m_temp1, m_temp2, m_temp3;
     std::array<Container,3> m_dxF, m_dxB, m_dyF, m_dyB;
@@ -234,6 +257,7 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     dg::pushForward(curvKappa.x(), curvKappa.y(), curvKappa.z(),
         m_curvKappa[0], m_curvKappa[1], m_temp0, g);
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
+    dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
     // in PerpDynamics we take EPhi
     auto bhat = dg::geo::createEPhi(+1);
     if( p.curvmode == "true")
@@ -262,6 +286,8 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     // Diffusion operators
     m_lapperpN.construct ( g, p.bcxN, p.bcyN, dg::PER,  p.diff_dir),
     m_lapperpU.construct ( g, p.bcxU, p.bcyU, dg::PER,  p.diff_dir),
+    m_lapperpP.construct ( g, p.bcxP, p.bcyP, dg::PER,  p.pol_dir),
+    m_lapperpP.set_jfactor(0); //we don't want jump terms in source
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
