@@ -96,14 +96,14 @@ class ParallelDynamics
         const std::vector<Container>& sn,
         const std::vector<Container>& wST,
         const Container& aparST,
-        std::array<std::vector<Container>,6>& yp);
+        std::array<std::vector<Container>,6>& yp)
     {
         for( unsigned s=0; s<m_p.num_species; s++)
         {
             // S_U = - U S_N / N
             // transform to adjoint plane and add to velocity source
-            m_faST( dg::geo::zeroMinus, m_sn[s], m_tminus);
-            m_faST( dg::geo::einsPlus,  m_sn[s], m_tplus);
+            m_faST( dg::geo::zeroMinus, sn[s], m_tminus);
+            m_faST( dg::geo::einsPlus,  sn[s], m_tplus);
             update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcxN, 0.);
             dg::geo::ds_average( m_faST, 1., m_tminus, m_tplus, 0., m_temp);
 
@@ -114,7 +114,7 @@ class ParallelDynamics
                         double uST = wST - zs/mus * aparST;
                         return -uST*snST/nST;
                     },
-                m_temp0, y[3][s], m_STN[s], aparST);
+                m_temp, wST, m_STN[s], aparST);
         }
     }
 
@@ -122,7 +122,7 @@ class ParallelDynamics
     // could be a free function?
     void compute_parallel_flux( const Container& velocity,
              const Container& minusST, const Container& plusST,
-             Container& flux,
+             Container& flux
              )
     {
         if( m_reversed_field)
@@ -363,16 +363,16 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_adv
     // Add density gradient and electric field
     double z = m_p.z[s], mu = m_p.mu[s], delta = m_fa.deltaPhi();
     dg::blas1::subroutine( [z, mu, delta ]DG_DEVICE (
-    double& WDot, double& QperpDot,
+        double& WDot, double& QperpDot,
         double N, double Tperp, double Tpara,
         double QN, double PN,
         double QTperp, double PTperp,
         double dsG1, double dsG2,
-        double G2, double G3, double divb
+        double G2, double G3, double divb, double bphi
                 )
         {
-            gradParLnN = bphi*(PN-QN)/delta/2.*(1/PN + 1/QN);
-            gradParLnTperp = bphi*(PTperp-QTperp)/delta/2.*(1./PTperp + 1/QTperp);
+            double gradParLnN = bphi*(PN-QN)/delta/2.*(1/PN + 1/QN);
+            double gradParLnTperp = bphi*(PTperp-QTperp)/delta/2.*(1./PTperp + 1/QTperp);
             WDot     -= z/mu*(dsG1 - G2*(gradParLnTperp + divb));
             QperpDot -= z/mu*N*Tperp*(dsG2 - (G3-G2)*(gradParLnTperp + divb));
             WDot -= Tpara/mu*gradParLnN;
@@ -382,7 +382,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_adv
         m_minusST[0], m_plusST[0],
         m_minusST[1], m_plusST[1],
         m_dsPST[0], m_dsPST[1],
-        m_psiST[1], m_psiST[2], m_divb
+        m_psiST[1], m_psiST[2], m_divb, m_fa.bphi()
     );
 
     // -z/mu N T_perp E_1,para

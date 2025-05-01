@@ -179,6 +179,7 @@ struct Explicit
     const Container& divCurvKappa() const {
         return m_divCurvKappa;
     }
+    // Covariant phi component of bhat \approx \pm R
     const Container& bphi( ) const { return m_bphi; }
     const Container& binv( ) const { return m_binv; }
     const Container& divb( ) const { return m_divb; }

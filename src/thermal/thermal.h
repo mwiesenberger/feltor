@@ -52,6 +52,7 @@ struct Explicit
     const Container& bphi( ) const { return m_perp.bphi(); }
     const Container& divb( ) const { return m_perp.divb(); }
     const Container& binv( ) const { return m_perp.binv(); }
+    const Container& bhatgB( ) const { return m_perp.bhatgB(); } // \pm 1/B
     const Container& get_wall() const{
         return m_wall;
     }

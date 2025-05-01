@@ -17,7 +17,8 @@ class PerpDynamics
     void update_density_derivatives(
         unsigned s,
         const Container& apar,
-        const std::array<std::vector<Container>,6> >& y,
+        const std::array<Container,4>& psi,
+        const std::array<std::vector<Container>,6>& y,
         const std::array<Container,6>& q
     );
     // dtN += ... , dtPperp += ... , dtPpara += ...
@@ -25,7 +26,7 @@ class PerpDynamics
         unsigned s,
         const Container& apar,
         const std::array<Container,4>& psi,
-        const std::array<std::vector<Container>,6> >& y,
+        const std::array<std::vector<Container>,6>& y,
         const std::array<Container,6>& q, // N, Tperp, Tpara, U, Uperp, Upara
         std::array<std::vector<Container>,6>& yp
     );
@@ -35,13 +36,13 @@ class PerpDynamics
         unsigned s,
         const Container& aparST,
         const std::array<Container,4>& psiST,
-        const std::array<std::vector<Container>,6> >& y,
+        const std::array<std::vector<Container>,6>& y,
         const std::array<Container,6>& qST,
         std::array<std::vector<Container>,6>& yp
     );
     void add_perp_densities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6> >& y,
+        const std::array<std::vector<Container>,6>& y,
         const std::array<Container,6>& q,
         std::array<std::vector<Container>,6>& yp)
     {
@@ -64,7 +65,7 @@ class PerpDynamics
     }
     void add_perp_velocities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6> >& y,
+        const std::array<std::vector<Container>,6>& y,
         const std::array<Container,6>& qST,
         std::array<std::vector<Container>,6>& yp
     )
@@ -81,11 +82,11 @@ class PerpDynamics
             m_temp0, m_temp1, 0., m_temp0);
         // - v_x dx U
         if( m_p.diff_dir == dg::centered)
-            dg::blas2::symv( m_dx_N, temp0, temp1);
+            dg::blas2::symv( m_dx_N, m_temp0, m_temp1);
         else if( m_p.diff_dir == dg::forward)
-            dg::blas2::symv( m_dxF_N, temp0, temp1);
+            dg::blas2::symv( m_dxF_N, m_temp0, m_temp1);
         else
-            dg::blas2::symv( m_dxB_N, temp0, temp1);
+            dg::blas2::symv( m_dxB_N, m_temp0, m_temp1);
         dg::blas1::pointwiseDivide( m_temp1, qST[0], m_temp1);
         dg::blas2::symv( m_dxB_U, qST[3], m_temp2);
         dg::blas2::symv( m_dxF_U, qST[3], m_temp3);
@@ -94,12 +95,12 @@ class PerpDynamics
 
         // - v_y dy U
         if( m_p.diff_dir == dg::centered)
-            dg::blas2::symv( m_dy_N, temp0, temp1);
+            dg::blas2::symv( m_dy_N, m_temp0, m_temp1);
         else if( m_p.diff_dir == dg::forward)
-            dg::blas2::symv( m_dyF_N, temp0, temp1);
+            dg::blas2::symv( m_dyF_N, m_temp0, m_temp1);
         else
-            dg::blas2::symv( m_dyB_N, temp0, temp1);
-        dg::blas1::pointwiseDivide( m_temp1, m_qST[0], m_temp1);
+            dg::blas2::symv( m_dyB_N, m_temp0, m_temp1);
+        dg::blas1::pointwiseDivide( m_temp1, qST[0], m_temp1);
         dg::blas2::symv( m_dyB_U, qST[3], m_temp2);
         dg::blas2::symv( m_dyF_U, qST[3], m_temp3);
         dg::blas1::evaluate( yp[3][s], dg::minus_equals(), dg::UpwindProduct(),
@@ -174,13 +175,15 @@ class PerpDynamics
     const Container& divCurvKappa() const {
         return m_divCurvKappa;
     }
-    const Container& bphi( ) const { return m_b_2; }
+    const Container& bhatgB( ) const { return m_b_2; } // \pm 1/B
     const Container& divb( ) const { return m_divb; }
     const Container& binv( ) const { return m_binv; }
+    const Container& bphi( ) const { return m_bphi; }
     private:
     //these should be considered const
     std::array<Container,2> m_curvNabla, m_curvKappa, m_gradLnB;
-    Container m_divCurvKappa, m_b_2, m_divb, m_binv; //m_bphiB is bhat/ sqrt(g) / B (covariant component)
+    Container m_divCurvKappa, m_b_2, m_divb, m_binv, m_bphi; //m_b_2 = bphi(covariant)/detg/B \approx pm 1/B
+    // store covariant bphi = +- R for momentum conservation
 
     Matrix m_dxF_N, m_dxB_N, m_dxF_U, m_dxB_U, m_dx_N, m_dx_U, m_dx_P, m_dx_A;
     Matrix m_dyF_N, m_dyB_N, m_dyF_U, m_dyB_U, m_dy_N, m_dy_U, m_dy_P, m_dy_A;
@@ -256,27 +259,19 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
         m_curvNabla[0], m_curvNabla[1], m_temp0, g);
     dg::pushForward(curvKappa.x(), curvKappa.y(), curvKappa.z(),
         m_curvKappa[0], m_curvKappa[1], m_temp0, g);
+    m_temp1 = m_temp2 = m_temp3 = m_temp0;
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
     dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
-    // in PerpDynamics we take EPhi
-    auto bhat = dg::geo::createEPhi(+1);
-    if( p.curvmode == "true")
-        throw std::runtime_error( "curvmode : true is not possible in thermal code!");
-    else if( reversed_field)
-        bhat = dg::geo::createEPhi(-1);
-    dg::pushForward(bhat.x(), bhat.y(), bhat.z(), m_temp0, m_temp1, m_b_2, g);
-    // make bhat covariant:
-    dg::tensor::inv_multiply3d( g.metric(), m_temp0, m_temp1, m_b_2,
-                                            m_temp0, m_temp1, m_b_2);
+    // in PerpDynamics we take EhatPhi = 1,1,+/- 1/R, which leads to ephi_varphi / sqrt(g) / B = \pm 1/R
+    dg::blas1::axpby( reversed_field ? -1. : +1., m_binv, 0., m_b_2);
+    m_bphi = dg::evaluate( dg::cooX3d, g); // R
+    if( reversed_field)
+        dg::blas1::scal( m_bhpi, -1.);
     // Grad Ln B covariant components
     m_gradLnB[0] = dg::pullback( dg::geo::BR(mag), g);
     m_gradLnB[1] = dg::pullback( dg::geo::BZ(mag), g);
-    m_temp0 = dg::pullback(dg::geo::InvB(mag), g);
-    dg::blas1::pointwiseDot( m_gradLnB[0], m_temp0, m_gradLnB[0]);
-    dg::blas1::pointwiseDot( m_gradLnB[1], m_temp0, m_gradLnB[1]);
-    dg::blas1::pointwiseDot( m_b_2, m_temp0, m_bphiB); // bphi / B
-    m_temp3 = m_temp2 = m_temp0 = dg::tensor::volume( metric);
-    dg::blas1::pointwiseDivide( m_b_2, m_temp0, m_bbphiB); //bphiB/detg/B
+    dg::blas1::pointwiseDot( m_gradLnB[0], m_binv, m_gradLnB[0]);
+    dg::blas1::pointwiseDot( m_gradLnB[1], m_binv, m_gradLnB[1]);
 
     // allocate resources for internal vectors
     std::fill( m_dxF.begin(), m_dxF.end(), m_temp0);
@@ -295,15 +290,14 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::update_density_derivatives(
     unsigned s,
     const Container& apar,
     const std::array<Container,4>& psi,
-    const std::array<std::vector<Container>,6> >& y,
+    const std::array<std::vector<Container>,6>& y,
     const std::array<Container,6>& q
 )
 {
-    const Container& to_advect[3] = {y[0][s], y[1][s], y[2][s]};
     double nbc[3] = {m_p.nbc[s], m_p.nbc[s]*m_p.tbc, m_p.nbc[s]*m_p.tbc};
     for( unsigned u=0; u<3; u++)
     {
-        dg::blas1::transform( to_advect[u], m_temp0, dg::PLUS<double>(-nbc[u]));
+        dg::blas1::transform( y[u][s], m_temp0, dg::PLUS<double>(-nbc[u]));
         dg::blas2::symv( m_dxF_N, m_temp0, m_dxF[u]);
         dg::blas2::symv( m_dxB_N, m_temp0, m_dxB[u]);
         dg::blas2::symv( m_dyF_N, m_temp0, m_dyF[u]);
@@ -335,7 +329,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_densities_advectio
     unsigned s,
     const Container& apar,
     const std::array<Container,4>& psi,
-    const std::array<std::vector<Container>,6> >& y,
+    const std::array<std::vector<Container>,6>& y,
     const std::array<Container,6>& q,
     std::array<std::vector<Container>,6>& yp
 )
@@ -436,11 +430,11 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_densities_advectio
         dtPpara -= 2*N*( z*Uperp*(bpX*E1X + bpY*E1Y)
                          + Tpara*(curvKappaX*E0X+curvKappaY*E0Y)
                          + mu*U*Uperp*(curvKappaX*E1X + curvKappaY*E1Y));
-        dtPara -=2*N*(bpX*Tpara
+        dtPpara -=2*N*(bpX*Tpara
                     + mu/z*(Tpara*Upara + 2*U*Tpara)*curvKappaX
                     + mu/z*Tperp*Uperp*curvNablaX
                     -mu*Uperp*b_2*E1Y)*dxU;
-        dtPara -=2*N*(bpY*Tpara
+        dtPpara -=2*N*(bpY*Tpara
                     + mu/z*(Tpara*Upara + 2*U*Tpara)*curvKappaY
                     + mu/z*Tperp*Uperp*curvNablaY
                     +mu*Uperp*b_2*E1X)*dyU;
@@ -474,18 +468,17 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
     unsigned s,
     const Container& aparST,
     const std::array<Container,4>& psiST,
-    const std::array<std::vector<Container>,6> >& y,
+    const std::array<std::vector<Container>,6>& y,
     const std::array<Container,6>& qST,
     std::array<std::vector<Container>,6>& yp
 )
 {
-    const Container& to_advect[3] = {qST[3], y[4][s], y[5][s]};
     for( unsigned u=0; u<3; u++)
     {
-        dg::blas2::symv( m_dxF_N, to_advect[u], m_dxF[u]);
-        dg::blas2::symv( m_dxB_N, to_advect[u], m_dxB[u]);
-        dg::blas2::symv( m_dyF_N, to_advect[u], m_dyF[u]);
-        dg::blas2::symv( m_dyB_N, to_advect[u], m_dyB[u]);
+        dg::blas2::symv( m_dxF_N, qST[3+u][s], m_dxF[u]);
+        dg::blas2::symv( m_dxB_N, qST[3+u][s], m_dxB[u]);
+        dg::blas2::symv( m_dyF_N, qST[3+u][s], m_dyF[u]);
+        dg::blas2::symv( m_dyB_N, qST[3+u][s], m_dyB[u]);
     }
     for( unsigned u=0; u<3; u++)
     {
@@ -555,7 +548,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
         dtQpara += ( vY > 0 ) ? -vY*dyBQpara : -vY*dyFQpara;
 
         dtU -= 2/z*( U*Tpara*divCurvKappa + U * (curvKappaX*dxTpara + curvKappaY*dyTpara)
-                        + U*Tpara/N *(curvKappaX*dxN + curvKappaY*dyN))
+                        + U*Tpara/N *(curvKappaX*dxN + curvKappaY*dyN));
 
         double divuE1 =  (curvNablaX+curvKappaX)*E1X
                         +(curvNablaY+curvKappaY)*E1Y
@@ -571,7 +564,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
                 + Uperp*divuE1
                 + 1./N/Tperp*b_2*(E1X*dyFQperp - E1Y*dxFQperp)
                 - Uperp/Tperp*b_2*(E1X*dyTperp - E1Y*dxTperp);
-        dtU += Tperp/mu*(div+divbp)
+        dtU += Tperp/mu*(divb+divbp)
                 + Tperp/z*(Uperp+U)*divCurvKappa
                 - z/mu*(bpX*E0X+bpY*E0Y)
                 - U*(    curvKappaX*E0X + curvKappaY*E0Y)
@@ -585,6 +578,8 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
                         +(curvNablaY+curvKappaY)*E2Y
                         +b_2* ( (dxG4-2*dxG3)*(dyTperp/Tperp - gradLnBY)
                                  -(dyG4-2*dyG3)*(dxTperp/Tperp - gradLnBX));
+        double dxU = 0.5*(dxFU + dxBU);
+        double dyU = 0.5*(dyFU + dyBU);
         dtQperp -= N*Tperp*Uperp*(
                         U*divbp + bpX*dxU + bpY*dyU
                         +1/z*(3*Tpara + mu*U*U)*divCurvKappa
@@ -601,16 +596,16 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
                         +divuE0);
         // temperature transfer
         vX = N*Tpara/mu*bpX + 1/z*N*Tpara*(Upara+2*mu*U)*curvKappaX + 1/z*N*Tperp*Uperp*curvNablaX
-            +N*UPerp*( -b_2*E1Y);
+            +N*Uperp*( -b_2*E1Y);
         vY = N*Tpara/mu*bpY + 1/z*N*Tpara*(Upara+2*mu*U)*curvKappaY + 1/z*N*Tperp*Uperp*curvNablaY
-            +N*UPerp*(  b_2*E1X);
+            +N*Uperp*(  b_2*E1X);
         dtQperp -= vX*dxTperp + vY*dyTperp;
         dtQpara -= 3*(vX*dxTpara + vY*dyTpara);
         // velocity transfer
         dtQperp -= (N*Tperp*Uperp*bpX + 2*mu/z*U*N*Tperp*Uperp*curvKappaX + 1/z*N*Tperp*Tperp*curvNablaX
-            +N*TPerp*( -b_2*E1Y))*dxU;
+            +N*Tperp*( -b_2*E1Y))*dxU;
         dtQperp -= (N*Tperp*Uperp*bpY + 2*mu/z*U*N*Tperp*Uperp*curvKappaY + 1/z*N*Tperp*Tperp*curvNablaY
-            +N*TPerp*(  b_2*E1X))*dyU;
+            +N*Tperp*(  b_2*E1X))*dyU;
 
         dtQpara -= (N*Tpara*Upara*bpX + 2/z*(N*Tpara*Tpara + mu*U*N*Tpara*Upara)*curvKappaX)*dxU;
         dtQpara -= (N*Tpara*Upara*bpY + 2/z*(N*Tpara*Tpara + mu*U*N*Tpara*Upara)*curvKappaY)*dyU;
@@ -627,7 +622,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
                         -N*Tpara*Upara*(curvKappaX*E0X + curvKappaY*E0Y)
                         -2*N*Tpara*Uperp*(curvKappaX*E1X + curvKappaY*E1Y));
 
-    }
+    },
     qST[3],
     m_dxF[0], m_dyF[0],
     m_dxB[0], m_dyB[0],
