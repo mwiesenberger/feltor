@@ -9,7 +9,7 @@ namespace thermal
 
 
 template< class Geometry, class IMatrix, class Matrix, class Container >
-class PerpDynamics
+struct PerpDynamics
 {
     PerpDynamics( const Geometry&, thermal::Parameters,
         dg::geo::TokamakMagneticField, dg::file::WrappedJsonValue);
@@ -78,7 +78,7 @@ class PerpDynamics
         compute_perp_laplaceU( -m_p.nu_perp[5], qST[5], m_p.diff_order,
             m_temp0, m_temp1, 1., yp[5][s]);
         // U interfaces with N
-        compute_perp_laplaceN( -m_p.nu_perp[0], qST[0], m_p.diff_order-1,
+        compute_perp_laplaceN( -m_p.nu_perp[0], qST[0], m_p.nbc[s], m_p.diff_order-1,
             m_temp0, m_temp1, 0., m_temp0);
         // - v_x dx U
         if( m_p.diff_dir == dg::centered)
@@ -266,7 +266,7 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     dg::blas1::axpby( reversed_field ? -1. : +1., m_binv, 0., m_b_2);
     m_bphi = dg::evaluate( dg::cooX3d, g); // R
     if( reversed_field)
-        dg::blas1::scal( m_bhpi, -1.);
+        dg::blas1::scal( m_bphi, -1.);
     // Grad Ln B covariant components
     m_gradLnB[0] = dg::pullback( dg::geo::BR(mag), g);
     m_gradLnB[1] = dg::pullback( dg::geo::BZ(mag), g);
@@ -279,9 +279,9 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     std::fill( m_dx.begin(), m_dx.end(), m_temp0);
     std::fill( m_dy.begin(), m_dy.end(), m_temp0);
     // Diffusion operators
-    m_lapperpN.construct ( g, p.bcxN, p.bcyN, dg::PER,  p.diff_dir),
-    m_lapperpU.construct ( g, p.bcxU, p.bcyU, dg::PER,  p.diff_dir),
-    m_lapperpP.construct ( g, p.bcxP, p.bcyP, dg::PER,  p.pol_dir),
+    m_lapperpN.construct ( g, p.bcxN, p.bcyN,  p.diff_dir),
+    m_lapperpU.construct ( g, p.bcxU, p.bcyU,  p.diff_dir),
+    m_lapperpP.construct ( g, p.bcxP, p.bcyP,  p.pol_dir),
     m_lapperpP.set_jfactor(0); //we don't want jump terms in source
 }
 
@@ -475,10 +475,10 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
 {
     for( unsigned u=0; u<3; u++)
     {
-        dg::blas2::symv( m_dxF_N, qST[3+u][s], m_dxF[u]);
-        dg::blas2::symv( m_dxB_N, qST[3+u][s], m_dxB[u]);
-        dg::blas2::symv( m_dyF_N, qST[3+u][s], m_dyF[u]);
-        dg::blas2::symv( m_dyB_N, qST[3+u][s], m_dyB[u]);
+        dg::blas2::symv( m_dxF_N, qST[3+u], m_dxF[u]);
+        dg::blas2::symv( m_dxB_N, qST[3+u], m_dxB[u]);
+        dg::blas2::symv( m_dyF_N, qST[3+u], m_dyF[u]);
+        dg::blas2::symv( m_dyB_N, qST[3+u], m_dyB[u]);
     }
     for( unsigned u=0; u<3; u++)
     {

@@ -12,7 +12,7 @@ using Feltor = thermal::Explicit< dg::x::CylindricalGrid3d, dg::x::IDMatrix,
         dg::x::DMatrix, dg::x::DVec>;
 using Vector = std::array<std::vector<dg::x::DVec>, 6>;
 
-std::vector<dg::file::Record<void(dg::x::DVec&, const Vector&, unsigned)>> restart3d_list = {
+std::vector<dg::file::Record<void(dg::x::DVec&, const Vector&, unsigned), dg::file::LongNameAttribute>> restart3d_list = {
     {"n", "gyro-centre density",
         []( dg::x::DVec& result, const Vector& y, unsigned s ) {
              dg::blas1::copy(y[0][s], result);
@@ -42,10 +42,10 @@ std::vector<dg::file::Record<void(dg::x::DVec&, const Vector&, unsigned)>> resta
         []( dg::x::DVec& result, const Vector& y, unsigned s ) {
              dg::blas1::copy(y[5][s], result);
         }
-    },
+    }
 };
 
-std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
+Vector init_from_file( std::string file_name,
         const dg::x::CylindricalGrid3d& grid, const Parameters& p,
         double& time)
 {
@@ -53,28 +53,28 @@ std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
-    std::array<std::vector<dg::x::DVec>,4> y0;
+    Vector y0;
     ///////////////////read in and show inputfile
 
     dg::file::NcFile file( file_name, dg::file::nc_nowrite);
     dg::file::WrappedJsonValue jsIN = dg::file::string2Json(
-        file.get_att_as<std::string>("inputfile").asString(), dg::file::comments::are_forbidden);
+        file.get_att_as<std::string>("inputfile"), dg::file::comments::are_forbidden);
     thermal::Parameters pIN( jsIN);
     DG_RANK0 std::cout << "# RESTART from file "<<file_name<< std::endl;
     DG_RANK0 std::cout << "#  file parameters:" << std::endl;
     DG_RANK0 std::cout << pIN.n<<" x "<<pIN.Nx<<" x "<<pIN.Ny<<" x "<<pIN.Nz
                 <<" : symmetric "<<std::boolalpha<<pIN.symmetric<<std::endl;
-    if ( pIn.num_species != p.num_species)
+    if ( pIN.num_species != p.num_species)
         throw std::runtime_error( "Cannot restart simulation with different number of species!");
-    if ( pIn.name != p.name)
+    if ( pIN.name != p.name)
         throw std::runtime_error( "Cannot restart simulation with different species names!");
-    if ( pIn.mu != p.mu)
+    if ( pIN.mu != p.mu)
         throw std::runtime_error( "Cannot restart simulation with different species mass!");
-    if ( pIn.z != p.z)
+    if ( pIN.z != p.z)
         throw std::runtime_error( "Cannot restart simulation with different species charge!");
-    if ( pIn.kappa != p.kappa)
+    if ( pIN.kappa != p.kappa)
         throw std::runtime_error( "Cannot restart simulation with different species kappa!");
-    if ( pIn.pi != p.pi)
+    if ( pIN.pi != p.pi)
         throw std::runtime_error( "Cannot restart simulation with different species pi!");
 
     // Now read in last timestep
@@ -91,7 +91,7 @@ std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
     if( pIN.symmetric)
     {
         std::unique_ptr<dg::x::aGeometry2d> grid_perp( grid.perp_grid());
-        interpolateIN = dg::create::interpolation( grid, *grid_perp);
+        interpolateIN = dg::create::prolongation( grid, std::array{2u});
         transferIN = dg::evaluate(dg::zero, *grid_perp);
     }
     else
@@ -110,7 +110,7 @@ std::array<std::vector<dg::x::DVec>,6> init_from_file( std::string file_name,
     {
         for( unsigned k=0; k<restart3d_list.size(); k++)
         {
-            file.get_var( "restart_" + pIN.name[s] + "_" + restart3d_list.name, {grid_IN}, transferIN);
+            file.get_var( "restart_" + pIN.name[s] + "_" + restart3d_list[k].name, {grid_IN}, transferIN);
             dg::blas2::gemv( interpolateIN, transferIN, transferOUTvec);
             dg::assign( transferOUTvec, y0[k][s]);
         }

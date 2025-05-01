@@ -104,7 +104,7 @@ struct Record{
 ///%%%%%%%%%%%%%%%%%%%%EXTEND LISTS WITH YOUR DIAGNOSTICS HERE%%%%%%%%%%%%%%%%%%%%%%
 ///%%%%%%%%%%%%%%%%%%%%EXTEND LISTS WITH YOUR DIAGNOSTICS HERE%%%%%%%%%%%%%%%%%%%%%%
 // Here is a list of useful 1d variables of general interest
-std::vector<dg::file::Record<double(Variables&, double)>> diagnostics1d_list = {
+std::vector<dg::file::Record<double(Variables&), dg::file::LongNameAttribute>> diagnostics1d_list = {
     {"failed", "Accumulated Number of failed steps",
         []( Variables& v ) {
             return *v.nfailed;
@@ -123,7 +123,7 @@ std::vector<dg::file::Record<double(Variables&, double)>> diagnostics1d_list = {
 };
 //Here is a list of static (time-independent) 3d variables that go into the output
 //Cannot be thermal internal variables
-std::vector<dg::file::Record<void( dg::x::HVec&, const dg::geo::TokamakMagneticField&, const dg::x::CylindricalGrid3d&)>> diagnostics3d_static_list =
+std::vector<dg::file::Record<void( dg::x::HVec&, const dg::geo::TokamakMagneticField&, const dg::x::CylindricalGrid3d&), dg::file::LongNameAttribute>> diagnostics3d_static_list =
     feltor::diagnostics3d_static_list;
 
 // Here are all 3d outputs we want to have
@@ -171,7 +171,7 @@ std::vector<Record> diagnostics3d_list = { // 2 + 6*s
     }
 };
 
-std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::CylindricalGrid3d&)>> diagnostics2d_static_list = {
+std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::CylindricalGrid3d&), dg::file::LongNameAttribute>> diagnostics2d_static_list = {
     { "Psip2d", "Flux-function psi",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
             result = dg::pullback( v.mag.psip(), grid);
@@ -313,28 +313,38 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
             result = dg::create::volume(grid);
         }
-    },
-    { "Source", "Source region",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
-            dg::assign( v.f.get_source(), result);
-        }
-    },
+    }
 };
 
-std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::CylindricalGrid3d&, unsigned s)>> diagnostics2d_static_init = {
+std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::CylindricalGrid3d&, unsigned s), dg::file::LongNameAttribute>> diagnostics2d_static_init = {
     { "Nprof", "Density profile (that the source may force)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
-            dg::assign( v.f.get_n_source_prof(s), result);
+            dg::assign( v.f.get_source_prof(0,s), result);
         }
     },
     { "Perpprof", "Pperp profile (that the source may force)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
-            dg::assign( v.f.get_pperp_source_prof(s), result);
+            dg::assign( v.f.get_source_prof(1,s), result);
         }
     },
     { "Paraprof", "Ppara profile (that the source may force)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
-            dg::assign( v.f.get_ppara_source_prof(s), result);
+            dg::assign( v.f.get_source_prof(2,s), result);
+        }
+    },
+    { "SN", "Density source profile (influx)",
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+            dg::assign( v.f.get_source(0,s), result);
+        }
+    },
+    { "SPerp", "Pperp source profile (influx)",
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+            dg::assign( v.f.get_source(1,s), result);
+        }
+    },
+    { "SPara", "Ppara source profile (influx)",
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+            dg::assign( v.f.get_source(2,s), result);
         }
     },
     { "Ninit", "Initial density condition",
@@ -342,17 +352,17 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
             dg::assign( v.y0[0][s], result);
         }
     },
-    { "Winit", "Initial canonical velocity condition",
+    { "Pperpinit", "Initial perp pressure condition",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.y0[1][s], result);
         }
     },
-    { "Pperpinit", "Initial perp pressure condition",
+    { "Pparainit", "Initial para pressure condition",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.y0[2][s], result);
         }
     },
-    { "Pparainit", "Initial para pressure condition",
+    { "Winit", "Initial canonical velocity condition",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.y0[3][s], result);
         }
@@ -1766,44 +1776,44 @@ void append_equations( std::vector<thermal::Record>& list, const std::vector<the
 {
     list.insert( list.begin(), b.begin(), b.end());
 }
-std::vector<thermal::Record> generate_equation_list( const dg::file::WrappedJsonValue& js)
-{
-    std::vector<thermal::Record> list;
-    bool equation_list_exists = js["output"].isMember("equations");
-    if( equation_list_exists)
-    {
-        for( unsigned i=0; i<js["output"]["equations"].size(); i++)
-        {
-            std::string eqn = js["output"]["equations"][i].asString();
-            if( eqn == "Basic")
-                append_equations( list, thermal::basicDiagnostics2d_list);
-            //else if( eqn == "Mass-conserv")
-            //    append_equations( list, thermal::MassConsDiagnostics2d_list);
-            //else if( eqn == "Energy-theorem")
-            //    append_equations( list, thermal::EnergyDiagnostics2d_list);
-            //else if( eqn == "Toroidal-momentum")
-            //    append_equations( list, thermal::ToroidalExBDiagnostics2d_list);
-            //else if( eqn == "Parallel-momentum")
-            //    append_equations( list, thermal::ParallelMomDiagnostics2d_list);
-            //else if( eqn == "Zonal-Flow-Energy")
-            //    append_equations( list, thermal::RSDiagnostics2d_list);
-            //else if( eqn == "COCE")
-            //    append_equations( list, thermal::COCEDiagnostics2d_list);
-            else
-                throw std::runtime_error( "output: equations: "+eqn+" not recognized!\n");
-        }
-    }
-    else // default diagnostics
-    {
-        append_equations(list, thermal::basicDiagnostics2d_list);
-        //append_equations(list, thermal::MassConsDiagnostics2d_list);
-        //append_equations(list, thermal::EnergyDiagnostics2d_list);
-        //append_equations(list, thermal::ToroidalExBDiagnostics2d_list);
-        //append_equations(list, thermal::ParallelMomDiagnostics2d_list);
-        //append_equations(list, thermal::RSDiagnostics2d_list);
-    }
-    return list;
-}
+//std::vector<thermal::Record> generate_equation_list( const dg::file::WrappedJsonValue& js)
+//{
+//    std::vector<thermal::Record> list;
+//    bool equation_list_exists = js["output"].isMember("equations");
+//    if( equation_list_exists)
+//    {
+//        for( unsigned i=0; i<js["output"]["equations"].size(); i++)
+//        {
+//            std::string eqn = js["output"]["equations"][i].asString();
+//            //if( eqn == "Basic")
+//            //    append_equations( list, thermal::basicDiagnostics2d_list);
+//            //else if( eqn == "Mass-conserv")
+//            //    append_equations( list, thermal::MassConsDiagnostics2d_list);
+//            //else if( eqn == "Energy-theorem")
+//            //    append_equations( list, thermal::EnergyDiagnostics2d_list);
+//            //else if( eqn == "Toroidal-momentum")
+//            //    append_equations( list, thermal::ToroidalExBDiagnostics2d_list);
+//            //else if( eqn == "Parallel-momentum")
+//            //    append_equations( list, thermal::ParallelMomDiagnostics2d_list);
+//            //else if( eqn == "Zonal-Flow-Energy")
+//            //    append_equations( list, thermal::RSDiagnostics2d_list);
+//            //else if( eqn == "COCE")
+//            //    append_equations( list, thermal::COCEDiagnostics2d_list);
+//            else
+//                throw std::runtime_error( "output: equations: "+eqn+" not recognized!\n");
+//        }
+//    }
+//    else // default diagnostics
+//    {
+//        //append_equations(list, thermal::basicDiagnostics2d_list);
+//        //append_equations(list, thermal::MassConsDiagnostics2d_list);
+//        //append_equations(list, thermal::EnergyDiagnostics2d_list);
+//        //append_equations(list, thermal::ToroidalExBDiagnostics2d_list);
+//        //append_equations(list, thermal::ParallelMomDiagnostics2d_list);
+//        //append_equations(list, thermal::RSDiagnostics2d_list);
+//    }
+//    return list;
+//}
 
 // TODO So far the same as feltor::WriteIntegrateDiagnostics2dList except "Z", "R" coordinates
 template< class NcFile>
@@ -1923,13 +1933,13 @@ struct WriteIntegrateDiagnostics2dList
     typename NcFile::Hyperslab m_slab;
     bool m_first_buffer = true;
     bool m_track = true;
-    int m_start = 0;
+    size_t m_start = 0;
     dg::x::DVec m_resultD;
     dg::x::DVec m_transferD;
     dg::x::HVec m_transferH;
     dg::MultiMatrix<dg::x::DMatrix,dg::x::DVec> m_projectD;
     dg::x::HVec m_transferH2d;
-    dg::Average<dg::x::HVec> m_toroidal_average;
+    dg::Average<dg::x::IHMatrix, dg::x::HVec> m_toroidal_average;
     std::map<std::string, dg::Simpsons<dg::x::HVec>> m_time_integrals;
     const dg::x::CylindricalGrid3d m_grid, m_g3d_out;
     std::vector<thermal::Record> m_equation_list;

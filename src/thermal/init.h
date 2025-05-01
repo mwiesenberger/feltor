@@ -53,31 +53,32 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
 
         const std::array<std::string,3> eqs = { "density", "pperp", "ppara"};
         // Think of this as initialising the **physical** quantities
-        for( std::string field : eqs)
+        for( unsigned u=0; u<3; u++)
         {
+            std::string field = eqs[u];
             std::string ntype = js[field].get("type", "zero").asString();
             DG_RANK0 std::cout << "# Initialize "<<field<<" with "<<ntype << std::endl;
             if ( "const" == ntype)
             {
                 double nbg = js[field].get("background", 0.1).asDouble();
-                y0[eq][s] = dg::construct<dg::x::DVec>(
+                y0[u][s] = dg::construct<dg::x::DVec>(
                         dg::evaluate( dg::CONSTANT( nbg), grid));
             }
             else if( "ne" == ntype )
             {
                 double nbg = 0.;
-                dg::x::HVec ntilde  = detail::make_ntilde(  thermal, grid, mag,
+                dg::x::HVec ntilde  = feltor::detail::make_ntilde(  thermal, grid, mag,
                         js[field]["ntilde"]);
-                dg::x::HVec profile = detail::make_profile( grid, mag,
+                dg::x::HVec profile = feltor::detail::make_profile( grid, mag,
                         js[field]["profile"], nbg);
-                dg::x::HVec damping = detail::make_damping( grid, unmod_mag,
+                dg::x::HVec damping = feltor::detail::make_damping( grid, unmod_mag,
                         js[field]["damping"]);
                 dg::x::HVec density = profile;
                 dg::blas1::subroutine( [nbg]( double profile, double
                     ntilde, double damping, double& density)
                         { density = (profile+ntilde-nbg)*damping+nbg;},
                         profile, ntilde, damping, density);
-                dg::assign( density, y0[eq][s]);
+                dg::assign( density, y0[u][s]);
             }
             else if ( "density" == field and "quasineutral" == ntype)
             {
@@ -95,9 +96,12 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
         ;//TODO Check that species indeed add up to 0
     else
     {
-        for( unsigned s=0; s<p.num_species and s != idx_quasineutral_n; s++)
+        for( unsigned s=0; s<p.num_species; s++)
+        {
+            if( s == idx_quasineutral_n) continue;
             dg::blas1::axpby( -p.z[s]/ p.z[idx_quasineutral_n], y0[0][s], 1.,
                 y0[0][idx_quasineutral_n]);
+        }
     }
     // Now transform to gyro-centre density
     for( unsigned s=0; s<p.num_species; s++)
@@ -123,11 +127,12 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
 
     }
 
-    unsigned num_quasineutral_u = 0, idx_quasineutral_u;
+    unsigned num_quasineutral_u = 0, idx_quasineutral_u = 0;
     // Init physical u, qperp, qpara
     for( unsigned s=0; s<p.num_species; s++)
     {
         // init (staggered) velocity and thus canonical W
+        dg::file::WrappedJsonValue js = jsspecies[s]["init"];
         std::string utype = js["velocity"].get("type", "zero").asString();
         DG_RANK0 std::cout << "# Initialize velocity with "<<utype << std::endl;
         if( "zero" == utype)
@@ -138,10 +143,10 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
                 throw std::runtime_error( "Linear_cs velocity not available for electrons!");
             // Assume toroidal alignment ot T in sheath
             dg::blas1::evaluate( y0[3][s], dg::equals(),
-                [ zs = m_p.z[s], ms = m_p.mu[s]] DG_DEVICE( double ns, double ps, double ne, double pe)
+                [ zs = p.z[s], ms = p.mu[s]] DG_DEVICE( double ns, double ps, double ne, double pe)
                 {
                     return sqrt( ( ps/ns + zs * pe/ne )/ms);
-                }, y0[0][s], y0[2][s], y0[0][0], y0[2][0]) // n, ppara and ppara_e initialized previously
+                }, y0[0][s], y0[2][s], y0[0][0], y0[2][0]); // n, ppara and ppara_e initialized previously
             // sheath coordinate
             std::unique_ptr<dg::x::aGeometry2d> perp_grid_ptr( grid.perp_grid());
             dg::x::HVec coord2d = dg::pullback( sheath_coordinate,
@@ -180,13 +185,17 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
     else
     {
         // Assume densities are toroidally aligned (so nST = n)
-        for( unsigned s=0; s<p.num_species and s != idx_quasineutral_u; s++)
+        for( unsigned s=0; s<p.num_species ; s++)
+        {
+            if( s == idx_quasineutral_u)
+                continue;
             dg::blas1::evaluate( y0[3][idx_quasineutral_u], dg::plus_equals(),
                 [ zk = p.z[idx_quasineutral_u], zs = p.z[s]] DG_DEVICE(
                     double nk, double ns, double us)
                 {
                     return -zs * ns * us / (zk * nk);
-                }, y0[0][idx_quasineutral_u], y0[0][s], y0[3][s])
+                }, y0[0][idx_quasineutral_u], y0[0][s], y0[3][s]);
+        }
     }
     // Since total current is 0, we have A_\parallel = 0
 
@@ -219,7 +228,7 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
         dg::file::WrappedJsonValue js = jsspecies[s]["source"];
         minne[s] = js["density"].get("minne", 0.).asDouble();
         minrate[s] =  minalpha[s] = 0;
-        if( minne != 0)
+        if( minne[s] != 0)
         {
             minrate[s] = js["density"].get("minrate", 1.).asDouble();
             minalpha[s] = js["density"].get("minalpha", 0.05).asDouble();
@@ -258,15 +267,15 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
             {
                 fixed_profile[u][s] = true;
                 double nbg = 0;
-                profile[u][s] = detail::make_profile(grid, mag, js["profile"], nbg);
-                source[u][s] = detail::make_damping( grid, unmod_mag, js["damping"]);
+                profile[u][s] = feltor::detail::make_profile(grid, mag, js["profile"], nbg);
+                source[u][s] = feltor::detail::make_damping( grid, unmod_mag, js["damping"]);
             }
             else if("influx" == type)
             {
                 double nbg = 0.;
-                source[u][s]  = detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
-                profile[u][s] = detail::make_profile( grid, mag, js["profile"], nbg);
-                dg::x::HVec damping = detail::make_damping( grid, unmod_mag, js["damping"]);
+                source[u][s]  = feltor::detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
+                profile[u][s] = feltor::detail::make_profile( grid, mag, js["profile"], nbg);
+                dg::x::HVec damping = feltor::detail::make_damping( grid, unmod_mag, js["damping"]);
                 dg::blas1::subroutine( [nbg]( double& profile, double& ntilde, double
                             damping) {
                             ntilde  = (profile+ntilde-nbg)*damping+nbg;
@@ -278,7 +287,7 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
             //{
             //    double rhosinm = 0.98 / mag.R0();
             //    double rhosinm2 = rhosinm*rhosinm;
-            //    source[u][s] = dg::pullback( detail::TorpexSource(
+            //    source[u][s] = dg::pullback( feltor::detail::TorpexSource(
             //        0.98/rhosinm, -0.02/rhosinm, 0.0335/rhosinm, 0.05/rhosinm, 565*rhosinm2),
             //        grid);
             //}
@@ -290,7 +299,7 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
             //    const double sigma = 9.3e-3*psip0/0.4;
             //    source = dg::pullback(
             //        dg::compose( dg::GaussianX( psip0, sigma, 1.),  mag.psip() ), grid);
-            //    dg::blas1::pointwiseDot( detail::xpoint_damping(grid,mag),
+            //    dg::blas1::pointwiseDot( feltor::detail::xpoint_damping(grid,mag),
             //           source, source);
             //}
             else

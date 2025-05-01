@@ -31,7 +31,6 @@ struct Parameters
     unsigned diff_order;
     std::array<double, 6> nu_perp, nu_parallel;
     enum dg::direction diff_dir;
-    std::string slope_limiter;
 
     std::vector<double> nwall;
     double uwall, twall, qwall, wall_rate;
@@ -100,11 +99,6 @@ struct Parameters
             nu_perp[u]   = js["regularization"]["nu_perp"].get( u, 0.).asDouble();
             nu_parallel[u] = js["regularization"]["nu_parallel"].get( u, 0.).asDouble();
         }
-        slope_limiter = js["advection"].get("slope-limiter", "none").asString();
-        if( (slope_limiter != "none") && (slope_limiter != "minmod")
-             && (slope_limiter != "vanLeer")
-                )
-            throw std::runtime_error( "ERROR: advection : slope-limiter "+slope_limiter+" not recognized!\n");
 
         num_species = js["physical"]["species"].size();
         mu.resize( num_species);

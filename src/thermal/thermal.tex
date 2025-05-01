@@ -529,22 +529,13 @@ for all species. Note that this requires the density source to be transformed to
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Advection}
+No options are currently choosable in this section!
+
 We implemented an upwind-advection scheme for the perpendicular terms.
 No other scheme is currently choosable.
 
 For the parallel advection we implemented a velocity-staggered finite-volume
-scheme. Here, we have some choices regarding the slope-limiter to use
-\begin{minted}[texcomments]{js}
-"advection":
-{
-    "slope-limiter" : "none", // no slope-limiter
-    "slope-limiter" : "minmod", // minmod has the highest dissipation
-    "slope-limiter" : "vanLeer", // an average slope-limiter
-}
-\end{minted}
-\begin{tcolorbox}[title=Note]
-    A slope limiter increases the discretization order from 1 to 2.
-\end{tcolorbox}
+scheme. No slope limiter is used.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Regularization} \label{sec:regularization}
 In order to stabilize the advection schemes and/or remove cascading energy
@@ -630,6 +621,7 @@ The section `FCI: Parallel derivatives` in `feltor.pdf` applies verbatim.
     "epsilon_D" : 1e-5, // [IGNORED] Eq.\eqref{eq:epsilon_D} This parameter is
     // ignored by all codes, its sole purpose is to make the set of numerical
     // parameters uniquely invertible for analysis purposes (see discussion below)
+    "qlandau" : 3, // Parameter for Landau damping in heat flux equations
 }
 \end{minted}
 These parameters, together with the $R_0$ parameter in the magnetic field,

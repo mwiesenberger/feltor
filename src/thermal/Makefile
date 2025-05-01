@@ -14,11 +14,12 @@ all: thermal thermal_mpi thermaldiag
 thermaldiag: thermaldiag.cpp thermaldiag.h
 	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS) $(JSONLIB) -g $(VERSION_FLAGS)
 
+# There is no GLFW version
 thermal: thermal.cpp thermaldiag.h thermal.h init.h parameters.h init_from_file.h
-	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LIBS) $(JSONLIB) -g $(VERSION_FLAGS)
+	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) $(LIBS) $(JSONLIB) -g $(VERSION_FLAGS)
 
 thermal_mpi: thermal.cpp thermaldiag.h thermal.h init.h parameters.h init_from_file.h
-	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) $(LIBS) $(JSONLIB) -DWITH_MPI $(VERSION_FLAGS)
+	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) $(LIBS) $(JSONLIB) -DWITH_MPI $(VERSION_FLAGS)
 
 .PHONY: clean doc
 

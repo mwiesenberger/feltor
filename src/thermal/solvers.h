@@ -162,7 +162,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     t.tic();
     dg::mat::GyrolagK<double> func(0, -1.);
     auto unary_func = dg::mat::make_FuncEigen_Te1( [&](double x) {return func( x, 1./min);});
-    m_T = m_prod.lanczos().tridiag( unary_func, m_laplaceM, phi, m_vol, m_p.eps_pol, 1.,
+    m_T = m_prod.lanczos().tridiag( unary_func, m_laplaceM, phi, m_vol, m_p.eps_pol[0], 1.,
                 "universal", 1.0, 1);
     t.toc();
 #ifdef MPI_VERSION
@@ -240,7 +240,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
     }
     dg::blas1::axpbypgz( -6., psi[1], 12., psi[2], -6., psi[3]);
     dg::blas1::axpby(    -2., psi[1],  2., psi[2]);
-    dg::blas1::scal( -1., psi[1]);
+    dg::blas1::scal( psi[1], -1.);
     m_laplaceM.variation( phi, m_temp0);
     dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., psi[0]);
 }

@@ -2,11 +2,15 @@
 
 #include "dg/algorithm.h"
 #include "dg/geometries/geometries.h"
+
+#include "../feltor/common.h"
+
 #include "parameters.h"
 #include "solvers.h"
-#include "../feltor/common.h"
 #include "perpendicular.h"
 #include "parallel.h"
+#include "collisions.h"
+
 
 namespace thermal
 {
@@ -68,8 +72,15 @@ struct Explicit
         return m_psi;
     }
 
+    unsigned called() const { return m_called;}
+    const Container& get_source(unsigned u, unsigned s) const{
+        return m_source[u][s];
+    }
+    const Container& get_source_prof(unsigned u, unsigned s) const{
+        return m_profile[u][s];
+    }
 
-
+    /*
     const Container& uE2() const {
         return m_UE2;
     }
@@ -148,10 +159,6 @@ struct Explicit
     //volume with dG weights
     const Container& vol3d() const { return m_lapperpN.weights();}
     const Container& weights() const { return m_lapperpN.weights();}
-    //bhat / sqrt{g} / B (covariant components)
-    const Container & bhatgB () const {
-        return m_b;
-    }
     void compute_lapMperpN (double alpha, const Container& density, Container& temp0, double beta, Container& result)
     {
         // positive Laplacian
@@ -176,12 +183,6 @@ struct Explicit
     {
         update_diag();
         return m_bperp;
-    }
-    const Container& get_source() const{
-        return m_source;
-    }
-    const Container& get_source_prof() const{
-        return m_profne;
     }
     void compute_perp_diffusiveN( double alpha, const Container& density,
             Container& temp0, Container& temp1, double beta, Container& result )
@@ -320,7 +321,6 @@ struct Explicit
         m_lapperpP.set_chi( temp);
         dg::blas2::symv( -alpha, m_lapperpP, m_psi[0], beta, result);
     }
-    unsigned called() const { return m_called;}
 
     /// //////////////////////DIAGNOSTICS END////////////////////////////////
     void update_diag(){
@@ -387,43 +387,7 @@ struct Explicit
         }
 
     }
-    void update_parallel_bc_1st( Container& minusST, Container& plusST,
-            dg::bc bcx, double value)
-    {
-        if( m_p.fci_bc == "along_field")
-            dg::geo::assign_bc_along_field_1st( m_faST, minusST, plusST,
-                    minusST, plusST, bcx, {value,value});
-        else
-        {
-            if( bcx == dg::DIR)
-            {
-                dg::blas1::plus( minusST, -value);
-                dg::geo::swap_bc_perp( m_fa, minusST, plusST,
-                        minusST, plusST);
-                dg::blas1::plus( minusST, +value);
-            }
-        }
-    }
-    void update_parallel_bc_2nd( const dg::geo::Fieldaligned<Geometry, IMatrix,
-            Container>& fa, Container& minus, const Container& value0,
-            Container& plus, dg::bc bcx, double value)
-    {
-        if( m_p.fci_bc == "along_field")
-        {
-            dg::geo::assign_bc_along_field_2nd( fa, minus, value0,
-                    plus, minus, plus, bcx, {value,value});
-        }
-        else
-        {
-            if( bcx == dg::DIR)
-            {
-                dg::blas1::plus( minus, -value);
-                dg::geo::swap_bc_perp( fa, minus, plus,
-                        minus, plus);
-                dg::blas1::plus( minus, +value);
-            }
-        }
-    }
+    */
 
     //source strength, profile - 1
     void set_source(
@@ -439,8 +403,8 @@ struct Explicit
         m_source_rate = source_rate;
         for( unsigned u=0; u<3; u++)
         {
-            m_profile.resize( m_p.num_species);
-            m_source.resize( m_p.num_species);
+            m_profile[u].resize( m_p.num_species);
+            m_source[u].resize( m_p.num_species);
             for( unsigned s=0; s<m_p.num_species; s++)
             {
                 m_profile[u][s] = profile[u][s];
@@ -461,7 +425,9 @@ struct Explicit
         m_parallel.set_sheath( sheath_rate, sheath, sheath_coordinate);
     }
     void add_wall_terms(   std::array<std::vector<Container>,6>& yp);
-    void add_source_terms( std::array<std::vector<Container>,6>& yp);
+    void add_source_terms(
+        const std::array<std::vector<Container>,6>& y,
+        std::array<std::vector<Container>,6>& yp);
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
     {
         return m_parallel.fieldaligned();
@@ -494,7 +460,7 @@ struct Explicit
     std::vector<bool> m_upToDate;
 
     std::array<std::vector<double>,3> m_source_rate;
-    bool m_nixed_profile = false;
+    bool m_fixed_profile = false;
 
     std::vector<double> m_minne, m_minalpha;
     double m_minrate  = 0.;
@@ -527,7 +493,6 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
         m_upToDate[s] = false;
 
 }
-
 
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
@@ -630,17 +595,17 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     timer.tic();
 
 
-    std::vector<Container>&  density    = y[0];
-    std::vector<Container>&  pperp      = y[1];
-    std::vector<Container>&  ppara      = y[2];
-    std::vector<Container>&  wST        = y[3];
-    std::vector<Container>&  qperpST    = y[4];
-    std::vector<Container>&  qparaST    = y[5];
+    const std::vector<Container>&  density    = y[0];
+    const std::vector<Container>&  pperp      = y[1];
+    //const std::vector<Container>&  ppara      = y[2];
+    const std::vector<Container>&  wST        = y[3];
+    //const std::vector<Container>&  qperpST    = y[4];
+    //const std::vector<Container>&  qparaST    = y[5];
 
     // First compute potentials phi and apar
 
     m_solvers.compute_phi( t, density, pperp, m_phi, m_p.penalize_wall,
-        m_wall, m_p.penalize_sheath, m_sheath);
+        m_wall, m_p.penalize_sheath, m_parallel.get_sheath());
 
     timer.toc();
     accu += timer.diff();
@@ -648,7 +613,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
                        << timer.diff()<<"s\t A: "<<accu<<"s\n";
     timer.tic( );
     //Compute m_densityST, m_minusSTN, m_plusSTN for all species
-    m_parallel.update_staggered_density( t, density);
+    m_parallel.update_staggered_density( density);
 
     // Compute m_aparST and m_velocityST if necessary
     if( m_p.beta != 0)
@@ -669,7 +634,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
         m_solvers.compute_psi( t, density, pperp, m_phi, m_psi, s);
         m_parallel.update_quantities( s, m_aparST, m_psi, y);
 
-        // Set perpendicular dynamics in yp
+        // Set perpendicular advection in yp
         m_perp.add_perp_densities_advection(  s, m_apar, m_psi, y,
             m_parallel.get_q(), yp);
         m_perp.add_perp_velocities_advection( s, m_aparST,
@@ -682,18 +647,19 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
                            << timer.diff() << "s\t A: "<<accu<<"s\n";
         timer.tic();
 
-        // Add parallel dynamics
+        // Add parallel advection
         m_parallel.add_para_densities_advection( s, m_psi, y, yp);
         m_parallel.add_para_velocities_advection( s, y, yp);
 
-        m_parallel.add_perp_densities_diffusion( s, y, m_parallel.get_q(), yp);
-        m_parallel.add_perp_velocities_diffusion( s, y, m_parallel.get_qST(), yp);
+        // perp and parallel diffusion
+        m_perp.add_perp_densities_diffusion( s, y, m_parallel.get_q(), yp);
+        m_perp.add_perp_velocities_diffusion( s, y, m_parallel.get_qST(), yp);
         m_parallel.add_para_densities_diffusion( s, y, yp);
         m_parallel.add_para_velocities_diffusion( s, y, yp);
 
         m_parallel.add_sheath_neumann_terms( s, yp);
 
-        m_collisions.gather_quantities( s, m_parallel.get_q(), m_parallel.get_qST() )
+        m_collisions.gather_quantities( s, m_parallel.get_q(), m_parallel.get_qST() );
 
         timer.toc();
         accu += timer.diff();
@@ -703,7 +669,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
     } // species loops
 
-    m_collisions.add_collisions( m_parallel.get_qST()[0], m_aparST, y, yp);
+    m_collisions.add_collisions( m_parallel.get_staggered_density(), m_aparST, y, yp);
     m_parallel.add_sheath_velocity_terms( m_collisions.get_tparaST(), yp);
 
     for( unsigned u=0; u<6; u++)
@@ -711,21 +677,21 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
         for( unsigned s=0; s<m_p.num_species; s++)
         {
             common::multiply_rhs_penalization( yp[u][s], m_p.penalize_wall,
-                m_wall, m_p.penalize_sheath, m_sheath); // F*(1-chi_w-chi_s)
+                m_wall, m_p.penalize_sheath, m_parallel.get_sheath()); // F*(1-chi_w-chi_s)
             if( u == 3)
                 // Apply to U, not W
-                dg::blas1::pointwiseDot( -m_wall_rate, m_wall, m_parallel.get_qST[3],
-                    -m_sheath_rate, m_sheath, m_parallel.get_qST[3], 1., yp[u][s]);
+                dg::blas1::pointwiseDot( -m_p.wall_rate, m_wall, m_parallel.get_qST()[3],
+                    -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), m_parallel.get_qST()[3], 1., yp[u][s]);
             else
-                dg::blas1::pointwiseDot( -m_wall_rate, m_wall, y[u][s],
-                    -m_sheath_rate, m_sheath, y[u][s], 1., yp[u][s]);
+                dg::blas1::pointwiseDot( -m_p.wall_rate, m_wall, y[u][s],
+                    -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), y[u][s], 1., yp[u][s]);
         }
     }
 
     add_wall_terms( yp);
     //Add source terms
     // set m_s
-    add_source_terms( yp );
+    add_source_terms( y, yp );
     m_parallel.add_velocity_source_term( m_s[0], wST, m_aparST, yp);
 
     timer.toc();

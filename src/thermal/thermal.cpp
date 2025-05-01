@@ -10,10 +10,6 @@
 #include <mpi.h>
 #endif //WITH_MPI
 
-#ifndef WITHOUT_GLFW
-#include "draw/host_window.h"
-#endif // WITHOUT_GLFW
-
 #include "dg/file/file.h"
 #include "../feltor/common.h"
 
@@ -22,8 +18,6 @@
 #include "thermaldiag.h"
 #include "init_from_file.h"
 
-
-using Vector = std::array<std::vector<dg::x::DVec>,4>;
 
 int main( int argc, char* argv[])
 {
@@ -96,13 +90,13 @@ int main( int argc, char* argv[])
         std::array<std::vector<double>,3> source_rate;
         std::array<std::vector<dg::x::HVec>,3> profiles, source_profiles;
         std::vector<double> minne, minrate, minalpha;
-        source_profile = thermal::source_profiles( thermal,
+        source_profiles = thermal::source_profiles( thermal,
             fixed_profile, source_rate, profiles,
             grid, mag, unmod_mag,
             js["species"], minne, minrate, minalpha);
         thermal.set_source( fixed_profile[0][0], source_rate,
-                dg::construct<std::array<std::vector<dg::x::DVec>,3>(profile),
-                dg::construct<std::array<std::vector<dg::x::DVec>,3>(source_profile),
+                profiles,
+                source_profiles,
                 minne, minrate[0], minalpha);
     }catch ( std::out_of_range& error){
         DG_RANK0 std::cerr << "ERROR: in source: "<<error.what();
@@ -111,7 +105,7 @@ int main( int argc, char* argv[])
     }
     /// /////////////The initial field//////////////////////////////////////////
     double time = 0.;
-    Vector y0;
+    thermal::Vector y0;
     DG_RANK0 std::cout << "# Set Initial conditions ... \n";
     t.tic();
     if( argc == 4 )
@@ -154,7 +148,7 @@ int main( int argc, char* argv[])
     double t_output = time;
     unsigned failed =0;
     bool adaptive = false;
-    auto odeint = common::init_timestepper<Vector>( js, thermal, time, y0, adaptive, failed);
+    auto odeint = common::init_timestepper<thermal::Vector>( js, thermal, time, y0, adaptive, failed);
 
     /// //////////////////////////set up netcdf/////////////////////////////////////
     if( p.output == "netcdf")
@@ -198,6 +192,9 @@ int main( int argc, char* argv[])
         gradPsip[0] =  dg::evaluate( mag.psipR(), grid);
         gradPsip[1] =  dg::evaluate( mag.psipZ(), grid);
         gradPsip[2] =  dg::evaluate( dg::zero, grid); //zero
+        dg::x::DVec resultD = dg::evaluate( dg::zero, grid);
+        dg::x::HVec resultH_out = dg::evaluate( dg::zero, g3d_out);
+        dg::x::DVec resultD_out = dg::evaluate( dg::zero, g3d_out);
         thermal::Variables var{
             thermal, y0, p, mag, gradPsip, gradPsip, gradPsip, gradPsip,
             0., // duration
@@ -247,7 +244,7 @@ int main( int argc, char* argv[])
         DG_RANK0 std::cout << "# First output ... \n";
         //first, update thermal (to get potential etc.)
         {
-            std::array<std::array<dg::x::DVec,2>,2> y1(y0);
+            thermal::Vector y1(y0);
             try{
                 thermal( time, y0, y1);
             } catch( dg::Fail& fail) {
@@ -263,7 +260,7 @@ int main( int argc, char* argv[])
         for( auto& record: thermal::restart3d_list)
         {
             record.function( resultD, y0, s);
-            file.put_var( "restart_" + pIN.name[s] + "_" + restart3d_list.name,
+            file.put_var( "restart_" + p.name[s] + "_" + record.name,
                 {grid}, resultD);
         }
 
@@ -286,10 +283,10 @@ int main( int argc, char* argv[])
             dg::apply( project, resultD, resultD_out);
             if( record.species_dependent)
                 file.defput_var( p.name[s] + "_" + record.name, {"time", "P", "Z", "R"},
-                    record.atts, {0, g3d_out}, resultD_out);
+                    {{"long_name", record.long_name}}, {0, g3d_out}, resultD_out);
             else if( s == 0)
                 file.defput_var( record.name, {"time", "P", "Z", "R"},
-                    record.atts, {0, g3d_out}, resultD_out);
+                    {{"long_name", record.long_name}}, {0, g3d_out}, resultD_out);
         }
 
 
@@ -335,9 +332,9 @@ int main( int argc, char* argv[])
                 //diag2d.buffer( time, var);
 
                 DG_RANK0 std::cout << "\tTime "<<time<<"\n";
-                double max_ue = dg::blas1::reduce(
-                    thermal.velocity(0), 0., dg::AbsMax<double>() );
-                DG_RANK0 std::cout << "\tMaximum ue "<<max_ue<<"\n";
+                //double max_ue = dg::blas1::reduce(
+                //    thermal.velocity(0), 0., dg::AbsMax<double>() );
+                //DG_RANK0 std::cout << "\tMaximum ue "<<max_ue<<"\n";
                 if( adaptive )
                 {
                     DG_RANK0 std::cout << "\tdt "<<odeint->get_dt()<<"\n";
@@ -377,7 +374,7 @@ int main( int argc, char* argv[])
             for( auto& record: thermal::restart3d_list)
             {
                 record.function( resultD, y0, s);
-                file.put_var( "restart_" + pIN.name[s] + "_" + restart3d_list.name,
+                file.put_var( "restart_" + p.name[s] + "_" + record.name,
                     {grid}, resultD);
             }
 
