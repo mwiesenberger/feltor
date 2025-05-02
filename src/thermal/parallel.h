@@ -538,8 +538,9 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_ter
                     dg::blas1::copy( 0, m_temp);
                     for( unsigned k=1; k<m_p.num_species; k++)
                     {
+                        double zk = m_p.z[k], mk = m_p.mu[k];
                         dg::blas1::evaluate( m_temp, dg::plus_equals(),
-                            [ zk = m_p.z[k], mk = m_p.mu[k]] DG_DEVICE( double nk, double ne, double tk, double te)
+                            [ zk,  mk ] DG_DEVICE( double nk, double ne, double tk, double te)
                             {
                                 double ck = sqrt( ( tk + zk * te )/mk);
                                 return ck * nk / ne * ck;
@@ -548,8 +549,9 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_ter
                 }
                 else
                 {
+                    double zs = m_p.z[s], ms = m_p.mu[s];
                     dg::blas1::evaluate( m_temp, dg::equals(),
-                        [ zs = m_p.z[s], ms = m_p.mu[s]] DG_DEVICE( double ts, double te)
+                        [ zs, ms] DG_DEVICE( double ts, double te)
                         {
                             return sqrt( ( ts + zs * te )/ms);
                         }, tparaST[s], tparaST[0]);

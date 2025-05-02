@@ -1815,6 +1815,7 @@ void append_equations( std::vector<thermal::Record>& list, const std::vector<the
 //    return list;
 //}
 
+/*
 // TODO So far the same as feltor::WriteIntegrateDiagnostics2dList except "Z", "R" coordinates
 template< class NcFile>
 struct WriteIntegrateDiagnostics2dList
@@ -1945,6 +1946,7 @@ struct WriteIntegrateDiagnostics2dList
     std::vector<thermal::Record> m_equation_list;
 
 };
+*/
 
 
 }//namespace thermal

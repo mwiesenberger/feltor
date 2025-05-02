@@ -18,6 +18,9 @@ thermaldiag: thermaldiag.cpp thermaldiag.h
 thermal: thermal.cpp thermaldiag.h thermal.h init.h parameters.h init_from_file.h
 	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) $(LIBS) $(JSONLIB) -g $(VERSION_FLAGS)
 
+thermal_hpc: thermal
+	cp thermal thermal_hpc
+
 thermal_mpi: thermal.cpp thermaldiag.h thermal.h init.h parameters.h init_from_file.h
 	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) $(LIBS) $(JSONLIB) -DWITH_MPI $(VERSION_FLAGS)
 

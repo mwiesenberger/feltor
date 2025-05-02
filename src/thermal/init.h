@@ -142,8 +142,9 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
             if( s == 0)
                 throw std::runtime_error( "Linear_cs velocity not available for electrons!");
             // Assume toroidal alignment ot T in sheath
+            double zs = p.z[s], ms = p.mu[s];
             dg::blas1::evaluate( y0[3][s], dg::equals(),
-                [ zs = p.z[s], ms = p.mu[s]] DG_DEVICE( double ns, double ps, double ne, double pe)
+                [ zs , ms ] DG_DEVICE( double ns, double ps, double ne, double pe)
                 {
                     return sqrt( ( ps/ns + zs * pe/ne )/ms);
                 }, y0[0][s], y0[2][s], y0[0][0], y0[2][0]); // n, ppara and ppara_e initialized previously
@@ -153,7 +154,8 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
                     *perp_grid_ptr);
             dg::x::HVec ui;
             dg::assign3dfrom2d( coord2d, ui, grid);
-            dg::blas1::pointwiseDot( ui, y0[3][s], y0[3][s]);
+            dg::x::DVec ui_device = ui;
+            dg::blas1::pointwiseDot( ui_device, y0[3][s], y0[3][s]);
         }
         else if( "quasineutral" == utype)
         {
@@ -189,8 +191,9 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
         {
             if( s == idx_quasineutral_u)
                 continue;
+            double zk = p.z[idx_quasineutral_u], zs = p.z[s];
             dg::blas1::evaluate( y0[3][idx_quasineutral_u], dg::plus_equals(),
-                [ zk = p.z[idx_quasineutral_u], zs = p.z[s]] DG_DEVICE(
+                [ zk, zs] DG_DEVICE(
                     double nk, double ns, double us)
                 {
                     return -zs * ns * us / (zk * nk);
