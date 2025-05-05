@@ -42,9 +42,12 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
     time = 0;
     std::array<std::vector<dg::x::DVec>,6> y0;
     for( unsigned i=0; i<6; i++)
-    for( unsigned s=0; s<p.num_species; s++)
-        y0[i][s] = dg::construct<dg::x::DVec>( dg::evaluate( dg::zero, grid));
-    unsigned num_quasineutral_n = 0, idx_quasineutral_n;
+    {
+        y0[i].resize( p.num_species);
+        for( unsigned s=0; s<p.num_species; s++)
+            y0[i][s] = dg::construct<dg::x::DVec>( dg::evaluate( dg::zero, grid));
+    }
+    unsigned num_quasineutral_n = 0, idx_quasineutral_n = 0;
     // Init physical n, pperp, ppara
     for( unsigned s=0; s<p.num_species; s++)
     {
@@ -64,7 +67,7 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
                 y0[u][s] = dg::construct<dg::x::DVec>(
                         dg::evaluate( dg::CONSTANT( nbg), grid));
             }
-            else if( "ne" == ntype )
+            else if( "profile" == ntype )
             {
                 double nbg = 0.;
                 dg::x::HVec ntilde  = feltor::detail::make_ntilde(  thermal, grid, mag,
@@ -206,6 +209,7 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
 };
 
 // init physical influx / forced profiles for n, pperp, ppara
+// For "fixed profile" the returned source represents the damping profile
 std::array<std::vector<dg::x::HVec>,3> source_profiles(
     Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
     std::array<std::vector<bool>,3>& fixed_profile,     //indicate whether a profile should be forced (yes or no)
@@ -249,6 +253,7 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
         source[u].resize( num_species);
         source_rate[u].resize( num_species);
     }
+    unsigned num_quasineutral_n = 0, idx_quasineutral_n = 0;
     for( unsigned s=0; s<num_species; s++)
     {
         dg::file::WrappedJsonValue js = jsspecies[s]["source"];
@@ -256,35 +261,52 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
         // Think of this as initialising the **physical** quantities
         for( unsigned u=0; u<3; u++)
         {
+            std::string field = eqs[u];
             fixed_profile[u][s] = false;
             profile[u][s] = dg::evaluate( dg::zero, grid);
             source[u][s] = dg::evaluate( dg::zero, grid);
+            source_rate[u][s] = 0.;
 
-            std::string type  = js[eqs[u]].get( "type", "zero").asString();
-            source_rate[u][s] = js[eqs[u]].get( "rate", 1e-3).asDouble();
+            std::string type  = js[field].get( "type", "zero").asString();
             if( "zero" == type)
             {
                 ;
             }
             else if( "fixed_profile" == type)
             {
+                source_rate[u][s] = js[field].get( "rate", 1e-3).asDouble();
                 fixed_profile[u][s] = true;
                 double nbg = 0;
-                profile[u][s] = feltor::detail::make_profile(grid, mag, js["profile"], nbg);
-                source[u][s] = feltor::detail::make_damping( grid, unmod_mag, js["damping"]);
+                profile[u][s] = feltor::detail::make_profile(grid, mag, js[field]["profile"], nbg);
+                source[u][s] = feltor::detail::make_damping( grid, unmod_mag, js[field]["damping"]);
             }
             else if("influx" == type)
             {
                 double nbg = 0.;
-                source[u][s]  = feltor::detail::make_ntilde( thermal, grid, mag, js["ntilde"]);
-                profile[u][s] = feltor::detail::make_profile( grid, mag, js["profile"], nbg);
-                dg::x::HVec damping = feltor::detail::make_damping( grid, unmod_mag, js["damping"]);
+                source_rate[u][s] = js[field].get( "rate", 1e-3).asDouble();
+                source[u][s]  = feltor::detail::make_ntilde( thermal, grid, mag, js[field]["ntilde"]);
+                profile[u][s] = feltor::detail::make_profile( grid, mag, js[field]["profile"], nbg);
+                dg::x::HVec damping = feltor::detail::make_damping( grid, unmod_mag, js[field]["damping"]);
                 dg::blas1::subroutine( [nbg]( double& profile, double& ntilde, double
                             damping) {
                             ntilde  = (profile+ntilde-nbg)*damping+nbg;
                             profile = (profile-nbg)*damping +nbg;
                         },
                         profile[u][s], source[u][s], damping);
+            }
+            else if ( "density" == field and "fixed_profile-quasineutral" == type)
+            {
+                source_rate[u][s] = js[field].get( "rate", 1e-3).asDouble();
+                fixed_profile[u][s] = true;
+                num_quasineutral_n ++ ;
+                idx_quasineutral_n = s;
+                source[u][s] = feltor::detail::make_damping( grid, unmod_mag, js["damping"]);
+            }
+            else if ( "density" == field and "influx-quasineutral" == type)
+            {
+                source_rate[u][s] = js[field].get( "rate", 1e-3).asDouble();
+                num_quasineutral_n ++ ;
+                idx_quasineutral_n = s;
             }
             //else if( "torpex" == type)
             //{
@@ -311,6 +333,27 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
                 throw dg::Error(dg::Message()<< "Profile types cannot be mixed among species or equations!");
             if( source_rate[0][s] != source_rate[0][0])
                 throw dg::Error(dg::Message()<< "Density source rates must be equal among species "<<source_rate[0][s]<<" vs "<<source_rate[0][0]<<"!\n");
+        }
+        // Check quasineutrality
+        if( num_quasineutral_n > 1)
+            throw std::runtime_error( "There cannot be more than one quasineutral density");
+        if( num_quasineutral_n == 0)
+            ;//TODO Check that species indeed add up to 0
+        else
+        {
+            for( unsigned s=0; s<num_species; s++)
+            {
+                if( s == idx_quasineutral_n) continue;
+                double zs = jsspecies[s]["z"].asDouble();
+                double zidx = jsspecies[idx_quasineutral_n]["z"].asDouble();
+                dg::blas1::axpby( -zs/ zidx, profile[0][s], 1.,
+                    profile[0][idx_quasineutral_n]);
+                if( not fixed_profile[0][0])
+                {
+                    dg::blas1::axpby( -zs/ zidx, source[0][s], 1.,
+                        source[0][idx_quasineutral_n]);
+                }
+            }
         }
     }
     return source;

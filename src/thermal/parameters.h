@@ -34,7 +34,6 @@ struct Parameters
 
     std::vector<double> nwall;
     double uwall, twall, qwall, wall_rate;
-    double source_rate;
 
     enum dg::bc bcxN, bcyN, bcxU, bcyU, bcxP, bcyP, bcxA, bcyA;
     enum dg::direction pol_dir;
@@ -49,7 +48,7 @@ struct Parameters
     //
     unsigned num_species; // number of species
     double qlandau;
-    std::vector<int> z;
+    std::vector<double> z;
     std::vector<double> mu;
     std::vector<double> pi, kappa; // prefactors for Braginskii viscosity and conductivity
     std::vector<std::string> name; // name of species s
@@ -100,16 +99,19 @@ struct Parameters
             nu_parallel[u] = js["regularization"]["nu_parallel"].get( u, 0.).asDouble();
         }
 
-        num_species = js["physical"]["species"].size();
+        num_species = js["species"].size();
+        name.resize( num_species);
         mu.resize( num_species);
         z.resize( num_species);
+        pi.resize( num_species);
+        kappa.resize( num_species);
         for( unsigned s=0; s<num_species; s++)
         {
-            std::string name = js["physical"]["species"][s].asString();
-            mu[s] = js["physical"]["mu"][s].asDouble();
-            z[s] = js["physical"]["z"][s].asDouble();
-            pi[s] = js["physical"]["pi"][s].asDouble();
-            kappa[s] = js["physical"]["kappa"][s].asDouble();
+            name[s] = js["species"][s]["name"].asString();
+            mu[s] = js["species"][s]["mu"].asDouble();
+            z[s] = js["species"][s]["z"].asDouble();
+            pi[s] = js["species"][s]["pi"].asDouble();
+            kappa[s] = js["species"][s]["kappa"].asDouble();
 
         }
         if( fabs(mu[0] ) > 1e-3)
@@ -122,9 +124,6 @@ struct Parameters
         qlandau     = js["physical"].get( "qlandau", 0.).asDouble();
 
 
-        source_rate = 0.;
-        if( js["source"].get("type", "zero").asString() != "zero")
-            source_rate = js[ "source"].get( "rate", 0.).asDouble();
         sheath_bc = js["boundary"]["sheath"].get("type", "insulating").asString();
         if( (sheath_bc != "insulating") && // "bohm" is not valid
                 (sheath_bc != "none") && (sheath_bc != "wall"))
@@ -190,9 +189,9 @@ struct Parameters
             }
             if( fabs( sum_n) > 1e-15)
                 throw std::runtime_error( "Sum of wall charge densities " + std::to_string( sum_n) +" is not zero \n");
-            uwall = js["boundary"]["uwall"].get( "uwall", 0.0).asDouble();
-            qwall = js["boundary"]["qwall"].get( "qwall", 0.0).asDouble();
-            twall = js["boundary"]["twall"].get( "twall", 1.0).asDouble();
+            uwall = js["boundary"]["wall"].get( "uwall", 0.0).asDouble();
+            qwall = js["boundary"]["wall"].get( "qwall", 0.0).asDouble();
+            twall = js["boundary"]["wall"].get( "twall", 1.0).asDouble();
         }
         if( sheath_bc != "none")
         {

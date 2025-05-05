@@ -68,7 +68,7 @@ The wall density is a list of values
         // length must equal number of species (see \ref{sec:species})
         // Quasineutrality must be observed $\sum_s z_s n_{s,wall} = 0$
         "uwall" : 0.0, // $U_{\parallel,w}$
-        "twall" : 0.1, // $T_w > 0$ wall temperature (see also tbc)
+        "twall" : 1, // $T_w > 0$ wall temperature (see also tbc)
         "qwall" : 0, // $Q_{w}$
     }
     "sheath":
@@ -133,6 +133,7 @@ where $\hat n$ is the normal vector to the boundary.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{The species block: Initial conditions and sources} \label{sec:species}
+The species block replaces the "init" and "source" block in feltor.
 
 In order to setup a number of species the input file needs to contain the "species" field, which
 consists of a list of dictionaries describing the physical parameters, the initialisation and the sources
@@ -145,7 +146,7 @@ for each species in the simulation. The first species must be the electron speci
         "name" : "e", // determines field names in output file
         "mu" : 2.72121e-4, // mass relative to reference mass: $m_s/m_i$.
         // results in the neglect of gyro-radius effects for that species (s.a. \ref{sec:physical})
-        "z" : -1, //charge number of species
+        "z" : -1, //charge number of species (can be floating point)
         "kappa" : 3.2, // Braginskii numerical prefactor for heat flux ($\kappa_i=3.9$)
         "pi" : 0.73, // Braginksii numerical prefactor for viscosity ($\pi_i = 0.96$)
         "init" : {
@@ -233,7 +234,7 @@ The "density", "pperp" and "ppara" fields all allow the following:
     // OR
     "density" : // or "pperp" or "ppara"
     {
-        "type" : "ne",  // $n_s = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
+        "type" : "profile",  // $n_s = n_{bg} + (n_{prof}(R,Z) + \tilde n(R,Z,\varphi) - n_{bg}) D(R,Z)$
         "ntilde":
         {
             // see Ntilde section in `feltor.pdf`
@@ -250,7 +251,7 @@ The "density", "pperp" and "ppara" fields all allow the following:
 }
 \end{minted}
 \begin{tcolorbox}[title=Note]
-    Even though the parameters reads "ne" and "ntilde" they apply equally to other densities and temperatures.
+    Even though the parameter reads "ntilde" it applies equally to pressure fluctuations.
     Also we here initialise the physical, particle quantities rather than the gyro-centre quantities
 \end{tcolorbox}
 For the velocity and heat fluxes we have
@@ -436,6 +437,8 @@ The source profile is chosen in physical space, i.e. $n_{prof}$, $p_{\perp,prof}
     {
         "type" : "fixed_profile", // must be equal for all species and equations
         "rate" : 1e-3 // source strength $\omega_s$
+        // Density source rates must be equal among species
+        // Pressure source rates can be different
         "profile" :
         {
             // Determine $n_{prof}(R,Z)$
@@ -450,12 +453,33 @@ The source profile is chosen in physical space, i.e. $n_{prof}$, $p_{\perp,prof}
     }
 }
 \end{minted}
-To ensure quasineutrality we transform these to gyrocentre space via
+To ensure quasineutrality we need to enforce $\sum_s z_s n_{prof,s} = 0$. To achieve
+Further, we require all density source rates $\omega_{n,s}$ be equal among species.
+In order to achieve this a single species (usually the electrons) can (but does
+not have to) be automatically determined by the quasineutrality condition setting
+\begin{minted}[texcomments]{js}
+"source":
+{
+    "density" :
+    {
+        "type" : "fixed_profile-quasineutral"  // $n_{s,prof} = -\sum_{i,i\neq s} z_i n_{i,prof}/ z_s$
+        "rate" : 1e-3 // source strength $\omega_s$ must equal other species
+        "damping" : // does not have to equal other species
+        {
+            // $D(R,Z)$ determines where the source is active
+            // see Damping section in `feltor.pdf`
+            // The background parameter must be present but is ignored ($n_{bg} = 0$)
+        }
+    },
+}
+\end{minted}
+and transform these to gyrocentre space via
 \begin{align}
    N_{prof} &= n_{prof} - \Delta_\perp \left( \frac{\mu_s p_{\perp,prof}}{2z_s^2B^2}\right) - \nc\left( \frac{\mu_s n_{prof} \vn_\perp \phi}{z_sB^2}\right) \\
    P_{\perp,prof} &= p_{\perp,prof} - \nc\left( \frac{\mu_s p_{\perp,prof}\vn_\perp \phi}{z_sB^2}\right) \\
    P_{\parallel,prof} &= p_{\parallel,prof}
 \end{align}
+
 
 \paragraph{Constant influx}
 Another option is to provide a constant influx of particles and/or heat (again, in physical space)
@@ -506,6 +530,18 @@ In order to not generate potential with the constant influx source term the dens
 terms need to fulfill $\sum_s z_s s_{n,s}  = 0$. Generally, we achieve this by
 requiring all density source rates $\omega_{n,s}$ be equal among species and the source
 profile fulfill the quasineutrality condition.
+In order to achieve this a single species (usually the electrons) can (but does
+not have to) be automatically determined by the quasineutrality condition setting
+\begin{minted}[texcomments]{js}
+"source":
+{
+    "density" :
+    {
+        "type" : "influx-quasineutral"  // $s_{n,s} = -\sum_{i,i\neq s} z_i s_{n,i}/ z_s$
+        "rate" : 1e-3 // source strength $\omega_s$ must equal other species
+    },
+}
+\end{minted}
 
 Thereafter we transform the physical sources to gyro-centre space via
 \begin{align}
@@ -555,7 +591,7 @@ for the perpendicular terms and artificial viscosity of order 1 of the parallel 
     "direction" : "centered",  // The direction of the Laplacian
     "nu_perp" : [1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4],
     // The strength of the perpendicular diffusion for density, tperp, tpara, ...
-    "nu_parallel" : [1e-4, 1e-4, 1e-4, 1e-4, 1e-4, 1e-4],
+    "nu_parallel" : [500, 500, 500, 500, 500, 500],
     // The strength of the parallel diffusion for density, tperp, tpara, ...
 }
 \end{minted}
@@ -567,44 +603,8 @@ Simply set the diffusion to 0 if you do not want any regularization.
 \end{tcolorbox}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Elliptic solvers}
-We discretize all elliptic operators with a local dG method (LDG).  In order to
-solve the elliptic equations we chose a multigrid scheme (nested iterations in
-combination with conjugate gradient solves on each plane). The accuaracies for
-the polarization equation can be chosen for each stage separately, while for
-the Helmholtz type equations (The gamma operators and the Ampere equation) only
-one accuracy can be set:
-\begin{minted}[texcomments]{js}
-"elliptic":
-{
-    "stages"    : 4,  // Number of stages
-    // (3 is a good start but 4 or better 5 are beneficial)
-    // $2^{\text{stages-1}}$ has to evenly divide both $N_x$ and $N_y$!
-    // To tune, observe the number of iterations at each stage in the output file.
-    // If the number at the lowest stage is unreasonably high (800 say),
-    // then add another stage!
-    "eps_pol"   : [1e-6,0.5,0.5,0.5],
-    // The first number is the tolerance for the residual of the inversion of the
-    // polarisation equation on the finest grid. The second number is a multiplicative
-    // factor for the accuracy on the second grid in a multigrid scheme, the
-    // third for the third grid and so on:
-    // $\eps_0 = \eps_{pol,0}$, $\eps_i = \eps_{pol,i} \eps_{pol,0}$  for $i>1$.
-    // Tuning those factors is a major performance tuning oppourtunity!!
-    // If the number of iterations at the finest grid is too high then reduce
-    // the factor on the coarse grids.
-    // For saturated turbulence the suggested values are [1e-6, 0.5, 0.5,0.5].
-    "eps_gamma" : 1e-8, // Accuracy requirement of Gamma operator
-    "eps_ampere": 1e-8,  //Accuracy requirement of Ampere equation
-    "direction" : "forward", // Direction of the Laplacian: forward or centered
-    "jumpfactor" : 1.0
-    // Jumpfactor $\in \left[0.01,1\right]$ in the local DG method for the
-    // elliptic terms in polarization equation.
-    //(Don't touch unless you know what you're doing.
-}
-\end{minted}
-\begin{tcolorbox}[title=Note]
-    We use solutions from previous time steps to extrapolate an initial guess
-    and use $1/\chi$ as a diagonal preconditioner
-\end{tcolorbox}
+The section `Elliptic solvers` in `feltor.pdf` applies verbatim.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{FCI: Parallel derivatives}
 The section `FCI: Parallel derivatives` in `feltor.pdf` applies verbatim.

@@ -259,7 +259,7 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
         m_curvNabla[0], m_curvNabla[1], m_temp0, g);
     dg::pushForward(curvKappa.x(), curvKappa.y(), curvKappa.z(),
         m_curvKappa[0], m_curvKappa[1], m_temp0, g);
-    m_temp1 = m_temp2 = m_temp3 = m_temp0;
+    m_b_2 = m_temp1 = m_temp2 = m_temp3 = m_temp0;
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
     dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
     // in PerpDynamics we take EhatPhi = 1,1,+/- 1/R, which leads to ephi_varphi / sqrt(g) / B = \pm 1/R

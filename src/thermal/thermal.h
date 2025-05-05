@@ -417,7 +417,7 @@ struct Explicit
     }
     void set_wall(const Container& wall)
     {
-        dg::blas1::copy( wall, m_wall);
+        dg::assign( wall, m_wall);
     }
     void set_sheath(double sheath_rate, const Container& sheath,
             const Container& sheath_coordinate)

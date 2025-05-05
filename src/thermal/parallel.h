@@ -20,8 +20,8 @@ struct ParallelDynamics
             const Container& sheath_coordinate)
     {
         m_sheath_rate = sheath_rate;
-        dg::blas1::copy( sheath, m_sheath);
-        dg::blas1::copy( sheath_coordinate, m_sheath_coordinate);
+        dg::assign( sheath, m_sheath);
+        dg::assign( sheath_coordinate, m_sheath_coordinate);
     }
     double get_sheath_rate() const {
         return m_sheath_rate;
