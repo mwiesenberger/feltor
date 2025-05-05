@@ -1745,10 +1745,11 @@ void write_global_attributes(NcFile& file, int argc, char* argv[], std::string i
     file.put_atts( dg::file::version_flags);
 }
 
-template<class NcFile, class HostList>
-void write_static_list( NcFile& file, const HostList& records, Variables& var,
+template<class NcFile, class HostList, class HostList2>
+void write_static_list( NcFile& file, const HostList& records, const HostList2& species_records,
+    Variables& var,
     const dg::x::CylindricalGrid3d& grid, const dg::x::CylindricalGrid3d& g3d_out,
-    dg::geo::CylindricalFunctor transition )
+    dg::geo::CylindricalFunctor transition, const std::vector<std::string>& species_names )
 {
     // the unique thing here is that we evaluate 3d but only write 2d
     // Difference to feltor::write_static_list is the "Z", "R" coordinates
@@ -1770,6 +1771,14 @@ void write_static_list( NcFile& file, const HostList& records, Variables& var,
     file.defput_var( "MagneticTransition", {"Z", "R"}, {{"long_name",
         "The region where the magnetic field is modified"}},
         {*g2d_out_ptr}, transferH);
+    for( unsigned s=0; s<species_names.size(); s++)
+    for( auto& record: species_records)
+    {
+        record.function( resultH, var, grid, s);
+        dg::blas2::symv( projectH, resultH, transferH);
+        file.defput_var( species_names[s] + "_" + record.name, {"Z", "R"}, record.atts,
+                {*g2d_out_ptr}, transferH);
+    }
 }
 
 void append_equations( std::vector<thermal::Record>& list, const std::vector<thermal::Record>& b)

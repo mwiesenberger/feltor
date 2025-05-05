@@ -206,15 +206,17 @@ int main( int argc, char* argv[])
         file.defput_dim( "R", {{"axis", "X"}, {"long_name", "R coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(0));
         file.defput_dim( "Z", {{"axis", "Y"}, {"long_name", "Z coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(1));
         file.defput_dim( "P", {{"axis", "Z"}, {"long_name", "Phi coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rad"}}, g3d_out.abscissas(2));
+
         for( auto& record: thermal::diagnostics3d_static_list)
         {
             record.function( resultH_out, var.mag, g3d_out);
             file.defput_var( record.name, {"P", "Z", "R"}, record.atts,
                     {g3d_out}, resultH_out);
         }
+
         //create & output static 2d variables into file
         thermal::write_static_list( file, thermal::diagnostics2d_static_list,
-            var, grid, g3d_out, transition);
+            thermal::diagnostics2d_static_init, var, grid, g3d_out, transition, p.name);
 
         if( p.calibrate)
         {
