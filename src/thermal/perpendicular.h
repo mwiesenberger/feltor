@@ -161,6 +161,7 @@ struct PerpDynamics
         m_lapperpP.set_chi( m_temp0);
         m_lapperpP.symv( 1., phi, 1., m_temp1);
         dg::blas1::copy( m_temp1, gydensity); //gydensity can alias density!
+        // Pressure trafo
         dg::blas1::pointwiseDot( mus/zs, pperp, m_binv, m_binv, 0., m_temp0);
         m_lapperpP.set_chi( m_temp0);
         dg::blas1::copy( pperp, gypperp);

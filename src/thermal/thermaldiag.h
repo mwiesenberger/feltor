@@ -93,7 +93,7 @@ struct Variables{
 };
 
 struct Record{
-    bool species_dependent; // whehter variable should be prepended with species name
+    bool species_dependent; // whether variable should be prepended with species name
     std::string name;
     std::string long_name;
     bool integral; //indicates whether the function should be time-integrated
@@ -322,12 +322,12 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
             dg::assign( v.f.get_source_prof(0,s), result);
         }
     },
-    { "Perpprof", "Pperp profile (that the source may force)",
+    { "Pperpprof", "Pperp profile (that the source may force)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.f.get_source_prof(1,s), result);
         }
     },
-    { "Paraprof", "Ppara profile (that the source may force)",
+    { "Pparaprof", "Ppara profile (that the source may force)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.f.get_source_prof(2,s), result);
         }
@@ -337,12 +337,12 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
             dg::assign( v.f.get_source(0,s), result);
         }
     },
-    { "SPerp", "Pperp source profile (influx)",
+    { "SPperp", "Pperp source profile (influx)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.f.get_source(1,s), result);
         }
     },
-    { "SPara", "Ppara source profile (influx)",
+    { "SPpara", "Ppara source profile (influx)",
         []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
             dg::assign( v.f.get_source(2,s), result);
         }
