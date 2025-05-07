@@ -300,7 +300,7 @@ std::array<std::vector<dg::x::HVec>,3> source_profiles(
                 fixed_profile[u][s] = true;
                 num_quasineutral_n ++ ;
                 idx_quasineutral_n = s;
-                source[u][s] = feltor::detail::make_damping( grid, unmod_mag, js["damping"]);
+                source[u][s] = feltor::detail::make_damping( grid, unmod_mag, js[field]["damping"]);
             }
             else if ( "density" == field and "influx-quasineutral" == type)
             {

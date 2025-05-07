@@ -71,7 +71,7 @@ ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
     m_old_gammaN( p.num_species - 1, m_old_phi)
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
-    m_rhoinv2 = m_temp2, m_temp1 = m_temp0;
+    m_rhoinv2 = m_temp2 = m_temp1 = m_temp0;
     dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B2);
     m_vol = dg::create::volume( g);
     dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
