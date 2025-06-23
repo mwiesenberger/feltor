@@ -21,7 +21,6 @@ contours_t
 
 all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 
-
 %_b: %_b.cpp
 	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) -g
 
@@ -35,6 +34,9 @@ matrixprodexp_t: matrixprodexp_t.cpp
 	$(CC) $(OPT)$(INCLUDE) $(CFLAGS) $< -o $@   $(LAPACKLIB) $(LIBS) -g
 
 # CATCH2 TESTS
+#
+$(CATCH).$(device).o: $(CATCH).cpp
+	$(CC) $(OPT) $(CFLAGS) $(INCLUDE) -g -c $< -o $@
 
 %_t.$(device).o: %_t.cpp %.h
 	$(CC) $(OPT) $(CFLAGS) -c $< -o $@ -g $(INCLUDE)

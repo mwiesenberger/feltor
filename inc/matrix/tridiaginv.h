@@ -35,6 +35,8 @@ namespace lapack
 extern "C" {
 extern void dstev_(char*,int*,double*,double*,double*,int*,double*,int*);
 extern void sstev_(char*,int*,float*,float*,float*,int*,float*,int*);
+extern void dsygv_(int*,char*,char*,int*,double*,int*,double*,int*,double*,double*,int*,int*);
+extern void ssygv_(int*,char*,char*,int*,float*,int*,float*,int*,float*,float*,int*,int*);
 }
 // Compute Eigenvalues and, optionally, Eigenvectors of a real symmetric tridiagonal matrix A
 template<class ContainerType0, class ContainerType1, class ContainerType2, class ContainerType3>
@@ -89,7 +91,6 @@ void stev(
 // Compute Eigenvalues and, optionally, Eigenvectors of a real symmetric matrix system A x = lambda B x
 template<class ContainerType0, class ContainerType1, class ContainerType2, class ContainerType3>
 void sygv(
-    lapack_int order,  // LAPACK_ROW_MAJOR or LAPACK_COL_MAJOR
     int itype, // 1: A*x = (\Lambda)*B*x, 2: A*B*x = (\Lambda)*x, 3: B*A*x = (\Lambda)*x
     char jobz, // 'N' Compute Eigenvalues only, 'V' Compute Eigenvalues and Eigenvectors
     char uplo, // 'U' Upper triangles of A and B are stored; 'L' Lower triangles of A and B
@@ -121,12 +122,13 @@ void sygv(
     value_type * B_ptr = thrust::raw_pointer_cast( &B[0]);
     value_type * W_ptr = thrust::raw_pointer_cast( &W[0]);
     value_type * work_ptr = thrust::raw_pointer_cast( &work[0]);
+    int work_size = (int)work.size();
 
-    lapack_int info;
+    int info;
     if constexpr ( std::is_same_v<value_type, double>)
-        info = LAPACKE_dsygv_work( order, itype, jobz, uplo, N, A_ptr, lda, B_ptr, ldb, W_ptr, work_ptr, work.size());
+        dsygv_( &itype, &jobz, &uplo, &N, A_ptr, &lda, B_ptr, &ldb, W_ptr, work_ptr, &work_size, &info);
     else if constexpr ( std::is_same_v<value_type, float>)
-        info = LAPACKE_ssygv_work( order, itype, jobz, uplo, N, A_ptr, lda, B_ptr, ldb, W_ptr, work_ptr, work.size());
+        ssygv_( &itype, &jobz, &uplo, &N, A_ptr, &lda, B_ptr, &ldb, W_ptr, work_ptr, &work.size, &info);
     if( info != 0)
     {
         throw dg::Error( dg::Message(_ping_) << "sygv failed with error code "<<info<<"\n");

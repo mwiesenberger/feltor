@@ -212,7 +212,7 @@ struct ProductMatrixFunction
         thrust::host_vector<value_type> work (2*iter-2);
         dg::SquareMatrix<value_type> EHt(iter);
         //Compute Eigendecomposition
-        lapack::stev(LAPACK_COL_MAJOR, 'V', evals, plus, EHt.data(), work);
+        lapack::stev('V', evals, plus, EHt.data(), work);
         dg::blas1::axpby(1./bnorm, b, 0.0, m_v); //m_v[1] = b/||b||
         dg::blas1::copy(0., m_vm);
         // compute c_1 v_1
@@ -261,7 +261,7 @@ struct ProductMatrixFunction
         thrust::host_vector<value_type> work (2*iter-2);
         dg::SquareMatrix<value_type> EHt(iter);
         //Compute Eigendecomposition
-        lapack::stev(LAPACK_COL_MAJOR, 'V', evals, plus, EHt.data(), work);
+        lapack::stev('V', evals, plus, EHt.data(), work);
         dg::blas1::axpby(1./bnorm, b, 0.0, m_v); //m_v[1] = b/||b||
         dg::blas1::copy(0., m_vm);
         // compute alpha_i1

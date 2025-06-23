@@ -92,7 +92,7 @@ TEST_CASE( "Lapack")
     SECTION( "stev N")
     {
         dg::TriDiagonal<std::vector<double>> TT(T);
-        dg::mat::lapack::stev( LAPACK_COL_MAJOR, 'N', TT.O, TT.P, TT.M, TT.M);
+        dg::mat::lapack::stev( 'N', TT.O, TT.P, TT.M, TT.M);
         for( unsigned u=0; u<5; u++)
         {
             INFO( "Eigenvalue "<<u<<" "<<TT.O[u]);
@@ -106,7 +106,7 @@ TEST_CASE( "Lapack")
         dg::SquareMatrix<double> sol( evecs.begin(), evecs.end());
         std::vector<double> work ( 2*5-2);
         // In LAPACK_COL_MAJOR the eigenvectors become the rows of evs!
-        dg::mat::lapack::stev( LAPACK_COL_MAJOR, 'V', TT.O, TT.P, evs.data(), work);
+        dg::mat::lapack::stev( 'V', TT.O, TT.P, evs.data(), work);
         for( unsigned u=0; u<5; u++)
         {
             INFO( "Eigenvalue "<<u<<" "<<TT.O[u]);

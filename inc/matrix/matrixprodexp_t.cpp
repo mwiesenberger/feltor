@@ -61,7 +61,7 @@ struct Wrapper
 };
 
 // MW what is the difference between matrixprodexp_t and matrixprodexp_b? Why do we have two?
-int main(int argc, char * argv[])
+int main()
 {
     dg::Timer t;
 

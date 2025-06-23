@@ -25,27 +25,30 @@ set(MATRIX_HEADERS
 # Some can be compiled for MPI
 # find ../../matrix -name "*t.cpp" | sort
 set(MATRIX_TESTS
-  ../../matrix/exp_runge_kutta_t.cu
-  ../../matrix/functors_t.cu
-  ../../matrix/invtridiag_t.cu
-  ../../matrix/polarization_init_t.cu
+  ../../matrix/contours_t.cpp
+  ../../matrix/exp_runge_kutta_t.cpp
+  ../../matrix/functors_t.cpp
+  ../../matrix/tridiaginv_t.cpp
 )
 
 # find ../../matrix -name "*b.cpp" | sort
 set(MATRIX_BENCHMARKS
-  ../../matrix/lanczos_b.cu
-  #../../matrix/lanczos_mpib.cu
-  ../../matrix/matrixfunction_b.cu
-  ../../matrix/matrixsqrt_b.cu
-  ../../matrix/polarization_b.cu
-  ../../matrix/tensorelliptic2d_b.cu
-  ../../matrix/tridiaginv_b.cu
+  ../../matrix/matrixprodexp_t.cpp
+  ../../matrix/polarization_init_t.cpp
+  ../../matrix/lanczos_b.cpp
+  #../../matrix/lanczos_mpib.cpp
+  ../../matrix/matrixfunction_b.cpp
+  ../../matrix/matrixsqrt_b.cpp
+  ../../matrix/polarization_b.cpp
+  ../../matrix/tensorelliptic2d_b.cpp
+  ../../matrix/tridiaginv_b.cpp
 )
 # These targets need to link to netcdf
 # Test grep "file.h" * in matrix
 set( MATRIX_BENCHMARKS_WITH_FILE
-  ../../matrix/polarization_b.cu
-  ../../matrix/polarization_init_t.cu
+  ../../matrix/matrixprodexp_t.cpp
+  ../../matrix/polarization_b.cpp
+  ../../matrix/polarization_init_t.cpp
 )
 
 
@@ -89,14 +92,17 @@ target_link_libraries(dg_matrix INTERFACE ${LAPACK_LIBRARIES})
 
 # ============================================
 # Add matrix tests
-# TODO Disabled for now, tests are not using Catch2 so compiled as benchmarks
 
-# if(FELTOR_BUILD_TESTS)
-#   include(FeltorTests)
-#   foreach(test_path IN LISTS MATRIX_TESTS)
-#     add_dg_test("${test_path}")
-#   endforeach()
-# endif()
+if(FELTOR_BUILD_TESTS)
+  include(FeltorTests)
+  if( FELTOR_WITH_MPI)
+  else()
+      foreach(test_path IN LISTS MATRIX_TESTS)
+        add_dg_test("${test_path}" "matrix" OFF target_name)
+        target_link_libraries( ${target_name} PRIVATE dg_matrix)
+      endforeach()
+  endif()
+endif()
 
 # ============================================
 # Add matrix benchmarks
@@ -105,7 +111,7 @@ if(FELTOR_BUILD_BENCHMARKS)
   include(FeltorBenchmarks)
   if( FELTOR_WITH_MPI)
   else()
-    foreach(benchmark_path IN LISTS MATRIX_BENCHMARKS MATRIX_TESTS)
+    foreach(benchmark_path IN LISTS MATRIX_BENCHMARKS)
         if( "${benchmark_path}" IN_LIST MATRIX_BENCHMARKS_WITH_FILE AND FELTOR_FILE_WITH_NETCDF)
             add_dg_benchmark("${benchmark_path}" "matrix" OFF target_name)
             target_link_libraries( ${target_name} PRIVATE dg_matrix)

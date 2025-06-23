@@ -74,7 +74,7 @@ unsigned levenberg_marquardt( Func fun, Jacobian jac,
                 HH(j,l) = HH(l,j) = dg::blas1::dot( jacs[l], jacs[j]);
             WW(l,l) = std::max( WW(l,l), HH(l,l));
         }
-        lapack::sygv( LAPACK_COL_MAJOR, 1, 'V', 'U', num_p, HH.data(), num_p, WW.data(), num_p, evs, work);
+        lapack::sygv( 1, 'V', 'U', num_p, HH.data(), num_p, WW.data(), num_p, evs, work);
         evHH_T = HH;
         evHH = HH.transpose();
         //std::cout << "#########Iteration "<<k<<"\n";
@@ -297,7 +297,7 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
     return std::make_pair( zk, wk);
 }
 std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
-    jacobian_identity( unsigned N, const std::vector<double>& params)
+    jacobian_identity( unsigned N, const std::vector<double>&)
 {
     unsigned n = N/2;
     std::vector<thrust::complex<double>> dzk(4*n*n, {0.});

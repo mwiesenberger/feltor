@@ -76,7 +76,7 @@ struct LaplaceDecomposition
         unsigned Nx = g.gx().size();
         m_EX.resize( Nx);
         thrust::host_vector<value_type> work( 3*Nx-1);
-        lapack::sygv( LAPACK_COL_MAJOR, 1, 'V', 'U', Nx, lapX[0].data(), Nx, lapX[1].data(), Nx, m_EX, work);
+        lapack::sygv( 1, 'V', 'U', Nx, lapX[0].data(), Nx, lapX[1].data(), Nx, m_EX, work);
         // Eigenvalues are sorted in ascending order
         // now convert to device vectors
         m_VX.resize( Nx);
@@ -101,7 +101,7 @@ struct LaplaceDecomposition
         unsigned Ny = g.gy().size();
         m_EY.resize( Ny);
         work.resize( 3*Ny-1);
-        lapack::sygv( LAPACK_COL_MAJOR, 1, 'V', 'U', Ny, lapY[0].data(), Ny, lapY[1].data(), Ny, m_EY, work);
+        lapack::sygv( 1, 'V', 'U', Ny, lapY[0].data(), Ny, lapY[1].data(), Ny, m_EY, work);
         // Eigenvalues are sorted in ascending order
         // now convert to device vectors
         m_VY.resize( Ny);
