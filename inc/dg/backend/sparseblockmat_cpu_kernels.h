@@ -24,15 +24,11 @@ void ell_cpu_multiply_kernel( value_type alpha, value_type beta,
          const value_type * RESTRICT x, value_type * RESTRICT y
          )
 {
+    std::vector<int> J(blocks_per_line), B(blocks_per_line);
 	for( int si = 0; si<left_size*num_rows; si++)
 	{
 		int s = si / num_rows;
 		int i = si % num_rows;
-#ifdef _MSC_VER //MSVC does not support variable lenght arrays...
-		int* J = (int*)alloca(blocks_per_line * sizeof(int));
-#else
-        int J[blocks_per_line];
-#endif
         for( int d=0; d<blocks_per_line; d++)
         {
             int C = cols_idx[i*blocks_per_line+d];
@@ -40,11 +36,6 @@ void ell_cpu_multiply_kernel( value_type alpha, value_type beta,
         }
         for( int k=0; k<n; k++)
         {
-#ifdef _MSC_VER
-			int* B = (int*)alloca(blocks_per_line * sizeof(int));
-#else
-            int B[blocks_per_line];
-#endif
             for( int d=0; d<blocks_per_line; d++)
                 B[d] = (data_idx[i*blocks_per_line+d]*n+k)*n;
             for( int j=right_range[0]; j<right_range[1]; j++)
@@ -359,7 +350,7 @@ void EllSparseBlockMat<real_type, Vector>::launch_multiply_kernel( SerialTag, va
 }
 
 template<class real_type, class value_type, template<class> class Vector>
-void coo_cpu_multiply_kernel( value_type alpha, const value_type** x, value_type beta, value_type* RESTRICT y, const CooSparseBlockMat<real_type, Vector>& m )
+void coo_cpu_multiply_kernel( value_type alpha, const value_type** x, value_type /*beta*/, value_type* RESTRICT y, const CooSparseBlockMat<real_type, Vector>& m )
 {
 	for (int skj = 0; skj < m.left_size*m.n*m.right_size; skj++)
 	{
@@ -380,7 +371,7 @@ void coo_cpu_multiply_kernel( value_type alpha, const value_type** x, value_type
 	}
 }
 template<class real_type, class value_type, int n, template<class > class Vector>
-void coo_cpu_multiply_kernel( value_type alpha, const value_type** x, value_type beta, value_type* RESTRICT y, const CooSparseBlockMat<real_type, Vector>& m )
+void coo_cpu_multiply_kernel( value_type alpha, const value_type** x, value_type /*beta*/, value_type* RESTRICT y, const CooSparseBlockMat<real_type, Vector>& m )
 {
     bool trivial = true;
     int CC = m.cols_idx[0], DD = m.data_idx[0];

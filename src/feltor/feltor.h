@@ -763,7 +763,7 @@ void Explicit<Grid, IMatrix, Matrix, Container>::construct_bhat(
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
 void Explicit<Grid, IMatrix, Matrix, Container>::construct_invert(
-    const Grid& g, feltor::Parameters p, dg::geo::TokamakMagneticField mag)
+    const Grid&, feltor::Parameters p, dg::geo::TokamakMagneticField mag)
 {
     //Set a hard code limit on the maximum number of iteration to avoid
     //endless iteration in case of failure
@@ -1105,7 +1105,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_perp_derivatives(
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density_and_phi(
-    double t,
+    double,
     const std::array<Container,2>& density,
     const std::array<Container,2>& potential)
 {
@@ -1128,7 +1128,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density_an
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::update_staggered_density_and_ampere(
-    double t,
+    double,
     const std::array<Container,2>& density)
 {
     for( unsigned i=0; i<2; i++)
@@ -1179,7 +1179,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::update_velocity_and_apar(
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::compute_perp_density(
-    double t,
+    double,
     const std::array<Container,2>& density,
     const std::array<Container,2>& velocity,
     const std::array<Container,2>& potential,
@@ -1276,7 +1276,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::compute_perp_density(
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::compute_perp_velocity(
-    double t,
+    double,
     const std::array<Container,2>& density,
     const std::array<Container,2>& velocity,
     const std::array<Container,2>& potential,
@@ -1850,7 +1850,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 }
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::add_implicit_density(
-    double t,
+    double,
     const std::array<Container,2>& density,
     double beta,
     std::array<Container,2>& yp)
@@ -1896,7 +1896,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_implicit_density(
 template<class Geometry, class IMatrix, class Matrix, class Container>
 template<size_t N>
 void Explicit<Geometry, IMatrix, Matrix, Container>::add_implicit_velocityST(
-    double t,
+    double,
     const std::array<Container,2>& densityST,
     const std::array<Container,2>& velocityST,
     double beta,

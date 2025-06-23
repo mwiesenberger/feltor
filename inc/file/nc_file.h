@@ -3,6 +3,12 @@
 #include <filesystem>
 #include <functional>
 #include <list>
+#ifdef _MSC_VER
+// On windows the filesystem::path is in wchar
+// https://stackoverflow.com/questions/4804298/how-to-convert-wstring-into-string
+#include <locale>
+#include <codecvt>
+#endif // _MSC_VER
 #include "../dg/blas.h"
 #include "../dg/backend/memory.h"
 #include "nc_error.h"
@@ -299,7 +305,19 @@ struct SerialNcFile
         NC_Error_Handle err;
         for( auto it = rel_path.begin(); it != rel_path.end(); it++)
         {
+#ifdef _MSC_VER
+            // https://stackoverflow.com/questions/4804298/how-to-convert-wstring-into-string
+            std::wstring string_to_convert = *it;
+            //setup converter
+            using convert_type = std::codecvt_utf8<wchar_t>;
+            std::wstring_convert<convert_type, wchar_t> converter;
+
+            //use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
+            std::string grp = converter.to_bytes(string_to_convert);
+
+#else
             std::string grp = *it;
+#endif // MSVC
             int new_grpid;
             int retval = nc_inq_ncid( groupid, grp.c_str(), &new_grpid);
             if( retval != NC_NOERR)
@@ -490,8 +508,8 @@ struct SerialNcFile
         err = nc_inq_dimids( m_grp, &ndims, NULL, include_parents);
         if( ndims == 0)
             return {};
-        int dimids[ndims];
-        err = nc_inq_dimids( m_grp, &ndims, dimids, include_parents);
+        std::vector<int> dimids(ndims);
+        err = nc_inq_dimids( m_grp, &ndims, &dimids[0], include_parents);
         // Globally dimension ids are 0, 1, 2, ... in the order in which the
         // dimensions were defined
         std::vector<std::string> dims;
@@ -520,10 +538,10 @@ struct SerialNcFile
         err = nc_inq_unlimdims( m_grp, &ndims, NULL);
         if( ndims == 0)
             return {};
-        int dimids[ndims];
+        std::vector<int> dimids(ndims);
         // Our tests indicate that this does not return the unlimited dimensions
         // of the parent group even though the documentation says so...
-        err = nc_inq_unlimdims( m_grp, &ndims, dimids);
+        err = nc_inq_unlimdims( m_grp, &ndims, &dimids[0]);
         std::vector<std::string> dims;
         for( int i=0; i<ndims; i++)
         {
@@ -959,8 +977,8 @@ struct SerialNcFile
         err = nc_inq_varndims( m_grp, varid, &ndims);
         if( ndims == 0)
             return {};
-        int dimids[ndims];
-        err = nc_inq_vardimid( m_grp, varid, dimids);
+        std::vector<int> dimids(ndims);
+        err = nc_inq_vardimid( m_grp, varid, &dimids[0]);
 
         std::vector<std::string> dims(ndims);
         for( int i=0; i<ndims; i++)

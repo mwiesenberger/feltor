@@ -4,13 +4,13 @@
 #include "dg/algorithm.h"
 
 #include "solovev.h"
-//#include "taylor.h"
+#include "taylor.h"
 #include "magnetic_field.h"
 
 struct JPhi
 {
     JPhi( dg::geo::solovev::Parameters gp): R_0(gp.R_0), A(gp.A){}
-    double operator()(double R, double Z, double phi)const
+    double operator()(double R, double, double)const
     {
         return ((A-1.)*R - A*R_0*R_0/R)/R_0/R_0/R_0;
     }

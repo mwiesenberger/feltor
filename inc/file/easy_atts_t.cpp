@@ -7,7 +7,7 @@
 
 TEST_CASE( "Easy attributes")
 {
-    dg::file::NcFile file("test.nc", dg::file::nc_clobber);
+    dg::file::NcFile file("atts.nc", dg::file::nc_clobber);
     SECTION( "Special history attribute")
     {
         // history can be parsed
@@ -24,9 +24,7 @@ TEST_CASE( "Easy attributes")
         INFO("history "<<history);
         std::istringstream ss( history);
         std::tm t = {};
-        ss >> std::get_time( &t, "%Y-%m-%d %H:%M:%S");
-        std::string timezone;
-        ss >> timezone;
+        ss >> std::get_time( &t, "%Y-%m-%dT%H:%M:%SZ");
         CHECK( not ss.fail());
         std::string program;
         ss >> program;
@@ -47,12 +45,13 @@ TEST_CASE( "Easy attributes")
         CHECK_NOTHROW( file.get_att_as<std::string>("compile_time"));
         CHECK( file.get_att_as<std::string>("git_hash").size() == 40);
         std::string compile = file.get_att_as<std::string>("compile_time");
+        INFO( "Compile time "<<compile);
         std::istringstream ss( compile);
         std::tm t = {};
-        ss >> std::get_time( &t, "%Y-%m-%d %H:%M:%S");
+        ss >> std::get_time( &t, "%Y-%m-%dT%H:%M:%SZ");
         CHECK( not ss.fail());
         // ! [version_flags]
     }
     file.close();
-    DG_RANK0 std::filesystem::remove( "test.nc");
+    DG_RANK0 std::filesystem::remove( "atts.nc");
 }
