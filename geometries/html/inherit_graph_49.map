@@ -1,0 +1,15 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$structdg_1_1geo_1_1a_cylindrical_functor.html" title=" " alt="" coords="5,141,208,181"/>
+<area shape="rect" id="Node000001" href="$structdg_1_1geo_1_1circular_1_1_psip_r.html" title=" " alt="" coords="275,5,410,45"/>
+<area shape="poly" id="edge73_Node000000_Node000001" title=" " alt="" coords="142,131,194,92,255,55,281,43,283,48,257,60,197,97,145,135"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1geo_1_1guenter_1_1_psip_r.html" title=" " alt="" coords="257,70,429,95"/>
+<area shape="poly" id="edge74_Node000000_Node000002" title=" " alt="" coords="171,134,255,104,293,93,294,98,257,109,173,139"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1geo_1_1mod_1_1_psip_r.html" title=" " alt="" coords="267,119,418,145"/>
+<area shape="poly" id="edge75_Node000000_Node000003" title=" " alt="" coords="221,144,267,139,268,144,222,150"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1geo_1_1polynomial_1_1_psip_r.html" title=" " alt="" coords="267,169,418,209"/>
+<area shape="poly" id="edge76_Node000000_Node000004" title=" " alt="" coords="222,172,268,178,267,183,221,178"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1geo_1_1solovev_1_1_psip_r.html" title=" " alt="" coords="256,234,429,259"/>
+<area shape="poly" id="edge77_Node000000_Node000005" title=" " alt="" coords="168,184,257,219,296,231,295,236,255,224,166,189"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1geo_1_1taylor_1_1_psip_r.html" title=" " alt="" coords="263,283,423,309"/>
+<area shape="poly" id="edge78_Node000000_Node000006" title=" " alt="" coords="142,188,194,229,257,268,289,281,287,286,255,273,191,234,138,192"/>
+</map>

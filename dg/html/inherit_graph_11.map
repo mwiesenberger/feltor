@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$structdg_1_1a_real_refinement_x2d.html" title="Abstract base class for 2d grid refinement that increases the number of grid cells of a fixed basis g..." alt="" coords="5,69,189,109"/>
+<area shape="rect" id="Node000001" href="$structdg_1_1_real_equidist_x_refinement.html" title="RealEquidistant cell refinement around the X&#45;point." alt="" coords="250,5,462,45"/>
+<area shape="poly" id="edge36_Node000000_Node000001" title=" " alt="" coords="191,63,274,43,275,48,193,69"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_real_exponential_x_refinement.html" title="The exponential refinement around the X&#45;point." alt="" coords="237,69,475,109"/>
+<area shape="poly" id="edge37_Node000000_Node000002" title=" " alt="" coords="203,87,237,87,237,92,203,92"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_real_identity_x_refinement.html" title="No refinement." alt="" coords="251,133,461,173"/>
+<area shape="poly" id="edge38_Node000000_Node000003" title=" " alt="" coords="193,110,275,131,274,136,191,115"/>
+</map>

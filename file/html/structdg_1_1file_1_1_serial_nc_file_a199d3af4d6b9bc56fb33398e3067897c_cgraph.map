@@ -1,0 +1,13 @@
+<map id="dg::file::SerialNcFile::defput_var" name="dg::file::SerialNcFile::defput_var">
+<area shape="rect" id="Node000001" title="Define and put a variable in one go." alt="" coords="5,37,156,77"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#ae39facbe44837171a715f55fe8bfa52e" title="Define a variable with given type, dimensions and (optionally) attributes." alt="" coords="204,5,355,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="156,43,190,37,191,42,157,48"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#ab4aac604038f5629578ca128acab8a94" title="Write data to a variable." alt="" coords="204,69,355,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="157,67,191,72,190,78,156,72"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_nc_hyperslab.html#a124f8ade60022bf87d97f8f371094a0b" title=" " alt="" coords="403,5,561,45"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="343,67,404,47,406,52,344,72"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1file_1_1_nc_hyperslab.html#a687535de3bdcc001cb9c4a2a62ac4494" title=" " alt="" coords="403,69,561,109"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="355,87,389,87,389,92,355,92"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1file_1_1_nc_hyperslab.html#a5e0d5fb46ee1d14e37347223ffe75a2d" title=" " alt="" coords="403,133,561,173"/>
+<area shape="poly" id="edge5_Node000003_Node000006" title=" " alt="" coords="344,107,406,127,404,132,343,112"/>
+</map>

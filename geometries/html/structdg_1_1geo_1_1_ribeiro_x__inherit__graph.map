@@ -1,0 +1,5 @@
+<map id="dg::geo::RibeiroX" name="dg::geo::RibeiroX">
+<area shape="rect" id="Node000001" title="A two&#45;dimensional grid based on &quot;almost&#45;conformal&quot; coordinates by Ribeiro and Scott 2010." alt="" coords="5,79,139,104"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1geo_1_1a_real_generator_x2d.html" title="The abstract generator base class." alt="" coords="12,5,132,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="75,44,75,79,69,79,69,44"/>
+</map>

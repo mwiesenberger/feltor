@@ -1,0 +1,5 @@
+<map id="dg::geo::WallFieldlineCoordinate" name="dg::geo::WallFieldlineCoordinate">
+<area shape="rect" id="Node000001" title="Normalized coordinate relative to wall along fieldline in phi or s coordinate." alt="" coords="5,93,237,119"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1geo_1_1a_cylindrical_functor.html" title=" " alt="" coords="18,5,225,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="124,59,124,93,119,93,119,59"/>
+</map>

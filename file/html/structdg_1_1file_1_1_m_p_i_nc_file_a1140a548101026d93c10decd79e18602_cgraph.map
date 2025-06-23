@@ -1,0 +1,7 @@
+<map id="dg::file::MPINcFile::set_grp" name="dg::file::MPINcFile::set_grp">
+<area shape="rect" id="Node000001" title="Change group to path." alt="" coords="5,5,144,45"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#a62b2383a66602abff7f8e643b8bf4bad" title="Change group to path." alt="" coords="192,5,343,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,23,179,23,179,28,144,28"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#a6ba0f705938bbadf61abe2a123855a20" title="Get the absolute path of the current group." alt="" coords="391,5,541,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="343,23,377,23,377,28,343,28"/>
+</map>

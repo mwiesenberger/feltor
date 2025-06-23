@@ -1,0 +1,5 @@
+<map id="dg::file::file2Json" name="dg::file::file2Json">
+<area shape="rect" id="Node000001" title="Same as js = dg::file::file2Json( filename, comm, err)" alt="" coords="5,5,136,31"/>
+<area shape="rect" id="Node000002" href="$group__json.html#ga59353dcb1883ab0de24b7d7716f91187" title="Convenience wrapper to open a file and parse it into a JsonType." alt="" coords="184,5,315,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="136,15,170,15,170,21,136,21"/>
+</map>

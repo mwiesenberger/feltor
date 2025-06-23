@@ -1,0 +1,9 @@
+<map id="dg::file::MPINcFile::def_dimvar_as" name="dg::file::MPINcFile::def_dimvar_as">
+<area shape="rect" id="Node000001" title="Define a dimension and dimension variable in one go." alt="" coords="5,37,144,77"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#ad063d7e0b6998a7eafe7734781c50ade" title="Define a dimension and dimension variable in one go." alt="" coords="192,37,343,77"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,55,179,55,179,60,144,60"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_serial_nc_file.html#a7e6d005109a47d4c17ede892b6379d3f" title="Define a dimension named name of size size." alt="" coords="391,5,541,45"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="342,43,377,37,378,42,343,48"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_serial_nc_file.html#ae39facbe44837171a715f55fe8bfa52e" title="Define a variable with given type, dimensions and (optionally) attributes." alt="" coords="391,69,541,109"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="343,67,378,72,377,78,342,72"/>
+</map>

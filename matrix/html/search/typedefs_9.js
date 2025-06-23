@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['matrix_0',['Matrix',['../lanczos__b_8cpp.html#a319e07af874aea3f863c69aee943e8e4',1,'Matrix:&#160;lanczos_b.cpp'],['../lanczos__mpib_8cpp.html#a541481989f2383d86daa538656d97ff6',1,'Matrix:&#160;lanczos_mpib.cpp']]],
+  ['matrix_5ftype_1',['matrix_type',['../../../dg/html/structdg_1_1_advection.html#aee9d871f958f81ab9bfa92570bd1ff78',1,'dg::Advection::matrix_type'],['../../../dg/html/structdg_1_1_arakawa_x.html#a52b7ceeff0356d31728913ea1dc96ae9',1,'dg::ArakawaX::matrix_type'],['../../../dg/html/classdg_1_1_elliptic1d.html#ab8690bc9711c959b9f32e64aec26d66c',1,'dg::Elliptic1d::matrix_type'],['../../../dg/html/classdg_1_1_elliptic2d.html#a5d72a42cfa02dcdee401b1ef9dfd25e3',1,'dg::Elliptic2d::matrix_type'],['../../../dg/html/classdg_1_1_elliptic3d.html#ad8563bd3d8e35bae6160b43d1e815a0e',1,'dg::Elliptic3d::matrix_type'],['../../../dg/html/structdg_1_1_general_helmholtz.html#a0c9b2763f557616a2a796e8813d8fd8d',1,'dg::GeneralHelmholtz::matrix_type'],['../../../dg/html/structdg_1_1_helmholtz2.html#af8e8f0ac287b9ff3c7718f016df5a2d6',1,'dg::Helmholtz2::matrix_type'],['../../../dg/html/structdg_1_1_multigrid_c_g2d.html#aeb757d36ec9ffe31587b3d93796e6b94',1,'dg::MultigridCG2d::matrix_type'],['../../../dg/html/structdg_1_1_nested_grids.html#afd2d97dad3c3b84a0c493226b226bfa6',1,'dg::NestedGrids::matrix_type'],['../../../dg/html/structdg_1_1_poisson.html#ab0e34617f4c99d4c4c250a84b1bf7593',1,'dg::Poisson::matrix_type'],['../../../dg/html/classdg_1_1_refined_elliptic.html#ab82ed2ecf0d5bceaf76b40dff884135a',1,'dg::RefinedElliptic::matrix_type'],['../classdg_1_1mat_1_1_pol_charge_n.html#a8065c9087b271a98aef7cef1af7307af',1,'dg::mat::PolChargeN::matrix_type'],['../structdg_1_1mat_1_1_tensor_elliptic.html#af75463ea4df7ed4e5c27e951c574632c',1,'dg::mat::TensorElliptic::matrix_type']]],
+  ['mdmatrix_2',['MDMatrix',['../../../dg/html/group__typedefs.html#gaa86748811132d3c72c739710777d2b39',1,'dg']]],
+  ['mdvec_3',['MDVec',['../../../dg/html/group__typedefs.html#ga51c318aff99dd51d76cd666818ce5b56',1,'dg']]],
+  ['mhmatrix_4',['MHMatrix',['../../../dg/html/group__typedefs.html#ga5511f10a68d58cbd28067c9dbae45977',1,'dg']]],
+  ['mhmatrix_5ft_5',['MHMatrix_t',['../../../dg/html/group__typedefs.html#gafe5fb1d8acc7f155c39d6b2edfebf782',1,'dg']]],
+  ['mhvec_6',['MHVec',['../../../dg/html/group__typedefs.html#ga85537b3f4c765fc2fb64542f9e921c8a',1,'dg']]],
+  ['mhvec_5ft_7',['MHVec_t',['../../../dg/html/group__typedefs.html#gadc267ec9220cf1c5545dfd0a8d5615ab',1,'dg']]],
+  ['midmatrix_8',['MIDMatrix',['../../../dg/html/group__typedefs.html#gafbfc86f2a3681e765e358f66a851d09b',1,'dg']]],
+  ['midmatrix_5ft_9',['MIDMatrix_t',['../../../dg/html/group__typedefs.html#ga60855fea961d9692af851184425461e9',1,'dg']]],
+  ['mihmatrix_10',['MIHMatrix',['../../../dg/html/group__typedefs.html#gab622161a256102963db4c7fb181242d2',1,'dg']]],
+  ['mihmatrix_5ft_11',['MIHMatrix_t',['../../../dg/html/group__typedefs.html#ga52339ea3efd3f2a55110c7bd63b17c9d',1,'dg']]],
+  ['mpigrid_12',['MPIGrid',['../../../dg/html/group__gridtypes.html#gaf5efd9c1313dd2d5f8b02a5beb146f17',1,'dg']]],
+  ['mpigrid0d_13',['MPIGrid0d',['../../../dg/html/group__gridtypes.html#gaa6dc50518c2693b2e74262e9a9aeead4',1,'dg']]],
+  ['mpigrid1d_14',['MPIGrid1d',['../../../dg/html/group__gridtypes.html#ga1b4367bbc883c35d53e9226c75298ffd',1,'dg']]],
+  ['mpigrid2d_15',['MPIGrid2d',['../../../dg/html/group__gridtypes.html#gad8b8e0d875973980c794671ca1509237',1,'dg']]],
+  ['mpigrid3d_16',['MPIGrid3d',['../../../dg/html/group__gridtypes.html#ga79fb400577a2cdfecc89e55da1fdb28d',1,'dg']]]
+];

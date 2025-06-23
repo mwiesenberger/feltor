@@ -1,0 +1,21 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$structdg_1_1geo_1_1a_real_generator2d.html" title="The abstract generator base class." alt="" coords="5,211,201,251"/>
+<area shape="rect" id="Node000001" href="$structdg_1_1geo_1_1_d_s_p_generator.html" title="A transformed field grid generator." alt="" coords="273,5,443,31"/>
+<area shape="poly" id="edge119_Node000000_Node000001" title=" " alt="" coords="118,197,139,160,168,117,205,75,248,40,272,28,274,33,251,44,208,79,172,121,144,163,123,200"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1geo_1_1_flux_generator.html" title="A symmetry flux generator." alt="" coords="273,55,443,80"/>
+<area shape="poly" id="edge120_Node000000_Node000002" title=" " alt="" coords="126,199,178,143,212,114,248,90,279,78,281,82,251,95,215,119,182,147,130,202"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1geo_1_1_hector.html" title="The High PrEcision Conformal grid generaTOR." alt="" coords="265,105,451,145"/>
+<area shape="poly" id="edge121_Node000000_Node000003" title=" " alt="" coords="150,202,248,154,282,142,284,147,250,159,152,207"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1geo_1_1_log_polar_generator.html" title="Log Polar coordinates (conformal)" alt="" coords="259,169,457,195"/>
+<area shape="poly" id="edge122_Node000000_Node000004" title=" " alt="" coords="214,207,291,192,292,197,215,212"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1geo_1_1_polar_generator.html" title="Polar coordinates." alt="" coords="270,219,446,244"/>
+<area shape="poly" id="edge123_Node000000_Node000005" title=" " alt="" coords="215,229,270,229,270,234,215,234"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1geo_1_1_ribeiro.html" title="A two&#45;dimensional grid based on &quot;almost&#45;conformal&quot; coordinates by Ribeiro and Scott 2010." alt="" coords="296,268,420,293"/>
+<area shape="poly" id="edge124_Node000000_Node000006" title=" " alt="" coords="215,250,296,266,295,271,214,255"/>
+<area shape="rect" id="Node000007" href="$structdg_1_1geo_1_1_ribeiro_flux_generator.html" title="Same as the Ribeiro class but uses &#160;as a flux label directly." alt="" coords="249,317,467,343"/>
+<area shape="poly" id="edge125_Node000000_Node000007" title=" " alt="" coords="152,256,199,280,250,302,293,315,291,320,248,307,196,285,149,260"/>
+<area shape="rect" id="Node000008" href="$structdg_1_1geo_1_1_separatrix_orthogonal_adaptor.html" title="An Adaptor to use SeparatrixOrthogonal as aGenerator2d instead of aGeneratorX2d." alt="" coords="249,367,467,407"/>
+<area shape="poly" id="edge126_Node000000_Node000008" title=" " alt="" coords="135,260,186,307,218,331,251,352,280,365,278,370,248,356,214,335,183,311,131,263"/>
+<area shape="rect" id="Node000009" href="$structdg_1_1geo_1_1_simple_orthogonal.html" title="Generate a simple orthogonal grid." alt="" coords="261,432,455,457"/>
+<area shape="poly" id="edge127_Node000000_Node000009" title=" " alt="" coords="123,262,144,299,173,341,209,382,251,417,277,430,274,434,248,422,205,386,168,344,139,302,118,265"/>
+</map>

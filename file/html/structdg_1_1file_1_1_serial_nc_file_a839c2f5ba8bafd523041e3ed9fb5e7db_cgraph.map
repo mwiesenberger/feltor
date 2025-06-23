@@ -1,0 +1,7 @@
+<map id="dg::file::SerialNcFile::~SerialNcFile" name="dg::file::SerialNcFile::~SerialNcFile">
+<area shape="rect" id="Node000001" title="Close open nc file and release all resources." alt="" coords="5,37,156,77"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#a9b14c270a3419b2dae4df3def414d8db" title="Explicitly close a file." alt="" coords="204,5,355,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="156,43,190,37,191,42,157,48"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_n_c___error.html#a2415a48434849b9376e38ff06c1906a5" title="What string." alt="" coords="213,69,345,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="157,67,200,74,199,79,156,72"/>
+</map>

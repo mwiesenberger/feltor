@@ -1,0 +1,9 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_topology.html" title=" " alt="" coords="5,5,157,45"/>
+<area shape="rect" id="Node000001" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_geometry3d.html" title=" " alt="" coords="205,5,369,45"/>
+<area shape="poly" id="edge10_Node000000_Node000001" title=" " alt="" coords="171,23,205,23,205,28,171,28"/>
+<area shape="rect" id="Node000002" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_product_geometry3d.html" title=" " alt="" coords="417,5,631,45"/>
+<area shape="poly" id="edge11_Node000001_Node000002" title=" " alt="" coords="383,23,417,23,417,28,383,28"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1geo_1_1_real_curvilinear_product_grid3d.html" title="A 2x1 curvilinear product space grid." alt="" coords="679,5,884,45"/>
+<area shape="poly" id="edge12_Node000002_Node000003" title=" " alt="" coords="644,23,678,23,678,28,644,28"/>
+</map>

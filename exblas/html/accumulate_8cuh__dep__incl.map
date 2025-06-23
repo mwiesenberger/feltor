@@ -1,0 +1,7 @@
+<map id="accumulate.cuh" name="accumulate.cuh">
+<area shape="rect" id="Node000001" title="The CUDA version of accumulate.h." alt="" coords="79,5,205,31"/>
+<area shape="rect" id="Node000002" href="$exdot__cuda_8cuh.html" title="CUDA version of exdot." alt="" coords="5,79,129,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="122,42,81,80,78,77,118,38"/>
+<area shape="rect" id="Node000003" href="$fpedot__cuda_8cuh.html" title="CUDA version of fpedot." alt="" coords="153,79,283,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="166,38,207,76,204,80,162,42"/>
+</map>

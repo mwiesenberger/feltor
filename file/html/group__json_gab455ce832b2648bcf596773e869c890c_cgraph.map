@@ -1,0 +1,5 @@
+<map id="dg::file::string2Json" name="dg::file::string2Json">
+<area shape="rect" id="Node000001" title="Same as js = string2Json( input, comm, err)" alt="" coords="5,5,152,31"/>
+<area shape="rect" id="Node000002" href="$group__json.html#ga500bbb4a80672aed48d4a320909a5e1f" title="Convenience wrapper to parse a string into a JsonType." alt="" coords="200,5,347,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="152,15,186,15,186,21,152,21"/>
+</map>

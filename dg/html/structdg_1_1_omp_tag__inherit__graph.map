@@ -1,0 +1,5 @@
+<map id="dg::OmpTag" name="dg::OmpTag">
+<area shape="rect" id="Node000001" title="OpenMP parallel execution." alt="" coords="22,79,121,104"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_any_policy_tag.html" title="Execution Policy base class." alt="" coords="5,5,137,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="74,44,74,79,69,79,69,44"/>
+</map>
