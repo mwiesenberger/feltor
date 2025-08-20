@@ -160,12 +160,12 @@ std::vector<Record> diagnostics3d_list = { // 2 + 6*s
         }
     },
     {false, "phi", "electric potential", false,
-        []( dg::x::DVec& result, Variables& v, unsigned s ) {
+        []( dg::x::DVec& result, Variables& v, unsigned ) {
             dg::blas1::copy(v.f.potential(), result);
         }
     },
     {false, "aparallel", "parallel magnetic potential", false,
-        []( dg::x::DVec& result, Variables& v, unsigned s ) {
+        []( dg::x::DVec& result, Variables& v, unsigned ) {
             dg::blas1::copy(v.f.aparallel(), result);
         }
     }
@@ -238,37 +238,37 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
         }
     },
     { "CurvatureKappaR", "R-component of the Kappa B curvature vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.curvKappa()[0], result);
         }
     },
     { "CurvatureKappaZ", "Z-component of the Kappa B curvature vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.curvKappa()[1], result);
         }
     },
     { "CurvatureKappaP", "Contravariant Phi-component of the Kappa B curvature vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.curvKappa()[2], result);
         }
     },
     { "DivCurvatureKappa", "Divergence of the Kappa B curvature vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.divCurvKappa(), result);
         }
     },
     { "CurvatureNablaR", "R-component of the Nabla B curvature vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.curvNabla()[0], result);
         }
     },
     { "CurvatureNablaZ", "Z-component of the Nabla B curvature vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.curvNabla()[1], result);
         }
     },
     { "bphi", "Covariant Phi-component of the magnetic unit vector",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& ){
             dg::assign( v.f.bphi(), result);
         }
     },
@@ -295,22 +295,22 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
         }
     },
     { "Wall", "Wall Region",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d&  ){
             dg::assign( v.f.get_wall(), result);
         }
     },
     { "Sheath", "Sheath Region",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d&  ){
             dg::assign( v.f.get_sheath(), result);
         }
     },
     { "SheathCoordinate", "Sheath Coordinate of field lines",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d&  ){
             dg::assign( v.f.get_sheath_coordinate(), result);
         }
     },
     { "vol2d", "Volume form (including R) in 2d",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid ){
+        []( dg::x::HVec& result, Variables&, const dg::x::CylindricalGrid3d& grid ){
             result = dg::create::volume(grid);
         }
     }
@@ -318,52 +318,52 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
 
 std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::CylindricalGrid3d&, unsigned s), dg::file::LongNameAttribute>> diagnostics2d_static_init = {
     { "Nprof", "Density profile (that the source may force)",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.f.get_source_prof(0,s), result);
         }
     },
     { "Pperpprof", "Pperp profile (that the source may force)",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.f.get_source_prof(1,s), result);
         }
     },
     { "Pparaprof", "Ppara profile (that the source may force)",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.f.get_source_prof(2,s), result);
         }
     },
     { "SN", "Density source profile (influx)",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.f.get_source(0,s), result);
         }
     },
     { "SPperp", "Pperp source profile (influx)",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.f.get_source(1,s), result);
         }
     },
     { "SPpara", "Ppara source profile (influx)",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.f.get_source(2,s), result);
         }
     },
     { "Ninit", "Initial density condition",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.y0[0][s], result);
         }
     },
     { "Pperpinit", "Initial perp pressure condition",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.y0[1][s], result);
         }
     },
     { "Pparainit", "Initial para pressure condition",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.y0[2][s], result);
         }
     },
     { "Winit", "Initial canonical velocity condition",
-        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& grid, unsigned s ){
+        []( dg::x::HVec& result, Variables& v, const dg::x::CylindricalGrid3d& , unsigned s ){
             dg::assign( v.y0[3][s], result);
         }
     },

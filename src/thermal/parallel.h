@@ -438,7 +438,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_adv
 template<class Grid, class IMatrix, class Matrix, class Container>
 void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_densities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>& y,
+        const std::array<std::vector<Container>,6>&,
         std::array<std::vector<Container>,6>& yp)
 {
     dg::geo::dssd_centered( m_fa, m_p.nu_parallel[0],
@@ -454,7 +454,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_densities_diff
 template<class Grid, class IMatrix, class Matrix, class Container>
 void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>& y,
+        const std::array<std::vector<Container>,6>&,
         std::array<std::vector<Container>,6>& yp)
 {
 

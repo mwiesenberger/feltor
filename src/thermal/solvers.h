@@ -18,7 +18,7 @@ struct ThermalSolvers
 {
     ThermalSolvers() = default;
     ThermalSolvers( const Geometry&, thermal::Parameters p,
-        dg::geo::TokamakMagneticField mag, dg::file::WrappedJsonValue js);
+        dg::geo::TokamakMagneticField mag, dg::file::WrappedJsonValue);
     void compute_phi(
         double time, const std::vector<Container>& density,
         const std::vector<Container>& pperp,
@@ -64,7 +64,7 @@ struct ThermalSolvers
 template<class Geometry, class Matrix, class Container>
 ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
     thermal::Parameters p, dg::geo::TokamakMagneticField mag,
-    dg::file::WrappedJsonValue js
+    dg::file::WrappedJsonValue
     ): m_p(p),
     m_multigrid( g, p.stages),
     m_old_phi( 2, dg::evaluate( dg::zero, g)), m_old_aparST( m_old_phi),
@@ -215,7 +215,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_aparST(
 
 template<class Geometry, class Matrix, class Container>
 void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
-    double time, const std::vector<Container>& density,
+    double, const std::vector<Container>& density,
     const std::vector<Container>& pperp,
     const Container& phi, std::array<Container,4>& psi, unsigned s
     )

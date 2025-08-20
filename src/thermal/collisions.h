@@ -144,12 +144,12 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_collisions(
             double zs = m_p.z[s], zk = m_p.z[k];
             double mus = m_p.mu[s], muk = m_p.mu[k];
             dg::blas1::subroutine( [nu_ref, zs, zk, mus, muk] DG_DEVICE(
-                double& su, double ns, double nk, double ts, double tk, double ws, double wk, double apar)
+                double& su, double nk, double ts, double tk, double ws, double wk, double apar)
             {
                 double us = ws - zs/mus*apar, uk = wk - zk/muk*apar;
                 su += -0.51*nu_ref*nk*zs*zs*zk*zk*(mus+muk)/mus/mus/muk/(
                     ts/mus + tk/muk)/sqrt( ts/mus + tk/muk)*(us-uk);
-            }, m_temp0, densityST[s], densityST[k], m_tparaST[s], m_tparaST[k], y[3][s], y[3][k], aparST);
+            }, m_temp0, densityST[k], m_tparaST[s], m_tparaST[k], y[3][s], y[3][k], aparST);
         }
 
         // SQperp Lorentz

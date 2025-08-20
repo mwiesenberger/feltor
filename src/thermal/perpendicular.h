@@ -42,7 +42,7 @@ struct PerpDynamics
     );
     void add_perp_densities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>& y,
+        const std::array<std::vector<Container>,6>&,
         const std::array<Container,6>& q,
         std::array<std::vector<Container>,6>& yp)
     {
@@ -65,7 +65,7 @@ struct PerpDynamics
     }
     void add_perp_velocities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>& y,
+        const std::array<std::vector<Container>,6>&,
         const std::array<Container,6>& qST,
         std::array<std::vector<Container>,6>& yp
     )
@@ -469,7 +469,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_velocities_advecti
     unsigned s,
     const Container& aparST,
     const std::array<Container,4>& psiST,
-    const std::array<std::vector<Container>,6>& y,
+    const std::array<std::vector<Container>,6>&, //y
     const std::array<Container,6>& qST,
     std::array<std::vector<Container>,6>& yp
 )
