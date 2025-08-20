@@ -191,6 +191,7 @@ if(FELTOR_BUILD_PROJECTS)
   add_subdirectory("${PROJECT_SOURCE_DIR}/src/poet")
   add_subdirectory("${PROJECT_SOURCE_DIR}/src/reco2D")
   add_subdirectory("${PROJECT_SOURCE_DIR}/src/toefl")
+  add_subdirectory("${PROJECT_SOURCE_DIR}/src/thermal")
 
 endif()
 

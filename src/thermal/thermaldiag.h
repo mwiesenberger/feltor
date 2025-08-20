@@ -7,10 +7,10 @@
 #include "dg/algorithm.h"
 #include "dg/geometries/geometries.h"
 
-#include "thermal/thermal.h"
-#include "thermal/parameters.h"
+#include "thermal.h"
+#include "parameters.h"
 
-#include "thermal/init.h"
+#include "init.h"
 #include "../feltor/feltordiag.h" // for static lists
 #include "../feltor/common.h"
 
