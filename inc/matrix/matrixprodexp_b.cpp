@@ -32,7 +32,7 @@ const double bgamp=1.0;
 double lhs( double x, double y){ return sin(x*ms)*sin(y*ns);}
 double lhss( double x, double y){ return sin(x*ms_s)*sin(y*ns_s);}
 
-int main(int argc, char * argv[])
+int main()
 {
     dg::Timer t;
 
