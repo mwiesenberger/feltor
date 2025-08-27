@@ -33,22 +33,24 @@ set(MATRIX_TESTS
 
 # find ../../matrix -name "*b.cpp" | sort
 set(MATRIX_BENCHMARKS
-  ../../matrix/matrixprodexp_t.cpp
-  ../../matrix/polarization_init_t.cpp
+  ../../matrix/contours_b.cpp
   ../../matrix/lanczos_b.cpp
   #../../matrix/lanczos_mpib.cpp
   ../../matrix/matrixfunction_b.cpp
+  ../../matrix/matrixprodexp2_b.cpp
+  ../../matrix/matrixprodexp_b.cpp
   ../../matrix/matrixsqrt_b.cpp
   ../../matrix/polarization_b.cpp
+  ../../matrix/polarization_init_b.cpp
   ../../matrix/tensorelliptic2d_b.cpp
   ../../matrix/tridiaginv_b.cpp
 )
 # These targets need to link to netcdf
 # Test grep "file.h" * in matrix
 set( MATRIX_BENCHMARKS_WITH_FILE
-  ../../matrix/matrixprodexp_t.cpp
+  ../../matrix/matrixprodexp2_b.cpp
   ../../matrix/polarization_b.cpp
-  ../../matrix/polarization_init_t.cpp
+  ../../matrix/polarization_init_b.cpp
 )
 
 

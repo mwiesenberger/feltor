@@ -27,12 +27,6 @@ all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 %_mpib: %_mpib.cpp
 	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) -g
 
-polarization_init_t: polarization_init_t.cpp polarization_init.h
-	$(CC) $(OPT)$(INCLUDE) $(CFLAGS) $< -o $@   $(LAPACKLIB) $(LIBS) -g
-
-matrixprodexp_t: matrixprodexp_t.cpp
-	$(CC) $(OPT)$(INCLUDE) $(CFLAGS) $< -o $@   $(LAPACKLIB) $(LIBS) -g
-
 # CATCH2 TESTS
 #
 $(CATCH).$(device).o: $(CATCH).cpp
