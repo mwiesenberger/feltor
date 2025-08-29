@@ -10,7 +10,7 @@
 
 #ifdef WRITE_POL_FILE
 int counter = 0;
-dg::file::NcFile file_pol;
+dg::file::NcFile pol_file;
 #endif // WRITE_POL_FILE
 
 
