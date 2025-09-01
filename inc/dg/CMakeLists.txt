@@ -154,6 +154,7 @@ set(DG_BENCHMARKS
   cg2d_b.cpp
   cluster_b.cpp
   elliptic2d_b.cpp
+  elliptic3d_b.cpp
   ellipticX2d_b.cpp
   elliptic_b.cpp
   helmholtz_b.cpp
