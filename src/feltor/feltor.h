@@ -983,7 +983,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::compute_phi(
 #ifdef WRITE_POL_FILE
     //if( number[0] > 1000)
         counter++;
-    if( counter == 10)
+    if( counter >= 10 && number.back() > 100) // choose a somewhat difficult timestep
     {
         typename dg::file::NcFile::Hyperslab slab( m_multigrid.grid(0));
         pol_file.defput_var( "chi",  {"z","y","x"}, {}, slab, m_multi_chi[0]);
