@@ -584,7 +584,7 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
         unsigned rx = mx % grid.nx(), ry = my % grid.ny();
         if( 0 != rx || 0 != ry)
         {
-            std::cerr << "#Warning: for projection method \"const\" mx and my must be multiples of nx and ny! Rounding up for you ...\n";
+            std::cerr << "#Warning: for projection method \"const\" mx and my "<<mx<<" "<<my<<" must be multiples of nx and ny "<<grid.nx()<<" "<<grid.ny()<<" ! Rounding up for you ...\n";
             mx = mx + grid.nx() - rx;
             my = my + grid.ny() - ry;
         }
