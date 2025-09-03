@@ -54,7 +54,7 @@ int main(
 {
     unsigned n, Nx, Ny, Nz;
 #ifdef WITH_MPI
-    MPI_Init( &argc, &argv);
+    dg::mpi_init( argc, argv);
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 
