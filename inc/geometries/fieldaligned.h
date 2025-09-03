@@ -197,6 +197,35 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
     }
 }
 
+// Concatenate matrices from row blocks
+template<class real_type>
+dg::IHMatrix_t<real_type> assemble_rowwise_from_sub( const std::vector<dg::IHMatrix_t<real_type>>& subs)
+{
+    unsigned num_rows = 0, num_nnz = 0, num_cols = subs[0].num_cols();
+    for( unsigned u=0; u<subs.size(); u++)
+    {
+        // all matrices need same number of cols
+        if( subs[u].num_cols() != num_cols)
+            throw dg::Error(dg::Message(_ping_)<<" Submatrix has "<<subs[u].num_cols()<<" but should have "<<num_cols<<" columns!");
+         num_rows += subs[u].num_rows();
+         num_nnz += subs[u].num_nnz();
+    }
+    dg::iHVec row_offsets( num_rows + 1, 0), cols( num_nnz);
+    unsigned row_idx = 0, col_idx = 0, val_idx = 0, row_offset_previous = 0;
+    dg::HVec_t<real_type> vals( num_nnz);
+    for( unsigned u=0; u<subs.size(); u++)
+    {
+        for( unsigned k=0; k<subs[u].num_rows(); k++)
+            row_offsets[++row_idx] = subs[u].row_offsets()[k+1] + row_offset_previous;
+
+        row_offset_previous = row_offsets[row_idx];
+        for( unsigned k=0; k<subs[u].num_nnz(); k++)
+            cols[col_idx++] = subs[u].column_indices()[k];
+        for( unsigned k=0; k<subs[u].num_nnz(); k++)
+            vals[val_idx++] = subs[u].values()[k];
+    }
+    return {num_rows, num_cols, row_offsets, cols, vals};
+}
 
 }//namespace detail
 ///@endcond
@@ -559,7 +588,23 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
 
     std::string inter_m, project_m, fine_m;
     detail::parse_method( interpolation_method, inter_m, project_m, fine_m);
-    if( benchmark) std::cout << "# Interpolation method: \""<<inter_m << "\" projection method: \""<<project_m<<"\" fine grid \""<<fine_m<<"\"\n";
+    // For project method "const" we round up to the nearest multiple of n
+    if( project_m != "dg" && fine_m == "dg")
+    {
+        unsigned rx = mx % grid.nx(), ry = my % grid.ny();
+        if( 0 != rx || 0 != ry)
+        {
+            std::cerr << "#Warning: for projection method \"const\" mx and my "
+            <<mx<<" "<<my<<" must be multiples of nx and ny "
+            <<grid.nx()<<" "<<grid.ny()<<" ! Rounding up for you ...\n";
+            mx = mx + grid.nx() - rx;
+            my = my + grid.ny() - ry;
+        }
+    }
+    if( benchmark)
+        std::cout << "# Interpolation method: \""<<inter_m
+            << "\" projection method: \""<<project_m
+            <<"\" fine grid \""<<fine_m<<"\"\n";
     ///Let us check boundary conditions:
     if( (grid.bcx() == PER && bcx != PER) || (grid.bcx() != PER && bcx == PER) )
         throw( dg::Error(dg::Message(_ping_)<<"Fieldaligned: Got conflicting periodicity in x. The grid says "<<bc2str(grid.bcx())<<" while the parameter says "<<bc2str(bcx)));
@@ -572,96 +617,106 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
     dg::Timer t;
     if( benchmark) t.tic();
     dg::ClonePtr<dg::aGeometry2d> grid_transform( grid.perp_grid()) ;
-    // We do not need metric of grid_equidist or or grid_fine
-    dg::RealGrid2d<double> grid_equidist( *grid_transform) ;
-    dg::RealGrid2d<double> grid_fine( *grid_transform);
-    grid_equidist.set( 1, grid.gx().size(), grid.gy().size());
-    dg::ClonePtr<dg::aGeometry2d> grid_magnetic = grid_transform;//INTEGRATE HIGH ORDER GRID
-    grid_magnetic->set( grid_transform->n() < 3 ? 4 : 7, grid_magnetic->Nx(), grid_magnetic->Ny());
-    // For project method "const" we round up to the nearest multiple of n
-    if( project_m != "dg" && fine_m == "dg")
-    {
-        unsigned rx = mx % grid.nx(), ry = my % grid.ny();
-        if( 0 != rx || 0 != ry)
-        {
-            std::cerr << "#Warning: for projection method \"const\" mx and my "<<mx<<" "<<my<<" must be multiples of nx and ny "<<grid.nx()<<" "<<grid.ny()<<" ! Rounding up for you ...\n";
-            mx = mx + grid.nx() - rx;
-            my = my + grid.ny() - ry;
-        }
-    }
-    if( fine_m == "equi")
-        grid_fine = grid_equidist;
-    grid_fine.multiplyCellNumbers((double)mx, (double)my);
-    if( benchmark)
-    {
-        t.toc();
-        std::cout << "# DS: High order grid gen  took: "<<t.diff()<<"\n";
-        t.tic();
-    }
     ///%%%%%%%%%%Set starting points and integrate field lines%%%%%%%%%%%//
-    std::array<thrust::host_vector<double>,3> yp_trafo, ym_trafo, yp, ym;
+    std::array<thrust::host_vector<double>,3> yp_trafo, ym_trafo;
     thrust::host_vector<bool> in_boxp, in_boxm;
     thrust::host_vector<double> hbp, hbm;
     thrust::host_vector<double> vol = dg::tensor::volume(grid.metric()), vol2d0;
     auto vol2d = dg::split( vol, grid);
     dg::assign( vol2d[0], vol2d0);
+    dg::ClonePtr<dg::aGeometry2d> grid_magnetic = grid_transform;//INTEGRATE HIGH ORDER GRID
+    // grid_magnetic is only used for integrating in curvilinear coords
+    grid_magnetic->set( grid_transform->n() < 3 ? 4 : 7, grid_magnetic->Nx(), grid_magnetic->Ny());
     detail::integrate_all_fieldlines2d( vec, *grid_magnetic, *grid_transform,
             yp_trafo, vol2d0, hbp, in_boxp, deltaPhi, eps);
     detail::integrate_all_fieldlines2d( vec, *grid_magnetic, *grid_transform,
             ym_trafo, vol2d0, hbm, in_boxm, -deltaPhi, eps);
-    dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine);
-    dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine);
-    {
-    dg::IHMatrix interpolate = dg::create::interpolation( Xf, Yf,
-            *grid_transform, dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
-    yp.fill(dg::evaluate( dg::zero, grid_fine));
-    ym = yp;
-    for( int i=0; i<2; i++) //only R and Z get interpolated
-    {
-        dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
-        dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
-    }
-    } // release memory for interpolate matrix
     if( benchmark)
     {
         t.toc();
-        std::cout << "# DS: Computing all points took: "<<t.diff()<<"\n";
+        std::cout << "# DS: Integrating all fieldlines took: "<<t.diff()<<"\n";
         t.tic();
     }
-    ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-    { // free memory after use
-    dg::IHMatrix fine, projection, multi, temp;
-    if( project_m == "dg")
-        projection = dg::create::projection( *grid_transform, grid_fine);
-    else
+    // Assemble minus, zero and plus through sub-grids
+    // The idea for the sub-grids is that the fine interpolation matrix takes
+    // up a large chunk of memory which can be avoided by sub-dividing the
+    // transform grid along its rows
+    // Due to overlapping integrals we cannot yet do this for linear projections
+    unsigned num_subs = project_m == "linear" ? 1 : grid_transform->Ny();
+    std::vector<dg::IHMatrix> sub_plus(num_subs),
+                              sub_zero(num_subs), sub_minus(num_subs);
+    for( unsigned sub = 0; sub < num_subs; sub++)
     {
-        projection = dg::create::inv_backproject( *grid_transform)*
-            dg::create::projection( grid_equidist, grid_fine, project_m);
-    }
-    std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
-    std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
-    std::array<IMatrix*,3> result{ &m_plus, &m_zero, &m_minus};
-
-    for( unsigned u=0; u<3; u++)
-    {
-        if( inter_m == "dg")
+        dg::RealGrid2d<double> grid_transform_sub( *grid_transform);
+        if( num_subs != 1)
+            grid_transform_sub = dg::RealGrid2d<double>(
+                grid_transform->x0(),
+                grid_transform->x1(),
+                grid_transform->y0() + sub*grid_transform->hy(),
+                grid_transform->y0() + (sub+1)*grid_transform->hy(),
+                grid_transform->n(), grid_transform->Nx(), 1,
+                grid_transform->bcx(), grid_transform->bcy());
+        // We do not need metric of grid_equidist or of grid_fine
+        dg::RealGrid2d<double> grid_equidist( *grid_transform) ;
+        grid_equidist.set( 1, grid_transform->gx().size(), grid_transform->gy().size());
+        dg::RealGrid2d<double> grid_equidist_sub( grid_transform_sub) ;
+        grid_equidist_sub.set( 1, grid_transform_sub.gx().size(), grid_transform_sub.gy().size());
+        dg::RealGrid2d<double> grid_fine_sub( grid_transform_sub);
+        if( fine_m == "equi")
+            grid_fine_sub = grid_equidist_sub;
+        grid_fine_sub.multiplyCellNumbers((double)mx, (double)my);
+        std::array<thrust::host_vector<double>,3> yp, ym;
+        dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
+        dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
         {
-            *result[u] = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
-                *grid_transform, bcx, bcy, "dg");
+        dg::IHMatrix interpolate = dg::create::interpolation( Xf, Yf,
+                *grid_transform, dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
+        yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
+        ym = yp;
+        for( int i=0; i<2; i++) //only R and Z get interpolated
+        {
+            dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
+            dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
         }
+        } // release memory for interpolate matrix
+        ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
+        dg::IHMatrix projection;
+        if( project_m == "dg")
+            projection = dg::create::projection( grid_transform_sub, grid_fine_sub);
         else
         {
-            *result[u] = projection *  dg::create::interpolation( *xcomp[u], *ycomp[u],
-                grid_equidist, bcx, bcy, inter_m) *  dg::create::backproject(
-                *grid_transform); // from dg to equidist
+            projection = dg::create::inv_backproject( grid_transform_sub)* // from equidist to dg
+                dg::create::projection( grid_equidist_sub, grid_fine_sub, project_m);
+        }
+        std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
+        std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
+        std::array<dg::IHMatrix*,3> result{ &sub_plus[sub], &sub_zero[sub], &sub_minus[sub]};
+        dg::IHMatrix backproject;
+        if( inter_m != "dg")
+            backproject = dg::create::backproject( *grid_transform);
+
+        for( unsigned u=0; u<3; u++)
+        {
+            if( inter_m == "dg")
+            {
+                *result[u] = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
+                    *grid_transform, bcx, bcy, "dg");
+            }
+            else
+            {
+                *result[u] = projection *  dg::create::interpolation( *xcomp[u], *ycomp[u],
+                    grid_equidist, bcx, bcy, inter_m) *  backproject; // from dg to equidist
+            }
         }
     }
-    }
+    m_minus = detail::assemble_rowwise_from_sub( sub_minus);
+    m_zero = detail::assemble_rowwise_from_sub( sub_zero);
+    m_plus = detail::assemble_rowwise_from_sub( sub_plus);
 
     if( benchmark)
     {
         t.toc();
-        std::cout << "# DS: Multiplication PI    took: "<<t.diff()<<"\n";
+        std::cout << "# DS: Assembly of matrices took: "<<t.diff()<<"\n";
     }
     ///%%%%%%%%%%%%%%%%%%%%copy into h vectors %%%%%%%%%%%%%%%%%%%//
     dg::HVec hbphi( yp_trafo[2]), hbphiP(hbphi), hbphiM(hbphi);
