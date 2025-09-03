@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <iomanip>
 #include <numeric>
 #include <thrust/sort.h>
 #include <thrust/gather.h>
@@ -631,6 +632,28 @@ struct SparseMatrix
     Vector<Index> m_row_offsets, m_cols;
     Vector<Value> m_vals;
 };
+
+/*! @brief Print textual representation of sparse matrix
+ *
+ * The main purpose of this function is to allow debugging.
+ * It will print the size of the matrix followed by all its entries separated by newline.
+ * @param m Matrix to print
+ * @param out The output stream to write the matrix to
+ *
+ * @note This does work for GPU matrices but it maybe slow
+ */
+template<class Sparse>
+void print( const Sparse& m, std::ostream& out = std::cout )
+{
+    out << "Sparse matrix <" << m.num_rows() << ", " << m.num_cols() << "> with "<< m.num_nnz() << " entries\n";
+    auto row_indices = detail::csr2coo( m.row_offsets());
+    for( unsigned u=0; u<m.num_nnz(); u++)
+    {
+        out << " "<< std::setw(14) << row_indices[u];
+        out << " "<< std::setw(14) << m.column_indices()[u];
+        out << " "<< std::setw(14) << "("<< m.values()[u]<<")\n";
+    }
+}
 
 ///@addtogroup traits
 ///@{

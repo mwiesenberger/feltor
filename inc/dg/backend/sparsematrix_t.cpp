@@ -238,6 +238,9 @@ TEST_CASE( "SpMV on device")
 
 TEST_CASE("Documentation")
 {
+    // redirect std::cout to string stream
+    std::stringstream ss;
+    auto cout_buf = std::cout.rdbuf( ss.rdbuf());
     //![summary]
     // 1 0 0 2
     // 2 0 5 0
@@ -247,6 +250,7 @@ TEST_CASE("Documentation")
     std::vector<int> rows = {0,2,4,5,7}, cols = {0,3,0,2,1,1,2};
     std::vector<double> vals = {1,2,2,5,4,1,1};
     dg::SparseMatrix<int,double,std::vector> A ( num_rows, num_cols, rows, cols, vals);
+    dg::print( A);
     //
     // 2 0 0 0
     // 0 3 3 5
@@ -258,6 +262,7 @@ TEST_CASE("Documentation")
     cols = {0,1,2,3,2,3,0,3};
     vals = {2,3,3,5,4,5,1,2};
     dg::SparseMatrix<int,double,std::vector> B ( num_rows, num_cols, rows, cols, vals);
+    dg::print( B);
     //
     // 3 4 0 0
     // 10 16.5 13.5 8.5
@@ -265,6 +270,7 @@ TEST_CASE("Documentation")
     // 10 0 0 2.5
     // 5.5 2 0 1
     auto C = B*A.transpose()+0.5*B;
+    dg::print( C);
     //
     CHECK( C.num_rows() == 5);
     CHECK( C.num_cols() == 4);
@@ -282,4 +288,6 @@ TEST_CASE("Documentation")
     thrust::copy( dw.begin(), dw.end(), w.begin());
     CHECK( w == std::vector{22.5,236.,125.5,42.,29.5});
     //![summary]
+    // reset buffer
+    std::cout.rdbuf( cout_buf);
 }
