@@ -120,7 +120,7 @@ int main(
             DG_RANK0 std::cout << "    iter: "<<numbers[u]<<"\n";
         };
     }
-    std::cout << "stages: \n";
+    DG_RANK0 std::cout << "stages: \n";
     t.tic();
     dg::nested_iterations( multi_pol, x, b, multi_inv_pol, nested);
     t.toc();
