@@ -434,6 +434,7 @@ struct SparseMatrix
     {
         SparseMatrix tmp = *this + op;
         swap( tmp, *this);
+        return *this;
     }
     /**
      * @brief subtract
@@ -447,6 +448,7 @@ struct SparseMatrix
     {
         SparseMatrix tmp = *this + (-op);
         swap( tmp, *this);
+        return *this;
     }
     /**
      * @brief scalar multiply

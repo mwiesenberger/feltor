@@ -165,19 +165,26 @@ TEST_CASE( "Linear algebra")
         num_rows = 3, num_cols = 5;
         rows = {0,2,4,4}, cols = {1,4,1,2};
         vals = {2,4,1,2};
-        dg::SparseMatrix<int,double,std::vector> D;
-        D.set( num_rows, num_cols, rows, cols, vals);
+        dg::SparseMatrix<int,double,std::vector> C;
+        C.set( num_rows, num_cols, rows, cols, vals);
         //![set]
 
         // 1 2 0 2 7
         // 2 1 7 0 0
         // 0 4 0 0 1
-        auto C = A + D;
+        C += A; // The way this is implemented this will also test C + A
         CHECK( C.num_rows() == 3);
         CHECK( C.num_cols() == 5);
         CHECK( C.row_offsets() == std::vector<int>{ 0,4,7,9});
         CHECK( C.column_indices() == std::vector<int>{ 0,1,3,4,0,1,2,1,4});
         CHECK( C.values() == std::vector<double>{ 1,2,2,7,2,1,7,4,1});
+        C -= A;
+        CHECK( C.num_rows() == 3);
+        CHECK( C.num_cols() == 5);
+        CHECK( C.row_offsets() == std::vector<int>{ 0,4,7,9});
+        CHECK( C.column_indices() == std::vector<int>{ 0,1,3,4,0,1,2,1,4});
+        CHECK( C.values() == std::vector<double>{ 0,2,0,4,0,1,2,0,0});
+
     }
     SECTION( "Scal")
     {
