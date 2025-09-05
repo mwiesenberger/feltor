@@ -156,7 +156,7 @@ dg::MIHMatrix_t<real_type> make_mpi_matrix(
  *
  * @return a row distributed MPI matrix. If no MPI communication is needed it
  * simply has row-indices converted from global to local indices. \c num_cols
- * is the one from \c global
+ * is the one from \c global, \c num_rows is \c row_policy.local_size()
  * @sa basictopology the MPI %grids defined in Level 3 can all be used as a
  * ConversionPolicy;
  * @ingroup mpi_matvec
