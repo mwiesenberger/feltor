@@ -197,34 +197,35 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
     }
 }
 
+// Add non-overlapping matrices from row blocks
+template<class real_type>
+void add_rowwise_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_type>& sub)
+{
+    // all matrices need same number of cols
+    if( sub.num_rows() != mat.num_rows())
+        throw dg::Error(dg::Message(_ping_)<<" Submatrix has "<<sub.num_rows()<<" but should have "<<mat.num_rows()<<" columns!");
+    if( sub.num_cols() != mat.num_cols())
+        throw dg::Error(dg::Message(_ping_)<<" Submatrix has "<<sub.num_cols()<<" but should have "<<mat.num_cols()<<" columns!");
+    dg::iHVec row_offsets( mat.row_offsets()), cols( mat.num_nnz() + sub.num_nnz());
+    dg::blas1::axpby( 1, sub.row_offsets(), 1, row_offsets);
+    dg::HVec_t<real_type> vals( cols.size());
+    thrust::copy( mat.column_indices().begin(), mat.column_indices().end(), cols.begin());
+    thrust::copy( sub.column_indices().begin(), sub.column_indices().end(), cols.begin() + mat.num_nnz());
+    thrust::copy( mat.values().begin(), mat.values().end(), vals.begin());
+    thrust::copy( sub.values().begin(), sub.values().end(), vals.begin() + mat.num_nnz());
+    mat = dg::IHMatrix_t<real_type>{mat.num_rows(), mat.num_cols(), row_offsets, cols, vals};
+}
 // Concatenate matrices from row blocks
 template<class real_type>
-dg::IHMatrix_t<real_type> assemble_rowwise_from_sub( const std::vector<dg::IHMatrix_t<real_type>>& subs)
+void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_type>& sub, std::string method)
 {
-    unsigned num_rows = 0, num_nnz = 0, num_cols = subs[0].num_cols();
-    for( unsigned u=0; u<subs.size(); u++)
-    {
-        // all matrices need same number of cols
-        if( subs[u].num_cols() != num_cols)
-            throw dg::Error(dg::Message(_ping_)<<" Submatrix has "<<subs[u].num_cols()<<" but should have "<<num_cols<<" columns!");
-         num_rows += subs[u].num_rows();
-         num_nnz += subs[u].num_nnz();
-    }
-    dg::iHVec row_offsets( num_rows + 1, 0), cols( num_nnz);
-    unsigned row_idx = 0, col_idx = 0, val_idx = 0, row_offset_previous = 0;
-    dg::HVec_t<real_type> vals( num_nnz);
-    for( unsigned u=0; u<subs.size(); u++)
-    {
-        for( unsigned k=0; k<subs[u].num_rows(); k++)
-            row_offsets[++row_idx] = subs[u].row_offsets()[k+1] + row_offset_previous;
-
-        row_offset_previous = row_offsets[row_idx];
-        for( unsigned k=0; k<subs[u].num_nnz(); k++)
-            cols[col_idx++] = subs[u].column_indices()[k];
-        for( unsigned k=0; k<subs[u].num_nnz(); k++)
-            vals[val_idx++] = subs[u].values()[k];
-    }
-    return {num_rows, num_cols, row_offsets, cols, vals};
+    if( mat.values().empty())
+        mat = sub;
+    else if( method != "linear")
+        add_rowwise_from_sub( mat, sub);
+    else
+        mat += sub;
+    return;
 }
 
 }//namespace detail
@@ -634,36 +635,28 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
     if( benchmark)
     {
         t.toc();
-        std::cout << "# DS: Integrating all fieldlines took: "<<t.diff()<<"\n";
+        std::cout << "# DS: Fieldline integration took: "<<t.diff()<<"\n";
         t.tic();
     }
     // Assemble minus, zero and plus through sub-grids
     // The idea for the sub-grids is that the fine interpolation matrix takes
     // up a large chunk of memory which can be avoided by sub-dividing the
-    // transform grid along its rows
-    // Due to overlapping integrals we cannot yet do this for linear projections
-    unsigned num_subs = project_m == "linear" ? 1 : grid_transform->Ny();
-    std::vector<dg::IHMatrix> sub_plus(num_subs),
-                              sub_zero(num_subs), sub_minus(num_subs);
-    for( unsigned sub = 0; sub < num_subs; sub++)
+    // fine grid along its rows
+    dg::IHMatrix plus, zero, minus;
+    for( unsigned sub = 0; sub < grid_transform->Ny(); sub++)
     {
-        dg::RealGrid2d<double> grid_transform_sub( *grid_transform);
-        if( num_subs != 1)
-            grid_transform_sub = dg::RealGrid2d<double>(
-                grid_transform->x0(),
-                grid_transform->x1(),
-                grid_transform->y0() + sub*grid_transform->hy(),
-                grid_transform->y0() + (sub+1)*grid_transform->hy(),
-                grid_transform->n(), grid_transform->Nx(), 1,
-                grid_transform->bcx(), grid_transform->bcy());
+        dg::RealGrid2d<double> grid_fine_sub(
+            grid_transform->x0(),
+            grid_transform->x1(),
+            grid_transform->y0() + sub*grid_transform->hy(),
+            grid_transform->y0() + (sub+1)*grid_transform->hy(),
+            grid_transform->n(), grid_transform->Nx(), 1,
+            grid_transform->bcx(), grid_transform->bcy());
         // We do not need metric of grid_equidist or of grid_fine
         dg::RealGrid2d<double> grid_equidist( *grid_transform) ;
-        grid_equidist.set( 1, grid_transform->gx().size(), grid_transform->gy().size());
-        dg::RealGrid2d<double> grid_equidist_sub( grid_transform_sub) ;
-        grid_equidist_sub.set( 1, grid_transform_sub.gx().size(), grid_transform_sub.gy().size());
-        dg::RealGrid2d<double> grid_fine_sub( grid_transform_sub);
+        grid_equidist.set( 1, grid_transform->shape(0), grid_transform->shape(1));
         if( fine_m == "equi")
-            grid_fine_sub = grid_equidist_sub;
+            grid_fine_sub.set( 1, grid_fine_sub.shape(0), grid_fine_sub.shape(1));
         grid_fine_sub.multiplyCellNumbers((double)mx, (double)my);
         std::array<thrust::host_vector<double>,3> yp, ym;
         dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
@@ -682,41 +675,43 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
         ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
         dg::IHMatrix projection;
         if( project_m == "dg")
-            projection = dg::create::projection( grid_transform_sub, grid_fine_sub);
+            // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
+            projection = dg::create::projection( *grid_transform, grid_fine_sub);
         else
         {
-            projection = dg::create::inv_backproject( grid_transform_sub)* // from equidist to dg
-                dg::create::projection( grid_equidist_sub, grid_fine_sub, project_m);
+            projection = dg::create::inv_backproject( *grid_transform)* // from equidist to dg
+                dg::create::projection( grid_equidist, grid_fine_sub, project_m);
         }
         std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
         std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
-        std::array<dg::IHMatrix*,3> result{ &sub_plus[sub], &sub_zero[sub], &sub_minus[sub]};
-        dg::IHMatrix backproject;
+        std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
+        dg::IHMatrix backproject, subresult;
         if( inter_m != "dg")
-            backproject = dg::create::backproject( *grid_transform);
+            backproject = dg::create::backproject( *grid_transform); // from dg to equidist
 
         for( unsigned u=0; u<3; u++)
         {
             if( inter_m == "dg")
             {
-                *result[u] = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
+                subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
                     *grid_transform, bcx, bcy, "dg");
             }
             else
             {
-                *result[u] = projection *  dg::create::interpolation( *xcomp[u], *ycomp[u],
-                    grid_equidist, bcx, bcy, inter_m) *  backproject; // from dg to equidist
+                subresult = projection *  dg::create::interpolation( *xcomp[u], *ycomp[u],
+                    grid_equidist, bcx, bcy, inter_m) *  backproject;
             }
+            detail::add_from_sub( *result[u], subresult, project_m);
         }
     }
-    m_minus = detail::assemble_rowwise_from_sub( sub_minus);
-    m_zero = detail::assemble_rowwise_from_sub( sub_zero);
-    m_plus = detail::assemble_rowwise_from_sub( sub_plus);
+    dg::blas2::transfer( minus, m_minus);
+    dg::blas2::transfer( zero, m_zero);
+    dg::blas2::transfer( plus, m_plus);
 
     if( benchmark)
     {
         t.toc();
-        std::cout << "# DS: Assembly of matrices took: "<<t.diff()<<"\n";
+        std::cout << "# DS: Assembly of matrices  took: "<<t.diff()<<"\n";
     }
     ///%%%%%%%%%%%%%%%%%%%%copy into h vectors %%%%%%%%%%%%%%%%%%%//
     dg::HVec hbphi( yp_trafo[2]), hbphiP(hbphi), hbphiM(hbphi);

@@ -177,129 +177,149 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         std::array<thrust::host_vector<double>,3>& ym_trafo
         )
     {
-    int rank;
-    MPI_Comm_rank( m_g->communicator(), &rank);
-    std::string inter_m, project_m, fine_m;
-    detail::parse_method( interpolation_method, inter_m, project_m, fine_m);
-    if( benchmark && rank==0)
-        std::cout << "# Interpolation method: \""<<inter_m
-            << "\" projection method: \""<<project_m
-            <<"\" fine grid \""<<fine_m<<"\"\n";
-    ///%%%%%%%%%%%%%%%%%%%%%Setup grids%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
-    //  grid_trafo -> grid_equi -> grid_fine -> grid_equi -> grid_trafo
-    dg::Timer t;
-    if( benchmark) t.tic();
-    // We do not need metric of grid_equidist or or grid_fine
-    // We only need grid_fine_local and grid_equidist_global: multiplying cell numbers on an MPI grid would redistribute points for non-equipartition
-    // So we make them RealGrid
-    dg::RealGrid2d<double> grid_equidist_global( grid_transform->global()) ;
-    dg::RealGrid2d<double> grid_fine_local( grid_transform->local());
-    grid_equidist_global.set( 1, grid_equidist_global.shape(0), grid_equidist_global.shape(1));
-    dg::ClonePtr<dg::aMPIGeometry2d> grid_magnetic = grid_transform;//INTEGRATE HIGH ORDER GRID
-    grid_magnetic->set( grid_transform->n() < 3 ? 4 : 7, grid_magnetic->Nx(), grid_magnetic->Ny());
-    global_grid_magnetic = grid_magnetic->global_geometry();
-    // For project method "const" we round up to the nearest multiple of n
-    if( project_m != "dg" && fine_m == "dg")
-    {
-        unsigned rx = mx % grid_transform->nx(), ry = my % grid_transform->ny();
-        if( 0 != rx || 0 != ry)
+        int rank;
+        MPI_Comm_rank( m_g->communicator(), &rank);
+        ////////////////////////////////////////////////////////////////
+        std::string inter_m, project_m, fine_m;
+        detail::parse_method( interpolation_method, inter_m, project_m, fine_m);
+        // For project method "const" we round up to the nearest multiple of n
+        if( project_m != "dg" && fine_m == "dg")
         {
-            if(rank==0)std::cerr << "#Warning: for projection method \"const\" mx and my must be multiples of nx and ny! Rounding up for you ...\n";
-            mx = mx + grid_transform->nx() - rx;
-            my = my + grid_transform->ny() - ry;
+            unsigned rx = mx % grid_transform->nx(), ry = my % grid_transform->ny();
+            if( 0 != rx || 0 != ry)
+            {
+                if(rank==0)std::cerr << "#Warning: for projection method \"const\" mx and my must be multiples of nx and ny! Rounding up for you ...\n";
+                mx = mx + grid_transform->nx() - rx;
+                my = my + grid_transform->ny() - ry;
+            }
         }
-    }
-    if( fine_m == "equi")
-        grid_fine_local.set( 1, grid_fine_local.shape(0), grid_fine_local.shape(1));
-    grid_fine_local.multiplyCellNumbers((double)mx, (double)my);
-    if( benchmark)
-    {
-        t.toc();
-        if(rank==0) std::cout << "# DS: High order grid gen   took: "<<t.diff()<<"\n";
-        t.tic();
-    }
-    ///%%%%%%%%%%Set starting points and integrate field lines%%%%%%%%%%%//
-    std::array<thrust::host_vector<double>,3> yp, ym;
-    detail::integrate_all_fieldlines2d( vec, *global_grid_magnetic,
-            grid_transform->local(), yp_trafo, vol2d0.data(), hbp, in_boxp,
-            deltaPhi, eps);
-    detail::integrate_all_fieldlines2d( vec, *global_grid_magnetic,
-            grid_transform->local(), ym_trafo, vol2d0.data(), hbm, in_boxm,
-            -deltaPhi, eps);
-    dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_local);
-    dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_local);
-    {
-    dg::IHMatrix interpolate = dg::create::interpolation( Xf, Yf,
-            grid_transform->local(), dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
-    yp.fill(dg::evaluate( dg::zero, grid_fine_local));
-    ym = yp;
-    for( int i=0; i<2; i++)
-    {
-        dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
-        dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
-    }
-    } // release memory for interpolate matrix
-    if(benchmark)
-    {
-        t.toc();
-        if(rank==0) std::cout << "# DS: Fieldline integration took: "<<t.diff()<<"\n";
-        t.tic();
-    }
-    ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-    { // free memory after use
-    dg::IHMatrix fine, projection, multi, temp;
-    if( project_m ==  "dg")
-        projection = dg::create::projection( grid_transform->global(), grid_fine_local);
-    else
-        projection = dg::create::projection( grid_equidist_global, grid_fine_local, project_m);
+        if( benchmark && rank==0)
+            std::cout << "# Interpolation method: \""<<inter_m
+                << "\" projection method: \""<<project_m
+                <<"\" fine grid \""<<fine_m<<"\"\n";
+        ///%%%%%%%%%%%%%%%%%%%%%Setup grids%%%%%%%%%%%%%%%%%%%%%%%%%%%%//
+        //  grid_trafo -> grid_equi -> grid_fine -> grid_equi -> grid_trafo
+        dg::Timer t;
+        if( benchmark) t.tic();
+        // We do not need metric of grid_equidist or or grid_fine
+        dg::ClonePtr<dg::aMPIGeometry2d> grid_magnetic = grid_transform;//INTEGRATE HIGH ORDER GRID
+        // grid_magnetic is only used for integrating in curvilinear coords
+        grid_magnetic->set( grid_transform->n() < 3 ? 4 : 7, grid_magnetic->Nx(), grid_magnetic->Ny());
+        global_grid_magnetic = grid_magnetic->global_geometry();
+        ///%%%%%%%%%%Set starting points and integrate field lines%%%%%%%%%%%//
+        detail::integrate_all_fieldlines2d( vec, *global_grid_magnetic,
+                grid_transform->local(), yp_trafo, vol2d0.data(), hbp, in_boxp,
+                deltaPhi, eps);
+        detail::integrate_all_fieldlines2d( vec, *global_grid_magnetic,
+                grid_transform->local(), ym_trafo, vol2d0.data(), hbm, in_boxm,
+                -deltaPhi, eps);
+        if( benchmark)
+        {
+            t.toc();
+            if(rank==0) std::cout << "# DS: Fieldline integration took: "<<t.diff()<<"\n";
+            t.tic();
+        }
+        // Assemble minus, zero and plus through sub-grids
+        // The idea for the sub-grids is that the fine interpolation matrix takes
+        // up a large chunk of memory which can be avoided by sub-dividing the
+        // fine grid along its rows
+        dg::IHMatrix plus, zero, minus;
+        for( unsigned sub = 0; sub < grid_transform->local().Ny(); sub++)
+        {
+            dg::RealGrid2d<double> grid_fine_sub( grid_transform->local());
+            grid_fine_sub = dg::RealGrid2d<double>(
+                grid_fine_sub.x0(),
+                grid_fine_sub.x1(),
+                grid_fine_sub.y0() + sub*grid_fine_sub.hy(),
+                grid_fine_sub.y0() + (sub+1)*grid_fine_sub.hy(),
+                grid_fine_sub.n(), grid_fine_sub.Nx(), 1,
+                grid_fine_sub.bcx(), grid_fine_sub.bcy());
 
-    std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
-    std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
-    std::array<MIMatrix*,3> result{ &m_plus, &m_zero, &m_minus};
-    std::array<MIMatrix*,3> resultT{ &m_plusT, &m_zero, &m_minusT};
-    for( unsigned u=0; u<3; u++)
-    {
-        if( inter_m == "dg")
-        {
-            multi = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
-                grid_transform->global(), bcx, bcy, "dg");
-            multi = dg::convertGlobal2LocalRows( multi, *grid_transform);
-        }
-        else
-        {
-            multi = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
-                grid_equidist_global, bcx, bcy, inter_m) *
-                dg::create::backproject( grid_transform->global()); // from dg to equidist
-            multi = dg::convertGlobal2LocalRows( multi, *grid_transform);
-        }
+            // We only need grid_fine_local and grid_equidist_global:
+            // multiplying cell numbers on an MPI grid would redistribute
+            // points for non-equipartition. So we make them RealGrid
+            dg::RealGrid2d<double> grid_equidist_global( grid_transform->global()) ;
+            grid_equidist_global.set( 1, grid_equidist_global.shape(0), grid_equidist_global.shape(1));
+            if( fine_m == "equi")
+                grid_fine_sub.set( 1, grid_fine_sub.shape(0), grid_fine_sub.shape(1));
+            grid_fine_sub.multiplyCellNumbers((double)mx, (double)my);
+            std::array<thrust::host_vector<double>,3> yp, ym;
+            dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
+            dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
+            //{
+            dg::IHMatrix interpolate = dg::create::interpolation( Xf, Yf,
+                    grid_transform->local(), dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
+            yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
+            ym = yp;
+            for( int i=0; i<2; i++)
+            {
+                dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
+                dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
+            }
+            //} // release memory for interpolate matrix
+            ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
+            dg::IHMatrix projection;
+            if( project_m ==  "dg")
+            // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
+                projection = dg::create::projection( grid_transform->global(), grid_fine_sub);
+            else
+            {
+                projection = dg::create::inv_backproject( grid_transform->global())* // from equidist to dg
+                    dg::create::projection( grid_equidist_global, grid_fine_sub, project_m);
+            }
 
-        if( project_m != "dg")
-        {
-            multi = dg::create::inv_backproject( grid_transform->local()) * multi;
+            std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
+            std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
+            std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
+            dg::IHMatrix backproject, subresult;
+            if( inter_m != "dg")
+                backproject = dg::create::backproject( grid_transform->global()); // from dg to equidist
+
+            for( unsigned u=0; u<3; u++)
+            {
+                if( inter_m == "dg")
+                {
+                    subresult = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
+                        grid_transform->global(), bcx, bcy, "dg");
+                }
+                else
+                {
+                    subresult = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
+                        grid_equidist_global, bcx, bcy, inter_m) * backproject;
+                }
+                detail::add_from_sub( *result[u], subresult, project_m);
+            }
         }
-        dg::MIHMatrix mpi = dg::make_mpi_matrix( multi, *grid_transform); //, tempT;
-        dg::blas2::transfer( mpi, *result[u]);
-        if( make_adjoint and  u != 1)
+        // Now convert to MPI matrices
+        std::array<MIMatrix*,3> result{ &m_plus, &m_zero, &m_minus};
+        std::array<MIMatrix*,3> resultT{ &m_plusT, &m_zero, &m_minusT};
+        std::array<dg::IHMatrix*,3> input{ &plus, &zero, &minus};
+        for( unsigned u=0; u<3; u++)
         {
-            dg::IHMatrix multiT = multi.transpose();
-            // multiT is column distributed
-            // multiT has global rows and local column indices
-            dg::convertLocal2GlobalCols( multiT, *grid_transform);
-            // now multiT has global rows and global column indices
-            auto mat = dg::convertGlobal2LocalRows( multiT, *grid_transform);
-            // now mat is row distributed with global column indices
-            auto mpi_mat = dg::make_mpi_matrix(  mat, *grid_transform);
-            dg::blas2::transfer( mpi_mat, *resultT[u]);
-            m_have_adjoint = true;
+            // important! only convert after addition (else the addition is wrong for linear projection)
+            *input[u] = dg::convertGlobal2LocalRows( *input[u], *grid_transform);
+            dg::MIHMatrix mpi = dg::make_mpi_matrix( *input[u], *grid_transform);
+            dg::blas2::transfer( mpi, *result[u]);
+            if( make_adjoint and  u != 1)
+            {
+                dg::IHMatrix inputT = input[u]->transpose();
+                // multiT is column distributed
+                // multiT has global rows and local column indices
+                dg::convertLocal2GlobalCols( inputT, *grid_transform);
+                // now multiT has global rows and global column indices
+                auto mat = dg::convertGlobal2LocalRows( inputT, *grid_transform);
+                // now mat is row distributed with global column indices
+                auto mpi_mat = dg::make_mpi_matrix(  mat, *grid_transform);
+                dg::blas2::transfer( mpi_mat, *resultT[u]);
+                m_have_adjoint = true;
+            }
         }
-    }
-    }
-    if( benchmark)
-    {
-        t.toc();
-        if(rank==0) std::cout << "# DS: Multiplication PI     took: "<<t.diff()<<"\n";
-    }
-    }
+        if( benchmark)
+        {
+            t.toc();
+            if(rank==0) std::cout << "# DS: Assembly of matrices  took: "<<t.diff()<<"\n";
+        }
+    } // make_matrices
 };
 //////////////////////////////////////DEFINITIONS/////////////////////////////////////
 template<class MPIGeometry, class MIMatrix, class LocalContainer>
