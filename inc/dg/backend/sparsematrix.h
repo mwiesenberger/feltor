@@ -432,8 +432,7 @@ struct SparseMatrix
     template<class OtherMatrix = SparseMatrix>
     enable_if_serial<OtherMatrix>& operator+=( const SparseMatrix& op)
     {
-        SparseMatrix tmp = *this + op;
-        swap( tmp, *this);
+        *this = *this + op;
         return *this;
     }
     /**
@@ -446,8 +445,7 @@ struct SparseMatrix
     template<class OtherMatrix = SparseMatrix>
     enable_if_serial<OtherMatrix>& operator-=( const SparseMatrix& op)
     {
-        SparseMatrix tmp = *this + (-op);
-        swap( tmp, *this);
+        *this = *this + (-op);
         return *this;
     }
     /**
