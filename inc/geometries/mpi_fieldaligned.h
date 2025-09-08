@@ -224,6 +224,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         // up a large chunk of memory which can be avoided by sub-dividing the
         // fine grid along its rows
         dg::IHMatrix plus, zero, minus;
+        dg::IHMatrix interpolate, projection;
         for( unsigned sub = 0; sub < grid_transform->local().Ny(); sub++)
         {
             dg::RealGrid2d<double> grid_fine_sub( grid_transform->local());
@@ -246,9 +247,18 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             std::array<thrust::host_vector<double>,3> yp, ym;
             dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
             dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
-            //{
-            dg::IHMatrix interpolate = dg::create::interpolation( Xf, Yf,
+            // interpolate matrix is same in all sub the rows just shift ...
+            unsigned shift = grid_transform->local().shape(0) * grid_transform->n();
+            if( sub == 0 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
+            {
+                interpolate = dg::create::interpolation( Xf, Yf,
                     grid_transform->local(), dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
+            }
+            else
+            {
+                dg::blas1::plus( interpolate.column_indices(), shift);
+            }
+
             yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
             ym = yp;
             for( int i=0; i<2; i++)
@@ -256,24 +266,34 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
                 dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
                 dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
             }
-            //} // release memory for interpolate matrix
             ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-            dg::IHMatrix projection;
-            if( project_m ==  "dg")
-            // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
-                projection = dg::create::projection( grid_transform->global(), grid_fine_sub);
+            shift = grid_transform->global().shape(0) * grid_transform->n();
+            if( sub <= 1 || sub >= grid_transform->Ny() -2 )
+            {
+                if( project_m == "dg")
+                {
+                    // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
+                    projection = dg::create::projection( grid_transform->global(), grid_fine_sub);
+                }
+                else
+                {
+                    projection = dg::create::inv_backproject( grid_transform->global())* // from equidist to dg
+                        dg::create::projection( grid_equidist_global, grid_fine_sub, project_m);
+                }
+            }
             else
             {
-                projection = dg::create::inv_backproject( grid_transform->global())* // from equidist to dg
-                    dg::create::projection( grid_equidist_global, grid_fine_sub, project_m);
+                // how to add to rows in csr formatted matrix:
+                projection.row_offsets().insert( projection.row_offsets().begin(),
+                    shift, 0);
+                projection.row_offsets().erase( projection.row_offsets().end() -
+                    shift, projection.row_offsets().end());
             }
 
             std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
             std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
             std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
-            dg::IHMatrix backproject, subresult;
-            if( inter_m != "dg")
-                backproject = dg::create::backproject( grid_transform->global()); // from dg to equidist
+            dg::IHMatrix subresult;
 
             for( unsigned u=0; u<3; u++)
             {
@@ -285,10 +305,17 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
                 else
                 {
                     subresult = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
-                        grid_equidist_global, bcx, bcy, inter_m) * backproject;
+                        grid_equidist_global, bcx, bcy, inter_m);
                 }
                 detail::add_from_sub( *result[u], subresult, project_m);
             }
+        }
+        if( inter_m != "dg")
+        {
+            dg::IHMatrix backproject = dg::create::backproject( grid_transform->global()); // from dg to equidist
+            minus = minus*backproject;
+            zero = zero*backproject;
+            plus = plus*backproject;
         }
         // Now convert to MPI matrices
         std::array<MIMatrix*,3> result{ &m_plus, &m_zero, &m_minus};

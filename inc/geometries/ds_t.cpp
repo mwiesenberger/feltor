@@ -30,7 +30,7 @@ circular flux surfaces with DIR and NEU boundary conditions.");
     dg::bc bcx = GENERATE( dg::NEU, dg::DIR);
     unsigned n = 3, Nx = 26, Ny = 26, Nz = 20, mx[2] = {mm,mm}, max_iter = 1e4;
 
-    INFO( "Combination"
+    INFO( "Combination:\n"
               <<"n:  "<<n<<"\n"
               <<"Nx: "<<Nx<<"\n"
               <<"Ny: "<<Ny<<"\n"

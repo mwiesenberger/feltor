@@ -301,13 +301,19 @@ struct SparseMatrix
     const Vector<Value> & values() const { return m_vals;}
     /*! @brief Write row_offsets vector directly
      *
-     * This function is intended for easy matrix assembly.
-     * @note Since changing the row offsets changes the sparsity pattern
-     * this will automatically empty the performance cache.
+     * This function is intended for efficient matrix assembly but in obscure
+     * cases (like storing the reference to keep changing the indices after the
+     * matrix is in use in dg::blas2::symv) can mess with the performance cache
+     * for matrix-vector multiplications.
+     * @note Since changing the column indices changes the sparsity pattern
+     * this will automatically empty the performance cache and the returned
+     * reference is only safe to use until the performance cache is filled
+     * again.
      * @attention You are responsible for keeping num_rows, num_cols,
      * row_offsets, column_indices and values consistent, e.g.
      * <tt>row_offsets().size() == num_rows() + 1</tt>
-     * @return Row offsets
+     * @return Row offsets. The returned reference is only safe to use until a
+     * cache altering member (like matrix-vector multiplicaiton) is used!
      */
     Vector<Index> & row_offsets() {
         m_cache.forget();
@@ -315,13 +321,19 @@ struct SparseMatrix
     }
     /*! @brief Write column indices vector directly
      *
-     * This function is intended for easy matrix assembly.
+     * This function is intended for efficient matrix assembly but in obscure
+     * cases (like storing the reference to keep changing the indices after the
+     * matrix is in use in dg::blas2::symv) can mess with the performance cache
+     * for matrix-vector multiplications.
      * @note Since changing the column indices changes the sparsity pattern
-     * this will automatically empty the performance cache.
+     * this will automatically empty the performance cache and the returned
+     * reference is only safe to use until the performance cache is filled
+     * again.
      * @attention You are responsible for keeping num_rows, num_cols,
      * row_offsets, column_indices and values consistent, e.g.
      * <tt>column_indices().size() == values.size()</tt>
-     * @return Column indices
+     * @return Column indices. The returned reference is only safe to use until a
+     * cache altering member (like matrix-vector multiplicaiton) is used!
      */
     Vector<Index> & column_indices() {
         m_cache.forget();

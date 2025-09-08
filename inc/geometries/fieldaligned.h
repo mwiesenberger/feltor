@@ -206,14 +206,11 @@ void add_rowwise_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<
         throw dg::Error(dg::Message(_ping_)<<" Submatrix has "<<sub.num_rows()<<" but should have "<<mat.num_rows()<<" columns!");
     if( sub.num_cols() != mat.num_cols())
         throw dg::Error(dg::Message(_ping_)<<" Submatrix has "<<sub.num_cols()<<" but should have "<<mat.num_cols()<<" columns!");
-    dg::iHVec row_offsets( mat.row_offsets()), cols( mat.num_nnz() + sub.num_nnz());
-    dg::blas1::axpby( 1, sub.row_offsets(), 1, row_offsets);
-    dg::HVec_t<real_type> vals( cols.size());
-    thrust::copy( mat.column_indices().begin(), mat.column_indices().end(), cols.begin());
-    thrust::copy( sub.column_indices().begin(), sub.column_indices().end(), cols.begin() + mat.num_nnz());
-    thrust::copy( mat.values().begin(), mat.values().end(), vals.begin());
-    thrust::copy( sub.values().begin(), sub.values().end(), vals.begin() + mat.num_nnz());
-    mat = dg::IHMatrix_t<real_type>{mat.num_rows(), mat.num_cols(), row_offsets, cols, vals};
+    dg::blas1::axpby( 1, sub.row_offsets(), 1, mat.row_offsets());
+    mat.column_indices().insert( mat.column_indices().end(),
+        sub.column_indices().begin(), sub.column_indices().end());
+    mat.values().insert( mat.values().end(),
+        sub.values().begin(), sub.values().end());
 }
 // Concatenate matrices from row blocks
 template<class real_type>
@@ -643,6 +640,7 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
     // up a large chunk of memory which can be avoided by sub-dividing the
     // fine grid along its rows
     dg::IHMatrix plus, zero, minus;
+    dg::IHMatrix interpolate, projection;
     for( unsigned sub = 0; sub < grid_transform->Ny(); sub++)
     {
         dg::RealGrid2d<double> grid_fine_sub(
@@ -661,9 +659,17 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
         std::array<thrust::host_vector<double>,3> yp, ym;
         dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
         dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
+        // interpolate matrix is same in all sub the rows just shift ...
+        unsigned shift = grid_transform->shape(0) * grid_transform->n();
+        if( sub == 0 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
         {
-        dg::IHMatrix interpolate = dg::create::interpolation( Xf, Yf,
+            interpolate = dg::create::interpolation( Xf, Yf,
                 *grid_transform, dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
+        }
+        else
+        {
+            dg::blas1::plus( interpolate.column_indices(), shift);
+        }
         yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
         ym = yp;
         for( int i=0; i<2; i++) //only R and Z get interpolated
@@ -671,23 +677,32 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
             dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
             dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
         }
-        } // release memory for interpolate matrix
         ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-        dg::IHMatrix projection;
-        if( project_m == "dg")
-            // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
-            projection = dg::create::projection( *grid_transform, grid_fine_sub);
+        if( sub <= 1 || sub >= grid_transform->Ny() -2 )
+        {
+            if( project_m == "dg")
+            {
+                // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
+                projection = dg::create::projection( *grid_transform, grid_fine_sub);
+            }
+            else
+            {
+                projection = dg::create::inv_backproject( *grid_transform)* // from equidist to dg
+                    dg::create::projection( grid_equidist, grid_fine_sub, project_m);
+            }
+        }
         else
         {
-            projection = dg::create::inv_backproject( *grid_transform)* // from equidist to dg
-                dg::create::projection( grid_equidist, grid_fine_sub, project_m);
+            // how to add to rows in csr formatted matrix:
+            projection.row_offsets().insert( projection.row_offsets().begin(),
+                shift, 0);
+            projection.row_offsets().erase( projection.row_offsets().end() -
+                shift, projection.row_offsets().end());
         }
         std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
         std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
         std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
-        dg::IHMatrix backproject, subresult;
-        if( inter_m != "dg")
-            backproject = dg::create::backproject( *grid_transform); // from dg to equidist
+        dg::IHMatrix subresult;
 
         for( unsigned u=0; u<3; u++)
         {
@@ -699,10 +714,17 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
             else
             {
                 subresult = projection *  dg::create::interpolation( *xcomp[u], *ycomp[u],
-                    grid_equidist, bcx, bcy, inter_m) *  backproject;
+                    grid_equidist, bcx, bcy, inter_m);
             }
             detail::add_from_sub( *result[u], subresult, project_m);
         }
+    }
+    if( inter_m != "dg")
+    {
+        dg::IHMatrix backproject = dg::create::backproject( *grid_transform); // from dg to equidist
+        minus = minus*backproject;
+        zero = zero*backproject;
+        plus = plus*backproject;
     }
     dg::blas2::transfer( minus, m_minus);
     dg::blas2::transfer( zero, m_zero);

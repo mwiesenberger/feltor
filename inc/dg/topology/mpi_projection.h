@@ -232,11 +232,12 @@ void convertLocal2GlobalCols( dg::IHMatrix_t<real_type>& local, const Conversion
     // 1. For all columns determine pid to which it belongs
     int rank=0;
     MPI_Comm_rank( policy.communicator(), &rank);
-    thrust::host_vector<int> local_cols = local.column_indices();
+    thrust::host_vector<int>& local_cols = local.column_indices();
+    local.num_cols() = policy.size();
 
     for(unsigned i=0; i<local.column_indices().size(); i++)
         assert( policy.local2globalIdx(local_cols[i], rank, local_cols[i]) );
-    local.set( local.num_rows(), policy.size(), local.row_offsets(), local_cols, local.values());
+    //local.set( local.num_rows(), policy.size(), local.row_offsets(), local_cols, local.values());
 }
 
 namespace create
