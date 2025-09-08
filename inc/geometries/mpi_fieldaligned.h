@@ -224,7 +224,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         // up a large chunk of memory which can be avoided by sub-dividing the
         // fine grid along its rows
         dg::IHMatrix plus, zero, minus;
-        dg::IHMatrix interpolate, projection;
+        dg::IHMatrix interpolate, zero_interpolate, projection;
         for( unsigned sub = 0; sub < grid_transform->local().Ny(); sub++)
         {
             dg::RealGrid2d<double> grid_fine_sub( grid_transform->local());
@@ -249,14 +249,19 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
             // interpolate matrix is same in all sub the rows just shift ...
             unsigned shift = grid_transform->local().shape(0) * grid_transform->n();
-            if( sub == 0 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
+            unsigned global_shift = grid_transform->global().shape(0) * grid_transform->n();
+            if( sub <= 1 || sub >= grid_transform->local().Ny() - 2 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
             {
                 interpolate = dg::create::interpolation( Xf, Yf,
                     grid_transform->local(), dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
+                zero_interpolate = dg::create::interpolation( Xf, Yf,
+                    inter_m == "dg" ? grid_transform->global() :
+                    grid_equidist_global, bcx, bcy, inter_m);
             }
             else
             {
                 dg::blas1::plus( interpolate.column_indices(), shift);
+                dg::blas1::plus( zero_interpolate.column_indices(), global_shift);
             }
 
             yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
@@ -267,8 +272,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
                 dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
             }
             ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-            shift = grid_transform->global().shape(0) * grid_transform->n();
-            if( sub <= 1 || sub >= grid_transform->Ny() -2 )
+            if( sub <= 1 || sub >= grid_transform->local().Ny() -2 )
             {
                 if( project_m == "dg")
                 {
@@ -285,9 +289,9 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             {
                 // how to add to rows in csr formatted matrix:
                 projection.row_offsets().insert( projection.row_offsets().begin(),
-                    shift, 0);
+                    global_shift, 0);
                 projection.row_offsets().erase( projection.row_offsets().end() -
-                    shift, projection.row_offsets().end());
+                    global_shift, projection.row_offsets().end());
             }
 
             std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
@@ -297,16 +301,12 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
 
             for( unsigned u=0; u<3; u++)
             {
-                if( inter_m == "dg")
-                {
-                    subresult = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
-                        grid_transform->global(), bcx, bcy, "dg");
-                }
+                if( u == 1)
+                    subresult = projection*zero_interpolate;
                 else
-                {
-                    subresult = projection * dg::create::interpolation( *xcomp[u], *ycomp[u],
+                    subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
+                        inter_m == "dg" ? grid_transform->global() :
                         grid_equidist_global, bcx, bcy, inter_m);
-                }
                 detail::add_from_sub( *result[u], subresult, project_m);
             }
         }

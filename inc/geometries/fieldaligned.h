@@ -640,7 +640,7 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
     // up a large chunk of memory which can be avoided by sub-dividing the
     // fine grid along its rows
     dg::IHMatrix plus, zero, minus;
-    dg::IHMatrix interpolate, projection;
+    dg::IHMatrix interpolate, zero_interpolate, projection;
     for( unsigned sub = 0; sub < grid_transform->Ny(); sub++)
     {
         dg::RealGrid2d<double> grid_fine_sub(
@@ -661,14 +661,18 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
         dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
         // interpolate matrix is same in all sub the rows just shift ...
         unsigned shift = grid_transform->shape(0) * grid_transform->n();
-        if( sub == 0 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
+        if( sub <= 1 || sub >= grid_transform->Ny() - 2 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
         {
             interpolate = dg::create::interpolation( Xf, Yf,
                 *grid_transform, dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
+            zero_interpolate = dg::create::interpolation( Xf, Yf,
+                inter_m == "dg" ? dg::RealGrid2d<double>(*grid_transform) :
+                grid_equidist, bcx, bcy, inter_m);
         }
         else
         {
             dg::blas1::plus( interpolate.column_indices(), shift);
+            dg::blas1::plus( zero_interpolate.column_indices(), shift);
         }
         yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
         ym = yp;
@@ -706,16 +710,12 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
 
         for( unsigned u=0; u<3; u++)
         {
-            if( inter_m == "dg")
-            {
-                subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
-                    *grid_transform, bcx, bcy, "dg");
-            }
+            if( u == 1)
+                subresult = projection*zero_interpolate;
             else
-            {
-                subresult = projection *  dg::create::interpolation( *xcomp[u], *ycomp[u],
+                subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
+                    inter_m == "dg" ? dg::RealGrid2d<double>(*grid_transform) :
                     grid_equidist, bcx, bcy, inter_m);
-            }
             detail::add_from_sub( *result[u], subresult, project_m);
         }
     }
