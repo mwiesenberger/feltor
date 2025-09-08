@@ -23,13 +23,13 @@ TEST_CASE("Format conversion")
 TEST_CASE( "Construct sparse matrix")
 {
     size_t num_rows = 3, num_cols = 5, num_nnz = 6;
-    thrust::host_vector<int> rows(num_rows+1), cols(num_nnz);
-    thrust::host_vector<double> vals(num_nnz);
+    thrust::device_vector<int> rows(num_rows+1), cols(num_nnz);
+    thrust::device_vector<double> vals(num_nnz);
     SECTION( "Construct")
     {
-        dg::SparseMatrix<int,double,thrust::host_vector> mat ( num_rows, num_cols, rows, cols, vals);
+        dg::SparseMatrix<int,double,thrust::device_vector> mat ( num_rows, num_cols, rows, cols, vals);
         static_assert( std::is_same_v< dg::get_tensor_category< dg::SparseMatrix<
-            int,double,thrust::host_vector>>, dg::SparseMatrixTag>);
+            int,double,thrust::device_vector>>, dg::SparseMatrixTag>);
         CHECK( mat.num_rows() == num_rows);
         CHECK( mat.num_cols() == num_cols);
         CHECK( mat.num_vals() == vals.size());
@@ -41,6 +41,14 @@ TEST_CASE( "Construct sparse matrix")
         CHECK( mat.num_rows() == num_rows);
         CHECK( mat.num_cols() == num_cols);
         CHECK( mat.num_vals() == vals.size());
+        mat.num_rows() = 7;
+        CHECK( mat.num_rows() == 7);
+        mat.num_cols() = 12;
+        CHECK( mat.num_cols() == 12);
+        mat.row_offsets().resize( 8);
+        mat.column_indices().resize( 9);
+        mat.values().resize( 9);
+        CHECK( mat.num_nnz() == 9);
     }
     SECTION( "Constructing sorts columns")
     {

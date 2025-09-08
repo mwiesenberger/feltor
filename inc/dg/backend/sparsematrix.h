@@ -271,6 +271,11 @@ struct SparseMatrix
     /// Alias for \c num_cols
     size_t total_num_cols() const { return m_num_cols;} // for blas2_sparseblockmat dispatch
 
+    /// Set number of rows in matrix (empties performance cache)
+    size_t& num_rows() { m_cache.forget(); return m_num_rows;}
+    /// Set number of columns in matrix (empties performance cache)
+    size_t& num_cols() { m_cache.forget(); return m_num_cols;}
+
     /// Number of rows in matrix
     size_t num_rows() const { return m_num_rows;}
     /// Number of columns in matrix
@@ -283,23 +288,52 @@ struct SparseMatrix
     size_t num_entries() const { return m_vals.size();}
 
     /*! @brief Read row_offsets vector
-     * @return row_offsets
+     * @return Row offsets
      */
     const Vector<Index> & row_offsets() const { return m_row_offsets;}
     /*! @brief Read column indices vector
-     * @return column indices
+     * @return Column indices
      */
     const Vector<Index> & column_indices() const { return m_cols;}
     /*! @brief Read values vector
-     * @return values
+     * @return Values
      */
     const Vector<Value> & values() const { return m_vals;}
+    /*! @brief Write row_offsets vector directly
+     *
+     * This function is intended for easy matrix assembly.
+     * @note Since changing the row offsets changes the sparsity pattern
+     * this will automatically empty the performance cache.
+     * @attention You are responsible for keeping num_rows, num_cols,
+     * row_offsets, column_indices and values consistent, e.g.
+     * <tt>row_offsets().size() == num_rows() + 1</tt>
+     * @return Row offsets
+     */
+    Vector<Index> & row_offsets() {
+        m_cache.forget();
+        return m_row_offsets;
+    }
+    /*! @brief Write column indices vector directly
+     *
+     * This function is intended for easy matrix assembly.
+     * @note Since changing the column indices changes the sparsity pattern
+     * this will automatically empty the performance cache.
+     * @attention You are responsible for keeping num_rows, num_cols,
+     * row_offsets, column_indices and values consistent, e.g.
+     * <tt>column_indices().size() == values.size()</tt>
+     * @return Column indices
+     */
+    Vector<Index> & column_indices() {
+        m_cache.forget();
+        return m_cols;
+    }
     /*! @brief Change values vector
-     * @note The reason why \c values can be changed directly while \c
-     * row_offsets and \c column_indices cannot,  is that changing the values
-     * does not influence the performance cache, while changing the sparsity
-     * pattern through \c row_offsets and \c column_indices does
-     * @return Values array reference
+     *
+     * @note Changing the values can be done without emptying the performance cache.
+     * This is because changing the values does not change the sparsity pattern.
+     * (If the values array is resized then of course also the column indices need
+     * to be resized, which in turn does empty the performance cache)
+     * @return Values
      */
     Vector<Value> & values() { return m_vals;}
 
