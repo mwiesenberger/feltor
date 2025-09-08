@@ -139,13 +139,15 @@ dg::geo::CurvilinearGrid2d generate_XGrid( dg::file::WrappedJsonValue config,
     psipmax = -fx_0/(1.-fx_0)*psipO;
     std::cout << "psi outer in g1d_out is "<<psipmax<<"\n";
     std::cout << "Generate orthogonal flux-aligned grid ... \n";
+    dg::Timer t;
+    t.tic();
     std::unique_ptr<dg::geo::aGenerator2d> generator;
     if( !(mag.params().getDescription() == dg::geo::description::standardX))
         generator = std::make_unique<dg::geo::SimpleOrthogonal>(
             mag.get_psip(),
             psipO<psipmax ? psipO : psipmax,
             psipO<psipmax ? psipmax : psipO,
-            mag.R0() + 0.1*mag.params().a(), 0., 0.1*psipO, 1);
+            mag.R0() + 0.1*mag.params().a(), 0., 0.1*psipO, 1, 1e-10, true);
     else
     {
 
@@ -163,7 +165,8 @@ dg::geo::CurvilinearGrid2d generate_XGrid( dg::file::WrappedJsonValue config,
     }
     dg::geo::CurvilinearGrid2d gridX2d(*generator,
             npsi, Npsi, Neta, dg::DIR, dg::PER);
-    std::cout << "DONE!\n";
+    t.toc();
+    std::cout << "Took "<<t.diff()<<"\n";
     //f0 makes a - sign if psipmax < psipO
     f0 = ( gridX2d.x1() - gridX2d.x0() ) / ( psipmax - psipO );
     return gridX2d;
