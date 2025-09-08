@@ -317,6 +317,12 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             zero = zero*backproject;
             plus = plus*backproject;
         }
+        if( benchmark)
+        {
+            t.toc();
+            if(rank==0) std::cout << "# DS: Assembly of matrices  took: "<<t.diff()<<"\n";
+            t.tic();
+        }
         // Now convert to MPI matrices
         std::array<MIMatrix*,3> result{ &m_plus, &m_zero, &m_minus};
         std::array<MIMatrix*,3> resultT{ &m_plusT, &m_zero, &m_minusT};
@@ -344,7 +350,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         if( benchmark)
         {
             t.toc();
-            if(rank==0) std::cout << "# DS: Assembly of matrices  took: "<<t.diff()<<"\n";
+            if(rank==0) std::cout << "# DS: MPI conversion        took: "<<t.diff()<<"\n";
         }
     } // make_matrices
 };
