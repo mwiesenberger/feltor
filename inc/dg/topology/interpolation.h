@@ -30,7 +30,8 @@ namespace detail{
  * @sa interpolate
  * @note For periodic boundaries the right boundary point is considered outside the grid and is shifted to the left boundary point.
  * @param negative swap value if there was a sign swap (happens when a point is mirrored along a Dirichlet boundary)
- * @param x point to shift (inout) the result is guaranteed to lie inside the grid
+ * @param x point to shift (inout) the result is guaranteed to lie in the interval [x0,x1[, i.e. If x == x0, no shift occurs.
+ * x == x1 is shifted to x0.
  */
 template<class real_type>
 void shift( bool& negative, real_type & x, dg::bc bc, real_type x0, real_type x1)
@@ -42,7 +43,7 @@ void shift( bool& negative, real_type & x, dg::bc bc, real_type x0, real_type x1
         x = x - N0*(x1-x0); //shift
     }
     //mirror along boundary as often as necessary
-    while( (x<x0) || (x>x1) )
+    while( (x<x0) || (x>=x1) )
     {
         if( x < x0){
             x = 2.*x0 - x;
@@ -50,8 +51,8 @@ void shift( bool& negative, real_type & x, dg::bc bc, real_type x0, real_type x1
             if( bc == dg::DIR || bc == dg::DIR_NEU)
                 negative = !negative;//swap sign
         }
-        if( x > x1){
-            x = 2.*x1 - x;
+        if( x >= x1){
+            x = x == x1 ? x0 : 2.*x1 - x;
             if( bc == dg::DIR || bc == dg::NEU_DIR) //notice the different boundary NEU_DIR to the above DIR_NEU !
                 negative = !negative; //swap sign
         }
