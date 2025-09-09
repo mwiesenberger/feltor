@@ -40,7 +40,7 @@ void shift( bool& negative, real_type & x, dg::bc bc, real_type x0, real_type x1
     if( bc == dg::PER)
     {
         real_type N0 = floor((x-x0)/(x1-x0)); // ... -2[ -1[ 0[ 1[ 2[ ...
-        x = x - N0*(x1-x0); //shift
+        x = x == x1 ? x0 : x - N0*(x1-x0); //shift
     }
     //mirror along boundary as often as necessary
     while( (x<x0) || (x>=x1) )
@@ -110,19 +110,34 @@ std::vector<real_type> lagrange( real_type x, const std::vector<real_type>& xi)
     return l;
 }
 
-//THERE IS A BUG FOR PERIODIC BC !!
+//THERE IS A BUG FOR PERIODIC BC !! ( really? MW: 9.9.2025)
 template<class real_type>
-std::vector<real_type> choose_1d_abscissas( real_type X,
+void choose_1d_abscissas( real_type X,
         unsigned points_per_line, double lx,// const RealGrid1d<real_type>& g,
         const thrust::host_vector<real_type>& abs, dg::bc bcx,
-        thrust::host_vector<unsigned>& cols)
+        thrust::host_vector<int>& cols,
+        thrust::host_vector<real_type>& px
+        )
 {
     // Select points for nearest, linear or cubic interpolation
+    // (Optimisation 9.9.25: sing the fact that abs are equidistant does not gain a speedup)
     // lx is needed for PER bondary conditions
-    assert( abs.size() >= points_per_line && "There must be more points to interpolate\n");
     //determine which cell (X) lies in
     // abs must be sorted for std::lower_bound to work
+    // std::lower_bound finds the first abs that is >= X
     auto it = std::lower_bound( abs.begin(), abs.end(), X);
+    // Test if point already exists since then no interpolation is needed
+    int idxX = -1;
+    if( fabs( X - *it) < 1e-13)
+        idxX = it - abs.begin();
+    if( it != abs.begin() and fabs(  X - *(it-1)) < 1e-13)
+        idxX = (it - abs.begin())-1;
+    if( idxX >= 0)
+    {
+        cols.assign(1, idxX );
+        px.assign( 1, 1.0);
+        return;
+    }
 
     std::vector<real_type> xs( points_per_line, 0);
     cols.resize( points_per_line, 0);
@@ -151,11 +166,8 @@ std::vector<real_type> choose_1d_abscissas( real_type X,
                     }
                     else
                     {
-                        //xs[0] = *it;
-                        //xs[1] = *(it+1);
-                        //cols[0] = 0, cols[1] = 1;
                         // This makes it consistent with fem_t
-                        xs.resize(1);
+                        xs.resize(1); // cols should also be resized ...
                         xs[0] = *it;
                         cols[0] = 0;
                     }
@@ -170,12 +182,8 @@ std::vector<real_type> choose_1d_abscissas( real_type X,
                     }
                     else
                     {
-                        //xs[0] = *(it-2);
-                        //xs[0] = *(it-1);
-                        //cols[0] = it - abs.begin() - 2;
-                        //cols[1] = it - abs.begin() - 1;
                         // This makes it consistent with fem_t
-                        xs.resize(1);
+                        xs.resize(1); // cols should also be resized ...
                         xs[0] = *(it-1);
                         cols[0] = it-abs.begin()-1;
                     }
@@ -240,7 +248,7 @@ std::vector<real_type> choose_1d_abscissas( real_type X,
                 }
                 break;
     }
-    return xs;
+    px = detail::lagrange( X, xs);
 }
 
 template<class real_type>
@@ -346,8 +354,12 @@ dg::SparseMatrix<int, dg::get_value_type<host_vector2>, thrust::host_vector> int
         points_per_line = 4;
     else
         throw std::runtime_error( "Interpolation method "+method+" not recognized!\n");
+    if( abs.size() < points_per_line)
+        throw std::runtime_error( "There must be more points to interpolate\n");
     auto ptr = x.begin();
     row_offsets.push_back(0);
+    thrust::host_vector<int> cols;
+    thrust::host_vector<real_type> px;
     for( unsigned i=0; i<x.size(); i++)
     {
         row_offsets.push_back(row_offsets[i]);
@@ -355,37 +367,19 @@ dg::SparseMatrix<int, dg::get_value_type<host_vector2>, thrust::host_vector> int
         ptr++;
         bool negative = false;
         detail::shift( negative, X, bcx, x0, x1);
-        // Test if point already exists since then no interpolation is needed
-        int idxX = -1;
-        auto it = std::lower_bound( abs.begin(), abs.end(), X);
-        if( fabs( X - *it) < 1e-13)
-            idxX = it - abs.begin();
-        if( it != abs.begin() and fabs(  X - *(it-1)) < 1e-13)
-            idxX = (it - abs.begin())-1;
         // THIS IS A VERY BAD IDEA PERFORMANCE WISE
         //for( unsigned u=0; u<abs.size(); u++)
         //    if( fabs( X - abs[u]) <1e-13)
         //        idxX = u;
-        if( idxX < 0) //no corresponding point
-        {
-            thrust::host_vector<unsigned> cols;
-            std::vector<real_type> xs  = detail::choose_1d_abscissas( X,
-                    points_per_line, x1-x0, abs, bcx, cols);
+        detail::choose_1d_abscissas( X,
+            points_per_line, x1-x0, abs, bcx, cols, px);
 
-            std::vector<real_type> px = detail::lagrange( X, xs);
-            // px may have size != points_per_line (at boundary)
-            for ( unsigned l=0; l<px.size(); l++)
-            {
-                row_offsets[i+1]++;
-                column_indices.push_back( cols[l]);
-                values.push_back(negative ? -px[l] : px[l]);
-            }
-        }
-        else //the point already exists
+        // px may have size != points_per_line (at boundary)
+        for ( unsigned l=0; l<px.size(); l++)
         {
             row_offsets[i+1]++;
-            column_indices.push_back(idxX);
-            values.push_back( negative ? -1. : 1.);
+            column_indices.push_back( cols[l]);
+            values.push_back(negative ? -px[l] : px[l]);
         }
     }
     return {x.size(), abs.size(), row_offsets, column_indices, values};
