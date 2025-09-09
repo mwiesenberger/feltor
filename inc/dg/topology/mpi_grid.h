@@ -477,6 +477,7 @@ struct aRealMPITopology
      * @param rank Rank of the process that contains the localIdx
      * @param globalIdx (write only) Global index of the element
      * @sa The main usage of this function is dg::make_mpi_matrix and dg::global2local
+     * @return true if succesful, false else
      */
     bool local2globalIdx( int localIdx, int rank, int& globalIdx)const
     {
@@ -516,6 +517,7 @@ struct aRealMPITopology
      * @param localIdx (write only) Index in a local chunk of a vector
      * @param rank (write only) Rank of the process that contains the globalIdx
      * @sa The main usage of this function is dg::make_mpi_matrix and dg::global2local
+     * @return true if succesful, false else
      */
     bool global2localIdx( int globalIdx, int& localIdx, int& rank)const
     {
