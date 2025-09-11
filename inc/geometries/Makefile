@@ -20,7 +20,9 @@ polynomial_t\
 ds_t\
 ds_guenter_t\
 
-#TARGETSMPI=
+TARGETSMPI=\
+mpi_ds_t\
+mpi_ds_guenter_t
 
 #all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 all: tests mpi-tests
