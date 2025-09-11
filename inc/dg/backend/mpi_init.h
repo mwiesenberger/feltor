@@ -6,6 +6,7 @@
 #include <thrust/device_vector.h> //declare THRUST_DEVICE_SYSTEM
 #include "config.h"
 #include "mpi_datatype.h"
+#include "mpi_cart.h"
 #include "../enums.h"
 
 /*!@file
@@ -64,6 +65,10 @@ inline void mpi_init( int argc, char* argv[])
         MPI_Abort(MPI_COMM_WORLD, -1);
         exit(-1);
     }
+    // MW 10.9.25: This will fail if process pinning assigns ranks in non-contiguous fashion to nodes...
+    // We should better use
+    // https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/examples.html#example-2-one-device-per-process-or-thread
+    // even windows provides a gethostname function ...
     int device = rank % num_devices; //assume # of gpus/node is fixed
     cudaSetDevice( device);
 #endif//THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
@@ -161,6 +166,8 @@ inline void mpi_read_grid( unsigned& n, std::vector<unsigned*> N, MPI_Comm comm,
  *   int ndims = dims.size();
  *   MPI_Dims_create( size, ndims, &dims[0]);
  *   MPI_Comm comm_cart;
+ *   std::reverse( dims.begin(), dims.end());
+ *   std::reverse( periods.begin(), periods.end());
  *   MPI_Cart_create( comm_old, dims.size(), &dims[0], periods, reorder, &comm_cart);
  *   return comm_cart;
  * @endcode
@@ -171,12 +178,19 @@ inline void mpi_read_grid( unsigned& n, std::vector<unsigned*> N, MPI_Comm comm,
  * @param periods logical array of size \c ndims specifying whether the grid is
  * periodic (true) or not (false) in each dimension (parameter used in \c
  * MPI_Cart_create
- * @param reorder (parameter used in \c MPI_Cart_create)
- * @note most MPI libraries ignore the \c reorder parameter
+ * @param reorder (parameter used in \c MPI_Cart_create); most MPI libraries
+ * ignore this parameter
  * @return communicator with new Cartesian topology (handle)
+ * @note The mapping of rank to coordinates in a Cartesian MPI topology is
+ * *row-major* i.e. the last dimension varies fastest. For example in 2
+ * dimensions the first three ranks represent {0,0}, {0,1}, {0,2}, ...
+ * However, in our dg grids we use the x-direction (the first one) as the
+ * fastest varying dimension in memory. To make this consistent with the MPI
+ * ranking we transpose the Cartesian communicator i.e. the first dimension in
+ * \c dims is the last one in the created Cartesian communicator
  */
 inline MPI_Comm mpi_cart_create( MPI_Comm comm_old, std::vector<int> dims,
-                    std::vector<int> periods, bool reorder = true)
+                    std::vector<int> periods, bool reorder = false)
 {
     int size;
     MPI_Comm_size( comm_old, &size);
@@ -197,7 +211,7 @@ inline MPI_Comm mpi_cart_create( MPI_Comm comm_old, std::vector<int> dims,
             <<size<< " vs "<<reduce);
     }
     MPI_Comm comm_cart;
-    err = MPI_Cart_create( comm_old, ndims, &dims[0], &periods[0], re, &comm_cart);
+    err = dg::mpi_cart_create( comm_old, ndims, &dims[0], &periods[0], re, &comm_cart);
     if( err != MPI_SUCCESS)
         throw Error(Message(_ping_)<<
                 "Cannot create Cartesian comm from given communicator");
@@ -221,18 +235,25 @@ inline MPI_Comm mpi_cart_create( MPI_Comm comm_old, std::vector<int> dims,
  * @param bcs if <tt>bcs[u]==dg::PER</tt> then the communicator is periodic in that dimension
  * @param is Input stream rank 0 reads \c bcs.size() parameters (\c np[u])
  * @param comm_old input communicator (handle) (parameter used in \c MPI_Cart_create)
- * @param reorder (parameter used in \c MPI_Cart_create)
- * @note most MPI libraries ignore the \c reorder parameter
+ * @param reorder (parameter used in \c MPI_Cart_create); most MPI libraries
+ * ignore this parameter
  * @param verbose If true, rank 0 prints queries and information to \c os
  * In this case <tt>bcs.size()<=6</tt>
  * @param os Output stream used if \c verbose==true
  * @return communicator with new Cartesian topology (handle)
+ * @note The mapping of rank to coordinates in a Cartesian MPI topology is
+ * *row-major* i.e. the last dimension varies fastest. For example in 2
+ * dimensions the first three ranks represent {0,0}, {0,1}, {0,2}, ...
+ * However, in our dg grids we use the x-direction (the first one) as the
+ * fastest varying dimension in memory. To make this consistent with the MPI
+ * ranking we transpose the Cartesian communicator i.e. the first dimension in
+ * \c dims is the last one in the created Cartesian communicator
  */
 inline MPI_Comm mpi_cart_create(
     std::vector<dg::bc> bcs,
     std::istream& is = std::cin,
     MPI_Comm comm_old = MPI_COMM_WORLD,
-    bool reorder = true,
+    bool reorder = false,
     bool verbose = true,
     std::ostream& os = std::cout)
 {
@@ -290,6 +311,7 @@ inline MPI_Comm mpi_cart_create(
 #endif//THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
     return dg::mpi_cart_create( comm_old, np, periods, reorder);
 }
+
 
 
 /**

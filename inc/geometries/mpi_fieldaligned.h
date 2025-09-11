@@ -372,7 +372,7 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     int rank;
     MPI_Comm_rank( grid.communicator(), &rank);
     int dims[3], periods[3], coords[3];
-    MPI_Cart_get( m_g->communicator(), 3, dims, periods, coords);
+    dg::mpi_cart_get( m_g->communicator(), 3, dims, periods, coords);
     m_coords2 = coords[2], m_sizeZ = dims[2];
 
     ///Let us check boundary conditions:
@@ -466,12 +466,12 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     int source, dest;
     dg::detail::MsgChunk chunk { 0, (int)m_perp_size};
 
-    MPI_Cart_shift( grid.comm(2), 0, +1, &source, &dest);
+    dg::mpi_cart_shift( grid.comm(2), 0, +1, &source, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgP =
         {{ dest, thrust::host_vector<dg::detail::MsgChunk>( 1, chunk)}};
     m_from_plus = dg::detail::MPIContiguousGather( recvMsgP, grid.comm(2));
 
-    MPI_Cart_shift( grid.comm(2), 0, -1, &source, &dest);
+    dg::mpi_cart_shift( grid.comm(2), 0, -1, &source, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgM =
         {{ dest, thrust::host_vector<dg::detail::MsgChunk>( 1, chunk)}};
     m_from_minus = dg::detail::MPIContiguousGather( recvMsgM, grid.comm(2));
@@ -765,7 +765,7 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
         }
     //now we have the plus and the minus filaments
     int dims[3], periods[3], coords[3];
-    MPI_Cart_get( grid.communicator(), 3, dims, periods, coords);
+    mpi_cart_get( grid.communicator(), 3, dims, periods, coords);
     unsigned coords2 = coords[2];
     if( rounds == 0) //there is a limiter
     {

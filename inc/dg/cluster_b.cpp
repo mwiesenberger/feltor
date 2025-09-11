@@ -69,10 +69,10 @@ int main(
             true, verbose, std::cout);
     dg::mpi_read_grid( n, {&Nx, &Ny, &Nz}, comm, std::cin, verbose, std::cout);
     int periods[3], coords[3];
-    MPI_Cart_get( comm, 3, dims, periods, coords);
+    dg::mpi_cart_get( comm, 3, dims, periods, coords);
     periods[0] = false, periods[1] = false;
-    MPI_Comm commEll;
-    MPI_Cart_create( MPI_COMM_WORLD, 3, dims, periods, true, &commEll);
+    MPI_Comm commEll = dg::mpi_cart_create( MPI_COMM_WORLD,
+        {dims[0], dims[1], dims[2]}, {periods[0], periods[1], periods[2]});
 #else
     std::cin >> n >> Nx >> Ny >> Nz;
 #endif

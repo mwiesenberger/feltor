@@ -444,7 +444,7 @@ void check_Nz( unsigned Nz, MPI_Comm comm)
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
     int dims[3], periods[3], coords[3];
-    MPI_Cart_get( comm, 3, dims, periods, coords);
+    dg::mpi_cart_get( comm, 3, dims, periods, coords);
     if( dims[2] >= (int)Nz)
     {
         DG_RANK0 std::cerr << "ERROR: Number of processes in z "<<dims[2]

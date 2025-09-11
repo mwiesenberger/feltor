@@ -48,6 +48,7 @@ set(DG_HEADERS
   backend/index.h
   backend/matrix_categories.h
   backend/memory.h
+  backend/mpi_cart.h
   backend/mpi_datatype.h
   backend/mpi_gather.h
   backend/mpi_gather_kron.h
