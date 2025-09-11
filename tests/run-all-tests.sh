@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for dir in ../inc/dg/backend ../inc/dg/topology ../inc/dg ../inc/file
+for dir in ../inc/dg/backend ../inc/dg/topology ../inc/dg ../inc/file ../inc/geometries ../inc/matrix
 do
     current=$(pwd)
     cd $dir
