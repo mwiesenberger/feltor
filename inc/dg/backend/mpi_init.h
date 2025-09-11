@@ -228,7 +228,7 @@ inline MPI_Comm mpi_cart_create( MPI_Comm comm_old, std::vector<int> dims,
     -# Call <tt>auto np = mpi_read_as<int>( bcs.size(), comm_old, is);</tt>
  *  -# [rank0] read \c bcs.size() integers from \c is
  *  -# [verbose, rank0] print read integers back to \c os
- *  -# [verbose, rank0, cuda_aware_mpi] print GPU information to \c os
+ *  -# [verbose, rank0, cuda_aware_mpi/nccl_mpi] print GPU information to \c os
  *  -# Call \c MPI_Cart_create and return Cartesian comm
  *  .
  *
@@ -304,7 +304,7 @@ inline MPI_Comm mpi_cart_create(
     if( rank==0 and verbose)
     {
         std::cout << "# MPI is "
-                  <<(cuda_aware_mpi ? "cuda-aware" : "NOT cuda-aware")
+                  <<(nccl_mpi ? "using NCCL" : (cuda_aware_mpi ? "cuda-aware" : "NOT cuda-aware"))
                   <<"!\n";
     }
     if(verbose)std::cout << "# Rank "<<rank<<" computes with device "<<device<<" !"<<std::endl;

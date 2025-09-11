@@ -312,6 +312,23 @@ if(CCCL_THRUST_DEVICE_SYSTEM STREQUAL "CUDA" OR CCCL_THRUST_DEVICE_SYSTEM STREQU
 endif()
 # https://stackoverflow.com/questions/53256405/howto-pass-flag-to-nvcc-compiler-in-cmake
 target_compile_options(dg_dg INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>)
+if( FELTOR_WITH_NCCL)
+    target_compile_definitions( dg_dg INTERFACE DG_WITH_NCCL)
+##### TODO Update once version 2.29 exists and nccl supports cmake
+    #find_package( nccl)
+    #target_link_libraries( dg_dg INTERFACE nccl::nccl)
+##### In the meantime:
+    # https://stackoverflow.com/questions/28597351/how-do-i-add-a-library-path-in-cmake
+    add_library( nccl INTERFACE)
+    add_library( nccl::nccl ALIAS nccl)
+    target_include_directories( nccl INTERFACE "$ENV{NCCL_INC}")
+    target_link_directories( nccl INTERFACE "$ENV{NCCL_LIB}")
+    target_link_libraries( dg_dg INTERFACE nccl::nccl "-lnccl")
+#####
+endif()
+if( FELTOR_CUDA_UNAWARE_MPI)
+    target_compile_definitions( dg_dg INTERFACE DG_CUDA_UNAWARE_MPI)
+endif()
 
 
 # MW: cccl already links OpenMP
