@@ -92,8 +92,6 @@ int main(
     const double norm = dg::blas2::dot( w3d, solution);
     dg::x::DVec error( solution);
 
-    dg::Timer t;
-    t.tic();
     dg::NestedGrids<dg::x::CartesianGrid3d, dg::x::DMatrix, dg::x::DVec> nested( grid, num_stages);
     const std::vector<dg::x::DVec> multi_chi = nested.project( chi);
     std::vector<dg::x::DVec> multi_x = nested.project( x);
@@ -121,6 +119,7 @@ int main(
         };
     }
     DG_RANK0 std::cout << "stages: \n";
+    dg::Timer t;
     t.tic();
     dg::nested_iterations( multi_pol, x, b, multi_inv_pol, nested);
     t.toc();
