@@ -41,9 +41,10 @@ cmake_dependent_option(
     "FELTOR_WITH_MPI AND (CCCL_THRUST_DEVICE_SYSTEM STREQUAL \"CUDA\" OR CCCL_THRUST_DEVICE_SYSTEM STREQUAL \"\")"
     OFF # default value if cuda is false
 )
-#message( "Feltor with GLFW " ${FELTOR_WITH_GLFW})
-#message( "Feltor with NCCL " ${FELTOR_WITH_NCCL})
-#message( "Feltor with CUDA Unaware " ${FELTOR_CUDA_UNAWARE_MPI})
+message( "Feltor dependent variables")
+message( "  FELTOR_WITH_GLFW = " ${FELTOR_WITH_GLFW})
+message( "  FELTOR_WITH_NCCL = " ${FELTOR_WITH_NCCL})
+message( "  FELTOR_CUDA_UNAWARE_MPI = " ${FELTOR_CUDA_UNAWARE_MPI})
 
 
 # If using vcpkg to install dependencies
