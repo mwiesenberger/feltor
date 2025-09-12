@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <thrust/host_vector.h>
+#include <thrust/copy.h>
 
 #include "exceptions.h"
 #include "config.h"
@@ -299,9 +300,9 @@ struct MPIAllreduce
         using value_type = dg::get_value_type<ContainerType>;
         m_h_buffer.template set<value_type>( y.size());
         auto& h_buffer = m_h_buffer.template get<value_type>();
-        h_buffer = y;
+        thrust::copy( y.begin(), y.end(), h_buffer.begin() ); // works even if y is a view
         mpi_reduce( h_buffer);
-        y = h_buffer;
+        thrust::copy( h_buffer.begin(), h_buffer.end(), y.begin() ); // works even if y is a view
     }
     MPI_Comm m_comm;
     mutable detail::AnyVector<thrust::host_vector>  m_h_buffer;
@@ -448,7 +449,8 @@ struct MPIContiguousGather
             else
             {
                 MPI_Waitall( m_rqst.size(), &m_rqst[0], MPI_STATUSES_IGNORE );
-                buffer = m_h_buffer.template get<value_type>();
+                auto & h_buffer = m_h_buffer.template get<value_type>();
+                thrust::copy( h_buffer.begin(), h_buffer.end(), buffer.begin() );
             }
         }
         else
@@ -583,7 +585,7 @@ struct MPIContiguousGather
 #endif // DG_WITH_NCCL
     }
     template<class ContainerType0, class ContainerType1>
-    void cuda_unaware_global_gather_init( const ContainerType0& gatherFrom, ContainerType1&,
+    void cuda_unaware_global_gather_init( const ContainerType0& gatherFrom, ContainerType1& buffer,
         bool self_communication, int rank,
         const std::map<int,thrust::host_vector<MsgChunk>>& recvMsg,
         const std::map<int,thrust::host_vector<MsgChunk>>& sendMsg
@@ -595,7 +597,7 @@ struct MPIContiguousGather
         m_h_store.template set<value_type>( store_size( self_communication));
         // BugFix: buffer value_type must be set even if no messages are sent
         // so that global_gather_wait works
-        m_h_buffer.template set<value_type>( buffer_size( self_communication));
+        m_h_buffer.template set<value_type>( buffer.size()); // global_gather_wait assigns same size
         auto& h_buffer = m_h_buffer.template get<value_type>();
         auto& h_store = m_h_store.template get<value_type>();
         //
@@ -608,19 +610,8 @@ struct MPIContiguousGather
                 continue;
             auto chunk = msg.second[u];
             const void * send_ptr = thrust::raw_pointer_cast(gatherFrom.data()) + chunk.idx;
-
-            cudaError_t code = cudaGetLastError( );
-            if( code != cudaSuccess)
-                throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
-
-            if constexpr( std::is_same_v<dg::get_tensor_category<value_type>, dg::ComplexTag>)
-                code = cudaMemcpy( &h_store[start], send_ptr,
-                    2*chunk.size*sizeof(typename value_type::value_type), cudaMemcpyDeviceToHost);
-            else
-                code = cudaMemcpy( &h_store[start], send_ptr,
-                    chunk.size*sizeof(value_type), cudaMemcpyDeviceToHost);
-            if( code != cudaSuccess)
-                throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+            thrust::copy( gatherFrom.begin()+chunk.idx,
+                gatherFrom.begin()+chunk.idx+chunk.size, h_store.begin() + start);
 
             h_sendMsg[msg.first][u].idx = start;
             start += chunk.size;
