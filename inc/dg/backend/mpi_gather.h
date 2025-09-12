@@ -17,6 +17,32 @@ namespace dg
 {
 namespace detail
 {
+
+// Note from ncclCommGetAsyncError documentation: Query progress and/or errors
+// from asynchronous nccl function
+//
+// nccl functions without stream argument are complete as soon as the return
+// value is ncclSuccess. nccl functions with stream arguments return
+// ncclSuccess as soon as the operation kernel is submitted to the stream. If
+// the state is ncclInProgress no other kernels are allowed to be issued on the
+// stream used by nccl (MW: unless it is another nccl function within ncclGroup
+// calls I guess?) If there is an error on a communicator it should be
+// destroyed using ncclCommAbort
+void ncclCommSynchronize(ncclComm_t comm)
+{
+    // Wait untill all Kernels are submitted, or function returns
+    ncclResult_t state;
+    do
+    {
+        ncclResult_t result = ncclCommGetAsyncError( comm, &state);
+        if( result != ncclSuccess)
+            throw dg::Error(dg::Message(_ping_)<<ncclGetErrorString(result));
+    }
+    while( state == ncclInProgress);
+    if( state != ncclSuccess)
+        throw dg::Error(dg::Message(_ping_)<<ncclGetErrorString(state));
+}
+
 // Similar to exblas/mpi_accumulate, this keeps a static map of comms we already created
 inline void getNcclComm( MPI_Comm comm, ncclComm_t * ncclcomm, cudaStream_t * stream )
 {
@@ -32,12 +58,16 @@ inline void getNcclComm( MPI_Comm comm, ncclComm_t * ncclcomm, cudaStream_t * st
     MPI_Comm_size( comm, &size);
 
     ncclUniqueId ncclid;
+    // Check the nccl user-guide for options
+    ncclConfig_t config = NCCL_CONFIG_INITIALIZER;
+    config.blocking = 0; // important! We want asynchronous communication (MW but has seg-fault on nccl-2.22 and super slow on nccl-2.28)
+    // If blocking = 1 the ncclCommSynchronize calls should be deleted
+
     if( rank == 0)
         ncclGetUniqueId(&ncclid);
     MPI_Bcast((void *)&ncclid, sizeof(ncclid), MPI_BYTE, 0, comm);
-    ncclResult_t result = ncclCommInitRank( ncclcomm, size, ncclid, rank);
-    if( result != ncclSuccess)
-        throw dg::Error(dg::Message(_ping_)<<ncclGetErrorString(result));
+    ncclCommInitRankConfig( ncclcomm, size, ncclid, rank, &config);
+    ncclCommSynchronize( *ncclcomm);
 
 
     cudaStreamCreate( stream);
@@ -286,12 +316,12 @@ struct MPIAllreduce
             ysize *= 2;
         // Since this operation is put on stream != default_stream this will execute asynchronously
         void * send_ptr = thrust::raw_pointer_cast(y.data());
-        ncclResult_t result = ncclAllReduce( send_ptr, send_ptr, ysize,
+        ncclAllReduce( send_ptr, send_ptr, ysize,
             detail::getNcclDataType<value_type>(), ncclSum, ncclcomm, stream);
-        if( result != ncclSuccess)
-            throw dg::Error(dg::Message(_ping_)<<ncclGetErrorString(result));
-
-        cudaStreamSynchronize( stream);
+	// Wait for Kernel to be issued to stream
+	ncclCommSynchronize( ncclcomm);
+	// Sync the stream
+	cudaStreamSynchronize(stream);
 #endif // DG_WITH_NCCL
     }
     template<class ContainerType>
@@ -438,9 +468,11 @@ struct MPIContiguousGather
             if constexpr ( dg::nccl_mpi)
             {
 #ifdef DG_WITH_NCCL
+    // Make sure all Send/Recv Kernels are actually issued to the stream
                 ncclComm_t ncclcomm;
                 cudaStream_t stream;
                 detail::getNcclComm( m_comm, &ncclcomm, &stream);
+		ncclCommSynchronize( ncclcomm);
                 cudaStreamSynchronize(stream);
 #endif // DG_WITH_NCCL
             }
@@ -581,6 +613,7 @@ struct MPIContiguousGather
             ncclSend( send_ptr, chunk.size*mod_size,
                 detail::getNcclDataType<value_type>(), msg.first, ncclcomm, stream);
         }
+	// GroupEnd does not yet mean that all Kernels are submitted, just that grouping is done
         ncclGroupEnd();
 #endif // DG_WITH_NCCL
     }
