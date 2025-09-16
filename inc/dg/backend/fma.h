@@ -18,6 +18,13 @@ auto dg_fma( T0 x, T1 y, T2 z)
 {
     return fma( (T2)x, (T2)y, z);
 }
+// Integer multiplication
+template<class T0, class T1, class T2>
+DG_DEVICE
+std::enable_if_t< std::is_integral_v<T2>,decltype(T0()*T1()+T2())> dg_fma( T0 x, T1 y, T2 z)
+{
+    return x*y+z;
+}
 //////////////////////////////STD/////////////////////////
 template<class T0, class T, class = std::enable_if_t<std::is_floating_point_v<T> >>
 std::complex<T> dg_fma( T0 x, std::complex<T> y, std::complex<T> z)

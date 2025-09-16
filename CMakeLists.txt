@@ -16,7 +16,36 @@ set( FELTOR_INSTALL OFF)
 option(FELTOR_FILE_WITH_JSONCPP "Use jsoncpp instead of nlohmann/json." OFF)
 option(FELTOR_FILE_WITH_NETCDF  "Configure dg_file_netcdf and dg_file_file targets. Depends on NetCDF." ON)
 option(FELTOR_DG_WITH_MATRIX    "Configure dg_matrix target. Depends on Boost and Lapack." ON)
-option(FELTOR_WITH_GLFW         "Configure executables, which allow it, with plotting support. Ignored if MPI is used." ON)
+
+include(CMakeDependentOption)
+
+
+cmake_dependent_option(
+    FELTOR_WITH_GLFW
+    "Configure executables, which allow it, with plotting support. Ignored if MPI is used."
+    ON
+    "NOT FELTOR_WITH_MPI"
+    OFF
+)
+cmake_dependent_option(
+    FELTOR_WITH_NCCL
+    "Use the nccl library for GPU-GPU MPI communication."
+    OFF # default value if cuda is true
+    "FELTOR_WITH_MPI AND (CCCL_THRUST_DEVICE_SYSTEM STREQUAL \"CUDA\" OR CCCL_THRUST_DEVICE_SYSTEM STREQUAL \"\")"
+    OFF # default value if cuda is false
+)
+cmake_dependent_option(
+    FELTOR_CUDA_UNAWARE_MPI
+    "Assume the mpi library is cuda-unaware. In that case all GPU-GPU communication is forced through the host. This variable should only be set to true if the MPI library is not Open-MPI and the MPI library is not cuda aware and FELTOR_WITH_NCCL is false. Ignored if FELTOR_WITH_NCCL is true."
+    OFF # default value if cuda is true
+    "FELTOR_WITH_MPI AND (CCCL_THRUST_DEVICE_SYSTEM STREQUAL \"CUDA\" OR CCCL_THRUST_DEVICE_SYSTEM STREQUAL \"\")"
+    OFF # default value if cuda is false
+)
+message( "Feltor dependent variables")
+message( "  FELTOR_WITH_GLFW = " ${FELTOR_WITH_GLFW})
+message( "  FELTOR_WITH_NCCL = " ${FELTOR_WITH_NCCL})
+message( "  FELTOR_CUDA_UNAWARE_MPI = " ${FELTOR_CUDA_UNAWARE_MPI})
+
 
 # If using vcpkg to install dependencies
 # this is a bit of a hack until a better solution

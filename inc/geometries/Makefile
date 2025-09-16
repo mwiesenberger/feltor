@@ -17,8 +17,12 @@ CPPFILES=$(wildcard *.cpp)
 TARGETS=modified_t\
 solovev_t\
 polynomial_t\
+ds_t\
+ds_guenter_t\
 
-#TARGETSMPI=
+TARGETSMPI=\
+mpi_ds_t\
+mpi_ds_guenter_t
 
 #all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 all: tests mpi-tests
@@ -29,7 +33,7 @@ all: tests mpi-tests
 %_mpib: %_b.cpp
 	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) -DWITH_MPI $(LIBS) $(JSONLIB)
 
-%_t.$(device).o: %_t.cpp %.h
+%_t.$(device).o: %_t.cpp
 	$(CC) $(OPT) $(CFLAGS) -c $< -o $@ -g $(INCLUDE)
 
 mpi_%_t.$(device).o: %_t.cpp

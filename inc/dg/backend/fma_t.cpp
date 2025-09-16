@@ -36,4 +36,7 @@ TEST_CASE( "Test FMA support")
     z3 = z1*t+z2;
     CHECK( DG_FMA(  z1, t, z2) == z3);
     }
+    // Test integer addition
+    CHECK( DG_FMA( 3,4,5) == 17);
+
 }

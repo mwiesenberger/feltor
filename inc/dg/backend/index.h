@@ -392,13 +392,13 @@ std::map<int, IntVec> gIdx2unique_idx(
 }
 
 template<class ConversionPolicy, class IntVec = thrust::host_vector<int>>
-thrust::host_vector<std::array<int,2>> gIdx2gIdx( const IntVec& gIdx, const ConversionPolicy& p)
+thrust::host_vector<int> gIdx2gIdx( IntVec& gIdx, const ConversionPolicy& p)
 {
-    thrust::host_vector<std::array<int,2>> arrayIdx( gIdx.size());
+    thrust::host_vector<int> pids( gIdx.size());
     for(unsigned i=0; i<gIdx.size(); i++)
         assert(p.global2localIdx(gIdx[i],
-                    arrayIdx[i][1], arrayIdx[i][0]) );
-    return arrayIdx;
+                    gIdx[i], pids[i]) );
+    return pids;
 }
 
 /**
