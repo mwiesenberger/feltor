@@ -16,9 +16,9 @@ struct Collisions
         m_temp1 = m_temp0;
         dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B2);
         dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
-        m_tperpST.resize( p.num_species);
-        m_tparaST.resize( p.num_species);
         m_u.resize( p.num_species);
+	std::fill( m_u.begin(), m_u.end(), m_temp0);
+	m_tperpST = m_tparaST = m_u;
         m_lapperpN.construct ( g, p.bcxN, p.bcyN,  p.diff_dir);
         m_R0 = mag.R0();
     }

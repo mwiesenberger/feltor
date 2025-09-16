@@ -91,14 +91,14 @@ struct Explicit
         return m_old_psi.head();
     }
     const Container& density_source(int i)const{
-        return m_s[0][i];
+        return m_ss[0][i];
     }
     const Container& velocity(int i)const{
         return m_velocity[i];
     }
     const Container& velocity_source(int i){
         update_diag();
-        return m_s[1][i];
+        return m_ss[1][i];
     }
     const std::array<Container, 3> & gradN (int i) {
         update_diag();
@@ -149,8 +149,8 @@ struct Explicit
         // MW: don't like this function, if we need more gradients we might
         // want a more flexible solution
         // grad S_ne and grad S_ni
-        dg::blas2::symv( m_dxF_N, m_s[0][i], gradS[0]);
-        dg::blas2::symv( m_dyF_N, m_s[0][i], gradS[1]);
+        dg::blas2::symv( m_dxF_N, m_ss[0][i], gradS[0]);
+        dg::blas2::symv( m_dyF_N, m_ss[0][i], gradS[1]);
     }
     void compute_dot_aparallel( Container& tmp) const {
         m_old_apar.derive( tmp);
@@ -360,9 +360,9 @@ struct Explicit
                 dg::geo::ds_centered( m_fa, 1., m_minus, m_plus, 0.,
                         m_dsU[i]);
                 // velocity source
-                dg::blas1::evaluate( m_s[1][i], dg::equals(), []DG_DEVICE(
+                dg::blas1::evaluate( m_ss[1][i], dg::equals(), []DG_DEVICE(
                             double sn, double u, double n){ return -u*sn/n;},
-                        m_s[0][i], m_velocity[i], m_density[i]);
+                        m_ss[0][i], m_velocity[i], m_density[i]);
             }
             for( unsigned i=0; i<2; i++)
             for( unsigned j=0; j<3; j++)
@@ -452,7 +452,7 @@ struct Explicit
     dg::Extrapolation<Container> m_old_apar;
     std::array<Container,4> m_psi; // different for each species
 
-    std::array<std::vector<Container>,3> m_s; // source terms for all species
+    std::array<std::vector<Container>,3> m_ss; // source terms for all species
     std::array<std::vector<Container>,3> m_source, m_profile; // (physical) source terms for all species
 
     const thermal::Parameters m_p;
@@ -486,6 +486,9 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     m_temp0 = m_temp1 = m_phi;
     for( int i=0; i<4; i++)
         m_psi[i] = m_phi;
+    for( int i=0; i<3; i++)
+        m_ss[i].resize( m_p.num_species, m_phi);
+    m_source = m_profile = m_ss;
 
     //--------------------------Construct-------------------------//
     m_upToDate.resize( m_p.num_species);
@@ -518,8 +521,8 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
         {
             // If fixed profile transform profiles first
             transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],  m_profile[1][s], m_phi,
-                m_s[0][s], m_s[1][s]);
-            dg::blas1::copy( m_profile[2][s], m_s[2][s]);
+                m_ss[0][s], m_ss[1][s]);
+            dg::blas1::copy( m_profile[2][s], m_ss[2][s]);
             for( unsigned u=0; u<3; u++)
             {
                 if( m_source_rate[u][s] != 0.0)
@@ -529,10 +532,10 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
                             double source, double source_rate){
                             result = source_rate*source*(profne - ne);
                             },
-                        m_s[u][s], y[u][s], m_s[u][s], m_source[u][s], m_source_rate[u][s]);
+                        m_ss[u][s], y[u][s], m_ss[u][s], m_source[u][s], m_source_rate[u][s]);
                 }
                 else
-                    dg::blas1::copy( 0., m_s[u][s]);
+                    dg::blas1::copy( 0., m_ss[u][s]);
             }
         }
         else // influx
@@ -541,20 +544,20 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
             {
                 if( m_source_rate[u][s] != 0.0)
                 {
-                    dg::blas1::axpby( m_source_rate[u][s], m_source[u][s], 0., m_s[u][s]);
+                    dg::blas1::axpby( m_source_rate[u][s], m_source[u][s], 0., m_ss[u][s]);
                 }
                 else
-                    dg::blas1::copy( 0., m_s[u][s]);
+                    dg::blas1::copy( 0., m_ss[u][s]);
             }
             // if influx transform sources last
-            transform_density_pperp( m_p.mu[s], m_p.z[s], m_s[0][s],  m_s[1][s], m_phi,
-                m_s[0][s], m_s[1][s]);
+            transform_density_pperp( m_p.mu[s], m_p.z[s], m_ss[0][s],  m_ss[1][s], m_phi,
+                m_ss[0][s], m_ss[1][s]);
         }
     }
     //Add all to the right hand side
     for( unsigned u=0; u<3; u++)
         for( unsigned s=0; s<m_p.num_species; s++)
-            dg::blas1::axpby( 1., m_s[u][s], 1.0, yp[u][s]);
+            dg::blas1::axpby( 1., m_ss[u][s], 1.0, yp[u][s]);
 }
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
@@ -624,15 +627,26 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     m_parallel.update_apar( m_aparST, m_apar);
     // Compute apar, bperp, and divbperp
     m_old_apar.update( t, m_apar);
+    timer.toc();
+    accu += timer.diff();
+    DG_RANK0 std::cout << "## Compute Apar and staggered N      took "
+                       << timer.diff()<<"s\t A: "<<accu<<"s\n";
 
     // main species loop
     for( unsigned s=0; s<m_p.num_species; s++)
     {
+        timer.tic();
         m_upToDate[s] = false;
 
         // Compute the three potentials
         m_solvers.compute_psi( t, density, pperp, m_phi, m_psi, s);
         m_parallel.update_quantities( s, m_aparST, m_psi, y);
+        timer.toc();
+        accu += timer.diff();
+        DG_RANK0 std::cout << "## Species "<<m_p.name[s]
+			   <<" compute psi                       took "
+                           << timer.diff() << "s\t A: "<<accu<<"s\n";
+        timer.tic();
 
         // Set perpendicular advection in yp
         m_perp.add_perp_densities_advection(  s, m_apar, m_psi, y,
@@ -643,7 +657,8 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
         timer.toc();
         accu += timer.diff();
-        DG_RANK0 std::cout << "## Compute perp dynamics             took "
+        DG_RANK0 std::cout << "## Species "<<m_p.name[s]
+			   <<" compute perp dynamics             took "
                            << timer.diff() << "s\t A: "<<accu<<"s\n";
         timer.tic();
 
@@ -663,12 +678,12 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
         timer.toc();
         accu += timer.diff();
-        DG_RANK0 std::cout << "## Compute para dynamics             took "
+        DG_RANK0 std::cout << "## Species "<<m_p.name[s]
+			   <<" compute para dynamics             took "
                            << timer.diff() << "s\t A: "<<accu<<"s\n";
-        timer.tic();
 
     } // species loops
-
+    timer.tic();
     m_collisions.add_collisions( m_parallel.get_staggered_density(), m_aparST, y, yp);
     m_parallel.add_sheath_velocity_terms( m_collisions.get_tparaST(), yp);
 
@@ -692,11 +707,11 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     //Add source terms
     // set m_s
     add_source_terms( y, yp );
-    m_parallel.add_velocity_source_term( m_s[0], wST, m_aparST, yp);
+    m_parallel.add_velocity_source_term( m_ss[0], wST, m_aparST, yp);
 
     timer.toc();
     accu += timer.diff();
-    DG_RANK0 std::cout << "## Add parallel dynamics and sources took "<<timer.diff()
+    DG_RANK0 std::cout << "## Add collisions        and sources took "<<timer.diff()
               << "s\t A: "<<accu<<"\n";
 }
 

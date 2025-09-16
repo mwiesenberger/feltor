@@ -225,7 +225,7 @@ ParallelDynamics<Grid, IMatrix, Matrix, Container>::ParallelDynamics( const Grid
     m_q = m_qST = m_plusST;
     std::fill( m_dsP.begin(), m_dsP.end(), m_temp);
     std::fill( m_dsPST.begin(), m_dsPST.end(), m_temp);
-
+    std::fill( m_psiST.begin(), m_psiST.end(), m_temp);
     std::fill( m_divNUb.begin(), m_divNUb.end(), m_temp);
 
     m_reversed_field = false;

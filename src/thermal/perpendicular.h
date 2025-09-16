@@ -335,6 +335,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_perp_densities_advectio
     std::array<std::vector<Container>,6>& yp
 )
 {
+    update_density_derivatives( s, apar, psi, y, q);
     /////////////////////////////////////////////////////////////////
     double mu = m_p.mu[s], z = m_p.z[s], beta = m_p.beta;
     dg::blas1::subroutine( [mu, z, beta] DG_DEVICE (

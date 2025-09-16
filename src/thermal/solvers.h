@@ -112,7 +112,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     // The first species is the electron species where mass is neglected
     for( unsigned s = 1; s<m_p.num_species; s++)
     {
-        dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B2, 0., m_temp1);
+        dg::blas1::pointwiseDivide( m_p.mu[s], density[s], m_B2, 1., m_temp0);
     }
     m_multigrid.project( m_temp0, m_multi_chi);
     for( unsigned u=0; u<m_p.stages; u++)
@@ -137,11 +137,11 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
 
         //compute Gamma^dagger N_s
         dg::blas1::transform( density[s], m_temp1, dg::PLUS<double>(-m_p.nbc[s]));
-        m_old_gammaN[s].extrapolate( time, m_temp2);
+        m_old_gammaN[s-1].extrapolate( time, m_temp2);
         m_multigrid.set_benchmark( true, "Gamma N"+m_p.name[s]+"     ");
         std::vector<unsigned> numberG = m_multigrid.solve(
             m_multi_invgammaN, m_temp2, m_temp1, m_p.eps_gamma);
-        m_old_gammaN[s].update( time, m_temp2);
+        m_old_gammaN[s-1].update( time, m_temp2);
 
         // gamma *2 / rho^2
         dg::blas1::pointwiseDot( m_temp2, m_rhoinv2, m_temp2);
@@ -153,6 +153,8 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     //----------Invert polarisation----------------------------//
     m_old_phi.extrapolate( time, phi);
     m_multigrid.set_benchmark( true, "Polarisation");
+
+
     std::vector<unsigned> number = m_multigrid.solve(
         m_multi_pol, phi, m_temp0, m_p.eps_pol);
     m_old_phi.update( time, phi);
