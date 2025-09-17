@@ -10,6 +10,7 @@
 #include "perpendicular.h"
 #include "parallel.h"
 #include "collisions.h"
+#include "sources.h"
 
 
 namespace thermal
@@ -58,7 +59,7 @@ struct Explicit
     const Container& binv( ) const { return m_perp.binv(); }
     const Container& bhatgB( ) const { return m_perp.bhatgB(); } // \pm 1/B
     const Container& get_wall() const{
-        return m_wall;
+        return m_sources.get_wall();
     }
     const Container& get_sheath() const{
         return m_parallel.get_sheath();
@@ -74,10 +75,10 @@ struct Explicit
 
     unsigned called() const { return m_called;}
     const Container& get_source(unsigned u, unsigned s) const{
-        return m_source[u][s];
+        return m_sources.get_source( u,s);
     }
     const Container& get_source_prof(unsigned u, unsigned s) const{
-        return m_profile[u][s];
+        return m_sources.get_source_prof( u,s);
     }
 
     /*
@@ -388,8 +389,6 @@ struct Explicit
 
     }
     */
-
-    //source strength, profile - 1
     void set_source(
         bool fixed_profile, // cannot be mixed among species or equations due to quasineutrality and transformation
         const std::array<std::vector<double>,3>& source_rate,
@@ -399,35 +398,19 @@ struct Explicit
         double minrate,
         const std::vector<double>& minalpha)
     {
-        m_fixed_profile = fixed_profile;
-        m_source_rate = source_rate;
-        for( unsigned u=0; u<3; u++)
-        {
-            m_profile[u].resize( m_p.num_species);
-            m_source[u].resize( m_p.num_species);
-            for( unsigned s=0; s<m_p.num_species; s++)
-            {
-                m_profile[u][s] = profile[u][s];
-                m_source[u][s]  = source[u][s];
-            }
-        }
-        m_minne = minne;
-        m_minrate = minrate;
-        m_minalpha = minalpha;
+        m_sources.set_source( fixed_profile, source_rate, profile, source,
+            minne, minrate, minalpha);
     }
     void set_wall(const Container& wall)
     {
-        dg::assign( wall, m_wall);
+        m_sources.set_wall( wall);
     }
+
     void set_sheath(double sheath_rate, const Container& sheath,
             const Container& sheath_coordinate)
     {
         m_parallel.set_sheath( sheath_rate, sheath, sheath_coordinate);
     }
-    void add_wall_terms(   std::array<std::vector<Container>,6>& yp);
-    void add_source_terms(
-        const std::array<std::vector<Container>,6>& y,
-        std::array<std::vector<Container>,6>& yp);
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
     {
         return m_parallel.fieldaligned();
@@ -443,29 +426,19 @@ struct Explicit
     ParallelDynamics<Geometry, IMatrix, Matrix, Container> m_parallel;
     ThermalSolvers<Geometry, Matrix, Container> m_solvers;
     Collisions<Geometry, IMatrix, Matrix, Container> m_collisions;
+    Sources<Geometry, IMatrix, Matrix, Container> m_sources;
 
     //
     Container m_phi, m_apar, m_aparST; // same for all species
 
-    Container m_temp0, m_temp1;
-    Container m_wall;
     dg::Extrapolation<Container> m_old_apar;
     std::array<Container,4> m_psi; // different for each species
-
-    std::array<std::vector<Container>,3> m_ss; // source terms for all species
-    std::array<std::vector<Container>,3> m_source, m_profile; // (physical) source terms for all species
 
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
     std::vector<bool> m_upToDate;
 
-    std::array<std::vector<double>,3> m_source_rate;
-    bool m_fixed_profile = false;
-
-    std::vector<double> m_minne, m_minalpha;
-    double m_minrate  = 0.;
     unsigned m_called = 0;
-
 };
 
 template<class Grid, class IMatrix, class Matrix, class Container>
@@ -477,18 +450,15 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
     m_parallel( g, p, mag, js),
     m_solvers( g, p, mag, js),
     m_collisions( g, p, mag, js),
+    m_sources( g, p, mag, js),
     m_old_apar( 2, dg::evaluate( dg::zero, g)),
     m_p(p), m_js(js)
 {
     //--------------------------init vectors to 0-----------------//
     dg::assign( dg::evaluate( dg::zero, g), m_phi );
     m_apar = m_aparST = m_phi;
-    m_temp0 = m_temp1 = m_phi;
     for( int i=0; i<4; i++)
         m_psi[i] = m_phi;
-    for( int i=0; i<3; i++)
-        m_ss[i].resize( m_p.num_species, m_phi);
-    m_source = m_profile = m_ss;
 
     //--------------------------Construct-------------------------//
     m_upToDate.resize( m_p.num_species);
@@ -497,87 +467,6 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
 
 }
 
-
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::add_source_terms(
-    const std::array<std::vector<Container>,6>& y,
-    std::array<std::vector<Container>,6>& yp)
-{
-    for( unsigned s=0; s<m_p.num_species; s++)
-    {
-        // First, add minimum density source
-        // add prevention to get below lower limit
-        if( m_minrate != 0.0)
-        {
-            // do not make lower forcing a velocity source
-            // MW it may be that this form does not go well with the potential
-            dg::blas1::transform( y[0][s], m_temp0, dg::PolynomialHeaviside(
-                        m_minne[s]-m_minalpha[s]/2., m_minalpha[s]/2., -1) );
-            dg::blas1::transform( y[0][s], m_temp1, dg::PLUS<double>( -m_minne[s]));
-            dg::blas1::pointwiseDot( -m_minrate, m_temp1, m_temp0, 1., yp[0][s]);
-        }
-
-        if( m_fixed_profile )
-        {
-            // If fixed profile transform profiles first
-            transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],  m_profile[1][s], m_phi,
-                m_ss[0][s], m_ss[1][s]);
-            dg::blas1::copy( m_profile[2][s], m_ss[2][s]);
-            for( unsigned u=0; u<3; u++)
-            {
-                if( m_source_rate[u][s] != 0.0)
-                {
-                    dg::blas1::subroutine(
-                        [] DG_DEVICE ( double& result, double ne, double profne,
-                            double source, double source_rate){
-                            result = source_rate*source*(profne - ne);
-                            },
-                        m_ss[u][s], y[u][s], m_ss[u][s], m_source[u][s], m_source_rate[u][s]);
-                }
-                else
-                    dg::blas1::copy( 0., m_ss[u][s]);
-            }
-        }
-        else // influx
-        {
-            for( unsigned u=0; u<3; u++)
-            {
-                if( m_source_rate[u][s] != 0.0)
-                {
-                    dg::blas1::axpby( m_source_rate[u][s], m_source[u][s], 0., m_ss[u][s]);
-                }
-                else
-                    dg::blas1::copy( 0., m_ss[u][s]);
-            }
-            // if influx transform sources last
-            transform_density_pperp( m_p.mu[s], m_p.z[s], m_ss[0][s],  m_ss[1][s], m_phi,
-                m_ss[0][s], m_ss[1][s]);
-        }
-    }
-    //Add all to the right hand side
-    for( unsigned u=0; u<3; u++)
-        for( unsigned s=0; s<m_p.num_species; s++)
-            dg::blas1::axpby( 1., m_ss[u][s], 1.0, yp[u][s]);
-}
-
-template<class Geometry, class IMatrix, class Matrix, class Container>
-void Explicit<Geometry, IMatrix, Matrix, Container>::add_wall_terms(
-        std::array<std::vector<Container>,6>& yp)
-{
-    // add wall boundary conditions
-    if( m_p.wall_rate != 0)
-    {
-        for( unsigned s=0; s<m_p.num_species; s++)
-        {
-            dg::blas1::axpby( +m_p.wall_rate*m_p.nwall[s], m_wall, 1., yp[0][s] );
-            dg::blas1::axpby( +m_p.wall_rate*m_p.twall*m_p.nwall[s], m_wall, 1., yp[1][s] );
-            dg::blas1::axpby( +m_p.wall_rate*m_p.twall*m_p.nwall[s], m_wall, 1., yp[2][s] );
-            dg::blas1::axpby( +m_p.wall_rate*m_p.uwall, m_wall, 1., yp[3][s] );
-            dg::blas1::axpby( +m_p.wall_rate*m_p.qwall, m_wall, 1., yp[4][s] );
-            dg::blas1::axpby( +m_p.wall_rate*m_p.qwall, m_wall, 1., yp[5][s] );
-        }
-    }
-}
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
@@ -608,7 +497,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     // First compute potentials phi and apar
 
     m_solvers.compute_phi( t, density, pperp, m_phi, m_p.penalize_wall,
-        m_wall, m_p.penalize_sheath, m_parallel.get_sheath());
+        m_sources.get_wall(), m_p.penalize_sheath, m_parallel.get_sheath());
 
     timer.toc();
     accu += timer.diff();
@@ -692,22 +581,21 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
         for( unsigned s=0; s<m_p.num_species; s++)
         {
             common::multiply_rhs_penalization( yp[u][s], m_p.penalize_wall,
-                m_wall, m_p.penalize_sheath, m_parallel.get_sheath()); // F*(1-chi_w-chi_s)
+                m_sources.get_wall(), m_p.penalize_sheath, m_parallel.get_sheath()); // F*(1-chi_w-chi_s)
             if( u == 3)
                 // Apply to U, not W
-                dg::blas1::pointwiseDot( -m_p.wall_rate, m_wall, m_parallel.get_qST()[3],
+                dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), m_parallel.get_qST()[3],
                     -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), m_parallel.get_qST()[3], 1., yp[u][s]);
             else
-                dg::blas1::pointwiseDot( -m_p.wall_rate, m_wall, y[u][s],
+                dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), y[u][s],
                     -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), y[u][s], 1., yp[u][s]);
         }
     }
 
-    add_wall_terms( yp);
+    m_sources.add_wall_terms( yp);
     //Add source terms
     // set m_s
-    add_source_terms( y, yp );
-    m_parallel.add_velocity_source_term( m_ss[0], wST, m_aparST, yp);
+    m_sources.add_source_terms( m_perp, m_parallel, m_phi, m_aparST, y, yp );
 
     timer.toc();
     accu += timer.diff();
