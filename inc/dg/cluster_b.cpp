@@ -61,7 +61,7 @@ int main(
     int dims[3] = {1,1,1};
     int rank = 0;
 #ifdef WITH_MPI
-    dg::mpi_init( argc, argv);
+    dg::mpi_init( &argc, &argv);
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
     MPI_Comm comm;
     bool verbose = false;
