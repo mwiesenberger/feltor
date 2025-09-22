@@ -147,6 +147,7 @@ T phi4( T x){
 /**
  * @brief \f$ f(x) = (-a*x)^n/n! exp(a*x) \f$
  *
+ * \f$ f(x,y) \equiv f(xy) \f$
  * @tparam T value type (can be complex)
  */
 template<class T = double>
