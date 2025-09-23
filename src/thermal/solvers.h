@@ -21,7 +21,7 @@ struct ThermalSolvers
         dg::geo::TokamakMagneticField mag, dg::file::WrappedJsonValue);
     void compute_phi(
         double time, const std::vector<Container>& density,
-        const std::vector<Container>& pperp,
+        const std::vector<Container>& tperp,
         Container& phi,
         bool penalize_wall, const Container& wall,
         bool penalize_sheath, const Container& sheath
@@ -34,10 +34,15 @@ struct ThermalSolvers
 
     // Only valid directly after compute_phi, because it stores tridiag from phi
     void compute_psi(
-        double time, const std::vector<Container>& density,
-        const std::vector<Container>& pperp,
+        double time,
+        const std::vector<Container>& density,
+        const std::vector<Container>& tperp,
         const Container& phi,
-        std::array<Container,4>& psi, unsigned s);
+        std::vector<Container>& psi0,
+        std::vector<Container>& psi1,
+        std::vector<Container>& psi2,
+        std::vector<Container>& psi3
+    );
 
     const Geometry& grid() const {
         return m_multigrid.grid(0);
@@ -90,7 +95,7 @@ ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
             p.bcxP, p.bcyP,
             p.pol_dir, p.jfactor);
         m_multi_invgammaN[u] = { -1.,
-                {m_multigrid.grid(u), p.bcxN, p.bcyN, p.pol_dir}};
+                {m_multigrid.grid(u), p.bcx, p.bcy, p.pol_dir}};
         m_multi_ampere[u] = {  -1.,
                 {m_multigrid.grid(u), p.bcxA, p.bcyA, p.pol_dir}};
     }
@@ -101,7 +106,7 @@ ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
 template<class Geometry, class Matrix, class Container>
 void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     double time, const std::vector<Container>& density,
-    const std::vector<Container>& pperp,
+    const std::vector<Container>& tperp,
     Container& phi,
     bool penalize_wall, const Container& wall,
     bool penalize_sheath, const Container& sheath
@@ -122,13 +127,11 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
     dg::blas1::copy( 0, m_temp0);
     double min = 0.;
     // Electrons
-    dg::blas1::transform( density[0], m_temp1, dg::PLUS<double>(-m_p.nbc[0]));
-    dg::blas1::axpby( m_p.z[0], m_temp1, 1., m_temp0);
+    dg::blas1::axpby( m_p.z[0], density[0], 1., m_temp0);
     for( unsigned s = 1; s<m_p.num_species; s++)
     {
         // compute 2/rho_s^2
-        dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // T_perp = P_perp / N
-        dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B2, m_temp1, 0., m_rhoinv2);
+        dg::blas1::pointwiseDivide( 2.*m_p.z[s]*m_p.z[s]/m_p.mu[s], m_B2, tperp[s], 0., m_rhoinv2);
         min = std::min( dg::blas1::reduce( m_rhoinv2, 1e308, thrust::minimum<double>()), min);
 
         m_multigrid.project( m_rhoinv2, m_multi_chi);
@@ -136,11 +139,10 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
             m_multi_invgammaN[u].set_chi( m_multi_chi[u]);
 
         //compute Gamma^dagger N_s
-        dg::blas1::transform( density[s], m_temp1, dg::PLUS<double>(-m_p.nbc[s]));
         m_old_gammaN[s-1].extrapolate( time, m_temp2);
         m_multigrid.set_benchmark( true, "Gamma N"+m_p.name[s]+"     ");
         std::vector<unsigned> numberG = m_multigrid.solve(
-            m_multi_invgammaN, m_temp2, m_temp1, m_p.eps_gamma);
+            m_multi_invgammaN, m_temp2, density[s], m_p.eps_gamma);
         m_old_gammaN[s-1].update( time, m_temp2);
 
         // gamma *2 / rho^2
@@ -217,34 +219,40 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_aparST(
 
 template<class Geometry, class Matrix, class Container>
 void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
-    double, const std::vector<Container>& density,
-    const std::vector<Container>& pperp,
-    const Container& phi, std::array<Container,4>& psi, unsigned s
+    double,
+    const std::vector<Container>& density,
+    const std::vector<Container>& tperp,
+    const Container& phi,
+    std::vector<Container>& psi0,
+    std::vector<Container>& psi1,
+    std::vector<Container>& psi2,
+    std::vector<Container>& psi3
     )
 {
-    // it's easy to get confused about minusses here
-    if( s == 0 )
+    // s == 0
+    dg::blas1::copy( phi, psi0[0]);
+    dg::blas1::copy( 0,   psi1[0]);
+    dg::blas1::copy( 0,   psi2[0]);
+    dg::blas1::copy( 0,   psi3[0]);
+    for( unsigned s = 1; s<m_p.num_species; s++)
     {
-        dg::blas1::copy( phi, psi[0]);
-        for( unsigned u=1; u<4; u++)
-            dg::blas1::copy( 0, psi[u]);
-        return;
+        Container& omega_s = m_rhoinv2;
+        // compute rho_s^2/2
+        dg::blas1::pointwiseDivide( m_p.mu[s]/2./m_p.z[s]/m_p.z[s], tperp[s], m_B2, 0., omega_s);
+        std::array<Container*,4> psis = {&psi0[s], &psi1[s], &psi2[s], &psi3[s]};
+        for( unsigned u=0; u<4; u++)
+        {
+            //-----------Solve for Psi i--------------------------------//
+            dg::mat::GyrolagK<double> func(u, -1.); // A^n/n! exp( -A), A = -\Delta_\perp, omega_s
+            m_prod.compute_vlcl( func, omega_s, m_laplaceM, m_T, *psis[u], phi,
+                m_prod.lanczos().get_bnorm());
+        }
+        dg::blas1::axpbypgz( -6., psi1[s], 12., psi2[s], -6., psi3[s]);
+        dg::blas1::axpby(    -2., psi1[s],  2., psi2[s]);
+        dg::blas1::scal( psi1[s], -1.);
+        m_laplaceM.variation( phi, m_temp0);
+        dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., psi0[s]);
     }
-    // compute rho_s^2/2
-    dg::blas1::pointwiseDivide( pperp[s], density[s], m_temp1); // bar T_perp = bar P_perp / N
-    dg::blas1::pointwiseDivide( m_p.mu[s]/2./m_p.z[s]/m_p.z[s], m_temp1, m_B2, 0., m_rhoinv2);
-
-    //-----------Solve for Gamma1 Phi---------------------------//
-    for( unsigned u=0; u<4; u++)
-    {
-        dg::mat::GyrolagK<double> func(u, -1.);
-        m_prod.compute_vlcl( func, m_rhoinv2, m_laplaceM, m_T, psi[u], phi, m_prod.lanczos().get_bnorm());
-    }
-    dg::blas1::axpbypgz( -6., psi[1], 12., psi[2], -6., psi[3]);
-    dg::blas1::axpby(    -2., psi[1],  2., psi[2]);
-    dg::blas1::scal( psi[1], -1.);
-    m_laplaceM.variation( phi, m_temp0);
-    dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., psi[0]);
 }
 
 }//namespace thermal

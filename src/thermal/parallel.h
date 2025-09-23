@@ -33,92 +33,70 @@ struct ParallelDynamics
         return m_sheath_coordinate;
     }
     // call before computing AparST
-    void update_staggered_density( const std::vector<Container>& density)
+    // Update the parallel transform quantities for the densities N, Pperp and
+    // Ppara, Tperp and Tpara
+    void compute_staggered_densities(
+        const std::array<std::vector<Container>,6>& y,
+        std::map<std::string, std::vector<Container>>& q
+    );
+
+    void compute_apar( const Container& aparST, Container& apar)
     {
-        for( unsigned s=0; s<m_p.num_species; s++)
-        {
-            //density
-            m_faST( dg::geo::zeroMinus, density[s], m_minusSTN[s]);
-            m_faST( dg::geo::einsPlus,  density[s], m_STN[s]);
-            update_parallel_bc_1st( m_minusSTN[s], m_STN[s],
-                    m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc[s] : 0.);
-            dg::blas1::axpby( 0.5, m_minusSTN[s], 0.5, m_STN[s], m_STN[s]);
-        }
+        m_faHalf( dg::geo::einsMinus, aparST, m_tminus);
+        m_faHalf( dg::geo::zeroPlus,  aparST, m_tplus);
+        update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcxA, 0.);
+        dg::blas1::axpby( 0.5, m_tminus, 0.5, m_tplus, apar);
     }
 
-    void update_apar( const Container& aparST, Container& apar)
-    {
-        m_faST( dg::geo::einsMinus, aparST, m_minusST[0]);
-        m_faST( dg::geo::zeroPlus,  aparST, m_plusST[0]);
-        update_parallel_bc_1st( m_minusST[0], m_plusST[0], m_p.bcxA, 0.);
-        dg::blas1::axpby( 0.5, m_minusST[0], 0.5, m_plusST[0], apar);
-    }
-
-    // call once per species ( also updates m_minusST, ...)
-    void update_quantities(
-        unsigned s,
-        const Container& aparST,
-        const std::array<Container,4>& psi,
-        const std::array<std::vector<Container>,6>& y);
-    // N, Tperp, Tpara, U, Uperp, Upara
-    const std::array<Container,6>& get_q( ) const{return m_q;}
-    const std::array<Container,6>& get_qST( ) const{return m_qST;}
-    const std::array<Container,4>& get_psiST( ) const{return m_psiST;}
-    const std::vector<Container>& get_staggered_density() const{ return m_STN; }
+    void compute_parallel_transformations(
+        const std::array<std::vector<Container>,6>& y,
+        std::map<std::string, std::vector<Container>>& q
+    );
 
     // Call after update_quantities
-    void add_para_densities_advection(
+    void add_densities_advection(
         unsigned s,
-        const std::array<Container,4>& psi,
         const std::array<std::vector<Container>,6>& y,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
-    void add_para_velocities_advection(
+    void add_velocities_advection(
         unsigned s,
         const std::array<std::vector<Container>,6>& y,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
-    void add_para_densities_diffusion(
+    void add_densities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>& y,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
-    void add_para_velocities_diffusion(
+    void add_velocities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>& y,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
 
-    // Has to be called together with add_para_dynamics
     void add_sheath_neumann_terms(
         unsigned s,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
-
-    // Has to be called once tparaST could be collected in collisions
     void add_sheath_velocity_terms(
-        const std::vector<Container>& tparaST, // from collisions
+        unsigned s,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
 
     void add_velocity_source_term(
+        unsigned s,
         const std::vector<Container>& sn,
-        const std::vector<Container>& wST,
-        const Container& aparST,
+        const std::vector<Container>& STN,
+        const std::vector<Container>& STU,
         std::array<std::vector<Container>,6>& yp)
     {
-        for( unsigned s=0; s<m_p.num_species; s++)
-        {
-            // S_U = - U S_N / N
-            // transform to adjoint plane and add to velocity source
-            m_faST( dg::geo::zeroMinus, sn[s], m_tminus);
-            m_faST( dg::geo::einsPlus,  sn[s], m_tplus);
-            update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcxN, 0.);
-            dg::geo::ds_average( m_faST, 1., m_tminus, m_tplus, 0., m_temp);
-
-            double mus = m_p.mu[s], zs = m_p.z[s];
-            dg::blas1::evaluate( yp[3][s], dg::plus_equals(), [mus, zs]DG_DEVICE(
-                        double snST, double wST, double nST, double aparST)
-                    {
-                        double uST = wST - zs/mus * aparST;
-                        return -uST*snST/nST;
-                    },
-                m_temp, wST[s], m_STN[s], aparST);
-        }
+        // S_U = - U S_N / N
+        // transform to adjoint plane and add to velocity source
+        m_faHalf( dg::geo::zeroMinus, sn[s], m_tminus);
+        m_faHalf( dg::geo::einsPlus,  sn[s], m_tplus);
+        update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcx, 0.);
+        dg::geo::ds_average( m_faHalf, 1., m_tminus, m_tplus, 0., m_temp);
+        dg::blas1::pointwiseDot( STU[s], m_temp, m_temp);
+        dg::blas1::pointwiseDivide( -1., m_temp, STN[s], 1., yp[3][s]);
     }
 
     private:
@@ -145,7 +123,7 @@ struct ParallelDynamics
             dg::bc bcx, double value)
     {
         if( m_p.fci_bc == "along_field")
-            dg::geo::assign_bc_along_field_1st( m_faST, minusST, plusST,
+            dg::geo::assign_bc_along_field_1st( m_faHalf, minusST, plusST,
                     minusST, plusST, bcx, {value,value});
         else
         {
@@ -178,25 +156,12 @@ struct ParallelDynamics
             }
         }
     }
-    dg::geo::Fieldaligned<Geometry, IMatrix, Container> m_fa, m_faST;
+    dg::geo::Fieldaligned<Geometry, IMatrix, Container> m_fa, m_faHalf;
 
     Container m_temp, m_tminus, m_tplus;
     Container m_divb;
 
-    std::vector<Container> m_minusSTN, m_STN;
-    // m_plusSTN = 2*m_STN - m_minusSTN
-
-    // Everything is:
-    // N, Tperp, Tpara, UST, UperpST, UparaST
-    std::array<Container,6> m_minus, m_zero, m_plus, m_minusST, m_plusST;
-    // N, Tperp, Tpara, U, Uperp, Upara
-    std::array<Container,6> m_q, m_qST;
-    // ds Psi
-    std::array<Container,2> m_dsP, m_dsPST;
-    // PsiST
-    std::array<Container,4> m_psiST;
-
-    std::array<Container,6> m_divNUb;
+    std::array<std::vector<Container>,6> m_divNUb;
 
     Container m_sheath_coordinate, m_sheath;
 
@@ -215,17 +180,6 @@ ParallelDynamics<Grid, IMatrix, Matrix, Container>::ParallelDynamics( const Grid
     dg::assign( dg::evaluate( dg::zero, g), m_temp );
     m_tminus = m_tplus = m_temp;
 
-    m_minusSTN.resize( m_p.num_species);
-    std::fill( m_minusSTN.begin(), m_minusSTN.end(), m_temp);
-    m_STN = m_minusSTN;
-    std::fill( m_minus.begin(), m_minus.end(), m_temp);
-    m_zero = m_plus = m_minus;
-    std::fill( m_minusST.begin(), m_minusST.end(), m_temp);
-    std::fill( m_plusST.begin(), m_plusST.end(), m_temp);
-    m_q = m_qST = m_plusST;
-    std::fill( m_dsP.begin(), m_dsP.end(), m_temp);
-    std::fill( m_dsPST.begin(), m_dsPST.end(), m_temp);
-    std::fill( m_psiST.begin(), m_psiST.end(), m_temp);
     std::fill( m_divNUb.begin(), m_divNUb.end(), m_temp);
 
     m_reversed_field = false;
@@ -238,234 +192,256 @@ ParallelDynamics<Grid, IMatrix, Matrix, Container>::ParallelDynamics( const Grid
     {
         m_fa.construct( bhat, g, dg::NEU, dg::NEU, dg::geo::NoLimiter(),
             p.rk4eps, p.mx, p.my, 2.*M_PI/(double)p.Nz, p.interpolation_method);
-        m_faST.construct( bhat, g, dg::NEU, dg::NEU, dg::geo::NoLimiter(),
+        m_faHalf.construct( bhat, g, dg::NEU, dg::NEU, dg::geo::NoLimiter(),
             p.rk4eps, p.mx, p.my, 2.*M_PI/(double)p.Nz/2., p.interpolation_method );
     }
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
 }
+template<class Grid, class IMatrix, class Matrix, class Container>
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::compute_staggered_densities(
+        const std::array<std::vector<Container>,6>& y,
+        std::map<std::string, std::vector<Container>>& q
+)
+{
+    for( unsigned s=0; s<m_p.num_species; s++)
+    {
+        std::vector<const Container*> in = {
+            &y[0][s], &y[1][s], &y[2][s]}; // "N", "Pperp", "Ppara"
+            std::vector<std::string> out = {"ST N", "ST Pperp", "ST Ppara"};
+        for( unsigned u=0; u<in.size(); u++)
+        {
+            // -1/2,+1/2
+            m_faHalf( dg::geo::zeroMinus, *in[u], q[out[u]+" -1/2"]);
+            m_faHalf( dg::geo::einsPlus,  *in[u], q[out[u]+" +1/2"]);
+            update_parallel_bc_1st( q[out[u]+" -1/2"], q[out[u]+" +1/2"], m_p.bcx, 0.);
+        }
+
+        // Note the sequence in which variables are transformed!
+        dg::blas1::axpby( 0.5, q["ST N -1/2"][s], 0.5, q["ST N +1/2"][s], q["ST N"][s]);
+        dg::blas1::axpby( 0.5, q["ST Pperp -1/2"][s], 0.5, q["ST Pperp +1/2"][s], m_temp);
+        dg::blas1::pointwiseDivide( m_temp, q["ST N"][s], q["ST Tperp"][s]);
+        dg::blas1::pointwiseDivide(  y[4][s], m_temp,     q["ST Uperp"][s]); // UperpST
+        dg::blas1::axpby( 0.5, q["ST Ppara -1/2"][s], 0.5, q["ST Ppara +1/2"][s], m_temp);
+        dg::blas1::pointwiseDivide( m_temp, q["ST N"][s], q["ST Tpara"][s]);
+        dg::blas1::pointwiseDivide(  y[5][s], m_temp,     q["ST Upara"][s]); // UparaST
+        // "ST ds Tperp" and "ST ds Tpara"
+        std::vector<std::string> in2 = {"Tperp", "Tpara"};
+        for( unsigned u=0; u<in2.size(); u++)
+        {
+            m_faHalf( dg::geo::zeroMinus, q[in2[u]][s], m_tminus);
+            m_faHalf( dg::geo::einsPlus,  q[in2[u]][s], m_tplus);
+            update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcx, 0.);
+            dg::geo::ds_centered( m_faHalf, 1., m_tminus, m_tplus, 0., q["ST ds "+in2[u]][s]);
+        }
+    }
+}
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::update_quantities(
-        unsigned s,
-        const Container& aparST,
-        const std::array<Container,4>& psi,
-        const std::array<std::vector<Container>,6>& y)
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::compute_parallel_transformations(
+        const std::array<std::vector<Container>,6>& y,
+        std::map<std::string, std::vector<Container>>& q
+)
 {
-#ifdef MPI_VERSION
-    int rank;
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-#endif
-    // 0 transform psi
-    for( unsigned u=0; u<4; u++)
+    for( unsigned s=0; s<m_p.num_species; s++)
     {
-        if( u==1)
-        { // we only need GradPar Gamma2
-            m_fa( dg::geo::einsMinus, psi[u], m_tminus);
-            m_fa( dg::geo::zeroForw,  psi[u], m_temp);
-            m_fa( dg::geo::einsPlus,  psi[u], m_tplus);
-            update_parallel_bc_2nd( m_fa, m_tminus, m_temp,
-                m_tplus, m_p.bcxP, 0.);
-            dg::geo::ds_centered( m_fa, 1., m_tminus, m_tplus, 0., m_dsP[u]);
-        }
-        m_faST( dg::geo::zeroMinus, psi[u], m_tminus);
-        m_faST( dg::geo::einsPlus,  psi[s], m_tplus);
-        update_parallel_bc_1st( m_tminus, m_tplus,
-                m_p.bcxP, 0.);
-        if( u < 2)
-            dg::geo::ds_centered( m_faST, 1., m_tminus, m_tplus, 0., m_dsPST[u]);
-        dg::blas1::axpby( 0.5, m_tminus, 0.5, m_tplus, m_psiST[u]);
-    }
-    // 1st transform all densities
-    const std::vector<Container>&  density    = y[0];
-    const std::vector<Container>&  pperp      = y[1];
-    const std::vector<Container>&  ppara      = y[2];
-    // N, Tperp, Tpara
-    dg::blas1::copy( density[s], m_q[0]);
-    dg::blas1::pointwiseDivide( pperp[s], density[s], m_q[1]);
-    dg::blas1::pointwiseDivide( ppara[s], density[s], m_q[2]);
-    std::array<double, 3> nbc = {m_p.nbc[s], m_p.tbc, m_p.tbc};
-    for( unsigned u=0; u<3; u++)
-    {
-        m_fa( dg::geo::einsMinus, m_q[u], m_minus[u]);
-        m_fa( dg::geo::zeroForw,  m_q[u], m_zero[u]);
-        m_fa( dg::geo::einsPlus,  m_q[u], m_plus[u]);
-        update_parallel_bc_2nd( m_fa, m_minus[u], m_zero[u], m_plus[u],
-                m_p.bcxN, m_p.bcxN == dg::DIR ? nbc[u] : 0.);
-        if( u!= 0)
+        std::vector<std::string> in = { "Psi0", "Psi1", "Psi2", "Psi3"}; // -> "ST Psi0", ...
+        // 0 transform psi
+        for( unsigned u=0; u<in.size(); u++)
         {
-            m_faST( dg::geo::zeroMinus, m_q[s], m_minusST[u]);
-            m_faST( dg::geo::einsPlus,  m_q[s], m_plusST[u]);
-            update_parallel_bc_1st( m_minusST[u], m_plusST[u],
-                m_p.bcxN, m_p.bcxN == dg::DIR ? nbc[u] : 0.);
-            dg::blas1::axpby( 0.5, m_minusST[u], 0.5, m_plusST[u], m_qST[u]);
+            m_faHalf( dg::geo::zeroMinus, q[in[u]][s], m_tminus);
+            m_faHalf( dg::geo::einsPlus,  q[in[u]][s], m_tplus);
+            update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcxP, 0.);
+            dg::blas1::axpby( 0.5, m_tminus, 0.5, m_tplus, q["ST "+in[u]]);
+            if( u == 0)
+                dg::geo::ds_centered( m_faHalf, 1., m_tminus, m_tplus, 0., q["ST ds Psi0"][s]);
+            if( u == 1)
+                dg::geo::ds_centered( m_faHalf, 1., m_tminus, m_tplus, 0., q["ST ds Psi1"][s]);
+            if( u==1)
+            {
+                m_fa( dg::geo::einsMinus, q[in[u]], m_tminus);
+                m_fa( dg::geo::zeroForw,  q[in[u]], m_temp);
+                m_fa( dg::geo::einsPlus,  q[in[u]], m_tplus);
+                update_parallel_bc_2nd( m_fa, m_tminus, m_temp, m_tplus, m_p.bcxP,
+                    0.);
+                dg::geo::ds_centered( m_fa, 1., m_tminus, m_tplus, 0., q["ds Psi1"][s]);
+            }
         }
-        else
+        // 2nd transform all 0, +1, -1
+        in = std::vector<std::string>{
+            "N", "Tperp", "Tpara", "ST U", "ST Uperp", "ST Upara"};
+        for( unsigned u=0; u<in.size(); u++)
         {
-            dg::blas1::copy( m_minusSTN[s], m_minusST[0]);
-            dg::blas1::axpby( 2., m_STN[s], -1., m_minusSTN[s], m_plusST[0]);
-            dg::blas1::copy( m_STN[s], m_qST[0]);
+            m_fa( dg::geo::einsMinus, q[in[u]][s], q[in[u]+" -1"][s]);
+            m_fa( dg::geo::zeroForw,  q[in[u]][s], q[in[u]+" 0"][s]);
+            m_fa( dg::geo::einsPlus,  q[in[u]][s], q[in[u]+" +1"][s]);
+            update_parallel_bc_2nd( m_fa, q[in[u]+" -1"][s],
+                q[in[u]+" 0"][s], q[in[u]+" +1"][s], m_p.bcx, 0.);
+        }
+        // 3rd transform velocities
+        std::vector<const Container*> inp = {
+            &q["ST U"][s], &y[4][s], &y[5][s]}; // ST Qperp, ST Qpara
+        std::vector<std::string> out = {"U", "Qperp", "Qpara"};
+        for( unsigned u=0; u<in.size(); u++)
+        {
+            m_faHalf( dg::geo::einsMinus, *inp[u], q[out[u]+" -1/2"]);
+            m_faHalf( dg::geo::zeroPlus,  *inp[u], q[out[u]+" +1/2"]);
+            update_parallel_bc_1st( q[out[u]+" -1/2"], q[out[u]+" +1/2"], m_p.bcx, 0.);
+            if( u == 0)
+                dg::blas1::axpby( 0.5, q[out[u]+" -1/2"], 0.5, q[out[u]+" +1/2"], q["U"][s]);
+            if( u == 1)
+            {
+                dg::blas1::axpby( 0.5, q[out[u]+" -1/2"], 0.5, q[out[u]+" +1/2"], m_temp); // Qperp
+                dg::blas1::pointwiseDivide( m_temp, y[1][s], q["Uperp"]); // Qperp/Pperp
+            }
+            if( u == 2)
+            {
+                dg::blas1::axpby( 0.5, q[out[u]+" -1/2"], 0.5, q[out[u]+" +1/2"], m_temp); // Qpara
+                dg::blas1::pointwiseDivide( m_temp, y[2][s], q["Upara"]); // Qpara/Ppara
+            }
         }
     }
-    // 2nd transform all velocities
-    const std::vector<Container>&  wST        = y[3];
-    const std::vector<Container>&  qperpST    = y[4];
-    const std::vector<Container>&  qparaST    = y[5];
-    // UST, UperpST, UparaST
-    dg::blas1::axpby( 1., wST[s], -m_p.z[s]/m_p.mu[s], aparST, m_qST[3]);
-    dg::blas1::pointwiseDot( m_qST[0], m_qST[1], m_temp); // pperpST
-    dg::blas1::pointwiseDivide( qperpST[s], m_temp, m_qST[4]);
-    dg::blas1::pointwiseDot( m_qST[0], m_qST[2], m_temp); // pparaST
-    dg::blas1::pointwiseDivide( qparaST[s], m_temp, m_qST[5]);
-    for( unsigned u=3; u<6; u++)
-    {
-        m_fa( dg::geo::einsMinus, m_qST[u], m_minus[u]);
-        m_fa( dg::geo::zeroForw,  m_qST[u], m_zero[u]);
-        m_fa( dg::geo::einsPlus,  m_qST[u], m_plus[u]);
-        update_parallel_bc_2nd( m_fa, m_minus[u], m_zero[u],
-            m_plus[u], m_p.bcxU, 0.);
-        m_faST( dg::geo::einsMinus, m_qST[u], m_minusST[u]);
-        m_faST( dg::geo::zeroPlus,  m_qST[u],  m_plusST[u]);
-        update_parallel_bc_1st( m_minusST[u], m_plusST[u], m_p.bcxU, 0.);
-        dg::blas1::axpby( 0.5, m_minusST[u], 0.5, m_plusST[u], m_q[u]);
-    }
-    // Now we have q, qST, qminus, qzero, qplus, qminusST, qplusST
 
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_densities_advection(
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection(
         unsigned s,
-        const std::array<Container,4>& psi,
         const std::array<std::vector<Container>,6>& y,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
 {
     // "velocity-staggered" - "flux-centered"
     for( unsigned u=0; u<3; u++)
     {
-        // use divNUb as a temporary ...
         if( u == 0)
-            dg::blas1::copy( m_zero[3], m_divNUb[u]);
-        else if( u==1)
-            dg::blas1::axpby( 1., m_zero[3], 1., m_zero[4], m_divNUb[u]);
-        else if( u==2)
-            dg::blas1::axpby( 1., m_zero[3], 1., m_zero[5], m_divNUb[u]);
-        compute_parallel_flux( m_divNUb[u], m_minusST[u], m_plusST[u],
+        {
+            compute_parallel_flux( q["ST U"][s], q["ST N -1/2"][s], q["ST N +1/2"][s],
                 m_temp);
-        m_faST( dg::geo::zeroPlus,  m_temp, m_tplus);
-        m_faST( dg::geo::einsMinus, m_temp, m_tminus);
+        }
+        else if( u==1)
+        {
+            dg::blas1::axpby( 1., q["ST U"][s], 1., q["ST Uperp"][s], m_tminus); // U + U_perp
+            compute_parallel_flux( m_tminus, q["ST Pperp -1/2"][s], q["ST Pperp +1/2"][s],
+                m_temp);
+        }
+        else if( u==2)
+        {
+            dg::blas1::axpby( 1., q["ST U"][s], 1., q["ST Upara"][s], m_tminus); // U + U_para
+            compute_parallel_flux( m_tminus, q["ST Ppara -1/2"][s], q["ST Ppara +1/2"][s],
+                m_temp);
+        }
+        m_faHalf( dg::geo::zeroPlus,  m_temp, m_tplus);
+        m_faHalf( dg::geo::einsMinus, m_temp, m_tminus);
         update_parallel_bc_1st( m_tminus, m_tplus, dg::NEU, 0.);
-        dg::geo::ds_divCentered( m_faST, 1., m_tminus, m_tplus, 0., m_divNUb[u]);
-        dg::blas1::axpby( -1., m_divNUb[u], 1., yp[u][s]);
+        dg::geo::ds_divCentered( m_faHalf, 1., m_tminus, m_tplus, 0., m_divNUb[u][s]);
+        dg::blas1::axpby( -1., m_divNUb[u][s], 1., yp[u][s]);
     }
     // -2P_para GradPar U
-    dg::geo::ds_centered( m_faST, 1., m_minusST[3], m_plusST[3],0., m_temp);
+    dg::geo::ds_centered( m_faHalf, 1., q["U -1/2"][s], q["U +1/2"][s], 0., m_temp);
     dg::blas1::pointwiseDot( -2., y[2][s], m_temp, 1., yp[2][s]);
     // -2z N U_perp E_1,para
-    dg::geo::ds_centered( m_fa, 1., m_minus[1], m_plus[1], 0., m_temp); //GradPar Tperp
-    dg::blas1::pointwiseDivide( m_temp, m_q[1], m_temp);
+    dg::geo::ds_centered( m_fa, 1., q["Tperp -1"][s], q["Tperp +1"][s], 0., m_temp); //GradPar Tperp
+    dg::blas1::pointwiseDivide( m_temp, q["Tperp"][s], m_temp);
     dg::blas1::axpby(1., m_divb, 1., m_temp);
-    dg::blas1::pointwiseDot( -1., psi[2], m_temp, +1., psi[1], m_temp, 0., m_temp);
-    dg::blas1::axpby( 1., m_dsP[1], 1., m_temp);
-    dg::blas1::pointwiseDot( -2.*m_p.z[s], m_q[0], m_q[4], m_temp, 1., yp[2][s]);
+    dg::blas1::pointwiseDot( -1., q["psi2"][s], m_temp, +1., q["psi1"][s], m_temp, 0., m_temp);
+    dg::blas1::axpby( 1., q["ds Psi1"][s], 1., m_temp); // E_1,para
+    dg::blas1::pointwiseDot( -2.*m_p.z[s], q["N"][s], q["Uperp"][s], m_temp, 1., yp[2][s]);
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_advection(
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_advection(
         unsigned s,
         const std::array<std::vector<Container>,6>& y,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
 {
     // "velocity-staggered" - "flux-centered"
     for( unsigned u=3; u<6; u++)
     {
-        compute_parallel_flux( m_q[3], m_minusST[u], m_plusST[u],
+        if( u==3)
+            compute_parallel_flux( q["U"][s], q["U -1/2"][s], q["U +1/2"][s],
                 m_temp);
-        m_faST( dg::geo::zeroPlus,  m_temp, m_tplus);
-        m_faST( dg::geo::einsMinus, m_temp, m_tminus);
+        else if ( u == 4)
+            compute_parallel_flux( q["U"][s], q["Qperp -1/2"][s], q["Qperp +1/2"][s],
+                m_temp);
+        else if ( u == 5)
+            compute_parallel_flux( q["U"][s], q["Qpara -1/2"][s], q["Qpara +1/2"][s],
+                m_temp);
+        m_faHalf( dg::geo::zeroPlus,  m_temp, m_tplus);
+        m_faHalf( dg::geo::einsMinus, m_temp, m_tminus);
         update_parallel_bc_1st( m_tminus, m_tplus, dg::NEU, 0.);
         if( u==3)
-            dg::geo::ds_centered( m_faST, -0.5, m_tminus, m_tplus, 0, m_divNUb[3]);
+            dg::geo::ds_centered( m_faHalf, -0.5, m_tminus, m_tplus, 0, m_divNUb[3][s]);
         else
-            dg::geo::ds_divCentered( m_faST, 1., m_tminus, m_tplus, 0., m_divNUb[u]);
-        dg::blas1::axpby( -1., m_divNUb[u], 1., yp[u][s]);
+            dg::geo::ds_divCentered( m_faHalf, 1., m_tminus, m_tplus, 0., m_divNUb[u][s]);
+        dg::blas1::axpby( -1., m_divNUb[u][s], 1., yp[u][s]);
     }
-    dg::geo::ds_centered( m_faST, 1., m_minusST[1], m_plusST[1],0., m_temp); // dsTperp
-    dg::blas1::pointwiseDot( -1./m_p.mu[s], m_qST[2], m_qST[0], m_temp, 1., yp[4][s]);
+    dg::blas1::pointwiseDot( -1./m_p.mu[s], q["ST N"][s], q["ST Tpara"][s], q["ST ds Tperp"][s], 1., yp[4][s]);
+    dg::blas1::pointwiseDot( -3./m_p.mu[s], q["ST N"][s], q["ST Tpara"][s], q["ST ds Tpara"][s], 1., yp[5][s]);
 
-    dg::geo::ds_centered( m_faST, 1., m_minusST[2], m_plusST[2],0., m_temp); // dsTpara
-    dg::blas1::axpby( -1./m_p.mu[s], m_temp, 1., yp[3][s]);
-    dg::blas1::pointwiseDot( -3./m_p.mu[s], m_qST[2], m_qST[0], m_temp, 1., yp[5][s]);
-
-    dg::geo::ds_centered( m_fa, 1., m_minus[3], m_plus[3],0., m_temp); //dsU
+    dg::geo::ds_centered( m_fa, 1., q["ST U -1"][s], q["ST U +1"][s], 0., m_temp); //ST ds U
     dg::blas1::pointwiseDot( -1., y[4][s], m_temp, 1., yp[4][s]);
     dg::blas1::pointwiseDot( -3., y[5][s], m_temp, 1., yp[5][s]);
 
-    // Add density gradient and electric field
+    // Add pressure gradient
     double z = m_p.z[s], mu = m_p.mu[s], delta = m_fa.deltaPhi();
+    dg::blas1::subroutine( [mu, delta ]DG_DEVICE (
+        double& WDot, double N_mh, double N_ph,
+        double Pperp_mh, double Pperp_ph, double bphi)
+        {
+            WDot     -= bphi*(Pperp_ph-Pperp_mh)/delta/2.*(1/N_ph + 1/N_mh)/mu;
+        },
+        yp[3][s], q["ST N -1/2"][s], q["ST N +1/2"][s],
+        q["ST Pperp -1/2"][s], q["ST Pperp +1/2"][s], m_fa.bphi()
+    );
+    // and parallel electric field
     dg::blas1::subroutine( [z, mu, delta ]DG_DEVICE (
         double& WDot, double& QperpDot,
-        double N, double Tperp, double Tpara,
-        double QN, double PN,
-        double QTperp, double PTperp,
-        double dsG1, double dsG2,
-        double G2, double G3, double divb, double bphi
-                )
+        double N, double Tperp, double dsTperp,
+        double dsG0, double dsG1,
+        double G1, double G2, double divb
+            )
         {
-            double gradParLnN = bphi*(PN-QN)/delta/2.*(1/PN + 1/QN);
-            double gradParLnTperp = bphi*(PTperp-QTperp)/delta/2.*(1./PTperp + 1/QTperp);
-            WDot     -= z/mu*(dsG1 - G2*(gradParLnTperp + divb));
-            QperpDot -= z/mu*N*Tperp*(dsG2 - (G3-G2)*(gradParLnTperp + divb));
-            WDot -= Tpara/mu*gradParLnN;
+            WDot     -= z/mu*(dsG0 - G1*(dsTperp/Tperp + divb));
+            QperpDot -= z/mu*N*Tperp*(dsG1 - (G2-G1)*(dsTperp/Tperp + divb));
         },
         yp[3][s], yp[4][s],
-        m_qST[0], m_qST[1], m_qST[2],
-        m_minusST[0], m_plusST[0],
-        m_minusST[1], m_plusST[1],
-        m_dsPST[0], m_dsPST[1],
-        m_psiST[1], m_psiST[2], m_divb, m_fa.bphi()
+        q["ST N"][s], q["ST Tperp"][s], q["ST ds Tperp"][s],
+        q["ST ds Psi0"][s], q["ST ds Psi1"][s],
+        q["ST Psi1"][s], q["ST Psi2"][s], m_divb
     );
-
-    // -z/mu N T_perp E_1,para
-    dg::geo::ds_centered( m_faST, 1., m_minusST[1], m_plusST[1], 0., m_temp); //GradPar Tperp
-    dg::blas1::pointwiseDivide( m_temp, m_qST[1], m_temp);
-    dg::blas1::axpby(1., m_divb, 1., m_temp);
-    dg::blas1::pointwiseDot( -1., m_psiST[2], m_temp, +1., m_psiST[1], m_temp, 0., m_temp);
-    dg::blas1::axpby( 1., m_dsPST[1], 1., m_temp);
-    dg::blas1::pointwiseDot( -m_p.z[s]/m_p.mu[s], m_qST[0], m_qST[1], m_temp, 1., yp[4][s]);
-
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_densities_diffusion(
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_densities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>&,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
 {
-    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[0],
-            m_minus[0], m_zero[0], m_plus[0], 1., yp[0][s]);
-    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[1],
-            m_minus[1], m_zero[1], m_plus[1], 1., yp[1][s]);
-    dg::geo::dssd_centered( m_fa, m_p.nu_parallel[2],
-            m_minus[2], m_zero[2], m_plus[2], 1., yp[2][s]);
+    std::vector<std::string> in = {"N", "Tperp", "Tpara"};
+    for( unsigned u=0; u<3; u++)
+        dg::geo::dssd_centered( m_fa, m_p.nu_parallel[u],
+            q[in[u]+" -1"][s], q[in[u]+" 0"][s], q[in[u]+" +1"][s], 1., yp[u][s]);
     // Add para temp generation through friction
-    dg::geo::ds_centered( m_fa, 1., m_minus[3], m_plus[3],0., m_temp); //dsU
+    dg::geo::ds_centered( m_fa, 1., q["U -1/2"][s], q["U +1/2"][s], 0., m_temp); //dsU
     dg::blas1::pointwiseDot( +2.*m_p.mu[s]*m_p.nu_parallel[3], m_temp, m_temp, 1., yp[2][s]);
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_diffusion(
+void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_diffusion(
         unsigned s,
-        const std::array<std::vector<Container>,6>&,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
 {
-
+    std::vector<std::string> in = {"ST U", "ST Uperp", "ST Upara"};
     // Add parallel viscosity
     dg::geo::dssd_centered( m_fa, m_p.nu_parallel[3],
-            m_minus[3], m_zero[3], m_plus[3], 0., m_temp);
-    dg::blas1::pointwiseDivide( 1., m_temp, m_qST[3], 1., yp[3][s]);
+        q["ST U -1"][s], q["ST U 0"][s], q["ST U +1"][s], 0., m_temp);
+    dg::blas1::pointwiseDivide( 1., m_temp, q["ST N"][s], 1., yp[3][s]);
     dg::geo::dssd_centered( m_fa, m_p.nu_parallel[4],
-            m_minus[4], m_zero[4], m_plus[4], 1., yp[4][s]);
+        q["ST Uperp -1"][s], q["ST Uperp 0"][s], q["ST Uperp +1"][s], 1., yp[4][s]);
     dg::geo::dssd_centered( m_fa, m_p.nu_parallel[5],
-            m_minus[5], m_zero[5], m_plus[5], 0., yp[5][s]);
+        q["ST Upara -1"][s], q["ST Upara 0"][s], q["ST Upara +1"][s], 1.,  yp[5][s]);
+
     // Add density gradient correction
     double delta = m_fa.deltaPhi(), nu = m_p.nu_parallel[0];
     dg::blas1::subroutine( [delta, nu]DG_DEVICE ( double& WDot,
@@ -481,15 +457,15 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_para_velocities_dif
                     WDot += - current*bphi*(UP-U0)/delta;
 
             },
-            yp[3][s], m_minusST[0], m_plusST[0], m_minus[3], m_zero[3],
-            m_plus[3], m_fa.bphi()
+            yp[3][s], q["ST N -1/2"][s], q["ST N +1/2"][s], q["ST U -1"][s], q["ST U 0"][s],
+            q["ST U +1"][s], m_fa.bphi()
     );
 }
 
-// Has to be called together with add_para_dynamics
 template<class Grid, class IMatrix, class Matrix, class Container>
 void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_terms(
         unsigned s,
+        const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
 {
     // add sheath boundary conditions
@@ -498,17 +474,25 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_term
         ////densities sheath
         ////Here, we need to find out where "downstream" is
         // !! Simulations do not really work without
-        for( unsigned i=0; i<6; i++)
+        std::vector<std::string> in = {"N", "Tperp", "Tpara", "ST U", "ST Uperp", "ST Upara"};
+        for( int i=0; i<6; i++)
         {
             if( i == 3) continue;
             //The coordinate automatically sees the reversed field
             //but m_plus and m_minus are defined wrt the angle coordinate
             if( m_reversed_field) //bphi negative (exchange + and -)
                 dg::blas1::evaluate( m_temp, dg::equals(), dg::Upwind(),
-                     m_sheath_coordinate, m_plus[i], m_minus[i]);
+                     m_sheath_coordinate, q[in[i]+" +1"][s], q[in[i]+" -1"][s]);
             else
                 dg::blas1::evaluate( m_temp, dg::equals(), dg::Upwind(),
-                     m_sheath_coordinate, m_minus[i], m_plus[i]);
+                     m_sheath_coordinate, q[in[i]+" -1"][s], q[in[i]+" +1"][s]);
+            if( i == 1 or i == 2 )
+                dg::blas1::pointwiseDot( q["N"][s], m_temp, m_temp); // P = NT
+            else if( i == 4)
+                dg::blas1::pointwiseDot( 1., q["ST N"][s], q["ST Tperp"][s], m_temp, 0., m_temp); // Q = NTU
+            else if( i == 5)
+                dg::blas1::pointwiseDot( 1., q["ST N"][s], q["ST Tpara"][s], m_temp, 0., m_temp); // Q = NTU
+
             dg::blas1::pointwiseDot( m_sheath_rate, m_temp, m_sheath, 1.,
                     yp[i][s]);
         }
@@ -516,49 +500,47 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_term
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
 void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_terms(
-    const std::vector<Container>& tparaST, // from collisions
+    unsigned s,
+    const std::map<std::string, std::vector<Container>>& q,
     std::array<std::vector<Container>,6>& yp)
 {
-    for( unsigned s=0; s<m_p.num_species; s++)
+    // Velocity sheath
+    if( m_sheath_rate != 0)
     {
-        // Velocity sheath
-        if( m_sheath_rate != 0)
+        if( "wall" == m_p.sheath_bc)
         {
-            if( "wall" == m_p.sheath_bc)
+            // No densities wall sheath boundary
+            dg::blas1::axpby( +m_sheath_rate*m_p.uwall, m_sheath, 1., yp[3][s] );
+        }
+        else if( "insulating" == m_p.sheath_bc)
+        {
+            //velocity c_s
+            if( s == 0) // electron species
             {
-                // No densities wall sheath boundary
-                dg::blas1::axpby( +m_sheath_rate*m_p.uwall, m_sheath, 1., yp[3][s] );
-            }
-            else if( "insulating" == m_p.sheath_bc)
-            {
-                //velocity c_s
-                if( s == 0) // electron species
+                // TODO: Is it better to assume toroidal alignment of T and N in sheath?
+                dg::blas1::copy( 0, m_temp);
+                for( unsigned k=1; k<m_p.num_species; k++)
                 {
-                    // TODO: Is it better to assume toroidal alignment of T and N in sheath?
-                    dg::blas1::copy( 0, m_temp);
-                    for( unsigned k=1; k<m_p.num_species; k++)
-                    {
-                        double zk = m_p.z[k], mk = m_p.mu[k];
-                        dg::blas1::evaluate( m_temp, dg::plus_equals(),
-                            [ zk,  mk ] DG_DEVICE( double nk, double ne, double tk, double te)
-                            {
-                                double ck = sqrt( ( tk + zk * te )/mk);
-                                return ck * nk / ne * ck;
-                            }, m_STN[k], m_STN[0], tparaST[k], tparaST[0]);
-                    }
-                }
-                else
-                {
-                    double zs = m_p.z[s], ms = m_p.mu[s];
-                    dg::blas1::evaluate( m_temp, dg::equals(),
-                        [ zs, ms] DG_DEVICE( double ts, double te)
+                    double zk = m_p.z[k], mk = m_p.mu[k];
+                    dg::blas1::evaluate( m_temp, dg::plus_equals(),
+                        [ zk,  mk ] DG_DEVICE( double nk, double ne, double tk, double te)
                         {
-                            return sqrt( ( ts + zs * te )/ms);
-                        }, tparaST[s], tparaST[0]);
+                            double ck = sqrt( ( tk + zk * te )/mk);
+                            return ck * nk / ne * ck;
+                        }, q["ST N"][k], q["ST N"][0], q["ST Tpara"][k], q["ST Tpara"][0]);
                 }
-                dg::blas1::pointwiseDot( m_sheath_rate, m_sheath,
-                    m_sheath_coordinate, m_temp, 1.,  yp[3][s]);
             }
+            else
+            {
+                double zs = m_p.z[s], ms = m_p.mu[s];
+                dg::blas1::evaluate( m_temp, dg::equals(),
+                    [ zs, ms] DG_DEVICE( double ts, double te)
+                    {
+                        return sqrt( ( ts + zs * te )/ms);
+                    }, q["ST Tpara"][s], q["ST Tpara"][0]);
+            }
+            dg::blas1::pointwiseDot( m_sheath_rate, m_sheath,
+                m_sheath_coordinate, m_temp, 1.,  yp[3][s]);
         }
     }
 }

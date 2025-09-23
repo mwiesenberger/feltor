@@ -17,7 +17,7 @@
 namespace thermal{
 
 // This file constitutes the diagnostics module for thermal
-// The way it works is that it allocates global lists of Records that describe what goes into the file
+// The way it works is that it generates global lists of Records that describe what goes into the file
 // You can register you own diagnostics in one of three diagnostics lists (static 3d, dynamic 3d and
 // dynamic 2d) further down
 // which will then be applied during a simulation
@@ -371,37 +371,36 @@ std::vector<dg::file::Record<void(dg::x::HVec&, Variables&, const dg::x::Cylindr
 
 // and here are all the 2d outputs we want to produce (currently ~ 150)
 // Call within species loop after updateQuantities
-/*
 std::vector<Record> basicDiagnostics2d_list = { // 22
     {true, "n", "gyro-centre density", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-            dg::blas1::copy(v.y0[0][s], result);
+            dg::blas1::copy(v.f.field(0,s), result);
         }
     },
     {true, "tperp", "perpendicular temperature", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-            dg::blas1::pointwiseDivide( v.y0[1][s], v.y0[0][s], result);
+            dg::blas1::copy(v.f.field(1,s), result);
         }
     },
     {true, "tpara", "parallel temperature", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-            dg::blas1::pointwiseDivide( v.y0[2][s], v.y0[0][s], result);
+            dg::blas1::copy(v.f.field(2,s), result);
         }
     },
     {true, "u", "parallel velocity", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
+            dg::blas1::copy(v.f.field(3,s), result);
             // U = W - q/m Apar
-            dg::blas1::axpby(1., v.y0[3][s], -v.p.z[s]/v.p.mu[s], v.f.aparallel(), result);
         }
     },
     {true, "qperp", "perpendicular heat flux", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-            dg::blas1::copy(v.y0[4][s], result);
+            dg::blas1::copy(v.f.field(4,s), result);
         }
     },
     {true, "qpara", "parallel heat flux", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-            dg::blas1::copy(v.y0[5][s], result);
+            dg::blas1::copy(v.f.field(5,s), result);
         }
     },
     {false, "phi", "electric potential", false,
@@ -416,17 +415,27 @@ std::vector<Record> basicDiagnostics2d_list = { // 22
     }
     {true, "psi0", "Potential 0", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-             dg::blas1::copy(v.f.psi(), result);
+             dg::blas1::copy(v.f.psi(0,s), result);
         }
     },
-    {true, "gammaN", "Gamma N", false,
+    {true, "psi1", "Potential 0", false,
+        []( dg::x::DVec& result, Variables& v, unsigned s ) {
+             dg::blas1::copy(v.f.psi(1,s), result);
+        }
+    },
+    {true, "psi2", "Potential 0", false,
+        []( dg::x::DVec& result, Variables& v, unsigned s ) {
+             dg::blas1::copy(v.f.psi(2,s), result);
+        }
+    },
+    {true, "psi3", "Potential 0", false,
+        []( dg::x::DVec& result, Variables& v, unsigned s ) {
+             dg::blas1::copy(v.f.psi(3,s), result);
+        }
+    },
+    {true, "gammaN", "Adjoint Gamma N", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
              dg::blas1::copy(v.f.gammaN(s), result);
-        }
-    },
-    {true, "gammaPhi", "Gamma Phi", false,
-        []( dg::x::DVec& result, Variables& v, unsigned s ) {
-             dg::blas1::copy(v.f.gammaPhi(s), result);
         }
     },
     /// -----------------Miscellaneous additions --------------------//
@@ -455,7 +464,7 @@ std::vector<Record> basicDiagnostics2d_list = { // 22
     },
     {"lperpinv", "Perpendicular density gradient length scale", false,
         []( dg::x::DVec& result, Variables& v, unsigned s ) {
-            const std::array<dg::x::DVec, 3>& dN = v.f.gradN(s);
+            const std::array<dg::x::DVec, 2>& dN = v.f.gradN(s);
             dg::blas1::pointwiseDivide( 1., v.f.density(s), v.tmp[0]);
 
 
@@ -472,8 +481,8 @@ std::vector<Record> basicDiagnostics2d_list = { // 22
         }
     },
     {"perpaligned", "Perpendicular density alignement", false,
-        []( dg::x::DVec& result, Variables& v ) {
-            const std::array<dg::x::DVec, 3>& dN = v.f.gradN(0);
+        []( dg::x::DVec& result, Variables& v, unsigned s ) {
+            const std::array<dg::x::DVec, 2>& dN = v.f.gradN(0);
             dg::tensor::scalar_product3d( 1., 1.,
                 dN[0], dN[1], dN[2], v.f.projection(), 1., //grad_perp
                 dN[0], dN[1], dN[2], 0., result); // (grad N)**2
@@ -481,21 +490,21 @@ std::vector<Record> basicDiagnostics2d_list = { // 22
         }
     },
     {"lparallelinv", "Parallel density gradient length scale", false,
-        []( dg::x::DVec& result, Variables& v ) {
+        []( dg::x::DVec& result, Variables& v, unsigned s ) {
             dg::blas1::pointwiseDivide( v.f.dsN(0), v.f.density(0), result);
             dg::blas1::pointwiseDot ( result, result, result);
             dg::blas1::transform( result, result, dg::SQRT<double>());
         }
     },
     {"aligned", "Parallel density alignement", false,
-        []( dg::x::DVec& result, Variables& v ) {
+        []( dg::x::DVec& result, Variables& v, unsigned s ) {
             dg::blas1::pointwiseDot ( v.f.dsN(0), v.f.dsN(0), result);
             dg::blas1::pointwiseDivide( result, v.f.density(0), result);
         }
     },
     /// ------------------ Correlation terms --------------------//
     {"ne2", "Square of electron density", false,
-        []( dg::x::DVec& result, Variables& v ) {
+        []( dg::x::DVec& result, Variables& v, unsigned ) {
             dg::blas1::pointwiseDot(
                 v.f.density(0), v.f.density(0), result);
         }
@@ -515,6 +524,7 @@ std::vector<Record> basicDiagnostics2d_list = { // 22
 };
 
 // TODO Fix conservation theorems and Probes
+/*
 std::vector<Record> MassConsDiagnostics2d_list = { // 26
     /// ------------------ Density terms ------------------------//
     ////////////////// electron particle flux /////////////////////

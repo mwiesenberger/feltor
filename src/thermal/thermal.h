@@ -68,11 +68,6 @@ struct Explicit
         return m_parallel.get_sheath_coordinate();
     }
 
-    // Chanes after each species
-    const std::array<Container, 4>& psi() const {
-        return m_psi;
-    }
-
     unsigned called() const { return m_called;}
     const Container& get_source(unsigned u, unsigned s) const{
         return m_sources.get_source( u,s);
@@ -428,11 +423,61 @@ struct Explicit
     Collisions<Geometry, IMatrix, Matrix, Container> m_collisions;
     Sources<Geometry, IMatrix, Matrix, Container> m_sources;
 
-    //
-    Container m_phi, m_apar, m_aparST; // same for all species
+    dg::Extrapolation<Container> m_old_apar; // for diagnostics
 
-    dg::Extrapolation<Container> m_old_apar;
-    std::array<Container,4> m_psi; // different for each species
+    std::map<std::string, std::vector<Container>> m_q;
+
+    const std::vector<std::string> q_names = {
+        "N", "N 0", "N +1", "N -1",
+        "Tperp", "Tperp 0", "Tperp +1", "Tperp -1",
+        "Tpara", "Tpara 0", "Tpara +1", "Tpara -1",
+        "Psi0",
+        "Psi1", "ds Psi1",
+        "Psi2",
+        "Psi3",
+        "U", "U +1/2", "U -1/2",
+        "Uperp",
+        "Upara",
+        "Qperp +1/2", "Qperp -1/2",
+        "Qpara +1/2", "Qpara -1/2",
+        // Staggered variables
+        "ST N", "ST N +1/2", "ST N -1/2",
+        "ST Tperp", "ST ds Tperp",
+        "ST Tpara", "ST ds Tpara",
+        "ST Pperp +1/2", "ST Pperp -1/2",
+        "ST Ppara +1/2", "ST Ppara -1/2",
+        "ST Psi0", "ST ds Psi0",
+        "ST Psi1", "ST ds Psi1",
+        "ST Psi2",
+        "ST Psi3",
+        "ST U", "ST U 0", "ST U +1", "ST U -1",
+        "ST Uperp", "ST Uperp 0", "ST Uperp +1", "ST Uperp -1",
+        "ST Upara", "ST Upara 0", "ST Upara +1", "ST Upara -1",
+        // perp derivatives
+        "dxF N", "dxB N", "dyF N", "dyB N",
+        "dxF Pperp", "dxB Pperp", "dyF Pperp", "dyB Pperp",
+        "dxF Ppara", "dxB Ppara", "dyF Ppara", "dyB Ppara",
+        "dx Tperp", "dy Tperp",
+        "dx Tpara", "dy Tpara",
+        "dx Psi0", "dy Psi0",
+        "dx Psi1", "dy Psi1",
+        "dx Psi2", "dy Psi2",
+        "dx U", "dy U",
+        "dx Uperp", "dy Uperp",
+        "dx Upara", "dy Upara",
+        // Staggered perp derivatives
+        "ST dx N", "ST dy N",
+        "ST dx Tperp", "ST dy Tperp",
+        "ST dx Tpara", "ST dy Tpara",
+        "ST dx Psi0", "ST dy Psi0",
+        "ST dx Psi1", "ST dy Psi1",
+        "ST dx Psi2", "ST dy Psi2",
+        "ST dxF U", "ST dxB U", "ST dyF U", "ST dyB U",
+        "ST dxF Qperp", "ST dxB Qperp", "ST dyF Qperp", "ST dyB Qperp",
+        "ST dxF Qpara", "ST dxB Qpara", "ST dyF Qpara", "ST dyB Qpara"
+    };
+
+    Container m_phi, m_apar, m_dxapar, m_dyapar, m_aparST, m_dxaparST, m_dyaparST; // same for all species
 
     const thermal::Parameters m_p;
     const dg::file::WrappedJsonValue m_js;
@@ -456,10 +501,10 @@ Explicit<Grid, IMatrix, Matrix, Container>::Explicit( const Grid& g,
 {
     //--------------------------init vectors to 0-----------------//
     dg::assign( dg::evaluate( dg::zero, g), m_phi );
-    m_apar = m_aparST = m_phi;
-    for( int i=0; i<4; i++)
-        m_psi[i] = m_phi;
-
+    m_apar = m_dxapar = m_dyapar = m_dxaparST = m_dyaparST = m_aparST = m_phi;
+    m_q["N"] = std::vector<Container>( m_p.num_species, m_phi);
+    for( auto name : q_names)
+        m_q[name] = m_q["N"];
     //--------------------------Construct-------------------------//
     m_upToDate.resize( m_p.num_species);
     for( unsigned s=0; s<m_p.num_species; s++)
@@ -489,118 +534,110 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
     const std::vector<Container>&  density    = y[0];
     const std::vector<Container>&  pperp      = y[1];
-    //const std::vector<Container>&  ppara      = y[2];
+    const std::vector<Container>&  ppara      = y[2];
     const std::vector<Container>&  wST        = y[3];
-    //const std::vector<Container>&  qperpST    = y[4];
-    //const std::vector<Container>&  qparaST    = y[5];
+    const std::vector<Container>&  qperpST    = y[4];
+    const std::vector<Container>&  qparaST    = y[5];
 
-    // First compute potentials phi and apar
 
-    m_solvers.compute_phi( t, density, pperp, m_phi, m_p.penalize_wall,
+    // 1. Transform Pperp, Ppara to Tperp, Tpara for all species
+    dg::blas1::copy( y[0], m_q["N"]);
+    dg::blas1::pointwiseDivide( pperp, density, m_q["Tperp"]);
+    dg::blas1::pointwiseDivide( ppara, density, m_q["Tpara"]);
+
+    //2. Solve for potential phi given density and temperature
+
+    m_solvers.compute_phi( t, density, m_q["Tperp"], m_phi, m_p.penalize_wall,
         m_sources.get_wall(), m_p.penalize_sheath, m_parallel.get_sheath());
+
+    m_solvers.compute_psi( t, density, m_q["Tperp"], m_phi,
+        m_q["Psi0"], m_q["Psi1"], m_q["Psi2"], m_q["Psi3"]);
 
     timer.toc();
     accu += timer.diff();
-    DG_RANK0 std::cout << "## Compute phi                       took "
+    DG_RANK0 std::cout << "## Compute phi and psi               took "
                        << timer.diff()<<"s\t A: "<<accu<<"s\n";
     timer.tic( );
-    //Compute m_densityST, m_minusSTN, m_plusSTN for all species
-    m_parallel.update_staggered_density( density);
+    // Given densities transform to fieldaligned grids:
+    // (Guaranteed to compute "ST N")
+    m_parallel.compute_staggered_densities( y, m_q);
 
-    // Compute m_aparST and m_velocityST if necessary
+    // Compute m_aparST if beta != 0
     if( m_p.beta != 0)
     {
-        m_solvers.compute_aparST( t, m_parallel.get_staggered_density(), wST,
+        m_solvers.compute_aparST( t, m_q["ST N"], wST,
             m_aparST, true);
     }
-    m_parallel.update_apar( m_aparST, m_apar);
-    // Compute apar, bperp, and divbperp
+    m_parallel.compute_apar( m_aparST, m_apar);
     m_old_apar.update( t, m_apar);
     timer.toc();
     accu += timer.diff();
     DG_RANK0 std::cout << "## Compute Apar and staggered N      took "
                        << timer.diff()<<"s\t A: "<<accu<<"s\n";
+    timer.tic();
+    for( unsigned s=0; s<m_p.num_species; s++)
+        dg::blas1::axpby( 1., wST[s], -m_p.z[s]/m_p.mu[s], m_aparST, m_q["ST U"][s]);
 
+    // Compute all the rest of parallel trafos
+    m_parallel.compute_parallel_transformations( y, m_q);
+    timer.toc();
+    accu += timer.diff();
+    DG_RANK0 std::cout << "## Compute Parallel transformations  took "
+                       << timer.diff()<<"s\t A: "<<accu<<"s\n";
+    timer.tic();
+    // and the perp derivatives
+    m_perp.update_derivatives( m_apar, m_dxapar, m_dyapar, y, m_q);
+    m_perp.update_STderivatives( m_aparST, m_dxaparST, m_dyaparST, y, m_q);
+    // Set perpendicular advection in yp
     // main species loop
     for( unsigned s=0; s<m_p.num_species; s++)
     {
-        timer.tic();
         m_upToDate[s] = false;
+        // Add perp dynamics
+        m_perp.add_densities_advection(  s, m_apar, m_dxapar, m_dyapar,
+            m_q, yp);
+        m_perp.add_velocities_advection( s, m_aparST, m_dxaparST, m_dyaparST,
+            m_q, yp);
+        m_perp.add_densities_diffusion(  s, m_q, yp);
+        m_perp.add_velocities_diffusion( s, m_q, yp);
 
-        // Compute the three potentials
-        m_solvers.compute_psi( t, density, pperp, m_phi, m_psi, s);
-        m_parallel.update_quantities( s, m_aparST, m_psi, y);
-        timer.toc();
-        accu += timer.diff();
-        DG_RANK0 std::cout << "## Species "<<m_p.name[s]
-			   <<" compute psi                       took "
-                           << timer.diff() << "s\t A: "<<accu<<"s\n";
-        timer.tic();
+        // Add parallel dynamics
+        m_parallel.add_densities_advection(  s, y, m_q, yp);
+        m_parallel.add_velocities_advection( s, y, m_q, yp);
 
-        // Set perpendicular advection in yp
-        m_perp.add_perp_densities_advection(  s, m_apar, m_psi, y,
-            m_parallel.get_q(), yp);
-        m_perp.add_perp_velocities_advection( s, m_aparST,
-            m_parallel.get_psiST(), y, m_parallel.get_qST(), yp);
+        m_parallel.add_densities_diffusion( s, m_q, yp);
+        m_parallel.add_velocities_diffusion( s, m_q, yp);
 
+        m_parallel.add_sheath_neumann_terms( s, m_q, yp);
+        m_parallel.add_sheath_velocity_terms( s, m_q, yp);
 
-        timer.toc();
-        accu += timer.diff();
-        DG_RANK0 std::cout << "## Species "<<m_p.name[s]
-			   <<" compute perp dynamics             took "
-                           << timer.diff() << "s\t A: "<<accu<<"s\n";
-        timer.tic();
+        // Add collisions
+        m_collisions.add_coulomb_collisions( s, m_q, yp);
+        m_collisions.add_lorentz_collisions( s, m_q, y, yp);
 
-        // Add parallel advection
-        m_parallel.add_para_densities_advection( s, m_psi, y, yp);
-        m_parallel.add_para_velocities_advection( s, y, yp);
+        // And sources
+        m_sources.add_wall_terms( s, yp);
+        m_sources.add_source_terms( s, m_perp, m_parallel, m_phi, m_q, y, yp );
 
-        // perp and parallel diffusion
-        m_perp.add_perp_densities_diffusion( s, y, m_parallel.get_q(), yp);
-        m_perp.add_perp_velocities_diffusion( s, y, m_parallel.get_qST(), yp);
-        m_parallel.add_para_densities_diffusion( s, y, yp);
-        m_parallel.add_para_velocities_diffusion( s, y, yp);
-
-        m_parallel.add_sheath_neumann_terms( s, yp);
-
-        m_collisions.gather_quantities( s, m_parallel.get_q(), m_parallel.get_qST() );
-
-        timer.toc();
-        accu += timer.diff();
-        DG_RANK0 std::cout << "## Species "<<m_p.name[s]
-			   <<" compute para dynamics             took "
-                           << timer.diff() << "s\t A: "<<accu<<"s\n";
-
-    } // species loops
-    timer.tic();
-    m_collisions.add_collisions( m_parallel.get_staggered_density(), m_aparST, y, yp);
-    m_parallel.add_sheath_velocity_terms( m_collisions.get_tparaST(), yp);
-
-    for( unsigned u=0; u<6; u++)
-    {
-        for( unsigned s=0; s<m_p.num_species; s++)
+        // Add penalization
+        for( unsigned u=0; u<6; u++)
         {
             common::multiply_rhs_penalization( yp[u][s], m_p.penalize_wall,
                 m_sources.get_wall(), m_p.penalize_sheath, m_parallel.get_sheath()); // F*(1-chi_w-chi_s)
             if( u == 3)
                 // Apply to U, not W
-                dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), m_parallel.get_qST()[3],
-                    -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), m_parallel.get_qST()[3], 1., yp[u][s]);
+                dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), m_q["ST U"][s],
+                    -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), m_q["ST U"][s], 1., yp[u][s]);
             else
                 dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), y[u][s],
                     -m_parallel.get_sheath_rate(), m_parallel.get_sheath(), y[u][s], 1., yp[u][s]);
         }
     }
 
-    m_sources.add_wall_terms( yp);
-    //Add source terms
-    // set m_s
-    m_sources.add_source_terms( m_perp, m_parallel, m_phi, m_aparST, y, yp );
-
     timer.toc();
     accu += timer.diff();
-    DG_RANK0 std::cout << "## Add collisions        and sources took "<<timer.diff()
-              << "s\t A: "<<accu<<"\n";
+    DG_RANK0 std::cout <<"## compute perp and para dynamics    took "
+                       << timer.diff() << "s\t A: "<<accu<<"s\n";
 }
 
 

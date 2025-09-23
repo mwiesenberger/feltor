@@ -64,11 +64,11 @@ The wall density is a list of values
 {
     "wall" :
     {
-        "nwall" : [0.1,0.1], // $N_{s,w} >0$ (see also nbc, background and minne)
+        "nwall" : [0.1,0.1], // $N_{s,w} >0$ (see also background and minne)
         // length must equal number of species (see \ref{sec:species})
         // Quasineutrality must be observed $\sum_s z_s n_{s,wall} = 0$
         "uwall" : 0.0, // $U_{\parallel,w}$
-        "twall" : 1, // $T_w > 0$ wall temperature (see also tbc)
+        "twall" : 1, // $T_w > 0$ wall temperature
         "qwall" : 0, // $Q_{w}$
     }
     "sheath":
@@ -87,49 +87,18 @@ The second exception is the box boundary conditions section:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{Box boundary conditions}
 \begin{tcolorbox}[title=Note]
-The box boundary conditions are the same as in `feltor.pdf`. The density boundary
-condition also applies to $T_\perp$ and $T_\parallel$ and the velocity
-also applies to $Q_\perp$ and $Q_\parallel$. The nbc value for density
-in case of Dirichlet must now have a value for each species and there must
-be a tbc value for temperature.
+The box boundary conditions are hardcoded and cannot be changed in the input file.
+As long as the penalization method is used they are in fact irrelevant.
 \end{tcolorbox}
-Here we can set the boundary conditions on the actual box boundary.
-This affects the implementation of the elliptic equations and the
-perpendicular terms.
-
+For all quantities except $\phi$ and $A_\parallel$ we choose Neumann zero boundary
+condition on the bounding box.
 The boundary conditions for the potential and the magnetic potential are not
-penalized and thus hold on the bounding box. Typically we choose
+penalized and thus hold on the bounding box. We choose (hardcode)
 \begin{align}
 \phi = 0
 \text{ and }  \hat n \cn A_{\parallel} = 0
 \end{align}
 where $\hat n$ is the normal vector to the boundary.
-
-\begin{minted}[texcomments]{js}
-"boundary":
-{
-    // must be either DIR or NEU in both directions!!
-    "bc" :
-    {
-        "density" : [NEU, NEU], // boundary conditions in x and y for $N$, $T_\perp$ and $T_\parallel$
-        // DIR (density 1 on boundary) means both convective and
-        // diffusive outflow while NEU (gradient 0) means no outflow by diffusion
-        "nbc" : [1.0,1.0] // Dirichlet value; must be present if and only if any one
-        // density boundary condition is DIR (see also nwall, background and minne)
-        // length must equal number of species (see \ref{sec:species})
-        "tbc" : 0.1 // Dirichlet value; must be present if and only if any one
-        // density boundary condition is DIR (see also $twall$ and background))
-        "velocity" : [NEU, NEU], // boundary conditions in x and y for
-        // $U_{\parallel,s}$, $Q_\perp$ and $Q_\parallel$ for all $s$
-        // DIR is in general not very stable, NEU works better
-        "potential" : [DIR, DIR], // boundary conditions in x and y for $\phi$
-        // and $\psi$, DIR means that the $v_{E,\perp}=0$ on the boundary (i.e.
-        // no outflow by \ExB drift), NEU can have a detrimental effect on timestep
-        "aparallel" : [NEU, NEU] // boundary conditions in x and y for $A_\parallel$,
-        // in general should be the same as the velocity bc
-    }
-}
-\end{minted}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{The species block: Initial conditions and sources} \label{sec:species}
@@ -229,7 +198,7 @@ The "density", "pperp" and "ppara" fields all allow the following:
         "type" : "const"  // $N_s = const$
         "background" : 0.1, // $const>0$
         // same as choosing "const" profile with zero ntilde and no damping
-        //(see also nbc, minne and nwall)
+        //(see also minne and nwall)
     }
     // OR
     "density" : // or "pperp" or "ppara"

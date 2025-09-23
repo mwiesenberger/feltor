@@ -23,8 +23,6 @@ struct Parameters
     unsigned mx, my;
     double rk4eps;
     std::string interpolation_method;
-    std::vector<double> nbc; // boundary condition for density
-    double tbc; // boundary condition for  temperature
 
     double nu_ref, beta;
 
@@ -35,7 +33,7 @@ struct Parameters
     std::vector<double> nwall;
     double uwall, twall, qwall, wall_rate;
 
-    enum dg::bc bcxN, bcyN, bcxU, bcyU, bcxP, bcyP, bcxA, bcyA;
+    enum dg::bc bcx, bcy, bcxP, bcyP, bcxA, bcyA;
     enum dg::direction pol_dir;
     std::string curvmode;
     std::string sheath_bc;
@@ -129,46 +127,11 @@ struct Parameters
                 (sheath_bc != "none") && (sheath_bc != "wall"))
             throw std::runtime_error( "ERROR: Sheath bc "+sheath_bc+" not recognized!\n");
 
-        // Pperp and Ppara bc are same as N
-        bcxN = dg::str2bc(js["boundary"]["bc"][  "density"].get( 0, "").asString());
-        bcyN = dg::str2bc(js["boundary"]["bc"][  "density"].get( 1, "").asString());
-        // Qperp and Qpara bc are same as U
-        bcxU = dg::str2bc(js["boundary"]["bc"][ "velocity"].get( 0, "").asString());
-        bcyU = dg::str2bc(js["boundary"]["bc"][ "velocity"].get( 1, "").asString());
-
-        bcxP = dg::str2bc(js["boundary"]["bc"]["potential"].get( 0, "").asString());
-        bcyP = dg::str2bc(js["boundary"]["bc"]["potential"].get( 1, "").asString());
-        bcxA = dg::str2bc(js["boundary"]["bc"]["aparallel"].get( 0, "").asString());
-        bcyA = dg::str2bc(js["boundary"]["bc"]["aparallel"].get( 1, "").asString());
-        nbc.resize( num_species, 0);
-        if( bcxN == dg::DIR || bcxN == dg::DIR_NEU || bcxN == dg::NEU_DIR
-            || bcyN == dg::DIR || bcyN == dg::DIR_NEU || bcyN == dg::NEU_DIR)
-        {
-            double sum_n = 0;
-            tbc = js["boundary"]["bc"].get( "tbc", 1.0).asDouble();
-            for( unsigned s=0; s<num_species; s++)
-            {
-                nbc[s] = js["boundary"]["bc"]["nbc"].get( s, 1.0).asDouble();
-                sum_n += z[s] * nbc[s];
-            }
-            if( fabs( sum_n) > 1e-15)
-                throw std::runtime_error( "Sum of wall charge nbc " + std::to_string( sum_n) +" is not zero \n");
-            if( bcxN != dg::DIR || bcyN != dg::DIR)
-                throw std::runtime_error( "Density boundary condition must be dg::DIR or dg::NEU in both x and y direction \n");
-        }
-
-
-        if( fci_bc == "along_field" || fci_bc == "perp")
-        {
-            if( bcxN != bcyN || bcxN == dg::DIR_NEU || bcxN == dg::NEU_DIR)
-                throw std::runtime_error( "ERROR: density bc must be either dg::NEU or dg::DIR in both directions!\n");
-            if( bcxU != bcyU || bcxU == dg::DIR_NEU || bcxU == dg::NEU_DIR)
-                throw std::runtime_error( "ERROR: velocity bc must be either dg::NEU or dg::DIR in both directions!\n");
-            if( bcxP != bcyP || bcxP == dg::DIR_NEU || bcxP == dg::NEU_DIR)
-                throw std::runtime_error( "ERROR: potential bc must be either dg::NEU or dg::DIR in both directions!\n");
-        }
-        else if( fci_bc != "perp")
+        if( fci_bc != "along_field" and fci_bc != "perp")
             throw std::runtime_error("Error! FCI bc '"+fci_bc+"' not recognized!\n");
+        bcx = dg::NEU, bcy = dg::NEU;
+        bcxP = dg::DIR, bcyP = dg::DIR;
+        bcxA = dg::NEU, bcyA = dg::NEU;
 
 
         curvmode    = js["magnetic_field"].get( "curvmode", "toroidal").asString();
