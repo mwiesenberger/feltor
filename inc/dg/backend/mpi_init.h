@@ -42,17 +42,17 @@ namespace dg
  * @attention Abort program if MPI does not support OpenMP and \c _OPENMP is
  * defined or if no CUDA capable devices are found in case of \c
  * THRUST_DEVICE_SYSTEM_CUDA
- * @param argc command line argument number
- * @param argv command line arguments
+ * @param argc (pointer to) command line argument number
+ * @param argv (pointer to) command line arguments
  */
-inline void mpi_init( int argc, char* argv[])
+inline void mpi_init( int *argc, char **argv[])
 {
 #ifdef _OPENMP
     int provided, error;
-    error = MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    error = MPI_Init_thread(argc, argv, MPI_THREAD_FUNNELED, &provided);
     assert( error == MPI_SUCCESS && "Threaded MPI lib required!\n");
 #else
-    MPI_Init(&argc, &argv);
+    MPI_Init(argc, argv);
 #endif
 #if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
     int rank;
