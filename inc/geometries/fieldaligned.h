@@ -417,7 +417,7 @@ struct Fieldaligned
     * @param in input
     * @param out output may not equal input
     */
-    void operator()(enum whichMatrix which, const container& in, container& out);
+    void operator()(enum whichMatrix which, const container& in, container& out) const;
 
     double deltaPhi() const{return m_deltaPhi;}
     ///@brief Distance between the planes and the boundary \f$ (s_{k}-s_{b}^-) \f$
@@ -540,10 +540,11 @@ struct Fieldaligned
     std::string method() const{return m_interpolation_method;}
 
     private:
-    void ePlus( enum whichMatrix which, const container& in, container& out);
-    void eMinus(enum whichMatrix which, const container& in, container& out);
-    void zero( enum whichMatrix which, const container& in, container& out);
-    IMatrix m_plus, m_zero, m_minus, m_plusT, m_minusT; //2d interpolation matrices
+    void ePlus( enum whichMatrix which, const container& in, container& out) const;
+    void eMinus(enum whichMatrix which, const container& in, container& out) const;
+    void zero( enum whichMatrix which, const container& in, container& out) const;
+    IMatrix m_plus, m_zero, m_minus; //2d interpolation matrices
+    mutable IMatrix m_plusT, m_minusT; // only allocated if necessary
     container m_hbm, m_hbp;         //3d size
     container m_G, m_Gm, m_Gp; // 3d size
     container m_bphi, m_bphiM, m_bphiP; // 3d size
@@ -551,18 +552,18 @@ struct Fieldaligned
 
     container m_left, m_right;      //perp_size
     container m_limiter;            //perp_size
-    container m_ghostM, m_ghostP;   //perp_size
+    mutable container m_ghostM, m_ghostP;   //perp_size
     unsigned m_Nz, m_perp_size;
     dg::bc m_bcx, m_bcy, m_bcz;
-    std::vector<dg::View<const container>> m_f;
-    std::vector<dg::View< container>> m_temp;
+    mutable std::vector<dg::View<const container>> m_f;
+    mutable std::vector<dg::View< container>> m_temp;
     dg::ClonePtr<ProductGeometry> m_g;
     dg::InverseKroneckerTriDiagonal2d<container> m_inv_linear;
     double m_deltaPhi;
     std::string m_interpolation_method;
 
-    bool m_have_adjoint = false;
-    void updateAdjoint( )
+    mutable bool m_have_adjoint = false;
+    void updateAdjoint( ) const // only changes mutable m_plusT, m_minusT, m_have_adjoint
     {
         m_plusT = m_plus.transpose();
         m_minusT = m_minus.transpose();
@@ -737,6 +738,7 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
     dg::blas2::transfer( minus, m_minus);
     dg::blas2::transfer( zero, m_zero);
     dg::blas2::transfer( plus, m_plus);
+    m_have_adjoint = false;
 
     if( benchmark)
     {
@@ -884,7 +886,7 @@ void Fieldaligned<G, I,container>::integrate_between_coarse_grid( const G& grid,
 }
 
 template<class G, class I, class container>
-void Fieldaligned<G, I, container >::operator()(enum whichMatrix which, const container& f, container& fe)
+void Fieldaligned<G, I, container >::operator()(enum whichMatrix which, const container& f, container& fe) const
 {
     if(     which == einsPlus  || which == einsMinusT ) ePlus(  which, f, fe);
     else if(which == einsMinus || which == einsPlusT  ) eMinus( which, f, fe);
@@ -895,7 +897,7 @@ void Fieldaligned<G, I, container >::operator()(enum whichMatrix which, const co
 
 template< class G, class I, class container>
 void Fieldaligned<G, I, container>::zero( enum whichMatrix which,
-        const container& f, container& f0)
+        const container& f, container& f0) const
 {
     dg::split( f, m_f, *m_g);
     dg::split( f0, m_temp, *m_g);
@@ -929,7 +931,7 @@ void Fieldaligned<G, I, container>::zero( enum whichMatrix which,
 }
 template< class G, class I, class container>
 void Fieldaligned<G, I, container>::ePlus( enum whichMatrix which,
-        const container& f, container& fpe)
+        const container& f, container& fpe) const
 {
     dg::split( f, m_f, *m_g);
     dg::split( fpe, m_temp, *m_g);
@@ -961,7 +963,7 @@ void Fieldaligned<G, I, container>::ePlus( enum whichMatrix which,
 
 template< class G, class I, class container>
 void Fieldaligned<G, I, container>::eMinus( enum whichMatrix which,
-        const container& f, container& fme)
+        const container& f, container& fme) const
 {
     dg::split( f, m_f, *m_g);
     dg::split( fme, m_temp, *m_g);

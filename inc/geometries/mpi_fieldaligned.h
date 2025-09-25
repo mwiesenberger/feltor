@@ -73,7 +73,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         m_bcz = bcz;
     }
 
-    void operator()(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out);
+    void operator()(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out) const;
 
     double deltaPhi() const{return m_deltaPhi;}
     const MPI_Vector<LocalContainer>& hbm()const {
@@ -116,10 +116,11 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             unsigned rounds) const;
     std::string method() const{return m_interpolation_method;}
   private:
-    void ePlus( enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out);
-    void eMinus(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out);
-    void zero(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out);
-    MIMatrix m_plus, m_zero, m_minus, m_plusT, m_minusT; //2d interpolation matrices
+    void ePlus( enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out) const;
+    void eMinus(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out) const;
+    void zero(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out) const;
+    MIMatrix m_plus, m_zero, m_minus; //2d interpolation matrices
+    mutable MIMatrix m_plusT, m_minusT; // only allocated if necessary
     MPI_Vector<LocalContainer> m_hbm, m_hbp; //3d size
     MPI_Vector<LocalContainer> m_G, m_Gm, m_Gp; //3d size
     MPI_Vector<LocalContainer> m_bphi, m_bphiM, m_bphiP; //3d size
@@ -140,8 +141,8 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
     //we need to manually send data through the host for cuda-unaware-mpi
     mutable thrust::host_vector<double> m_buffer; //2d size
     dg::detail::MPIContiguousGather m_from_minus, m_from_plus;
-    bool m_have_adjoint = false;
-    void updateAdjoint( )
+    mutable bool m_have_adjoint = false;
+    void updateAdjoint( ) const // only changes mutable m_have_adjoint and m_minusT, m_plusT
     {
         auto vol = dg::tensor::volume(m_g->metric()), vol2d0(vol);
         auto vol2d = dg::split( vol, *m_g);
@@ -152,12 +153,18 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         thrust::host_vector<double> hbp, hbm;
         thrust::host_vector<bool> in_boxp, in_boxm;
 
+        dg::MIHMatrix minus, zero, plus, minusT, plusT;
         make_matrices( m_vec, grid_transform, global_grid_magnetic,
             m_bcx, m_bcy, m_eps, m_mx, m_my, m_deltaPhi,
             m_interpolation_method,
-            false, true, vol2d0, hbp, hbm,
+            false, vol2d0, hbp, hbm,
             in_boxp, in_boxm,
-            yp_trafo, ym_trafo);
+            yp_trafo, ym_trafo,
+            minus, zero, plus, true, minusT, plusT
+            );
+        dg::blas2::transfer( minusT, m_minusT);
+        dg::blas2::transfer( plusT, m_plusT);
+        m_have_adjoint = true;
     }
 
     void make_matrices(
@@ -167,15 +174,18 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         dg::bc bcx, dg::bc bcy, double eps,
         unsigned mx, unsigned my,
         double deltaPhi, std::string interpolation_method,
-        bool benchmark, bool make_adjoint,
+        bool benchmark,
         const MPI_Vector<thrust::host_vector<double>>& vol2d0,
         thrust::host_vector<double>& hbp,
         thrust::host_vector<double>& hbm,
         thrust::host_vector<bool>& in_boxp,
         thrust::host_vector<bool>& in_boxm,
         std::array<thrust::host_vector<double>,3>& yp_trafo,
-        std::array<thrust::host_vector<double>,3>& ym_trafo
-        )
+        std::array<thrust::host_vector<double>,3>& ym_trafo,
+        dg::MIHMatrix& minus, dg::MIHMatrix& zero, dg::MIHMatrix& plus,
+        bool make_adjoint,
+        dg::MIHMatrix& minusT, dg::MIHMatrix& plusT
+        ) const
     {
         int rank;
         MPI_Comm_rank( m_g->communicator(), &rank);
@@ -223,7 +233,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         // The idea for the sub-grids is that the fine interpolation matrix takes
         // up a large chunk of memory which can be avoided by sub-dividing the
         // fine grid along its rows
-        dg::IHMatrix plus, zero, minus;
+        dg::IHMatrix local_plus, local_zero, local_minus;
         dg::IHMatrix interpolate, zero_interpolate, projection;
         for( unsigned sub = 0; sub < grid_transform->local().Ny(); sub++)
         {
@@ -296,7 +306,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
 
             std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
             std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
-            std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
+            std::array<dg::IHMatrix*,3> result{ &local_plus, &local_zero, &local_minus};
             dg::IHMatrix subresult;
 
             for( unsigned u=0; u<3; u++)
@@ -313,9 +323,9 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         if( inter_m != "dg")
         {
             dg::IHMatrix backproject = dg::create::backproject( grid_transform->global()); // from dg to equidist
-            minus = minus*backproject;
-            zero = zero*backproject;
-            plus = plus*backproject;
+            local_minus = local_minus*backproject;
+            local_zero = local_zero*backproject;
+            local_plus = local_plus*backproject;
         }
         if( benchmark)
         {
@@ -324,27 +334,24 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             t.tic();
         }
         // Now convert to MPI matrices
-        std::array<MIMatrix*,3> result{ &m_plus, &m_zero, &m_minus};
-        std::array<MIMatrix*,3> resultT{ &m_plusT, &m_zero, &m_minusT};
-        std::array<dg::IHMatrix*,3> input{ &plus, &zero, &minus};
+        std::array<dg::IHMatrix*,3> input{ &local_plus, &local_zero, &local_minus};
+        std::array<MIHMatrix*,3> result{ &plus, &zero, &minus};
+        std::array<MIHMatrix*,3> resultT{ &plusT, &zero, &minusT};
         for( unsigned u=0; u<3; u++)
         {
             // important! only convert after addition (else the addition is wrong for linear projection)
             *input[u] = dg::convertGlobal2LocalRows( *input[u], *grid_transform);
-            dg::MIHMatrix mpi = dg::make_mpi_matrix( *input[u], *grid_transform);
-            dg::blas2::transfer( mpi, *result[u]);
+            *result[u] = dg::make_mpi_matrix( *input[u], *grid_transform);
             if( make_adjoint and  u != 1)
             {
                 dg::IHMatrix inputT = input[u]->transpose();
-                // multiT is column distributed
-                // multiT has global rows and local column indices
+                // inputT is column distributed
+                // inputT has global rows and local column indices
                 dg::convertLocal2GlobalCols( inputT, *grid_transform);
-                // now multiT has global rows and global column indices
+                // now inputT has global rows and global column indices
                 auto mat = dg::convertGlobal2LocalRows( inputT, *grid_transform);
                 // now mat is row distributed with global column indices
-                auto mpi_mat = dg::make_mpi_matrix(  mat, *grid_transform);
-                dg::blas2::transfer( mpi_mat, *resultT[u]);
-                m_have_adjoint = true;
+                *resultT[u] = dg::make_mpi_matrix(  mat, *grid_transform);
             }
         }
         if( benchmark)
@@ -407,11 +414,18 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     thrust::host_vector<double> hbp, hbm;
     thrust::host_vector<bool> in_boxp, in_boxm;
 
+    dg::MIHMatrix minus, zero, plus, minusT, plusT;
     make_matrices( vec, grid_transform, global_grid_magnetic,
             bcx, bcy, eps, mx, my, m_deltaPhi, interpolation_method,
-            benchmark, false, vol2d0, hbp, hbm,
+            benchmark, vol2d0, hbp, hbm,
             in_boxp, in_boxm,
-            yp_trafo, ym_trafo);
+            yp_trafo, ym_trafo,
+            minus, zero, plus, false, minusT, plusT
+            );
+    dg::blas2::transfer( minus, m_minus);
+    dg::blas2::transfer( zero, m_zero);
+    dg::blas2::transfer( plus, m_plus);
+    m_have_adjoint = false;
     ///%%%%%%%%%%%%%%%%%%%%copy into h vectors %%%%%%%%%%%%%%%%%%%//
     dg::HVec hbphi( yp_trafo[2]), hbphiP(hbphi), hbphiM(hbphi);
     auto tmp = dg::pullback( vec.z(), *grid_transform);
@@ -496,7 +510,7 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
 template<class G, class M, class container>
 void Fieldaligned<G, M, MPI_Vector<container> >::operator()(enum
         whichMatrix which, const MPI_Vector<container>& f,
-        MPI_Vector<container>& fe)
+        MPI_Vector<container>& fe) const
 {
     if(     which == einsPlus  || which == einsMinusT ) ePlus(  which, f, fe);
     else if(which == einsMinus || which == einsPlusT  ) eMinus( which, f, fe);
@@ -505,7 +519,7 @@ void Fieldaligned<G, M, MPI_Vector<container> >::operator()(enum
             which == zeroForw  ) zero(   which, f, fe);
 }
 template< class G, class M, class container>
-void Fieldaligned<G, M, MPI_Vector<container> >::zero( enum whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& f0)
+void Fieldaligned<G, M, MPI_Vector<container> >::zero( enum whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& f0) const
 {
     dg::split( f, m_f, *m_g);
     dg::split( f0, m_temp, *m_g);
@@ -539,7 +553,7 @@ void Fieldaligned<G, M, MPI_Vector<container> >::zero( enum whichMatrix which, c
 }
 
 template<class G, class M, class container>
-void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& fpe )
+void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& fpe ) const
 {
     dg::split( f, m_f, *m_g);
     dg::split( fpe, m_temp, *m_g);
@@ -584,7 +598,7 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
 
 template<class G, class M, class container>
 void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
-    whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& fme )
+    whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& fme ) const
 {
     int rank;
     MPI_Comm_rank(m_g->communicator(), &rank);
