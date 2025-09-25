@@ -483,8 +483,6 @@ void Fieldaligned<G, M, MPI_Vector<container> >::operator()(enum
         whichMatrix which, const MPI_Vector<container>& f,
         MPI_Vector<container>& fe)
 {
-    if(which == einsPlus || which == einsMinusT) ePlus( which, f, fe);
-    if(which == einsMinus || which == einsPlusT) eMinus( which, f, fe);
     if(     which == einsPlus  || which == einsMinusT ) ePlus(  which, f, fe);
     else if(which == einsMinus || which == einsPlusT  ) eMinus( which, f, fe);
     else if(which == zeroMinus || which == zeroPlus ||
