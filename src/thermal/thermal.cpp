@@ -59,7 +59,7 @@ int main( int argc, char* argv[])
     auto box = common::box( js);
     dg::x::CylindricalGrid3d grid( box.at("Rmin"), box.at("Rmax"),
             box.at("Zmin"), box.at("Zmax"), 0, 2.*M_PI,
-        p.n, p.Nx, p.Ny, p.symmetric ? 1 : p.Nz, p.bcxN, p.bcyN, dg::PER
+        p.n, p.Nx, p.Ny, p.symmetric ? 1 : p.Nz, p.bcx, p.bcy, dg::PER
         #ifdef WITH_MPI
         , comm
         #endif //WITH_MPI
@@ -182,16 +182,15 @@ int main( int argc, char* argv[])
 
         // helper variables for output computations
         dg::x::CylindricalGrid3d g3d_out( grid.x0(), grid.x1(), grid.y0(), grid.y1(), 0, 2.*M_PI,
-            p.n, p.Nx/p.cx, p.Ny/p.cy, p.symmetric ? 1 : p.Nz, p.bcxN, p.bcyN, dg::PER
+            p.n, p.Nx/p.cx, p.Ny/p.cy, p.symmetric ? 1 : p.Nz, p.bcx, p.bcy, dg::PER
             #ifdef WITH_MPI
             , comm
             #endif //WITH_MPI
             );
 
-        std::array<dg::x::DVec, 3> gradPsip; //referenced by Variables
+        std::array<dg::x::DVec, 2> gradPsip; //referenced by Variables
         gradPsip[0] =  dg::evaluate( mag.psipR(), grid);
         gradPsip[1] =  dg::evaluate( mag.psipZ(), grid);
-        gradPsip[2] =  dg::evaluate( dg::zero, grid); //zero
         dg::x::DVec resultD = dg::evaluate( dg::zero, grid);
         dg::x::HVec resultH_out = dg::evaluate( dg::zero, g3d_out);
         dg::x::DVec resultD_out = dg::evaluate( dg::zero, g3d_out);
@@ -203,14 +202,22 @@ int main( int argc, char* argv[])
 
         // STATIC OUTPUT
         //create & output static 3d variables into file
-        file.defput_dim( "R", {{"axis", "X"}, {"long_name", "R coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(0));
-        file.defput_dim( "Z", {{"axis", "Y"}, {"long_name", "Z coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(1));
-        file.defput_dim( "P", {{"axis", "Z"}, {"long_name", "Phi coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rad"}}, g3d_out.abscissas(2));
+        file.defput_dim( "x", {{"axis", "X"}, {"long_name", "R coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(0));
+        file.defput_dim( "y", {{"axis", "Y"}, {"long_name", "Z coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(1));
+        file.defput_dim( "z", {{"axis", "Z"}, {"long_name", "Phi coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rad"}}, g3d_out.abscissas(2));
+        //MW: 24.9. Nice attempt but all our scripts work with "x", "y", "z" coordinates now, so now its a bit annoying to change it all
+        //file.defput_dim( "R", {{"axis", "X"}, {"long_name", "R coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(0));
+        //file.defput_dim( "Z", {{"axis", "Y"}, {"long_name", "Z coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rho_s"}}, g3d_out.abscissas(1));
+        //file.defput_dim( "P", {{"axis", "Z"}, {"long_name", "Phi coordinate in Cylindrical R,Z,Phi coordinate system"}, {"units", "rad"}}, g3d_out.abscissas(2));
+        // Let's instead define 1d helper variables
+        file.defput_var( "R", {"x"}, {{"long_name", "R coordinate in Cylindrical R,Z,Phi coordinate system (alias for x)"}, {"units", "rho_s"}}, g3d_out.gx(), g3d_out.abscissas(0));
+        file.defput_var( "Z", {"y"}, {{"long_name", "Z coordinate in Cylindrical R,Z,Phi coordinate system (alias for y)"}, {"units", "rho_s"}}, g3d_out.gy(), g3d_out.abscissas(1));
+        file.defput_var( "P", {"z"}, {{"long_name", "Phi coordinate in Cylindrical R,Z,Phi coordinate system (alias for z)"}, {"units", "rad"}}, g3d_out.gz(), g3d_out.abscissas(2));
 
         for( auto& record: thermal::diagnostics3d_static_list)
         {
             record.function( resultH_out, var.mag, g3d_out);
-            file.defput_var( record.name, {"P", "Z", "R"}, record.atts,
+            file.defput_var( record.name, {"z", "y", "x"}, record.atts,
                     {g3d_out}, resultH_out);
         }
 
@@ -230,8 +237,8 @@ int main( int argc, char* argv[])
 
         file.def_dimvar_as<double>( "time", NC_UNLIMITED, {{"axis", "T"}, {"units", "Omega_ci^-1"}});
 
-        //thermal::WriteIntegrateDiagnostics2dList diag2d( file, grid, g3d_out,
-        //    thermal::generate_equation_list( js));
+        thermal::WriteIntegrateDiagnostics2dList diag2d( file, grid, g3d_out,
+            thermal::generate_equation_list( js), p.name);
         file.defput_dim( "xr", {{"axis", "X"}}, grid.abscissas(0));
         file.defput_dim( "yr", {{"axis", "Y"}}, grid.abscissas(1));
         file.defput_dim( "zr", {{"axis", "Z"}}, grid.abscissas(2));
@@ -273,8 +280,8 @@ int main( int argc, char* argv[])
             file.def_var_as<double>( record.name, {"time"}, record.atts);
             file.put_var( record.name, {0}, record.function( var));
         }
-        //DG_RANK0 std::cout << "# Write diag2d ...\n";
-        //diag2d.write( time, var );
+        DG_RANK0 std::cout << "# Write diag2d ...\n";
+        diag2d.write( time, var );
         DG_RANK0 std::cout << "# Write diag4d ...\n";
         dg::MultiMatrix<dg::x::DMatrix, dg::x::DVec> project(
             dg::create::fast_projection( grid, 1, p.cx, p.cy));
@@ -284,10 +291,10 @@ int main( int argc, char* argv[])
             record.function ( resultD, var, s);
             dg::apply( project, resultD, resultD_out);
             if( record.species_dependent)
-                file.defput_var( p.name[s] + "_" + record.name, {"time", "P", "Z", "R"},
+                file.defput_var( p.name[s] + "_" + record.name, {"time", "z", "y", "x"},
                     {{"long_name", record.long_name}}, {0, g3d_out}, resultD_out);
             else if( s == 0)
-                file.defput_var( record.name, {"time", "P", "Z", "R"},
+                file.defput_var( record.name, {"time", "z", "y", "x"},
                     {{"long_name", record.long_name}}, {0, g3d_out}, resultD_out);
         }
 
@@ -331,7 +338,7 @@ int main( int argc, char* argv[])
                 tti.tic();
 
                 //probes.buffer(time, thermal::probe_list, var);
-                //diag2d.buffer( time, var);
+                diag2d.buffer( time, var);
 
                 DG_RANK0 std::cout << "\tTime "<<time<<"\n";
                 //double max_ue = dg::blas1::reduce(
@@ -370,7 +377,7 @@ int main( int argc, char* argv[])
             //////////////////////////write fields////////////////////////
             file.open( file_name, dg::file::nc_write);
             //probes.flush();
-            //diag2d.flush( var);
+            diag2d.flush( var);
 
             for( unsigned s=0; s<p.num_species; s++)
             for( auto& record: thermal::restart3d_list)

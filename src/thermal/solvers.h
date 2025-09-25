@@ -14,10 +14,10 @@ namespace thermal
 // Assume Product Space Grid where phi phi component decouples from perp grids
 
 template< class Geometry, class Matrix, class Container >
-struct ThermalSolvers
+struct Solvers
 {
-    ThermalSolvers() = default;
-    ThermalSolvers( const Geometry&, thermal::Parameters p,
+    Solvers() = default;
+    Solvers( const Geometry&, thermal::Parameters p,
         dg::geo::TokamakMagneticField mag, dg::file::WrappedJsonValue);
     void compute_phi(
         double time, const std::vector<Container>& density,
@@ -35,7 +35,6 @@ struct ThermalSolvers
     // Only valid directly after compute_phi, because it stores tridiag from phi
     void compute_psi(
         double time,
-        const std::vector<Container>& density,
         const std::vector<Container>& tperp,
         const Container& phi,
         std::vector<Container>& psi0,
@@ -47,10 +46,18 @@ struct ThermalSolvers
     const Geometry& grid() const {
         return m_multigrid.grid(0);
     }
+    const Container& uE2() const {return m_uE2;}
+    //volume with dG weights
+    const Container& vol3d() const { return m_laplaceM.weights();}
+    const Container& weights() const { return m_laplaceM.weights();}
+    const Container& gammaN( unsigned s) const { return m_old_gammaN[s].head();}
+    void compute_lapMperpP( const Container& phi, Container& lapMphi) const {
+        dg::blas2::symv( m_laplaceM, phi, lapMphi);
+    }
 
     private:
     thermal::Parameters m_p;
-    Container m_temp0, m_temp1, m_temp2, m_rhoinv2, m_B2, m_vol;
+    Container m_temp0, m_temp1, m_temp2, m_uE2, m_rhoinv2, m_B2, m_vol;
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multigrid;
     std::vector<Container> m_multi_chi;
 
@@ -67,7 +74,7 @@ struct ThermalSolvers
 };
 
 template<class Geometry, class Matrix, class Container>
-ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
+Solvers<Geometry, Matrix, Container>::Solvers( const Geometry& g,
     thermal::Parameters p, dg::geo::TokamakMagneticField mag,
     dg::file::WrappedJsonValue
     ): m_p(p),
@@ -76,7 +83,7 @@ ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
     m_old_gammaN( p.num_species - 1, m_old_phi)
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
-    m_rhoinv2 = m_temp2 = m_temp1 = m_temp0;
+    m_uE2 = m_rhoinv2 = m_temp2 = m_temp1 = m_temp0;
     dg::assign(  dg::pullback(dg::geo::Bmodule(mag), g), m_B2);
     m_vol = dg::create::volume( g);
     dg::blas1::pointwiseDot( m_B2, m_B2, m_B2);
@@ -104,7 +111,7 @@ ThermalSolvers<Geometry, Matrix, Container>::ThermalSolvers( const Geometry& g,
 }
 
 template<class Geometry, class Matrix, class Container>
-void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
+void Solvers<Geometry, Matrix, Container>::compute_phi(
     double time, const std::vector<Container>& density,
     const std::vector<Container>& tperp,
     Container& phi,
@@ -180,7 +187,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_phi(
 }
 
 template<class Geometry, class Matrix, class Container>
-void ThermalSolvers<Geometry, Matrix, Container>::compute_aparST(
+void Solvers<Geometry, Matrix, Container>::compute_aparST(
     double time, const std::vector<Container>& densityST,
     const std::vector<Container>& wST, Container& aparST,
     // update determines if old solution is updated (or start iteration from 0)
@@ -218,9 +225,8 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_aparST(
 }
 
 template<class Geometry, class Matrix, class Container>
-void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
+void Solvers<Geometry, Matrix, Container>::compute_psi(
     double,
-    const std::vector<Container>& density,
     const std::vector<Container>& tperp,
     const Container& phi,
     std::vector<Container>& psi0,
@@ -234,6 +240,9 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
     dg::blas1::copy( 0,   psi1[0]);
     dg::blas1::copy( 0,   psi2[0]);
     dg::blas1::copy( 0,   psi3[0]);
+    // u_E^2
+    m_laplaceM.variation( phi, m_uE2);
+    dg::blas1::pointwiseDivide( m_uE2, m_B2, m_uE2);
     for( unsigned s = 1; s<m_p.num_species; s++)
     {
         Container& omega_s = m_rhoinv2;
@@ -250,8 +259,7 @@ void ThermalSolvers<Geometry, Matrix, Container>::compute_psi(
         dg::blas1::axpbypgz( -6., psi1[s], 12., psi2[s], -6., psi3[s]);
         dg::blas1::axpby(    -2., psi1[s],  2., psi2[s]);
         dg::blas1::scal( psi1[s], -1.);
-        m_laplaceM.variation( phi, m_temp0);
-        dg::blas1::pointwiseDivide( -m_p.mu[s]/2./m_p.z[s], m_temp0, m_B2, 1., psi0[s]);
+        dg::blas1::axpby( -m_p.mu[s]/2./m_p.z[s], m_uE2, 1., psi0[s]);
     }
 }
 

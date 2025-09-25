@@ -34,7 +34,7 @@ struct PerpDynamics
         const Container& dyapar,
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp
-    );
+    ) const;
 
     // dtW += ... , dtQperp += ... , dtQpara += ...
     void add_velocities_advection(
@@ -44,7 +44,7 @@ struct PerpDynamics
         const Container& dyaparST,
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp
-    );
+    ) const;
     void add_densities_diffusion(
         unsigned s,
         const std::map<std::string, std::vector<Container>>& q,
@@ -163,10 +163,35 @@ struct PerpDynamics
     const Container& divb( ) const { return m_divb; }
     const Container& binv( ) const { return m_binv; }
     const Container& bphi( ) const { return m_bphi; }
+    // Compute divergence using centered derivatives
+    // note that no matter how divergence is computed you always loose one order
+    // unless the polarisation term or the Laplacian of N,U is computed
+    // then the correct direction must be chosen
+    // prefactor cannot alias result!!
+    // Div ( f v)
+    template<class Container2>
+    void centered_div( const Container2& prefactor,
+            const std::array<Container, 2>& contra_vec,
+            Container& temp0, Container& result)
+    {
+        dg::blas1::pointwiseDot( 1., prefactor, m_detg, contra_vec[0], 0., temp0);
+        dg::blas2::symv( m_dxC, temp0, result);
+        dg::blas1::pointwiseDot( 1., prefactor, m_detg, contra_vec[1], 0., temp0);
+        dg::blas2::symv( 1., m_dyC, temp0, 1., result);
+        dg::blas1::pointwiseDivide( 1., result, m_detg, 0., result);
+    }
+    void centered_v_dot_nabla( const std::array<Container, 2>& contra_vec,
+            const Container& f, Container& temp1, Container& result)
+    {
+        dg::blas2::symv( m_dxC, f, temp1);
+        dg::blas1::pointwiseDot( contra_vec[0], temp1, result);
+        dg::blas2::symv( m_dyC, f, temp1);
+        dg::blas1::pointwiseDot( 1., contra_vec[1], temp1, 1., result);
+    }
     private:
     //these should be considered const
     std::array<Container,2> m_curvNabla, m_curvKappa, m_gradLnB;
-    Container m_divCurvKappa, m_b_2, m_divb, m_binv, m_bphi; //m_b_2 = bphi(covariant)/detg/B \approx pm 1/B
+    Container m_divCurvKappa, m_b_2, m_divb, m_binv, m_bphi, m_detg; //m_b_2 = bphi(covariant)/detg/B \approx pm 1/B
     // store covariant bphi = +- R for momentum conservation
 
     Matrix m_dxF, m_dxB, m_dxC, m_dx_P, m_dx_A;
@@ -235,6 +260,8 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
         m_curvNabla[0], m_curvNabla[1], m_temp0, g);
     dg::pushForward(curvKappa.x(), curvKappa.y(), curvKappa.z(),
         m_curvKappa[0], m_curvKappa[1], m_temp0, g);
+    dg::SparseTensor<Container> metric = g.metric();
+    m_detg = dg::tensor::volume( metric);
     m_b_2 = m_temp1 = m_temp2 = m_temp3 = m_temp0;
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
     dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
@@ -356,7 +383,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection(
     const Container& apar, const Container& dxapar, const Container& dyapar,
     const std::map<std::string, std::vector<Container>>& q,
     std::array<std::vector<Container>,6>& yp
-)
+) const
 {
     /////////////////////////////////////////////////////////////////
     double mu = m_p.mu[s], z = m_p.z[s], beta = m_p.beta;
@@ -463,7 +490,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection(
                     + mu/z*Tperp*Uperp*curvNablaY
                     +mu*Uperp*b_2*E1X)*dyU;
     },
-        q["N"],
+        q["N"][s],
         q["dxF N"][s], q["dyF N"][s],
         q["dxB N"][s], q["dyB N"][s],
         q["dxF Pperp"][s], q["dyF Pperp"][s],
@@ -495,7 +522,7 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_advection(
     const Container& dyaparST,
     const std::map<std::string, std::vector<Container>>& q,
     std::array<std::vector<Container>,6>& yp
-)
+) const
 {
     double mu = m_p.mu[s], z = m_p.z[s], beta = m_p.beta;
     dg::blas1::subroutine( [mu, z, beta] DG_DEVICE (

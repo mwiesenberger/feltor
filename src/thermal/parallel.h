@@ -7,9 +7,9 @@
 namespace thermal
 {
 template< class Geometry, class IMatrix, class Matrix, class Container >
-struct ParallelDynamics
+struct ParaDynamics
 {
-    ParallelDynamics( const Geometry&, thermal::Parameters,
+    ParaDynamics( const Geometry&, thermal::Parameters,
         dg::geo::TokamakMagneticField, dg::file::WrappedJsonValue);
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
     {
@@ -39,6 +39,8 @@ struct ParallelDynamics
         const std::array<std::vector<Container>,6>& y,
         std::map<std::string, std::vector<Container>>& q
     );
+
+    const Container& get_divNUb( unsigned u, unsigned s) const { return m_divNUb[u][s];}
 
     void compute_apar( const Container& aparST, Container& apar)
     {
@@ -81,22 +83,42 @@ struct ParallelDynamics
         unsigned s,
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp);
-
-    void add_velocity_source_term(
-        unsigned s,
-        const std::vector<Container>& sn,
-        const std::vector<Container>& STN,
-        const std::vector<Container>& STU,
-        std::array<std::vector<Container>,6>& yp)
+    void update_parallel_bc_1st( Container& minusST, Container& plusST,
+            dg::bc bcx, double value) const
     {
-        // S_U = - U S_N / N
-        // transform to adjoint plane and add to velocity source
-        m_faHalf( dg::geo::zeroMinus, sn[s], m_tminus);
-        m_faHalf( dg::geo::einsPlus,  sn[s], m_tplus);
-        update_parallel_bc_1st( m_tminus, m_tplus, m_p.bcx, 0.);
-        dg::geo::ds_average( m_faHalf, 1., m_tminus, m_tplus, 0., m_temp);
-        dg::blas1::pointwiseDot( STU[s], m_temp, m_temp);
-        dg::blas1::pointwiseDivide( -1., m_temp, STN[s], 1., yp[3][s]);
+        if( m_p.fci_bc == "along_field")
+            dg::geo::assign_bc_along_field_1st( m_faHalf, minusST, plusST,
+                    minusST, plusST, bcx, {value,value});
+        else
+        {
+            if( bcx == dg::DIR)
+            {
+                dg::blas1::plus( minusST, -value);
+                dg::geo::swap_bc_perp( m_fa, minusST, plusST,
+                        minusST, plusST);
+                dg::blas1::plus( minusST, +value);
+            }
+        }
+    }
+    void update_parallel_bc_2nd( const dg::geo::Fieldaligned<Geometry, IMatrix,
+            Container>& fa, Container& minus, const Container& value0,
+            Container& plus, dg::bc bcx, double value) const
+    {
+        if( m_p.fci_bc == "along_field")
+        {
+            dg::geo::assign_bc_along_field_2nd( fa, minus, value0,
+                    plus, minus, plus, bcx, {value,value});
+        }
+        else
+        {
+            if( bcx == dg::DIR)
+            {
+                dg::blas1::plus( minus, -value);
+                dg::geo::swap_bc_perp( fa, minus, plus,
+                        minus, plus);
+                dg::blas1::plus( minus, +value);
+            }
+        }
     }
 
     private:
@@ -119,43 +141,6 @@ struct ParallelDynamics
         }
         dg::blas1::pointwiseDot( velocity, flux, flux);
     }
-    void update_parallel_bc_1st( Container& minusST, Container& plusST,
-            dg::bc bcx, double value)
-    {
-        if( m_p.fci_bc == "along_field")
-            dg::geo::assign_bc_along_field_1st( m_faHalf, minusST, plusST,
-                    minusST, plusST, bcx, {value,value});
-        else
-        {
-            if( bcx == dg::DIR)
-            {
-                dg::blas1::plus( minusST, -value);
-                dg::geo::swap_bc_perp( m_fa, minusST, plusST,
-                        minusST, plusST);
-                dg::blas1::plus( minusST, +value);
-            }
-        }
-    }
-    void update_parallel_bc_2nd( const dg::geo::Fieldaligned<Geometry, IMatrix,
-            Container>& fa, Container& minus, const Container& value0,
-            Container& plus, dg::bc bcx, double value)
-    {
-        if( m_p.fci_bc == "along_field")
-        {
-            dg::geo::assign_bc_along_field_2nd( fa, minus, value0,
-                    plus, minus, plus, bcx, {value,value});
-        }
-        else
-        {
-            if( bcx == dg::DIR)
-            {
-                dg::blas1::plus( minus, -value);
-                dg::geo::swap_bc_perp( fa, minus, plus,
-                        minus, plus);
-                dg::blas1::plus( minus, +value);
-            }
-        }
-    }
     dg::geo::Fieldaligned<Geometry, IMatrix, Container> m_fa, m_faHalf;
 
     Container m_temp, m_tminus, m_tplus;
@@ -172,7 +157,7 @@ struct ParallelDynamics
 };
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-ParallelDynamics<Grid, IMatrix, Matrix, Container>::ParallelDynamics( const Grid& g,
+ParaDynamics<Grid, IMatrix, Matrix, Container>::ParaDynamics( const Grid& g,
     thermal::Parameters p, dg::geo::TokamakMagneticField mag,
     dg::file::WrappedJsonValue js
     ): m_p(p), m_js(js)
@@ -198,7 +183,7 @@ ParallelDynamics<Grid, IMatrix, Matrix, Container>::ParallelDynamics( const Grid
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::compute_staggered_densities(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::compute_staggered_densities(
         const std::array<std::vector<Container>,6>& y,
         std::map<std::string, std::vector<Container>>& q
 )
@@ -237,7 +222,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::compute_staggered_densi
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::compute_parallel_transformations(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::compute_parallel_transformations(
         const std::array<std::vector<Container>,6>& y,
         std::map<std::string, std::vector<Container>>& q
 )
@@ -304,7 +289,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::compute_parallel_transf
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection(
         unsigned s,
         const std::array<std::vector<Container>,6>& y,
         const std::map<std::string, std::vector<Container>>& q,
@@ -349,7 +334,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_advection(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_advection(
         unsigned s,
         const std::array<std::vector<Container>,6>& y,
         const std::map<std::string, std::vector<Container>>& q,
@@ -413,7 +398,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_advectio
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_densities_diffusion(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::add_densities_diffusion(
         unsigned s,
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
@@ -427,7 +412,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_densities_diffusion
     dg::blas1::pointwiseDot( +2.*m_p.mu[s]*m_p.nu_parallel[3], m_temp, m_temp, 1., yp[2][s]);
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_diffusion(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_diffusion(
         unsigned s,
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
@@ -463,7 +448,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_diffusio
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_terms(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_terms(
         unsigned s,
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
@@ -499,7 +484,7 @@ void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_neumann_term
     }
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
-void ParallelDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_terms(
+void ParaDynamics<Grid, IMatrix, Matrix, Container>::add_sheath_velocity_terms(
     unsigned s,
     const std::map<std::string, std::vector<Container>>& q,
     std::array<std::vector<Container>,6>& yp)

@@ -209,7 +209,7 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
 };
 
 // init physical influx / forced profiles for n, pperp, ppara
-// For "fixed profile" the returned source represents the damping profile
+// For "fixed profile" the returned source represents the damping profile, else it is the source without source rate (i.e. source profile/region)
 std::array<std::vector<dg::x::HVec>,3> source_profiles(
     Explicit<dg::x::CylindricalGrid3d, dg::x::IDMatrix, dg::x::DMatrix, dg::x::DVec>& thermal,
     std::array<std::vector<bool>,3>& fixed_profile,     //indicate whether a profile should be forced (yes or no)
