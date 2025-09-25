@@ -179,6 +179,7 @@ set(DG_TESTS
   bicgstabl_t.cpp
   blas1_t.cpp
   blas_t.cpp
+  elliptic_t.cpp
   eve_t.cpp
   extrapolation_t.cpp
   helmholtz_t.cpp
