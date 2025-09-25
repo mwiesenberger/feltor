@@ -725,6 +725,14 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
         minus = minus*backproject;
         zero = zero*backproject;
         plus = plus*backproject;
+        std::streamsize ss = std::cout.precision();
+        std::cout << std::setprecision(1) << std::fixed;
+        std::cout << "# DS: Average nnz per row (plus | zero | minus): "
+                  //<<(double)backproject.num_nnz()/(double)backproject.num_rows()<<" | "
+                  <<(double)plus.num_nnz()/(double)plus.num_rows()<<" | "
+                  <<(double)zero.num_nnz()/(double)zero.num_rows()<<" | "
+                  <<(double)minus.num_nnz()/(double)minus.num_rows()<<"\n";
+        std::cout << std::defaultfloat << std::setprecision(ss);
     }
     dg::blas2::transfer( minus, m_minus);
     dg::blas2::transfer( zero, m_zero);

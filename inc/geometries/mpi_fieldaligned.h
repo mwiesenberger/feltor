@@ -350,7 +350,22 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         if( benchmark)
         {
             t.toc();
-            if(rank==0) std::cout << "# DS: MPI conversion        took: "<<t.diff()<<"\n";
+            if(rank==0)
+            {
+                std::cout << "# DS: MPI conversion        took: "<<t.diff()<<"\n";
+                std::streamsize ss = std::cout.precision();
+                std::cout << std::setprecision(1) << std::fixed;
+                std::cout << "# DS: Average nnz per row inner (plus | zero | minus): "
+                          <<(double)plus.inner_matrix().num_nnz()/(double)plus.inner_matrix().num_rows()<<" | "
+                          <<(double)zero.inner_matrix().num_nnz()/(double)zero.inner_matrix().num_rows()<<" | "
+                          <<(double)minus.inner_matrix().num_nnz()/(double)minus.inner_matrix().num_rows()<<"\n";
+                if( plus.outer_matrix().num_nnz() != 0)
+                    std::cout << "# DS: Average nnz per row outer (plus | zero | minus): "
+                          <<(double)plus.outer_matrix().num_nnz()/(double)plus.outer_matrix().num_rows()<<" | "
+                          <<(double)zero.outer_matrix().num_nnz()/(double)zero.outer_matrix().num_rows()<<" | "
+                          <<(double)minus.outer_matrix().num_nnz()/(double)minus.outer_matrix().num_rows()<<"\n";
+                std::cout << std::defaultfloat << std::setprecision(ss);
+            }
         }
     } // make_matrices
 };
