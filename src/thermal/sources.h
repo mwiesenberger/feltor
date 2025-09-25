@@ -16,7 +16,6 @@ struct Sources
     void add_wall_terms( unsigned s,  std::array<std::vector<Container>,6>& yp);
     void add_source_terms(
         unsigned s,
-        PerpDynamics<Geometry, IMatrix, Matrix, Container>& perp,
         const Container& phi,
         const std::map<std::string, std::vector<Container>>& q,
         const std::array<std::vector<Container>,6>& y,
@@ -66,12 +65,35 @@ struct Sources
     const Container& get_source( unsigned u, unsigned s) const{
         return m_ss[u][s];
     }
+    void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
+        Container& gydensity, Container& gypperp) const // can be called inplace!
+    {
+        if( fabs(mus ) < 1e-3) // electrons
+        {
+            dg::blas1::copy( density, gydensity);
+            dg::blas1::copy( pperp, gypperp);
+            return;
+        }
+        //compute FLR corrections S_N = (S_n-0.5 Lap S_p) - Div ( S_n phi)
+        dg::blas1::pointwiseDot( mus/zs/zs, pperp, m_binv, m_binv, 0., m_temp0);
+        dg::blas2::gemv( m_lapperp, m_temp0, m_temp1);
+        dg::blas1::axpby( 1., density, 0.5, m_temp1);
+        // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
+        dg::blas1::pointwiseDot( mus/zs, density, m_binv, m_binv, 0., m_temp0);
+        m_lapperpP.symv( 1., phi, 0., m_temp0, 1., m_temp1);
+        dg::blas1::copy( m_temp1, gydensity); //gydensity can alias density!
+        // Pressure trafo
+        dg::blas1::pointwiseDot( mus/zs, pperp, m_binv, m_binv, 0., m_temp0);
+        dg::blas1::copy( pperp, gypperp);
+        m_lapperpP.symv( 1., phi, 0., m_temp0, 1., gypperp);
+    }
     private:
     const thermal::Parameters m_p;
-    Container m_temp0, m_temp1;
+    mutable Container m_temp0, m_temp1;
     Container m_wall;
     std::array<std::vector<Container>,3> m_ss; // source terms for all species
     std::array<std::vector<Container>,3> m_source_region, m_profile; // (physical) source terms for all species
+    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperpP;
 
     std::array<std::vector<double>,3> m_source_rate;
     bool m_fixed_profile = false;
@@ -91,13 +113,13 @@ Sources<Grid, IMatrix, Matrix, Container>::Sources( const Grid& g,
     for( int i=0; i<3; i++)
         m_ss[i].resize( m_p.num_species, m_temp0);
     m_source_region = m_profile = m_ss;
+    m_lapperpP.construct ( g, p.bcxP, p.bcyP,  p.pol_dir),
 }
 
 
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Sources<Geometry, IMatrix, Matrix, Container>::add_source_terms(
     unsigned s,
-    PerpDynamics<Geometry, IMatrix, Matrix, Container>& perp,
     const Container& phi,
     const std::map<std::string, std::vector<Container>>& q,
     const std::array<std::vector<Container>,6>& y,
@@ -118,7 +140,7 @@ void Sources<Geometry, IMatrix, Matrix, Container>::add_source_terms(
     if( m_fixed_profile )
     {
         // If fixed profile transform profiles first
-        perp.transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],
+        transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],
             m_profile[1][s], phi, m_ss[0][s], m_ss[1][s]);
         dg::blas1::copy( m_profile[2][s], m_ss[2][s]);
         for( unsigned u=0; u<3; u++)

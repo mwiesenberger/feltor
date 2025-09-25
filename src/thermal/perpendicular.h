@@ -126,30 +126,6 @@ struct PerpDynamics
         else
             dg::blas1::scal( result, beta);
     }
-    void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
-        Container& gydensity, Container& gypperp) // can be called inplace!
-    {
-        if( fabs(mus ) < 1e-3) // electrons
-        {
-            dg::blas1::copy( density, gydensity);
-            dg::blas1::copy( pperp, gypperp);
-            return;
-        }
-        //compute FLR corrections S_N = (S_n-0.5 Lap S_p) - Div ( S_n phi)
-        dg::blas1::pointwiseDot( mus/zs/zs, pperp, m_binv, m_binv, 0., m_temp0);
-        dg::blas2::gemv( m_lapperp, m_temp0, m_temp1);
-        dg::blas1::axpby( 1., density, 0.5, m_temp1);
-        // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
-        dg::blas1::pointwiseDot( mus/zs, density, m_binv, m_binv, 0., m_temp0);
-        m_lapperpP.set_chi( m_temp0);
-        m_lapperpP.symv( 1., phi, 1., m_temp1);
-        dg::blas1::copy( m_temp1, gydensity); //gydensity can alias density!
-        // Pressure trafo
-        dg::blas1::pointwiseDot( mus/zs, pperp, m_binv, m_binv, 0., m_temp0);
-        m_lapperpP.set_chi( m_temp0);
-        dg::blas1::copy( pperp, gypperp);
-        m_lapperpP.symv( 1., phi, 1., gypperp);
-    }
     const std::array<Container, 2> & curvNabla () const {
         return m_curvNabla;
     }
@@ -196,7 +172,7 @@ struct PerpDynamics
 
     Matrix m_dxF, m_dxB, m_dxC, m_dx_P, m_dx_A;
     Matrix m_dyF, m_dyB, m_dyC, m_dy_P, m_dy_A;
-    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperp, m_lapperpP;
+    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperp;
 
     Container m_temp0, m_temp1, m_temp2, m_temp3;
 
@@ -278,8 +254,6 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
 
     // Diffusion operators
     m_lapperp.construct ( g, p.bcx, p.bcy,  p.diff_dir),
-    m_lapperpP.construct ( g, p.bcxP, p.bcyP,  p.pol_dir),
-    m_lapperpP.set_jfactor(0); //we don't want jump terms in source
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>

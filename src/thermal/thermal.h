@@ -83,9 +83,9 @@ struct Explicit
     }
     // Called in init
     void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
-        Container& gydensity, Container& gypperp) // can be called inplace!
+        Container& gydensity, Container& gypperp) const // can be called inplace!
     {
-        m_perp.transform_density_pperp( mus, zs, density, pperp, phi, gydensity, gypperp);
+        m_sources.transform_density_pperp( mus, zs, density, pperp, phi, gydensity, gypperp);
     }
     // Called in Feltor init
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
@@ -294,7 +294,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
         // And sources
         m_sources.add_wall_terms( s, yp);
-        m_sources.add_source_terms( s, m_perp, m_phi, m_q, y, yp );
+        m_sources.add_source_terms( s, m_phi, m_q, y, yp );
 
         // Add penalization
         for( unsigned u=0; u<6; u++)
