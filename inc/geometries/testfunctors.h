@@ -217,7 +217,7 @@ struct Variation
 
 //////////////function to call DS////////////////////
 template<class DS, class container>
-void callDS( DS& ds, std::string name, const container& in, container& out,
+void callDS( const DS& ds, std::string name, const container& in, container& out,
 unsigned max_iter = 1e4, double eps = 1e-6)
 {
     if( name == "forward") ds.ds( dg::forward, in, out);
