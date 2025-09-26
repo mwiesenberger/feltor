@@ -67,9 +67,9 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
 
     void set_boundaries( dg::bc bcz, const MPI_Vector<LocalContainer>& global, double scal_left, double scal_right)
     {
-        dg::split( global, m_f, *m_g);
-        dg::blas1::axpby( scal_left,  m_f[0],                   0., m_left);
-        dg::blas1::axpby( scal_right, m_f[m_g->local().Nz()-1], 0., m_right);
+        dg::split( global, m_split_in, *m_g);
+        dg::blas1::axpby( scal_left,  m_split_in[0],                   0., m_left);
+        dg::blas1::axpby( scal_right, m_split_in[m_g->local().Nz()-1], 0., m_right);
         m_bcz = bcz;
     }
 
@@ -121,6 +121,11 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
     void zero(enum whichMatrix which, const MPI_Vector<LocalContainer>& in, MPI_Vector<LocalContainer>& out) const;
     MIMatrix m_plus, m_zero, m_minus; //2d interpolation matrices
     mutable MIMatrix m_plusT, m_minusT; // only allocated if necessary
+    // backproject
+    typename detail::Container2EllSparseBlockMat<LocalContainer>::type m_bx, m_by, m_inv_bx, m_inv_by;
+    bool apply_backproject = false, apply_inv_backproject = false;
+    mutable MPI_Vector<LocalContainer> m_temp0, m_temp1; // local 3d size
+    //
     MPI_Vector<LocalContainer> m_hbm, m_hbp; //3d size
     MPI_Vector<LocalContainer> m_G, m_Gm, m_Gp; //3d size
     MPI_Vector<LocalContainer> m_bphi, m_bphiM, m_bphiP; //3d size
@@ -129,8 +134,8 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
     MPI_Vector<LocalContainer> m_left, m_right; //2d size
     MPI_Vector<LocalContainer> m_limiter; //2d size
     mutable MPI_Vector<LocalContainer> m_ghostM, m_ghostP; //2d size
-    mutable std::vector<MPI_Vector<dg::View<const LocalContainer>> > m_f;
-    mutable std::vector<MPI_Vector<dg::View<LocalContainer>> > m_temp;
+    mutable std::vector<MPI_Vector<dg::View<const LocalContainer>> > m_split_in;
+    mutable std::vector<MPI_Vector<dg::View<LocalContainer>> > m_split_out;
     dg::ClonePtr<ProductMPIGeometry> m_g;
     dg::bc m_bcx, m_bcy, m_bcz;
     unsigned m_Nz, m_perp_size, m_mx, m_my;
@@ -291,7 +296,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
                 }
                 else
                 {
-                    projection = dg::create::inv_backproject( grid_transform->global())* // from equidist to dg
+                    projection =
                         dg::create::projection( grid_equidist_global, grid_fine_sub, project_m);
                 }
             }
@@ -319,13 +324,6 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
                         grid_equidist_global, bcx, bcy, inter_m);
                 detail::add_from_sub( *result[u], subresult, project_m);
             }
-        }
-        if( inter_m != "dg")
-        {
-            dg::IHMatrix backproject = dg::create::backproject( grid_transform->global()); // from dg to equidist
-            local_minus = local_minus*backproject;
-            local_zero = local_zero*backproject;
-            local_plus = local_plus*backproject;
         }
         if( benchmark)
         {
@@ -357,7 +355,22 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         if( benchmark)
         {
             t.toc();
-            if(rank==0) std::cout << "# DS: MPI conversion        took: "<<t.diff()<<"\n";
+            if(rank==0)
+            {
+                std::cout << "# DS: MPI conversion        took: "<<t.diff()<<"\n";
+                std::streamsize ss = std::cout.precision();
+                std::cout << std::setprecision(1) << std::fixed;
+                std::cout << "# DS: Average nnz per row inner (plus | zero | minus): "
+                          <<(double)plus.inner_matrix().num_nnz()/(double)plus.inner_matrix().num_rows()<<" | "
+                          <<(double)zero.inner_matrix().num_nnz()/(double)zero.inner_matrix().num_rows()<<" | "
+                          <<(double)minus.inner_matrix().num_nnz()/(double)minus.inner_matrix().num_rows()<<"\n";
+                if( plus.outer_matrix().num_nnz() != 0)
+                    std::cout << "# DS: Average nnz per row outer (plus | zero | minus): "
+                          <<(double)plus.outer_matrix().num_nnz()/(double)plus.outer_matrix().num_rows()<<" | "
+                          <<(double)zero.outer_matrix().num_nnz()/(double)zero.outer_matrix().num_rows()<<" | "
+                          <<(double)minus.outer_matrix().num_nnz()/(double)minus.outer_matrix().num_rows()<<"\n";
+                std::cout << std::defaultfloat << std::setprecision(ss);
+            }
         }
     } // make_matrices
 };
@@ -411,6 +424,30 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     dg::blas2::transfer( zero, m_zero);
     dg::blas2::transfer( plus, m_plus);
     m_have_adjoint = false;
+
+    // 26.9.25: See performance comments on backproject on fieldaligned.h
+    std::string inter_m, project_m, fine_m;
+    detail::parse_method( interpolation_method, inter_m, project_m, fine_m);
+    if( project_m != "dg")
+    {
+        apply_inv_backproject = true; // from equidist to dg
+        m_inv_bx = dg::create::fast_transform( 0,
+            dg::invert(dg::create::detail::square_backproject( grid.local().grid(0))),
+            grid.local());
+        m_inv_by = dg::create::fast_transform( 1,
+            dg::invert(dg::create::detail::square_backproject( grid.local().grid(1))),
+            grid.local());
+    }
+    if( inter_m != "dg")
+    {
+        apply_backproject = true; // from dg to equidist
+        m_bx = dg::create::fast_transform( 0,
+            dg::create::detail::square_backproject( grid.local().grid(0)),
+            grid.local());
+        m_by = dg::create::fast_transform( 1,
+            dg::create::detail::square_backproject( grid.local().grid(1)),
+            grid.local());
+    }
     ///%%%%%%%%%%%%%%%%%%%%copy into h vectors %%%%%%%%%%%%%%%%%%%//
     dg::HVec hbphi( yp_trafo[2]), hbphiP(hbphi), hbphiM(hbphi);
     auto tmp = dg::pullback( vec.z(), *grid_transform);
@@ -449,11 +486,13 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     dg::blas1::pointwiseDot( m_Gm, weights, m_Gm);
 
     dg::assign( dg::evaluate( dg::zero, grid), m_hbm);
-    m_temp = dg::split( m_hbm, grid); //3d vector
-    m_f = dg::split( (const MPI_Vector<LocalContainer>&)m_hbm, grid);
+    m_split_out = dg::split( m_hbm, grid); //3d vector
+    m_split_in = dg::split( (const MPI_Vector<LocalContainer>&)m_hbm, grid);
     dg::assign3dfrom2d( dg::MHVec(hbp, grid_transform->communicator()), m_hbp, grid);
     dg::assign3dfrom2d( dg::MHVec(hbm, grid_transform->communicator()), m_hbm, grid);
     dg::blas1::scal( m_hbm, -1.);
+
+    m_temp0 = m_temp1 = m_hbm; // 3d size
     ///%%%%%%%%%%%%%%%%%%%%create mask vectors %%%%%%%%%%%%%%%%%%%//
     thrust::host_vector<double> bbm( in_boxp.size(),0.), bbo(bbm), bbp(bbm);
     for( unsigned i=0; i<in_boxp.size(); i++)
@@ -506,56 +545,73 @@ void Fieldaligned<G, M, MPI_Vector<container> >::operator()(enum
 template< class G, class M, class container>
 void Fieldaligned<G, M, MPI_Vector<container> >::zero( enum whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& f0) const
 {
-    dg::split( f, m_f, *m_g);
-    dg::split( f0, m_temp, *m_g);
-    //1. compute 2d interpolation in every plane and store in m_temp
+    dg::split( f, m_split_in, *m_g);
+    dg::split( f0, m_split_out, *m_g);
+    if( apply_backproject)
+    {
+        dg::blas2::symv( m_bx, f.data(), m_temp0.data());
+        dg::blas2::symv( m_by, m_temp0.data(), m_temp1.data());
+        dg::split( (const MPI_Vector<container>&)m_temp1, m_split_in, *m_g);
+    }
+    //1. compute 2d interpolation in every plane and store in m_split_out
     for( unsigned i0=0; i0<m_Nz; i0++)
     {
         if(which == zeroPlus)
-            dg::blas2::symv( m_plus,   m_f[i0], m_temp[i0]);
+            dg::blas2::symv( m_plus,   m_split_in[i0], m_split_out[i0]);
         else if(which == zeroMinus)
-            dg::blas2::symv( m_minus,  m_f[i0], m_temp[i0]);
+            dg::blas2::symv( m_minus,  m_split_in[i0], m_split_out[i0]);
         else if(which == zeroPlusT)
         {
             if( ! m_have_adjoint) updateAdjoint( );
-            dg::blas2::symv( m_plusT,  m_f[i0], m_temp[i0]);
+            dg::blas2::symv( m_plusT,  m_split_in[i0], m_split_out[i0]);
         }
         else if(which == zeroMinusT)
         {
             if( ! m_have_adjoint) updateAdjoint( );
-            dg::blas2::symv( m_minusT, m_f[i0], m_temp[i0]);
+            dg::blas2::symv( m_minusT, m_split_in[i0], m_split_out[i0]);
         }
         else if( which == zeroForw)
         {
             if ( m_interpolation_method != "dg" )
             {
-                dg::blas2::symv( m_zero, m_f[i0], m_temp[i0]);
+                dg::blas2::symv( m_zero, m_split_in[i0], m_split_out[i0]);
             }
             else
-                dg::blas1::copy( m_f[i0], m_temp[i0]);
+                dg::blas1::copy( m_split_in[i0], m_split_out[i0]);
         }
+    }
+    if( apply_inv_backproject)
+    {
+        dg::blas2::symv( m_inv_bx, f0.data(), m_temp0.data());
+        dg::blas2::symv( m_inv_by, m_temp0.data(), f0.data());
     }
 }
 
 template<class G, class M, class container>
 void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, const MPI_Vector<container>& f, MPI_Vector<container>& fpe ) const
 {
-    dg::split( f, m_f, *m_g);
-    dg::split( fpe, m_temp, *m_g);
+    dg::split( f, m_split_in, *m_g);
+    dg::split( fpe, m_split_out, *m_g);
+    if( apply_backproject)
+    {
+        dg::blas2::symv( m_bx, f.data(), m_temp0.data());
+        dg::blas2::symv( m_by, m_temp0.data(), m_temp1.data());
+        dg::split( (const MPI_Vector<container>&)m_temp1, m_split_in, *m_g);
+    }
     MPI_Vector<dg::View<container>> send_buf(
             {m_ghostP.data().data(), m_ghostP.size()}, m_g->get_perp_comm());
-    //1. compute 2d interpolation in every plane and store in m_temp
+    //1. compute 2d interpolation in every plane and store in m_split_out
     for( unsigned i0=0; i0<m_Nz; i0++)
     {
         // If communication necessary we write the symv result into send buffer
         bool comm_plane = (m_sizeZ != 1 and i0 == m_Nz -1);
         unsigned ip = (i0==m_Nz-1) ? 0:i0+1;
         if(which == einsPlus)
-            dg::blas2::symv( m_plus,   m_f[ip], comm_plane ? send_buf : m_temp[i0]);
+            dg::blas2::symv( m_plus,   m_split_in[ip], comm_plane ? send_buf : m_split_out[i0]);
         else if(which == einsMinusT)
         {
             if( ! m_have_adjoint) updateAdjoint( );
-            dg::blas2::symv( m_minusT, m_f[ip], comm_plane ? send_buf : m_temp[i0]);
+            dg::blas2::symv( m_minusT, m_split_in[ip], comm_plane ? send_buf : m_split_out[i0]);
         }
     }
 
@@ -563,8 +619,13 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
     if( m_sizeZ != 1)
     {
         unsigned i0 = m_Nz-1;
-        m_from_plus.global_gather_init( send_buf.data(), m_temp[i0].data());
-        m_from_plus.global_gather_wait( m_temp[i0].data());
+        m_from_plus.global_gather_init( send_buf.data(), m_split_out[i0].data());
+        m_from_plus.global_gather_wait( m_split_out[i0].data());
+    }
+    if( apply_inv_backproject)
+    {
+        dg::blas2::symv( m_inv_bx, fpe.data(), m_temp0.data());
+        dg::blas2::symv( m_inv_by, m_temp0.data(), fpe.data());
     }
 
     //3. apply right boundary conditions in last plane
@@ -572,12 +633,12 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
     if( m_bcz != dg::PER && m_g->local().z1() == m_g->global().z1())
     {
         if( m_bcz == dg::DIR || m_bcz == dg::NEU_DIR)
-            dg::blas1::axpby( 2, m_right, -1., m_f[i0], m_ghostP);
+            dg::blas1::axpby( 2, m_right, -1., m_split_in[i0], m_ghostP);
         if( m_bcz == dg::NEU || m_bcz == dg::DIR_NEU)
-            dg::blas1::axpby( m_deltaPhi, m_right, 1., m_f[i0], m_ghostP);
+            dg::blas1::axpby( m_deltaPhi, m_right, 1., m_split_in[i0], m_ghostP);
         //interlay ghostcells with periodic cells: L*g + (1-L)*fpe
-        dg::blas1::axpby( 1., m_ghostP, -1., m_temp[i0], m_ghostP);
-        dg::blas1::pointwiseDot( 1., m_limiter, m_ghostP, 1., m_temp[i0]);
+        dg::blas1::axpby( 1., m_ghostP, -1., m_split_out[i0], m_ghostP);
+        dg::blas1::pointwiseDot( 1., m_limiter, m_ghostP, 1., m_split_out[i0]);
     }
 }
 
@@ -587,11 +648,17 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
 {
     int rank;
     MPI_Comm_rank(m_g->communicator(), &rank);
-    dg::split( f, m_f, *m_g);
-    dg::split( fme, m_temp, *m_g);
+    dg::split( f, m_split_in, *m_g);
+    dg::split( fme, m_split_out, *m_g);
+    if( apply_backproject)
+    {
+        dg::blas2::symv( m_bx, f.data(), m_temp0.data());
+        dg::blas2::symv( m_by, m_temp0.data(), m_temp1.data());
+        dg::split( (const MPI_Vector<container>&)m_temp1, m_split_in, *m_g);
+    }
     MPI_Vector<dg::View<container>> send_buf(
             {m_ghostM.data().data(), m_ghostM.size()}, m_g->get_perp_comm());
-    //1. compute 2d interpolation in every plane and store in m_temp
+    //1. compute 2d interpolation in every plane and store in m_split_out
     for( unsigned i0=0; i0<m_Nz; i0++)
     {
         // If communication necessary we write the symv result into send buffer
@@ -600,18 +667,23 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
         if(which == einsPlusT)
         {
             if( ! m_have_adjoint) updateAdjoint( );
-            dg::blas2::symv( m_plusT, m_f[im], comm_plane ? send_buf : m_temp[i0]);
+            dg::blas2::symv( m_plusT, m_split_in[im], comm_plane ? send_buf : m_split_out[i0]);
         }
         else if(which == einsMinus)
-            dg::blas2::symv( m_minus, m_f[im], comm_plane ? send_buf : m_temp[i0]);
+            dg::blas2::symv( m_minus, m_split_in[im], comm_plane ? send_buf : m_split_out[i0]);
     }
 
     //2. communicate halo in z
     if( m_sizeZ != 1)
     {
         unsigned i0 = 0;
-        m_from_minus.global_gather_init( send_buf.data(), m_temp[i0].data());
-        m_from_minus.global_gather_wait( m_temp[i0].data());
+        m_from_minus.global_gather_init( send_buf.data(), m_split_out[i0].data());
+        m_from_minus.global_gather_wait( m_split_out[i0].data());
+    }
+    if( apply_inv_backproject)
+    {
+        dg::blas2::symv( m_inv_bx, fme.data(), m_temp0.data());
+        dg::blas2::symv( m_inv_by, m_temp0.data(), fme.data());
     }
 
     //3. apply left boundary conditions in first plane
@@ -619,12 +691,12 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
     if( m_bcz != dg::PER && m_g->local().z0() == m_g->global().z0())
     {
         if( m_bcz == dg::DIR || m_bcz == dg::DIR_NEU)
-            dg::blas1::axpby( 2., m_left,  -1., m_f[i0], m_ghostM);
+            dg::blas1::axpby( 2., m_left,  -1., m_split_in[i0], m_ghostM);
         if( m_bcz == dg::NEU || m_bcz == dg::NEU_DIR)
-            dg::blas1::axpby( -m_deltaPhi, m_left, 1., m_f[i0], m_ghostM);
+            dg::blas1::axpby( -m_deltaPhi, m_left, 1., m_split_in[i0], m_ghostM);
         //interlay ghostcells with periodic cells: L*g + (1-L)*fme
-        dg::blas1::axpby( 1., m_ghostM, -1., m_temp[i0], m_ghostM);
-        dg::blas1::pointwiseDot( 1., m_limiter, m_ghostM, 1., m_temp[i0]);
+        dg::blas1::axpby( 1., m_ghostM, -1., m_split_out[i0], m_ghostM);
+        dg::blas1::pointwiseDot( 1., m_limiter, m_ghostM, 1., m_split_out[i0]);
     }
 }
 
@@ -639,6 +711,25 @@ MPI_Vector<container> Fieldaligned<G,M, MPI_Vector<container> >::evaluate( Binar
     MPI_Vector<container> init2d = dg::pullback( binary, *g2d);
     MPI_Vector<container> zero2d = dg::evaluate( dg::zero, *g2d);
     unsigned globalNz = m_g->global().Nz();
+    typename detail::Container2EllSparseBlockMat<container>::type bx, by, inv_bx, inv_by;
+    if( apply_backproject)
+    {
+        bx = dg::create::fast_transform( 0,
+            dg::create::detail::square_backproject( g2d->local().grid(0)),
+            g2d->local());
+        by = dg::create::fast_transform( 1,
+            dg::create::detail::square_backproject( g2d->local().grid(1)),
+            g2d->local());
+    }
+    if( apply_inv_backproject)
+    {
+        inv_bx = dg::create::fast_transform( 0,
+            dg::invert(dg::create::detail::square_backproject( g2d->local().grid(0))),
+            g2d->local());
+        inv_by = dg::create::fast_transform( 1,
+            dg::invert(dg::create::detail::square_backproject( g2d->local().grid(1))),
+            g2d->local());
+    }
 
     MPI_Vector<container> temp(init2d), tempP(init2d), tempM(init2d);
     MPI_Vector<container> vec3d = dg::evaluate( dg::zero, *m_g);
@@ -654,11 +745,28 @@ MPI_Vector<container> Fieldaligned<G,M, MPI_Vector<container> >::evaluate( Binar
             unsigned rep = r*globalNz + i0;
             for(unsigned k=0; k<rep; k++)
             {
+                if( apply_backproject)
+                {
+                    dg::blas2::symv( bx, tempP.data(), temp.data());
+                    dg::blas2::symv( by, temp.data(), tempP.data());
+                    dg::blas2::symv( bx, tempM.data(), temp.data());
+                    dg::blas2::symv( by, temp.data(), tempM.data());
+                }
                 //!!! The value of f at the plus plane is I^- of the current plane
                 dg::blas2::symv( m_minus, tempP, temp);
+                if( apply_inv_backproject)
+                {
+                    dg::blas2::symv( inv_bx, temp.data(), tempP.data());
+                    dg::blas2::symv( inv_by, tempP.data(), temp.data());
+                }
                 temp.swap( tempP);
                 //!!! The value of f at the minus plane is I^+ of the current plane
                 dg::blas2::symv( m_plus, tempM, temp);
+                if( apply_inv_backproject)
+                {
+                    dg::blas2::symv( inv_bx, temp.data(), tempM.data());
+                    dg::blas2::symv( inv_by, tempM.data(), temp.data());
+                }
                 temp.swap( tempM);
             }
             dg::blas1::scal( tempP, unary(  (double)rep*m_deltaPhi ) );
