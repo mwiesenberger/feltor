@@ -187,7 +187,7 @@ int main(
         ds.centered( fun, derivative);
     t.toc();
     double gbytes=fun.size()*sizeof(double)/1e9;
-    DG_RANK0 std::cout << t.diff()/10 << " #\t "<<gbytes*83*10/t.diff()<<"GB/s\n" ;
+    DG_RANK0 std::cout << t.diff()/10 << " #\t "<<gbytes*3*10/t.diff()<<"GB/s\n" ;
 
     for( auto bc : {dg::NEU, dg::DIR})
     {
