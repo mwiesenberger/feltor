@@ -65,35 +65,38 @@ struct Sources
     const Container& get_source( unsigned u, unsigned s) const{
         return m_ss[u][s];
     }
-    void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
+    const Container& binv( ) const { return m_binv; }
+    void transform_density_pperp( unsigned s, const Container& density,
+        const Container& pperp, const Container& phi,
         Container& gydensity, Container& gypperp) const // can be called inplace!
     {
-        if( fabs(mus ) < 1e-3) // electrons
+        double mus = m_p.mu[s], zs = m_p.z[s];
+        if( s == 0) // electrons
         {
             dg::blas1::copy( density, gydensity);
             dg::blas1::copy( pperp, gypperp);
             return;
         }
         //compute FLR corrections S_N = (S_n-0.5 Lap S_p) - Div ( S_n phi)
-        dg::blas1::pointwiseDot( mus/zs/zs, pperp, m_binv, m_binv, 0., m_temp0);
-        dg::blas2::gemv( m_lapperp, m_temp0, m_temp1);
-        dg::blas1::axpby( 1., density, 0.5, m_temp1);
+        dg::blas1::pointwiseDot( mus/zs/zs, pperp, m_binv, m_binv, 0., m_tempgy0);
+        dg::blas2::gemv( m_lapperp, m_tempgy0, m_tempgy1);
+        dg::blas1::axpby( 1., density, 0.5, m_tempgy1);
         // potential part of FLR correction S_N += -div*(mu S_n grad*Phi/B^2)
-        dg::blas1::pointwiseDot( mus/zs, density, m_binv, m_binv, 0., m_temp0);
-        m_lapperpP.symv( 1., phi, 0., m_temp0, 1., m_temp1);
-        dg::blas1::copy( m_temp1, gydensity); //gydensity can alias density!
+        dg::blas1::pointwiseDot( mus/zs, density, m_binv, m_binv, 0., m_tempgy0);
+        m_lapperpP.symv( 1., phi, 0., m_tempgy0, 1., m_tempgy1);
+        dg::blas1::copy( m_tempgy1, gydensity); //gydensity can alias density!
         // Pressure trafo
-        dg::blas1::pointwiseDot( mus/zs, pperp, m_binv, m_binv, 0., m_temp0);
+        dg::blas1::pointwiseDot( mus/zs, pperp, m_binv, m_binv, 0., m_tempgy0);
         dg::blas1::copy( pperp, gypperp);
-        m_lapperpP.symv( 1., phi, 0., m_temp0, 1., gypperp);
+        m_lapperpP.symv( 1., phi, 0., m_tempgy0, 1., gypperp);
     }
     private:
     const thermal::Parameters m_p;
-    mutable Container m_temp0, m_temp1;
-    Container m_wall;
+    mutable Container m_temp0, m_temp1, m_tempgy0, m_tempgy1;
+    Container m_wall, m_binv;
     std::array<std::vector<Container>,3> m_ss; // source terms for all species
     std::array<std::vector<Container>,3> m_source_region, m_profile; // (physical) source terms for all species
-    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperpP;
+    dg::Elliptic2d< Geometry, Matrix, Container> m_lapperp, m_lapperpP;
 
     std::array<std::vector<double>,3> m_source_rate;
     bool m_fixed_profile = false;
@@ -104,16 +107,18 @@ struct Sources
 };
 template<class Grid, class IMatrix, class Matrix, class Container>
 Sources<Grid, IMatrix, Matrix, Container>::Sources( const Grid& g,
-    thermal::Parameters p, dg::geo::TokamakMagneticField,
+    thermal::Parameters p, dg::geo::TokamakMagneticField mag,
     dg::file::WrappedJsonValue
     ): m_p(p)
 {
     dg::assign( dg::evaluate( dg::zero, g), m_temp0 );
-    m_temp1 = m_temp0;
+    m_tempgy0 = m_tempgy1 = m_temp1 = m_temp0;
     for( int i=0; i<3; i++)
         m_ss[i].resize( m_p.num_species, m_temp0);
     m_source_region = m_profile = m_ss;
+    m_lapperp.construct ( g, p.bcx, p.bcy, p.diff_dir);
     m_lapperpP.construct ( g, p.bcxP, p.bcyP,  p.pol_dir),
+    dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
 }
 
 
@@ -140,7 +145,7 @@ void Sources<Geometry, IMatrix, Matrix, Container>::add_source_terms(
     if( m_fixed_profile )
     {
         // If fixed profile transform profiles first
-        transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],
+        transform_density_pperp( s, m_profile[0][s],
             m_profile[1][s], phi, m_ss[0][s], m_ss[1][s]);
         dg::blas1::copy( m_profile[2][s], m_ss[2][s]);
         for( unsigned u=0; u<3; u++)
@@ -155,7 +160,7 @@ void Sources<Geometry, IMatrix, Matrix, Container>::add_source_terms(
         for( unsigned u=0; u<3; u++)
             dg::blas1::axpby( m_source_rate[u][s], m_source_region[u][s], 0., m_ss[u][s]);
         // if influx transform sources last
-        perp.transform_density_pperp( m_p.mu[s], m_p.z[s], m_ss[0][s],  m_ss[1][s], phi,
+        transform_density_pperp( s, m_ss[0][s],  m_ss[1][s], phi,
             m_ss[0][s], m_ss[1][s]);
     }
     //Add all to the right hand side
@@ -166,24 +171,24 @@ void Sources<Geometry, IMatrix, Matrix, Container>::add_source_terms(
     if( m_fixed_profile )
     {
         // If fixed profile transform profiles first
-        perp.transform_density_pperp( m_p.mu[s], m_p.z[s], m_profile[0][s],
-            m_profile[1][s], q["ST Psi0"][0], m_temp0, m_temp1);
+        transform_density_pperp( s, m_profile[0][s],
+            m_profile[1][s], q.at("ST Psi0")[0], m_temp0, m_temp1);
             // w Chi ( Prof - N )
         dg::blas1::pointwiseDot( m_source_rate[0][s], m_source_region[0][s], m_temp0,
-            -m_source_rate[0][s], m_source_region[0][s], q["ST N"][s], 0, m_temp0);
+            -m_source_rate[0][s], m_source_region[0][s], q.at("ST N")[s], 0, m_temp0);
     }
     else // influx
     {
         dg::blas1::axpby( m_source_rate[0][s], m_source_region[0][s], 0., m_temp0);
         dg::blas1::axpby( m_source_rate[1][s], m_source_region[1][s], 0., m_temp1);
         // if influx transform sources last
-        perp.transform_density_pperp( m_p.mu[s], m_p.z[s], m_temp0,  m_temp1, q["ST Psi0"][0],
+        transform_density_pperp( s, m_temp0,  m_temp1, q.at("ST Psi0")[0],
             m_temp0, m_temp1);
     }
     // Now m_temp0 is S_N^dagger
     // Compute - U S_N /N ^dagger
-    dg::blas1::pointwiseDot( q["ST U"][s], m_temp0, m_temp0);
-    dg::blas1::pointwiseDivide( -1., m_temp0, q["ST N"][s], 1., yp[3][s]);
+    dg::blas1::pointwiseDot( q.at("ST U")[s], m_temp0, m_temp0);
+    dg::blas1::pointwiseDivide( -1., m_temp0, q.at("ST N")[s], 1., yp[3][s]);
 }
 
 template<class Geometry, class IMatrix, class Matrix, class Container>

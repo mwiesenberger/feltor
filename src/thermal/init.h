@@ -117,7 +117,7 @@ std::array<std::vector<dg::x::DVec>,6> initial_conditions(
         {
             // Thermal trafo runs on device so we need to move data back and forth
             dg::x::DVec density = y0[0][s], pperp = y0[1][s], phi = dg::evaluate( dg::zero, grid);
-            thermal.transform_density_pperp( p.mu[s], p.z[s], density, pperp, phi, density, pperp);
+            thermal.sources().transform_density_pperp( s, density, pperp, phi, density, pperp);
             y0[0][s] = density;
             double minimalni = dg::blas1::reduce( y0[0][s], 1e10,
                     thrust::minimum<double>());

@@ -47,7 +47,7 @@ struct Explicit
     const Container& dyapar() const {
         return m_dyapar;
     }
-    const Container& get(std::string id, unsigned s) { return m_q[id][s];}
+    const Container& get(std::string id, unsigned s) { return m_q.at(id)[s];}
     void compute_dot_apar( Container& tmp) const {
         m_old_apar.derive( tmp);
     }
@@ -80,12 +80,6 @@ struct Explicit
             const Container& sheath_coordinate)
     {
         m_para.set_sheath( sheath_rate, sheath, sheath_coordinate);
-    }
-    // Called in init
-    void transform_density_pperp( double mus, double zs, const Container& density, const Container& pperp, const Container& phi,
-        Container& gydensity, Container& gypperp) const // can be called inplace!
-    {
-        m_sources.transform_density_pperp( mus, zs, density, pperp, phi, gydensity, gypperp);
     }
     // Called in Feltor init
     const dg::geo::Fieldaligned<Geometry, IMatrix, Container>& fieldaligned() const
@@ -218,17 +212,17 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
 
 
     // 1. Transform Pperp, Ppara to Tperp, Tpara for all species
-    dg::blas1::copy( y[0], m_q["N"]);
-    dg::blas1::pointwiseDivide( pperp, density, m_q["Tperp"]);
-    dg::blas1::pointwiseDivide( ppara, density, m_q["Tpara"]);
+    dg::blas1::copy( y[0], m_q.at("N"));
+    dg::blas1::pointwiseDivide( pperp, density, m_q.at("Tperp"));
+    dg::blas1::pointwiseDivide( ppara, density, m_q.at("Tpara"));
 
     //2. Solve for potential phi given density and temperature
 
-    m_solvers.compute_phi( t, density, m_q["Tperp"], m_phi, m_p.penalize_wall,
+    m_solvers.compute_phi( t, density, m_q.at("Tperp"), m_phi, m_p.penalize_wall,
         m_sources.get_wall(), m_p.penalize_sheath, m_para.get_sheath());
 
-    m_solvers.compute_psi( t, m_q["Tperp"], m_phi,
-        m_q["Psi0"], m_q["Psi1"], m_q["Psi2"], m_q["Psi3"]);
+    m_solvers.compute_psi( t, m_q.at("Tperp"), m_phi,
+        m_q.at("Psi0"), m_q.at("Psi1"), m_q.at("Psi2"), m_q.at("Psi3"));
 
     timer.toc();
     accu += timer.diff();
@@ -242,7 +236,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     // Compute m_aparST if beta != 0
     if( m_p.beta != 0)
     {
-        m_solvers.compute_aparST( t, m_q["ST N"], wST,
+        m_solvers.compute_aparST( t, m_q.at("ST N"), wST,
             m_aparST, true);
     }
     m_para.compute_apar( m_aparST, m_apar);
@@ -253,7 +247,7 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
                        << timer.diff()<<"s\t A: "<<accu<<"s\n";
     timer.tic();
     for( unsigned s=0; s<m_p.num_species; s++)
-        dg::blas1::axpby( 1., wST[s], -m_p.z[s]/m_p.mu[s], m_aparST, m_q["ST U"][s]);
+        dg::blas1::axpby( 1., wST[s], -m_p.z[s]/m_p.mu[s], m_aparST, m_q.at("ST U")[s]);
 
     // Compute all the rest of parallel trafos
     m_para.compute_parallel_transformations( y, m_q);
@@ -303,8 +297,8 @@ void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
                 m_sources.get_wall(), m_p.penalize_sheath, m_para.get_sheath()); // F*(1-chi_w-chi_s)
             if( u == 3)
                 // Apply to U, not W
-                dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), m_q["ST U"][s],
-                    -m_para.get_sheath_rate(), m_para.get_sheath(), m_q["ST U"][s], 1., yp[u][s]);
+                dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), m_q.at("ST U")[s],
+                    -m_para.get_sheath_rate(), m_para.get_sheath(), m_q.at("ST U")[s], 1., yp[u][s]);
             else
                 dg::blas1::pointwiseDot( -m_p.wall_rate, m_sources.get_wall(), y[u][s],
                     -m_para.get_sheath_rate(), m_para.get_sheath(), y[u][s], 1., yp[u][s]);

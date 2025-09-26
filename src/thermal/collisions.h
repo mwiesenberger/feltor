@@ -56,7 +56,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_coulomb_collisions(
             {
                 spperp += -2*nu_ref*ns*nk*zs*zs*zk*zk/mus/muk/(
                     ts/mus + tk/muk)/sqrt( ts/mus + tk/muk)*(ts-tk);
-            }, m_temp0, q["N"][s], q["N"][k], q["Tperp"][s], q["Tperp"][k]);
+            }, m_temp0, q.at("N")[s], q.at("N")[k], q.at("Tperp")[s], q.at("Tperp")[k]);
         }
     dg::blas1::axpby( 1., m_temp0, 1., yp[1][s]);
 
@@ -67,7 +67,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_coulomb_collisions(
     dg::blas1::axpby( 1., m_temp1, 1., yp[0][s]);
 
     // CPpara
-    dg::blas1::pointwiseDot( m_p.mu[s],  q["U"][s], q["U"][s], m_temp1, 0., m_temp0); // mu U^2 S_N
+    dg::blas1::pointwiseDot( m_p.mu[s],  q.at("U")[s], q.at("U")[s], m_temp1, 0., m_temp0); // mu U^2 S_N
     for( unsigned k=0; k<m_p.num_species; k++)
         if( s != k)
         {
@@ -78,7 +78,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_coulomb_collisions(
             {
                 sppara += -2*nu_ref*ns*nk*zs*zs*zk*zk/mus/muk/(
                     ts/mus + tk/muk)/sqrt( ts/mus + tk/muk)*((ts-tk) - 0.51*muk*(us-uk)*(us-uk));
-            }, m_temp0, q["N"][s], q["N"][k], q["Tpara"][s], q["Tpara"][k], q["U"][s], q["U"][k]);
+            }, m_temp0, q.at("N")[s], q.at("N")[k], q.at("Tpara")[s], q.at("Tpara")[k], q.at("U")[s], q.at("U")[k]);
         }
     dg::blas1::axpby( 1., m_temp0, 1., yp[2][s]);
 
@@ -95,13 +95,13 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_coulomb_collisions(
             {
                 spperp += -2*nu_ref*ns*nk*zs*zs*zk*zk/mus/muk/(
                     ts/mus + tk/muk)/sqrt( ts/mus + tk/muk)*(ts-tk);
-            }, m_temp0, q["ST N"][s], q["ST N"][k], q["ST Tperp"][s], q["ST Tperp"][k]);
+            }, m_temp0, q.at("ST N")[s], q.at("ST N")[k], q.at("ST Tperp")[s], q.at("ST Tperp")[k]);
         }
     // CN ST
     dg::blas1::pointwiseDivide( m_p.mu[s]/2./m_p.z[s]/m_p.z[s], m_temp0, m_B2, 0., m_temp0);
     dg::blas2::symv( m_lapperpM, m_temp0, m_temp1);
     // CU ST
-    dg::blas1::pointwiseDivide( q["ST U"][s], q["ST N"][s], m_temp0); // U/N
+    dg::blas1::pointwiseDivide( q.at("ST U")[s], q.at("ST N")[s], m_temp0); // U/N
     dg::blas1::pointwiseDot( -1., m_temp0, m_temp1, 0., m_temp0); // -U/N S_NST
     for( unsigned k=0; k<m_p.num_species; k++)
         if( s != k)
@@ -113,7 +113,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_coulomb_collisions(
             {
                 su += -0.51*nu_ref*nk*zs*zs*zk*zk*(mus+muk)/mus/mus/muk/(
                     ts/mus + tk/muk)/sqrt( ts/mus + tk/muk)*(us-uk);
-            }, m_temp0, q["ST N"][k], q["ST Tpara"][s], q["ST Tpara"][k], q["ST U"][s], q["ST U"][k]);
+            }, m_temp0, q.at("ST N")[k], q.at("ST Tpara")[s], q.at("ST Tpara")[k], q.at("ST U")[s], q.at("ST U")[k]);
         }
     dg::blas1::axpby( 1., m_temp0, 1., yp[3][s]);
 }
@@ -156,7 +156,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_lorentz_collisions(
         double nu_ss = nu_ref*ns*zs*zs*zs*zs/sqrt(2*mus*ts)/ts;
         sqperp += - 5./2./kappas*nu_ss*( qperp - 1.28*(0.5*qpara - 1.5*qperp))
                   - 1./qlandau/R0*sqrt( ts/mus)*qperp;
-    }, yp[4][s], q["ST N"][s], q["ST Tperp"][s], y[4][s], y[5][s]);
+    }, yp[4][s], q.at("ST N")[s], q.at("ST Tperp")[s], y[4][s], y[5][s]);
 
     // SQpara Lorentz and Landau
     dg::blas1::subroutine( [nu_ref, zs, mus,kappas, qlandau, R0] DG_DEVICE(
@@ -165,7 +165,7 @@ void Collisions<Grid, IMatrix, Matrix, Container>::add_lorentz_collisions(
         double nu_ss = nu_ref*ns*zs*zs*zs*zs/sqrt(2*mus*ts)/ts;
         sqpara += - 5./kappas*nu_ss*( 0.5*qpara + 1.28*(0.5*qpara - 1.5*qperp))
                   - 1./qlandau/R0*sqrt( ts/mus)*qpara;
-    }, yp[5][s], q["ST N"][s], q["ST Tpara"][s], y[4][s], y[5][s]);
+    }, yp[5][s], q.at("ST N")[s], q.at("ST Tpara")[s], y[4][s], y[5][s]);
 
 }
 

@@ -52,17 +52,17 @@ struct PerpDynamics
     {
         std::vector<std::string> in = {"N", "Tperp", "Tpara"};
         for( unsigned u=0; u<3; u++)
-            compute_perp_laplace( -m_p.nu_perp[u], q[in[u]][s], m_p.diff_order,
+            compute_perp_laplace( -m_p.nu_perp[u], q.at(in[u])[s], m_p.diff_order,
                 m_temp0, m_temp1, 1., yp[u][s]);
         // Ppara interfaces with U
-        compute_perp_laplace( m_p.nu_perp[3], q["U"][s], m_p.diff_order-1,
+        compute_perp_laplace( m_p.nu_perp[3], q.at("U")[s], m_p.diff_order-1,
             m_temp0, m_temp1, 0., m_temp0);
         dg::blas2::symv( m_dxC, m_temp0, m_temp1);
-        dg::blas2::symv( m_dxC, q["U"][s], m_temp2);
+        dg::blas2::symv( m_dxC, q.at("U")[s], m_temp2);
         dg::blas1::pointwiseDot( 2.*m_p.mu[s], m_temp1, m_temp2, 1., yp[2][s]);
 
         dg::blas2::symv( m_dyC, m_temp0, m_temp1);
-        dg::blas2::symv( m_dyC, q["U"][s], m_temp2);
+        dg::blas2::symv( m_dyC, q.at("U")[s], m_temp2);
         dg::blas1::pointwiseDot( 2.*m_p.mu[s], m_temp1, m_temp2, 1., yp[2][s]);
     }
     void add_velocities_diffusion(
@@ -70,16 +70,16 @@ struct PerpDynamics
         const std::map<std::string, std::vector<Container>>& q,
         std::array<std::vector<Container>,6>& yp)
     {
-        compute_perp_laplace( -m_p.nu_perp[3], q["ST U"][s], m_p.diff_order,
+        compute_perp_laplace( -m_p.nu_perp[3], q.at("ST U")[s], m_p.diff_order,
             m_temp0, m_temp1, 0., m_temp0);
-        dg::blas1::pointwiseDivide( 1., m_temp0, q["ST N"][s], 1., yp[3][s]);
-        compute_perp_laplace( -m_p.nu_perp[4], q["ST Uperp"][s], m_p.diff_order,
+        dg::blas1::pointwiseDivide( 1., m_temp0, q.at("ST N")[s], 1., yp[3][s]);
+        compute_perp_laplace( -m_p.nu_perp[4], q.at("ST Uperp")[s], m_p.diff_order,
             m_temp0, m_temp1, 1., yp[4][s]);
-        compute_perp_laplace( -m_p.nu_perp[5], q["ST Upara"][s], m_p.diff_order,
+        compute_perp_laplace( -m_p.nu_perp[5], q.at("ST Upara")[s], m_p.diff_order,
             m_temp0, m_temp1, 1., yp[5][s]);
 
         // U interfaces with N
-        compute_perp_laplace( -m_p.nu_perp[0], q["ST N"][s], m_p.diff_order-1,
+        compute_perp_laplace( -m_p.nu_perp[0], q.at("ST N")[s], m_p.diff_order-1,
             m_temp0, m_temp1, 0., m_temp0);
         // - v_x dx U
         if( m_p.diff_dir == dg::centered)
@@ -88,9 +88,9 @@ struct PerpDynamics
             dg::blas2::symv( m_dxF, m_temp0, m_temp1);
         else
             dg::blas2::symv( m_dxB, m_temp0, m_temp1);
-        dg::blas1::pointwiseDivide( m_temp1, q["ST N"][s], m_temp1);
-        dg::blas2::symv( m_dxB, q["ST U"][s], m_temp2);
-        dg::blas2::symv( m_dxF, q["ST U"][s], m_temp3);
+        dg::blas1::pointwiseDivide( m_temp1, q.at("ST N")[s], m_temp1);
+        dg::blas2::symv( m_dxB, q.at("ST U")[s], m_temp2);
+        dg::blas2::symv( m_dxF, q.at("ST U")[s], m_temp3);
         dg::blas1::evaluate( yp[3][s], dg::minus_equals(), dg::UpwindProduct(),
                     m_temp1, m_temp2, m_temp3);
 
@@ -101,9 +101,9 @@ struct PerpDynamics
             dg::blas2::symv( m_dyF, m_temp0, m_temp1);
         else
             dg::blas2::symv( m_dyB, m_temp0, m_temp1);
-        dg::blas1::pointwiseDivide( m_temp1, q["ST N"][s], m_temp1);
-        dg::blas2::symv( m_dyB, q["ST U"][s], m_temp2);
-        dg::blas2::symv( m_dyF, q["ST U"][s], m_temp3);
+        dg::blas1::pointwiseDivide( m_temp1, q.at("ST N")[s], m_temp1);
+        dg::blas2::symv( m_dyB, q.at("ST U")[s], m_temp2);
+        dg::blas2::symv( m_dyF, q.at("ST U")[s], m_temp3);
         dg::blas1::evaluate( yp[3][s], dg::minus_equals(), dg::UpwindProduct(),
                     m_temp1, m_temp2, m_temp3);
 
@@ -137,7 +137,6 @@ struct PerpDynamics
     }
     const Container& bhatgB( ) const { return m_b_2; } // \pm 1/B
     const Container& divb( ) const { return m_divb; }
-    const Container& binv( ) const { return m_binv; }
     const Container& bphi( ) const { return m_bphi; }
     // Compute divergence using centered derivatives
     // note that no matter how divergence is computed you always loose one order
@@ -167,7 +166,7 @@ struct PerpDynamics
     private:
     //these should be considered const
     std::array<Container,2> m_curvNabla, m_curvKappa, m_gradLnB;
-    Container m_divCurvKappa, m_b_2, m_divb, m_binv, m_bphi, m_detg; //m_b_2 = bphi(covariant)/detg/B \approx pm 1/B
+    Container m_divCurvKappa, m_b_2, m_divb, m_bphi, m_detg; //m_b_2 = bphi(covariant)/detg/B \approx pm 1/B
     // store covariant bphi = +- R for momentum conservation
 
     Matrix m_dxF, m_dxB, m_dxC, m_dx_P, m_dx_A;
@@ -240,20 +239,21 @@ PerpDynamics<Grid, IMatrix, Matrix, Container>::PerpDynamics( const Grid& g,
     m_detg = dg::tensor::volume( metric);
     m_b_2 = m_temp1 = m_temp2 = m_temp3 = m_temp0;
     dg::assign(  dg::pullback(dg::geo::Divb(mag), g), m_divb);
-    dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_binv);
+    dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_b_2);
     // in PerpDynamics we take EhatPhi = 1,1,+/- 1/R, which leads to ephi_varphi / sqrt(g) / B = \pm 1/R
-    dg::blas1::axpby( reversed_field ? -1. : +1., m_binv, 0., m_b_2);
+    dg::blas1::axpby( reversed_field ? -1. : +1., m_b_2, 0., m_b_2);
     m_bphi = dg::evaluate( dg::cooX3d, g); // R
     if( reversed_field)
         dg::blas1::scal( m_bphi, -1.);
     // Grad Ln B covariant components
     m_gradLnB[0] = dg::pullback( dg::geo::BR(mag), g);
     m_gradLnB[1] = dg::pullback( dg::geo::BZ(mag), g);
-    dg::blas1::pointwiseDot( m_gradLnB[0], m_binv, m_gradLnB[0]);
-    dg::blas1::pointwiseDot( m_gradLnB[1], m_binv, m_gradLnB[1]);
+    dg::assign(  dg::pullback(dg::geo::InvB(mag), g), m_temp0);
+    dg::blas1::pointwiseDot( m_gradLnB[0], m_temp0, m_gradLnB[0]);
+    dg::blas1::pointwiseDot( m_gradLnB[1], m_temp0, m_gradLnB[1]);
 
     // Diffusion operators
-    m_lapperp.construct ( g, p.bcx, p.bcy,  p.diff_dir),
+    m_lapperp.construct ( g, p.bcx, p.bcy, p.diff_dir);
 }
 
 template<class Grid, class IMatrix, class Matrix, class Container>
@@ -268,43 +268,43 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::update_derivatives(
     dg::blas2::symv( m_dy_A, apar, dyapar);
     for( unsigned s=0; s<m_p.num_species; s++)
     {
-        dg::blas2::symv( m_dxF, y[0][s], q["dxF N"][s]);
-        dg::blas2::symv( m_dxF, y[1][s], q["dxF Pperp"][s]);
-        dg::blas2::symv( m_dxF, y[2][s], q["dxF Ppara"][s]);
+        dg::blas2::symv( m_dxF, y[0][s], q.at("dxF N")[s]);
+        dg::blas2::symv( m_dxF, y[1][s], q.at("dxF Pperp")[s]);
+        dg::blas2::symv( m_dxF, y[2][s], q.at("dxF Ppara")[s]);
 
-        dg::blas2::symv( m_dxB, y[0][s], q["dxB N"][s]);
-        dg::blas2::symv( m_dxB, y[1][s], q["dxB Pperp"][s]);
-        dg::blas2::symv( m_dxB, y[2][s], q["dxB Ppara"][s]);
+        dg::blas2::symv( m_dxB, y[0][s], q.at("dxB N")[s]);
+        dg::blas2::symv( m_dxB, y[1][s], q.at("dxB Pperp")[s]);
+        dg::blas2::symv( m_dxB, y[2][s], q.at("dxB Ppara")[s]);
 
-        dg::blas2::symv( m_dyF, y[0][s], q["dyF N"][s]);
-        dg::blas2::symv( m_dyF, y[1][s], q["dyF Pperp"][s]);
-        dg::blas2::symv( m_dyF, y[2][s], q["dyF Ppara"][s]);
+        dg::blas2::symv( m_dyF, y[0][s], q.at("dyF N")[s]);
+        dg::blas2::symv( m_dyF, y[1][s], q.at("dyF Pperp")[s]);
+        dg::blas2::symv( m_dyF, y[2][s], q.at("dyF Ppara")[s]);
 
-        dg::blas2::symv( m_dyB, y[0][s], q["dyB N"][s]);
-        dg::blas2::symv( m_dyB, y[1][s], q["dyB Pperp"][s]);
-        dg::blas2::symv( m_dyB, y[2][s], q["dyB Ppara"][s]);
+        dg::blas2::symv( m_dyB, y[0][s], q.at("dyB N")[s]);
+        dg::blas2::symv( m_dyB, y[1][s], q.at("dyB Pperp")[s]);
+        dg::blas2::symv( m_dyB, y[2][s], q.at("dyB Ppara")[s]);
 
-        dg::blas2::symv( m_dxC, q["Tperp"][s], q["dx Tperp"][s]);
-        dg::blas2::symv( m_dxC, q["Tpara"][s], q["dx Tpara"][s]);
+        dg::blas2::symv( m_dxC, q.at("Tperp")[s], q.at("dx Tperp")[s]);
+        dg::blas2::symv( m_dxC, q.at("Tpara")[s], q.at("dx Tpara")[s]);
 
-        dg::blas2::symv( m_dyC, q["Tperp"][s], q["dy Tperp"][s]);
-        dg::blas2::symv( m_dyC, q["Tpara"][s], q["dy Tpara"][s]);
+        dg::blas2::symv( m_dyC, q.at("Tperp")[s], q.at("dy Tperp")[s]);
+        dg::blas2::symv( m_dyC, q.at("Tpara")[s], q.at("dy Tpara")[s]);
 
-        dg::blas2::symv( m_dx_P, q["Psi0"][s], q["dx Psi0"][s]);
-        dg::blas2::symv( m_dx_P, q["Psi1"][s], q["dx Psi1"][s]);
-        dg::blas2::symv( m_dx_P, q["Psi2"][s], q["dx Psi2"][s]);
+        dg::blas2::symv( m_dx_P, q.at("Psi0")[s], q.at("dx Psi0")[s]);
+        dg::blas2::symv( m_dx_P, q.at("Psi1")[s], q.at("dx Psi1")[s]);
+        dg::blas2::symv( m_dx_P, q.at("Psi2")[s], q.at("dx Psi2")[s]);
 
-        dg::blas2::symv( m_dy_P, q["Psi0"][s], q["dy Psi0"][s]);
-        dg::blas2::symv( m_dy_P, q["Psi1"][s], q["dy Psi1"][s]);
-        dg::blas2::symv( m_dy_P, q["Psi2"][s], q["dy Psi2"][s]);
+        dg::blas2::symv( m_dy_P, q.at("Psi0")[s], q.at("dy Psi0")[s]);
+        dg::blas2::symv( m_dy_P, q.at("Psi1")[s], q.at("dy Psi1")[s]);
+        dg::blas2::symv( m_dy_P, q.at("Psi2")[s], q.at("dy Psi2")[s]);
 
-        dg::blas2::symv( m_dxC, q["U"][s],     q["dx U"][s] );
-        dg::blas2::symv( m_dxC, q["Uperp"][s], q["dx Uperp"][s] );
-        dg::blas2::symv( m_dxC, q["Upara"][s], q["dx Upara"][s] );
+        dg::blas2::symv( m_dxC, q.at("U")[s],     q.at("dx U")[s] );
+        dg::blas2::symv( m_dxC, q.at("Uperp")[s], q.at("dx Uperp")[s] );
+        dg::blas2::symv( m_dxC, q.at("Upara")[s], q.at("dx Upara")[s] );
 
-        dg::blas2::symv( m_dyC, q["U"][s],     q["dy U"][s] );
-        dg::blas2::symv( m_dyC, q["Uperp"][s], q["dy Uperp"][s] );
-        dg::blas2::symv( m_dyC, q["Upara"][s], q["dy Upara"][s] );
+        dg::blas2::symv( m_dyC, q.at("U")[s],     q.at("dy U")[s] );
+        dg::blas2::symv( m_dyC, q.at("Uperp")[s], q.at("dy Uperp")[s] );
+        dg::blas2::symv( m_dyC, q.at("Upara")[s], q.at("dy Upara")[s] );
     }
 }
 template<class Grid, class IMatrix, class Matrix, class Container>
@@ -319,35 +319,35 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::update_STderivatives(
     dg::blas2::symv( m_dy_A, aparST, dyaparST);
     for( unsigned s=0; s<m_p.num_species; s++)
     {
-        dg::blas2::symv( m_dxC, q["ST N"],     q["ST dx N"][s]);
-        dg::blas2::symv( m_dxC, q["ST Tperp"], q["ST dx Tperp"][s]);
-        dg::blas2::symv( m_dxC, q["ST Tpara"], q["ST dx Tpara"][s]);
-        dg::blas2::symv( m_dxC, q["ST Psi0"],  q["ST dx Psi0"][s]);
-        dg::blas2::symv( m_dxC, q["ST Psi1"],  q["ST dx Psi1"][s]);
-        dg::blas2::symv( m_dxC, q["ST Psi2"],  q["ST dx Psi2"][s]);
+        dg::blas2::symv( m_dxC, q.at("ST N")[s],     q.at("ST dx N")[s]);
+        dg::blas2::symv( m_dxC, q.at("ST Tperp")[s], q.at("ST dx Tperp")[s]);
+        dg::blas2::symv( m_dxC, q.at("ST Tpara")[s], q.at("ST dx Tpara")[s]);
+        dg::blas2::symv( m_dxC, q.at("ST Psi0")[s],  q.at("ST dx Psi0")[s]);
+        dg::blas2::symv( m_dxC, q.at("ST Psi1")[s],  q.at("ST dx Psi1")[s]);
+        dg::blas2::symv( m_dxC, q.at("ST Psi2")[s],  q.at("ST dx Psi2")[s]);
 
-        dg::blas2::symv( m_dyC, q["ST N"],     q["ST dy N"][s]);
-        dg::blas2::symv( m_dyC, q["ST Tperp"], q["ST dy Tperp"][s]);
-        dg::blas2::symv( m_dyC, q["ST Tpara"], q["ST dy Tpara"][s]);
-        dg::blas2::symv( m_dyC, q["ST Psi0"],  q["ST dy Psi0"][s]);
-        dg::blas2::symv( m_dyC, q["ST Psi1"],  q["ST dy Psi1"][s]);
-        dg::blas2::symv( m_dyC, q["ST Psi2"],  q["ST dy Psi2"][s]);
+        dg::blas2::symv( m_dyC, q.at("ST N")[s],     q.at("ST dy N")[s]);
+        dg::blas2::symv( m_dyC, q.at("ST Tperp")[s], q.at("ST dy Tperp")[s]);
+        dg::blas2::symv( m_dyC, q.at("ST Tpara")[s], q.at("ST dy Tpara")[s]);
+        dg::blas2::symv( m_dyC, q.at("ST Psi0")[s],  q.at("ST dy Psi0")[s]);
+        dg::blas2::symv( m_dyC, q.at("ST Psi1")[s],  q.at("ST dy Psi1")[s]);
+        dg::blas2::symv( m_dyC, q.at("ST Psi2")[s],  q.at("ST dy Psi2")[s]);
 
-        dg::blas2::symv( m_dxF, q["ST U"][s], q["ST dxF U"][s]);
-        dg::blas2::symv( m_dxF, y[4][s],      q["ST dxF Qperp"][s]);
-        dg::blas2::symv( m_dxF, y[5][s],      q["ST dxF Qpara"][s]);
+        dg::blas2::symv( m_dxF, q.at("ST U")[s], q.at("ST dxF U")[s]);
+        dg::blas2::symv( m_dxF, y[4][s],      q.at("ST dxF Qperp")[s]);
+        dg::blas2::symv( m_dxF, y[5][s],      q.at("ST dxF Qpara")[s]);
 
-        dg::blas2::symv( m_dxB, q["ST U"][s], q["ST dxB U"][s]);
-        dg::blas2::symv( m_dxB, y[4][s],      q["ST dxB Qperp"][s]);
-        dg::blas2::symv( m_dxB, y[5][s],      q["ST dxB Qpara"][s]);
+        dg::blas2::symv( m_dxB, q.at("ST U")[s], q.at("ST dxB U")[s]);
+        dg::blas2::symv( m_dxB, y[4][s],      q.at("ST dxB Qperp")[s]);
+        dg::blas2::symv( m_dxB, y[5][s],      q.at("ST dxB Qpara")[s]);
 
-        dg::blas2::symv( m_dyF, q["ST U"][s], q["ST dyF U"][s]);
-        dg::blas2::symv( m_dyF, y[4][s],      q["ST dyF Qperp"][s]);
-        dg::blas2::symv( m_dyF, y[5][s],      q["ST dyF Qpara"][s]);
+        dg::blas2::symv( m_dyF, q.at("ST U")[s], q.at("ST dyF U")[s]);
+        dg::blas2::symv( m_dyF, y[4][s],      q.at("ST dyF Qperp")[s]);
+        dg::blas2::symv( m_dyF, y[5][s],      q.at("ST dyF Qpara")[s]);
 
-        dg::blas2::symv( m_dyB, q["ST U"][s], q["ST dyB U"][s]);
-        dg::blas2::symv( m_dyB, y[4][s],      q["ST dyB Qperp"][s]);
-        dg::blas2::symv( m_dyB, y[5][s],      q["ST dyB Qpara"][s]);
+        dg::blas2::symv( m_dyB, q.at("ST U")[s], q.at("ST dyB U")[s]);
+        dg::blas2::symv( m_dyB, y[4][s],      q.at("ST dyB Qperp")[s]);
+        dg::blas2::symv( m_dyB, y[5][s],      q.at("ST dyB Qpara")[s]);
     }
 }
 
@@ -464,22 +464,22 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_densities_advection(
                     + mu/z*Tperp*Uperp*curvNablaY
                     +mu*Uperp*b_2*E1X)*dyU;
     },
-        q["N"][s],
-        q["dxF N"][s], q["dyF N"][s],
-        q["dxB N"][s], q["dyB N"][s],
-        q["dxF Pperp"][s], q["dyF Pperp"][s],
-        q["dxB Pperp"][s], q["dyB Pperp"][s],
-        q["dxF Ppara"][s], q["dyF Ppara"][s],
-        q["dxB Ppara"][s], q["dyB Ppara"][s],
+        q.at("N")[s],
+        q.at("dxF N")[s], q.at("dyF N")[s],
+        q.at("dxB N")[s], q.at("dyB N")[s],
+        q.at("dxF Pperp")[s], q.at("dyF Pperp")[s],
+        q.at("dxB Pperp")[s], q.at("dyB Pperp")[s],
+        q.at("dxF Ppara")[s], q.at("dyF Ppara")[s],
+        q.at("dxB Ppara")[s], q.at("dyB Ppara")[s],
         apar, dxapar, dyapar,
-        q["Tperp"][s], q["dx Tperp"][s], q["dy Tperp"][s],
-        q["Tpara"][s], q["dx Tpara"][s], q["dy Tpara"][s],
-        q["U"][s], q["dx U"][s], q["dy U"][s],
-        q["Uperp"][s], q["dx Uperp"][s], q["dy Uperp"][s],
-        q["Upara"][s], q["dx Upara"][s], q["dy Upara"][s],
-                      q["dx Psi0"][s], q["dy Psi0"][s],
-        q["Psi1"][s], q["dx Psi1"][s], q["dy Psi1"][s],
-        q["Psi2"][s], q["dx Psi2"][s], q["dy Psi2"][s],
+        q.at("Tperp")[s], q.at("dx Tperp")[s], q.at("dy Tperp")[s],
+        q.at("Tpara")[s], q.at("dx Tpara")[s], q.at("dy Tpara")[s],
+        q.at("U")[s], q.at("dx U")[s], q.at("dy U")[s],
+        q.at("Uperp")[s], q.at("dx Uperp")[s], q.at("dy Uperp")[s],
+        q.at("Upara")[s], q.at("dx Upara")[s], q.at("dy Upara")[s],
+                      q.at("dx Psi0")[s], q.at("dy Psi0")[s],
+        q.at("Psi1")[s], q.at("dx Psi1")[s], q.at("dy Psi1")[s],
+        q.at("Psi2")[s], q.at("dx Psi2")[s], q.at("dy Psi2")[s],
         m_curvNabla[0], m_curvNabla[1],
         m_curvKappa[0], m_curvKappa[1],
         m_gradLnB[0], m_gradLnB[1],
@@ -628,21 +628,22 @@ void PerpDynamics<Grid, IMatrix, Matrix, Container>::add_velocities_advection(
                         -2*N*Tpara*Uperp*(curvKappaX*E1X + curvKappaY*E1Y));
 
     },
-        q["ST U"][s],
-        q["ST dxF U"][s], q["ST dyF U"][s],
-        q["ST dxB U"][s], q["ST dyB U"][s],
-        q["ST dxF Qperp"][s], q["ST dyF Qperp"][s],
-        q["ST dxB Qperp"][s], q["ST dyB Qperp"][s],
-        q["ST dxF Qpara"][s], q["ST dyF Qpara"][s],
-        q["ST dxB Qpara"][s], q["ST dyB Qpara"][s],
-        q["ST N"][s], q["ST dx N"][s], q["ST dy N"][s],
-        q["ST Tperp"][s], q["ST dx Tperp"][s], q["ST dy Tperp"][s],
-        q["ST Tpara"][s], q["ST dx Tpara"][s], q["ST dy Tpara"][s],
+        q.at("ST U")[s],
+        q.at("ST dxF U")[s], q.at("ST dyF U")[s],
+        q.at("ST dxB U")[s], q.at("ST dyB U")[s],
+        q.at("ST dxF Qperp")[s], q.at("ST dyF Qperp")[s],
+        q.at("ST dxB Qperp")[s], q.at("ST dyB Qperp")[s],
+        q.at("ST dxF Qpara")[s], q.at("ST dyF Qpara")[s],
+        q.at("ST dxB Qpara")[s], q.at("ST dyB Qpara")[s],
+        q.at("ST N")[s], q.at("ST dx N")[s], q.at("ST dy N")[s],
+        q.at("ST Tperp")[s], q.at("ST dx Tperp")[s], q.at("ST dy Tperp")[s],
+        q.at("ST Tpara")[s], q.at("ST dx Tpara")[s], q.at("ST dy Tpara")[s],
         aparST, dxaparST, dyaparST,
-        q["ST dx Psi0"], q["ST dy Psi0"][s],
-        q["ST Psi1"][s], q["ST dx Psi1"][s], q["ST dy Psi1"][s],
-        q["ST Psi2"][s], q["ST dx Psi2"][s], q["ST dy Psi2"][s],
-        q["ST Psi3"][s], q["ST dx Psi3"][s], q["ST dy Psi3"][s],
+        q.at("ST Uperp")[s], q.at("ST Upara")[s],
+                            q.at("ST dx Psi0")[s], q.at("ST dy Psi0")[s],
+        q.at("ST Psi1")[s], q.at("ST dx Psi1")[s], q.at("ST dy Psi1")[s],
+        q.at("ST Psi2")[s], q.at("ST dx Psi2")[s], q.at("ST dy Psi2")[s],
+        q.at("ST Psi3")[s], q.at("ST dx Psi3")[s], q.at("ST dy Psi3")[s],
         m_curvNabla[0], m_curvNabla[1],
         m_curvKappa[0], m_curvKappa[1],
         m_gradLnB[0], m_gradLnB[1],
