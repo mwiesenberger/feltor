@@ -184,13 +184,34 @@ dg::SparseMatrix< int, real_type, thrust::host_vector> transformation(
 }
 
 ///@}
+///@cond
+namespace detail
+{
+template<class real_type>
+dg::SquareMatrix<real_type> square_backproject( const RealGrid1d<real_type>& g)
+{
+    unsigned n=g.n();
+    dg::RealGrid1d<real_type> g_old( -1., 1., n, 1);
+    dg::RealGrid1d<real_type> g_new( -1., 1., 1, n);
+    auto block = dg::create::transformation( g_new, g_old);
+    dg::SquareMatrix<real_type> op(n, 0.);
+    for( unsigned i=0; i<block.num_rows(); i++)
+        for( unsigned j=block.row_offsets()[i]; j<(unsigned)block.row_offsets()[i+1]; j++)
+            op( i, block.column_indices()[j]) = block.values()[j];
+    return op;
+}
+}
+///@endcond
+
 ///@addtogroup scatter
 ///@{
 
 /**
  * @brief Create a matrix \f$ PI\f$ that projects values to an equidistant grid
  *
- * Same as <tt>dg::create::transformation( g_equidist, g)</tt>
+ * Same as <tt>dg::create::transformation( g_equidist, g)</tt>.
+ * *Not* the same as <tt>dg::create::backscatter(g)</tt>! (projection vs interpolation).
+ *
  * @param g The grid on which to operate
  *
  * @return transformation matrix (block diagonal)
@@ -202,16 +223,8 @@ dg::IHMatrix_t<real_type> backproject( const aRealTopology<real_type,Nd>& g)
     std::array<dg::IHMatrix_t<real_type>,Nd> matrix;
     for( unsigned u=0; u<Nd; u++)
     {
-        unsigned n=g.n(u);
-        dg::RealGrid1d<real_type> g_old( -1., 1., n, 1);
-        dg::RealGrid1d<real_type> g_new( -1., 1., 1, n);
-        auto block = dg::create::transformation( g_new, g_old);
-        dg::SquareMatrix<real_type> op(n, 0.);
-        for( unsigned i=0; i<block.num_rows(); i++)
-            for( unsigned j=block.row_offsets()[i]; j<(unsigned)block.row_offsets()[i+1]; j++)
-                op( i, block.column_indices()[j]) = block.values()[j];
-        matrix[u] = (dg::IHMatrix_t<real_type>)dg::tensorproduct( g.N(u), op);
-
+        matrix[u] = (dg::IHMatrix_t<real_type>)dg::tensorproduct( g.N(u),
+            detail::square_backproject( g.grid(u)));
     }
     for( unsigned u=1; u<Nd; u++)
         matrix[0] = dg::tensorproduct( matrix[u], matrix[0]);
@@ -221,7 +234,6 @@ dg::IHMatrix_t<real_type> backproject( const aRealTopology<real_type,Nd>& g)
 /**
  * @brief Create a matrix \f$ (PI)^{-1}\f$ that transforms values from an equidistant grid back to a dg grid
  *
- * Same as <tt>dg::create::transformation( g, g_equidist)</tt>
  * @note The inverse of the backproject matrix is **not** its adjoint!
  * @param g The grid on which to operate
  *
@@ -234,16 +246,8 @@ dg::IHMatrix_t<real_type> inv_backproject( const aRealTopology<real_type,Nd>& g)
     std::array<dg::IHMatrix_t<real_type>,Nd> matrix;
     for( unsigned u=0; u<Nd; u++)
     {
-        unsigned n=g.n(u);
-        dg::RealGrid1d<real_type> g_old( -1., 1., n, 1);
-        dg::RealGrid1d<real_type> g_new( -1., 1., 1, n);
-        auto block = dg::create::transformation( g_new, g_old);
-        dg::SquareMatrix<real_type> op(n, 0.);
-        for( unsigned i=0; i<block.num_rows(); i++)
-            for( unsigned j=block.row_offsets()[i]; j<(unsigned)block.row_offsets()[i+1]; j++)
-                op( i, block.column_indices()[j]) = block.values()[j];
-        matrix[u] = (dg::IHMatrix_t<real_type>)dg::tensorproduct( g.N(u), dg::invert(op));
-
+        matrix[u] = (dg::IHMatrix_t<real_type>)dg::tensorproduct( g.N(u),
+            dg::invert( detail::square_backproject( g.grid(u))) );
     }
     for( unsigned u=1; u<Nd; u++)
         matrix[0] = dg::tensorproduct( matrix[u], matrix[0]);
