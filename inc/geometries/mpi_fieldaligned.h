@@ -145,7 +145,7 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
     unsigned m_coords2, m_sizeZ; //number of processes in z
     //we need to manually send data through the host for cuda-unaware-mpi
     mutable thrust::host_vector<double> m_buffer; //2d size
-    dg::detail::MPIContiguousGather m_split_inrom_minus, m_split_inrom_plus;
+    dg::detail::MPIContiguousGather m_from_minus, m_from_plus;
     mutable bool m_have_adjoint = false;
     void updateAdjoint( ) const // only changes mutable m_have_adjoint and m_minusT, m_plusT
     {
@@ -522,12 +522,12 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     dg::mpi_cart_shift( grid.comm(2), 0, +1, &source, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgP =
         {{ dest, thrust::host_vector<dg::detail::MsgChunk>( 1, chunk)}};
-    m_split_inrom_plus = dg::detail::MPIContiguousGather( recvMsgP, grid.comm(2));
+    m_from_plus = dg::detail::MPIContiguousGather( recvMsgP, grid.comm(2));
 
     dg::mpi_cart_shift( grid.comm(2), 0, -1, &source, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgM =
         {{ dest, thrust::host_vector<dg::detail::MsgChunk>( 1, chunk)}};
-    m_split_inrom_minus = dg::detail::MPIContiguousGather( recvMsgM, grid.comm(2));
+    m_from_minus = dg::detail::MPIContiguousGather( recvMsgM, grid.comm(2));
 }
 
 
@@ -619,8 +619,8 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
     if( m_sizeZ != 1)
     {
         unsigned i0 = m_Nz-1;
-        m_split_inrom_plus.global_gather_init( send_buf.data(), m_split_out[i0].data());
-        m_split_inrom_plus.global_gather_wait( m_split_out[i0].data());
+        m_from_plus.global_gather_init( send_buf.data(), m_split_out[i0].data());
+        m_from_plus.global_gather_wait( m_split_out[i0].data());
     }
     if( apply_inv_backproject)
     {
@@ -677,8 +677,8 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
     if( m_sizeZ != 1)
     {
         unsigned i0 = 0;
-        m_split_inrom_minus.global_gather_init( send_buf.data(), m_split_out[i0].data());
-        m_split_inrom_minus.global_gather_wait( m_split_out[i0].data());
+        m_from_minus.global_gather_init( send_buf.data(), m_split_out[i0].data());
+        m_from_minus.global_gather_wait( m_split_out[i0].data());
     }
     if( apply_inv_backproject)
     {
