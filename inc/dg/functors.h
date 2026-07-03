@@ -1918,7 +1918,22 @@ inline double horner( const double * c, unsigned M, double x)
         b = c[M-2-i] + b*x;
     return b;
 }
+inline void fourier_modes( double * modes, unsigned K, unsigned S, double period, double x)
+{
+    // size of modes is K+S+1
+    double xbar = 2.*M_PI / period * x;
+    if( K  > 0)
+        modes[0] = 1.; // The first mode is always 1
+    for( unsigned k=1; k<K; k++)
+    {
+        modes[k] = cos( k * xbar);
+    }
+    for( unsigned s=1; s<S+1; s++)
+    {
+        modes[K+s-1] = sin( s * xbar);
+    }
 
+}
 } // namespace detail
 ///@endcond
 
@@ -2061,7 +2076,11 @@ struct RealFourier1d
         if( m_prev[0] == x)
             return m_prev[1];
         detail::fourier_modes( &m_modes[0], m_K, m_S, m_period, x);
-        m_prev[1] = dg::blas1::vdot( dg::Product(), m_modes, m_ab);
+        //m_prev[1] = dg::blas1::vdot( dg::Product(), m_modes, m_ab);
+        //m_prev[1] = dg::blas1::dot( m_modes, m_ab);
+        m_prev[1] = 0;
+        for( unsigned u=0; u<m_modes.size(); u++)
+            m_prev[1] += m_modes[u]*m_ab[u];
         return m_prev[1];
     }
     private:
@@ -2072,6 +2091,40 @@ struct RealFourier1d
     mutable std::array<double,2> m_prev;
 };
 
+//struct Horner2dRealFourier1d
+//{
+//    // z direction is contiguous in memory, then y, then x
+//    Horner2dRealFourier1d( const std::vector<double>& c, unsigned M, unsigned
+//        N, unsigned K, unsigned S, double period)
+//    double operator()( double x, double y, double z)
+//    {
+//        // Optimisation rationale: Evaluate z direction first as this is the
+//        // slowest varying in dg::evaluate
+//        if( m_prev[2] == z && m_prev[1] == y && m_prev[0] == x)
+//            return m_prev[3];
+//        if( m_prev[2] != z )
+//        {
+//            detail::fourier_modes( modes, m_K, m_S, period, z);
+//            for( unsigned i=0; i<m_M*m_N; i++)
+//            {
+//                // We could here also use symv here like in dg::Average
+//                auto view = create_view( &m_c[i*(m_K+m_S)], m_K);
+//                m_cxy[i] = dg::blas1::vdot( dg::Product(), view, m_modesz);
+//        }
+//
+//        if( m_prev[1] != y || m_prev[2] != z) // only when both y and z stayed the same can this be skipped
+//            for( unsigned i=0; i<m_M; i++)
+//                m_cx[i] = detail::horner( &m_cxy[i*m_N], m_N, y);
+//        // At this point we know for sure that one of x, y, or z changed
+//        m_prev[3] = detail::horner( &m_cx[0], m_M, x);
+//        m_prev[0] = x, m_prev[1] = y, m_prev[2] = z;
+//        return m_prev[3];
+//
+//    }
+//    private:
+//    mutable std::array<double,4> m_prev;
+//
+//};
 
 /**
  * @brief Compute a histogram on a 1D grid
