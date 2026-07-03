@@ -1918,23 +1918,8 @@ inline double horner( const double * c, unsigned M, double x)
         b = c[M-2-i] + b*x;
     return b;
 }
-inline void fourier_modes( double * modes, unsigned K, unsigned S, double period, double x)
-{
-    // size of modes is K+S+1
-    double xbar = 2.*M_PI / period * x;
-    if( K  > 0)
-        modes[0] = 1.; // The first mode is always 1
-    for( unsigned k=1; k<K; k++)
-    {
-        modes[k] = cos( k * xbar);
-    }
-    for( unsigned s=1; s<S+1; s++)
-    {
-        modes[K+s-1] = sin( s * xbar);
-    }
 
-}
-}
+} // namespace detail
 ///@endcond
 
 /**
@@ -1967,13 +1952,6 @@ struct Horner1d
         m_prev[1] = detail::horner( &m_c[0], m_M, x);
         m_prev[0] = x;
         return m_prev[1];
-    }
-    Horner1d dx() const
-    {
-        std::vector<double> beta ( m_M-1);
-        for( unsigned i=0; i<m_M-1; i++)
-            beta[i] = (double)(i+1)*m_c[i+1];
-        return Horner1d( beta);
     }
     private:
     std::vector<double> m_c;
@@ -2024,69 +2002,12 @@ struct Horner2d
         m_prev[0] = x, m_prev[1] = y;
         return m_prev[2];
     }
-
-    Horner2d dx() const
-    {
-        std::vector<double> beta ( (m_M-1)*m_N);
-        for( unsigned i=0; i<m_M-1; i++)
-            for( unsigned j=0; j<m_N; j++)
-                beta[i*m_N+j] = (double)(i+1)*m_c[(i+1)*m_N + j];
-        return Horner2d( beta, m_M-1, m_N);
-    }
-    Horner2d dy() const
-    {
-        std::vector<double> beta ( m_M*(m_N-1));
-        for( unsigned i=0; i<m_M; i++)
-            for( unsigned j=0; j<m_N-1; j++)
-                beta[i*(m_N-1)+j] = (double)(j+1)*m_c[i*m_N + j + 1];
-        return Horner2d( beta, m_M, m_N-1);
-    }
     private:
     std::vector<double> m_c;
     mutable std::vector<double> m_cx;
     unsigned m_M, m_N;
     mutable std::array<double,3> m_prev;
 };
-
-/**
- * @brief \f$ f(x) = a_0 + \sum_{k=1}^{K-1} a_k \cos\left( 2\pi \frac{k}{P} x\right) + \sum_{s=1}^S b_s \sin\left( 2\pi \frac{s}{P} x\right)
- *
- * where \f$ P\f$ is the periodicity \f$ K\f$ is the number of cosine modes (we count the constant as a cosine mode) and \f$ S\f$ is the number sine modes
- */
-struct RealFourier1d
-{
-    ///Initialize 1 coefficient to 1
-    RealFourier1d(): m_ab( 1, 1), m_K(1), m_S(0), m_prev( {0,1}){}
-
-    /// K + S == ab.size()
-    /*!@brief construct from coefficients (cosine, sine)
-     * @param ab The coefficients ab[0] is the constant, ab[0:K] are cosine
-     * coefficients, (K-1) is the highest cosine mode) ab[K:K+S] are sine
-     * coefficients starting with mode 1 up to S
-     * @param K the number of cosine coefficients (including the constant)
-     * @param S the number sine coefficients
-     * @param period The periodicity P
-     */
-    RealFourier1d( const std::vector<double>& ab, unsigned K, unsigned S, double period) : m_ab(ab), m_K(K), m_S(S), m_period( period ), m_modes( ab), m_prev( {1e300, 1e300}){
-        assert( ab.size() >= K+S);
-        }
-
-    double operator()( double x) const
-    {
-        if( m_prev[0] == x)
-            return m_prev[1];
-        detail::fourier_modes( &m_modes[0], m_K, m_S, m_period, x);
-        m_prev[1] = dg::blas1::vdot( dg::Product(), m_modes, m_ab);
-        return m_prev[1];
-    }
-    private:
-    std::vector<double> m_ab;
-    unsigned m_K, m_S;
-    double m_period;
-    mutable std::vector<double> m_modes;
-    mutable std::array<double,2> m_prev;
-};
-
 
 /**
  * @brief Compute a histogram on a 1D grid
