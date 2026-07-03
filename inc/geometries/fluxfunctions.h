@@ -9,90 +9,78 @@ namespace geo
 
 ///@addtogroup fluxfunctions
 ///@{
-/*! @brief Inject both 2d and 3d \c operator() to a 2d functor
- *
- * The purpose of this class is to extend any 2d Functor to a
- * 3d Functor by defining \f$ f(x,y,z) := f(x,y)\f$. This class is
- * especially useful in an interface since any 2d functor can be converted
- * to it (type erasure property of the \c std::function that we use
- * to implement this class).
- * @note If you want to write a functor that is both 2d and 3d directly,
- * it is easier to derive from \c aCylindricalFunctor
- * @sa this class is an alternative to \c aCylindricalFunctor and
- * \c aCylindricalFunctor can be converted to this class
- */
-template<class real_type>
-struct RealCylindricalFunctor
-{
-    RealCylindricalFunctor(){}
-    /**
-    * @brief Construct from any binary functor
-    *
-    * @tparam BinaryFunctor Interface must be <tt> real_type(real_type x, real_type y)</tt>
-    * @param f a 2d functor
-    */
-    template<class BinaryFunctor>
-    RealCylindricalFunctor( BinaryFunctor f):
-        m_f(f) {}
-    /// @return f(R,Z)
-    real_type operator()( real_type R, real_type Z) const{
-        return m_f(R,Z);
-    }
-    /// @return f(R,Z)
-    real_type operator()( real_type R, real_type Z, real_type) const{
-        return m_f(R,Z);
-    }
-    private:
-    std::function<real_type(real_type,real_type)> m_f;
-};
-
-///Most of the times we use \c double
-using CylindricalFunctor = RealCylindricalFunctor<double>;
 
 /**
-* @brief Represent functions written in cylindrical coordinates
-        that are independent of the angle phi serving as both 2d and 3d functions
+* @brief Represent (potentially axisymmetric) functions \f$f(R,Z,\varphi)\f$ written in Cylindrical coordinates
 
-* The rational is that these functors can serve as both 2d and 3d functors
-* where the 3d functor trivially redirects to the 2d version.
+* The rational is that axisymmetric functors \f$f(R,Z,\varphi)\f$ can serve as
+* both 2d and 3d functors as it is independent of the angle:
+* \f[
+* f_{2d}(R,Z)\equiv f(R,Z,\varphi)
+* \f]
+*
+* If a given 3d functor \f$ f(R,Z,\varphi)\f$ is not axisymmetric a
+* corresponding 2d functor can be defined by fixing the angle to a given value
+* \f[
+* f_{2d,0}(R,Z) \equiv f(R,Z,\varphi_0)
+* \f]
+* \f$ \phi_0 = 0\f$ by default, use \c set_phi to change.
+*
 * This behaviour is injected into all classes that derive from this class
 * via the Curiously Recurring Template Pattern (CRTP).
+* All classes need to implement the \c do_compute function which computes \f$f(R,Z,\varphi)\f$
 * @sa \c aCylindricalFunctor
-* @sa An alternative is \c RealCylindricalFunctor
-* @tparam Derived Interface: <tt> double do_compute(double,double) const</tt>
+* @sa The default implementation is \c RealCylindricalFunctor
+* @tparam Derived Interface: <tt> double do_compute(double,double,double) const</tt>
 */
 template<class Derived>
 struct aCylindricalFunctor
 {
     /**
-    * @brief <tt> do_compute(R,Z)</tt>
+    * @brief <tt>do_compute(R,Z, P0)</tt>
     *
     * @param R radius (cylindrical coordinate)
     * @param Z height (cylindrical coordinate)
     *
-    * @return f(R,Z)
+    * @return f(R,Z,P0)
+    *
+    * @sa set_phi to change the default P0 value
+    * @attention The \c do_compute function should be considered private and
+    * its interface can change
     */
     double operator()(double R, double Z) const
     {
-        const Derived& underlying = static_cast<const Derived&>(*this);
-        return underlying.do_compute(R,Z);
+        return operator()(R,Z,m_P);
     }
     /**
-    * @brief <tt> do_compute(R,Z)</tt>
+    * @brief <tt> do_compute(R,Z,P)</tt>
     *
     * @param R radius (cylindrical coordinate)
     * @param Z height (cylindrical coordinate)
+    * @param P toroidal angle (clockwise when seen from above)
     *
-    * @return f(R,Z)
+    * @return f(R,Z,P)
+    * @attention The \c do_compute function should be considered private and
+    * its interface can change
     */
-    double operator()(double R, double Z, double)const
+    double operator()(double R, double Z, double P)const
     {
         const Derived& underlying = static_cast<const Derived&>(*this);
-        return underlying.do_compute(R,Z);
+        return underlying.do_compute(R,Z,P);
     }
+    /**
+     * @brief Set the default angle \c P0 that the 2d operator uses
+     *
+     * This is only relevant for non-axisymmetric functors and only for the 2d operator.
+     * @param phi New P0 value for the 2d operator
+     */
+    void set_phi( double P0) { m_P = P0;}
+    /// @brief Read access to the default phi value P0
+    double get_phi() const { return m_P;}
+    private:
+    double m_P = 0.;
 #ifndef __CUDACC__ //nvcc below 10 has problems with the following construct
     //This trick avoids that classes inherit from the wrong Base:
-    private:
     friend Derived;
     aCylindricalFunctor(){}
     /**
@@ -106,19 +94,48 @@ struct aCylindricalFunctor
 #endif //__CUDACC__
 };
 
+/*! @brief Inject both 2d and 3d \c operator() to a 2d functor
+ *
+ * The purpose of this class is to serve as a general purpose
+ * functor parameter in interfaces
+ * to catch any other functor of type \c aCylindricalFunctor or
+ * in fact any 2d or 3d functor type (type erasure property of the \c
+ * std::function that we use to implement this class).
+ * @note If you want to avoid the indirection inherent in the \c std::function
+ * it is easier to derive from \c aCylindricalFunctor
+ * @sa \c aCylindricalFunctor can be converted to this class
+ */
+struct CylindricalFunctor : public aCylindricalFunctor<CylindricalFunctor>
+{
+    CylindricalFunctor(){}
+
+    template<class TernaryFunctor>
+    CylindricalFunctor( const TernaryFunctor& f):
+        m_f(f) {}
+    double do_compute( double R, double Z, double P) const { return m_f(R,Z,P);}
+    private:
+    // Optimization note: from https://www.boost.org/doc/libs/1_45_0/doc/html/function/faq.html#id1284915
+    // the performance overhead of calling std::function is about (20 +- 10)ns
+    std::function<double(double,double,double)> m_f;
+};
+
+//If ever we need float there is an issue with templated Derived classes:
+//https://stackoverflow.com/questions/2940402/templated-derived-class-in-crtp-curiously-recurring-template-pattern
+//Essentially then **all** derived classes need to be templates
+//using CylindricalFunctor = RealCylindricalFunctor;
 /**
- * @brief \f$ f(x,y) = c\f$
+ * @brief \f$ f(R,Z,P) = c\f$
  */
 struct Constant: public aCylindricalFunctor<Constant>
 {
     Constant(double c):c_(c){}
-    double do_compute(double,double)const{return c_;}
+    double do_compute(double,double,double)const{return c_;}
     private:
     double c_;
 };
 /**
  * @brief
- * \f$ f(R,Z)= \begin{cases}
+ * \f$ f(R,Z,P)= \begin{cases}
  0 \text{ if } Z < Z_X \\
  1 \text{ else }
  \end{cases}
@@ -128,7 +145,7 @@ struct Constant: public aCylindricalFunctor<Constant>
 struct ZCutter : public aCylindricalFunctor<ZCutter>
 {
     ZCutter(double ZX, int sign = +1): m_heavi( ZX, sign){}
-    double do_compute(double, double Z) const {
+    double do_compute(double, double Z,double) const {
         return m_heavi(Z);
     }
     private:
@@ -163,13 +180,13 @@ struct Periodify : public aCylindricalFunctor<Periodify>
             double Z1, dg::bc bcx, dg::bc bcy):
         m_g( R0, R1, Z0, Z1, 3, 10, 10, bcx, bcy), m_f(functor)
     {}
-    double do_compute( double R, double Z) const
+    double do_compute( double R, double Z, double P) const
     {
         bool negative = false;
         dg::create::detail::shift( negative, R, m_g.bcx(), m_g.x0(), m_g.x1());
         dg::create::detail::shift( negative, Z, m_g.bcy(), m_g.y0(), m_g.y1());
-        if( negative) return -m_f(R,Z);
-        return m_f( R, Z);
+        if( negative) return -m_f(R,Z,P);
+        return m_f( R, Z, P);
     }
     private:
     dg::Grid2d m_g;
@@ -188,19 +205,21 @@ struct CylindricalFunctorsLvl1
     /**
     * @brief Construct with given functors
     *
-    * @param f \f$ f(x,y)\f$ the function in some coordinates (x,y)
+    * @param f \f$ f(x,y,z)\f$ the function in some coordinates (x,y,z)
     * @param fx \f$ \partial f / \partial x \f$ its derivative in the first coordinate
     * @param fy \f$ \partial f / \partial y \f$ its derivative in the second coordinate
+    * @param fz \f$ \partial f / \partial z \f$ its derivative in the third coordinate
     */
-    CylindricalFunctorsLvl1(  CylindricalFunctor f,  CylindricalFunctor fx,
-        CylindricalFunctor fy) : p_{{ f, fx, fy}} {
+    CylindricalFunctorsLvl1(  const CylindricalFunctor& f,  const CylindricalFunctor& fx,
+        const CylindricalFunctor& fy, const CylindricalFunctor& fz = Constant(0)) : p_{{ f, fx, fy, fz}} {
     }
     ///copy given functors
-    void reset( CylindricalFunctor f, CylindricalFunctor fx, CylindricalFunctor fy)
+    void reset( const CylindricalFunctor& f, const CylindricalFunctor& fx, const CylindricalFunctor& fy, const CylindricalFunctor& fz = Constant(0))
     {
         p_[0] = f;
         p_[1] = fx;
         p_[2] = fy;
+        p_[3] = fz;
     }
     /// \f$ f \f$
     const CylindricalFunctor& f()const{return p_[0];}
@@ -208,8 +227,10 @@ struct CylindricalFunctorsLvl1
     const CylindricalFunctor& dfx()const{return p_[1];}
     /// \f$ \partial f / \partial y\f$
     const CylindricalFunctor& dfy()const{return p_[2];}
+    /// \f$ \partial f / \partial z\f$
+    const CylindricalFunctor& dfz()const{return p_[3];}
     private:
-    std::array<CylindricalFunctor,3> p_;
+    std::array<CylindricalFunctor,4> p_;
 };
 
 
@@ -231,14 +252,31 @@ struct CylindricalFunctorsLvl2
     CylindricalFunctorsLvl2(  CylindricalFunctor f,  CylindricalFunctor fx,
         CylindricalFunctor fy,   CylindricalFunctor fxx,
         CylindricalFunctor fxy,  CylindricalFunctor fyy):
-        f0(f,fx,fy), f1(fxx,fxy,fyy)
+        f0(f,fx,fy), f1(fxx,fxy,fyy), f2(Constant(0), Constant(0), Constant(0))
+    { }
+    CylindricalFunctorsLvl2(  CylindricalFunctor f,  CylindricalFunctor fx,
+        CylindricalFunctor fy,   CylindricalFunctor fz,
+        CylindricalFunctor fxx, CylindricalFunctor fxy, CylindricalFunctor fxz,
+        CylindricalFunctor fyy, CylindricalFunctor fyz,
+        CylindricalFunctor fzz
+        ):
+        f0(f,fx,fy, fz), f1(fxx,fxy,fyy), f2(fxz, fyz, fzz)
     { }
     ///Replace with given Functors
     void reset( CylindricalFunctor f, CylindricalFunctor fx,
         CylindricalFunctor fy, CylindricalFunctor fxx,
         CylindricalFunctor fxy, CylindricalFunctor fyy)
     {
-        f0.reset( f,fx,fy), f1.reset(fxx,fxy,fyy);
+        f0.reset( f,fx,fy), f1.reset(fxx,fxy,fyy), f2.reset( Constant(0), Constant(0), Constant(0));
+    }
+    ///Replace with given Functors
+    void reset(  CylindricalFunctor f,  CylindricalFunctor fx,
+        CylindricalFunctor fy,   CylindricalFunctor fz,
+        CylindricalFunctor fxx, CylindricalFunctor fxy, CylindricalFunctor fxz,
+        CylindricalFunctor fyy, CylindricalFunctor fyz,
+        CylindricalFunctor fzz)
+    {
+        f0.reset(f,fx,fy, fz), f1.reset(fxx,fxy,fyy), f2.reset(fxz, fyz, fzz);
     }
     ///type conversion: Lvl2 can also be used as Lvl1
     operator CylindricalFunctorsLvl1 ()const {return f0;}
@@ -248,19 +286,27 @@ struct CylindricalFunctorsLvl2
     const CylindricalFunctor& dfx()const{return f0.dfx();}
     /// \f$ \partial f / \partial y\f$
     const CylindricalFunctor& dfy()const{return f0.dfy();}
+    /// \f$ \partial f / \partial z\f$
+    const CylindricalFunctor& dfz()const{return f0.dfz();}
     /// \f$ \partial^2f/\partial x^2\f$
     const CylindricalFunctor& dfxx()const{return f1.f();}
     /// \f$ \partial^2 f / \partial x \partial y\f$
     const CylindricalFunctor& dfxy()const{return f1.dfx();}
+    /// \f$ \partial^2 f / \partial x \partial z\f$
+    const CylindricalFunctor& dfxz()const{return f2.f();}
     /// \f$ \partial^2f/\partial y^2\f$
     const CylindricalFunctor& dfyy()const{return f1.dfy();}
+    /// \f$ \partial^2f/\partial y\partial z\f$
+    const CylindricalFunctor& dfyz()const{return f2.dfx();}
+    /// \f$ \partial^2f/\partial z^2\f$
+    const CylindricalFunctor& dfzz()const{return f2.dfy();}
     private:
-    CylindricalFunctorsLvl1 f0,f1;
+    CylindricalFunctorsLvl1 f0,f1,f2;
 };
 
 
 /**
- * @brief This function finds critical points of psi (any point with vanishing gradient, including the X-point or O-point) via Newton iteration applied to the gradient of psi
+ * @brief This function finds critical points of psi (any point with vanishing gradient in R and Z, including the X-point or O-point) via Newton iteration applied to the gradient of psi
  *
  * Newton iteration applied to \f$ \nabla \psi (\vec x) = 0 \f$ reads
  * \f[ \vec x_{i+1} = \vec x_i - H^{-1} \nabla \psi (\vec x_i)\f]
@@ -269,28 +315,29 @@ struct CylindricalFunctorsLvl2
  * @param psi \f$ \psi(R,Z)\f$
  * @param RC start value on input, critical point on output
  * @param ZC start value on input, critical point on output
+ * @param P0 The plane in which to find vanishing gradient in
  * @return 0 if no critical point or Hessian (determinant) is zero,
  * 1 if local minimum,
  * 2 if local maximum,
  * 3 if saddle point
  * @ingroup misc_geo
  */
-inline int findCriticalPoint( const CylindricalFunctorsLvl2& psi, double& RC, double& ZC)
+inline int findCriticalPoint( const CylindricalFunctorsLvl2& psi, double& RC, double& ZC, double P0 = 0.)
 {
     std::array<double, 2> X{ {0,0} }, XN(X), X_OLD(X);
     X[0] = RC, X[1] = ZC;
     double eps = 1e10, eps_old= 2e10;
     unsigned counter = 0; //safety measure to avoid deadlock
-    double psipRZ = psi.dfxy()(X[0], X[1]);
-    double psipRR = psi.dfxx()(X[0], X[1]), psipZZ = psi.dfyy()(X[0],X[1]);
-    double psipR  = psi.dfx()(X[0], X[1]), psipZ = psi.dfy()(X[0], X[1]);
+    double psipRZ = psi.dfxy()(X[0], X[1], P0);
+    double psipRR = psi.dfxx()(X[0], X[1], P0), psipZZ = psi.dfyy()(X[0],X[1], P0);
+    double psipR  = psi.dfx()(X[0], X[1], P0), psipZ = psi.dfy()(X[0], X[1], P0);
     double D0 =  (psipZZ*psipRR - psipRZ*psipRZ);
     if(D0 == 0) // try to change initial guess slightly if we are very lucky
     {
         X[0] *= 1.0001, X[1]*=1.0001;
-        psipRZ = psi.dfxy()(X[0], X[1]);
-        psipRR = psi.dfxx()(X[0], X[1]), psipZZ = psi.dfyy()(X[0],X[1]);
-        psipR  = psi.dfx()(X[0], X[1]), psipZ = psi.dfy()(X[0], X[1]);
+        psipRZ = psi.dfxy()(X[0], X[1], P0);
+        psipRR = psi.dfxx()(X[0], X[1], P0), psipZZ = psi.dfyy()(X[0],X[1], P0);
+        psipR  = psi.dfx()(X[0], X[1], P0), psipZ = psi.dfy()(X[0], X[1], P0);
         D0 =  (psipZZ*psipRR - psipRZ*psipRZ);
     }
     double Dinv = 1./D0;
@@ -302,9 +349,9 @@ inline int findCriticalPoint( const CylindricalFunctorsLvl2& psi, double& RC, do
         XN.swap(X);
         eps = sqrt( (X[0]-X_OLD[0])*(X[0]-X_OLD[0]) + (X[1]-X_OLD[1])*(X[1]-X_OLD[1]));
         X_OLD = X; eps_old= eps;
-        psipRZ = psi.dfxy()(X[0], X[1]);
-        psipRR = psi.dfxx()(X[0], X[1]), psipZZ = psi.dfyy()(X[0],X[1]);
-        psipR  = psi.dfx()(X[0], X[1]), psipZ = psi.dfy()(X[0], X[1]);
+        psipRZ = psi.dfxy()(X[0], X[1], P0);
+        psipRR = psi.dfxx()(X[0], X[1], P0), psipZZ = psi.dfyy()(X[0],X[1], P0);
+        psipR  = psi.dfx()(X[0], X[1], P0), psipZ = psi.dfy()(X[0], X[1], P0);
         D0 = (psipZZ*psipRR - psipRZ*psipRZ);
         Dinv = 1./D0;
         if( D0 == 0) break;
@@ -329,12 +376,13 @@ inline int findCriticalPoint( const CylindricalFunctorsLvl2& psi, double& RC, do
  * @param psi \f$ \psi(R,Z)\f$
  * @param RC start value on input, O-point on output
  * @param ZC start value on input, O-point on output
+ * @param P0 Default plane to find O-point in
  * @return 1 if local minimum, 2 if local maximum,
  * @ingroup misc_geo
  */
-inline int findOpoint( const CylindricalFunctorsLvl2& psi, double& RC, double& ZC)
+inline int findOpoint( const CylindricalFunctorsLvl2& psi, double& RC, double& ZC, double P0 = 0.)
 {
-    int point = findCriticalPoint( psi, RC, ZC);
+    int point = findCriticalPoint( psi, RC, ZC, P0);
     if( point == 3 || point == 0 )
         throw dg::Error(dg::Message(_ping_)<<"There is no O-point near "<<RC<<" "<<ZC);
     return point;
@@ -348,11 +396,12 @@ inline int findOpoint( const CylindricalFunctorsLvl2& psi, double& RC, double& Z
  * @param psi \f$ \psi(R,Z)\f$
  * @param RC start value on input, X-point on output
  * @param ZC start value on input, X-point on output
+ * @param P0 Default plane to find X-point in
  * @ingroup misc_geo
  */
-inline void findXpoint( const CylindricalFunctorsLvl2& psi, double& RC, double& ZC)
+inline void findXpoint( const CylindricalFunctorsLvl2& psi, double& RC, double& ZC, double P0 = 0.)
 {
-    int point = findCriticalPoint( psi, RC, ZC);
+    int point = findCriticalPoint( psi, RC, ZC, P0);
     if( point != 3)
         throw dg::Error(dg::Message(_ping_)<<"There is no X-point near "<<RC<<" "<<ZC);
 }
@@ -409,7 +458,7 @@ struct CylindricalSymmTensorLvl1
     std::array<CylindricalFunctor,5> p_;
 };
 
-/// A vector field with three components that depend only on the first two coordinates
+/// @brief A vector field with three components
 ///@snippet ds_b.cpp doxygen
 struct CylindricalVectorLvl0
 {
@@ -486,11 +535,11 @@ struct CylindricalVectorLvl1
 struct ScalarProduct : public aCylindricalFunctor<ScalarProduct>
 {
     ScalarProduct( CylindricalVectorLvl0 v, CylindricalVectorLvl0 w) : m_v(v), m_w(w){}
-    double do_compute( double R, double Z) const
+    double do_compute( double R, double Z, double P) const
     {
-        return m_v.x()(R,Z)*m_w.x()(R,Z)
-             + m_v.y()(R,Z)*m_w.y()(R,Z)
-             + m_v.z()(R,Z)*m_w.z()(R,Z);
+        return m_v.x()(R,Z)*m_w.x()(R,Z,P)
+             + m_v.y()(R,Z)*m_w.y()(R,Z,P)
+             + m_v.z()(R,Z)*m_w.z()(R,Z,P);
     }
   private:
     CylindricalVectorLvl0 m_v, m_w;
@@ -504,9 +553,9 @@ struct ScalarProduct : public aCylindricalFunctor<ScalarProduct>
 struct SquareNorm : public aCylindricalFunctor<SquareNorm>
 {
     SquareNorm( CylindricalVectorLvl0 v, CylindricalVectorLvl0 w) : m_s(v, w){}
-    double do_compute( double R, double Z) const
+    double do_compute( double R, double Z, double P) const
     {
-        return sqrt(m_s(R,Z));
+        return sqrt(m_s(R,Z,P));
     }
   private:
     ScalarProduct m_s;
