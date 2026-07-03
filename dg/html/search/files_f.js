@@ -1,0 +1,21 @@
+var searchData=
+[
+  ['scalar_5fcategories_2eh_0',['scalar_categories.h',['../scalar__categories_8h.html',1,'']]],
+  ['separatrix_5forthogonal_2eh_1',['separatrix_orthogonal.h',['../../../geometries/html/separatrix__orthogonal_8h.html',1,'']]],
+  ['sheath_2eh_2',['sheath.h',['../../../geometries/html/sheath_8h.html',1,'']]],
+  ['simple_5forthogonal_2eh_3',['simple_orthogonal.h',['../../../geometries/html/simple__orthogonal_8h.html',1,'']]],
+  ['simpsons_2eh_4',['simpsons.h',['../simpsons_8h.html',1,'']]],
+  ['solovev_2eh_5',['solovev.h',['../../../geometries/html/solovev_8h.html',1,'']]],
+  ['solovev_5fparameters_2eh_6',['solovev_parameters.h',['../../../geometries/html/solovev__parameters_8h.html',1,'']]],
+  ['sparseblockmat_2eh_7',['sparseblockmat.h',['../sparseblockmat_8h.html',1,'']]],
+  ['sparseblockmat_5fcpu_5fkernels_2eh_8',['sparseblockmat_cpu_kernels.h',['../sparseblockmat__cpu__kernels_8h.html',1,'']]],
+  ['sparsematrix_2eh_9',['sparsematrix.h',['../sparsematrix_8h.html',1,'']]],
+  ['sparsematrix_5fcpu_2eh_10',['sparsematrix_cpu.h',['../sparsematrix__cpu_8h.html',1,'']]],
+  ['sparsematrix_5fgpu_2ecuh_11',['sparsematrix_gpu.cuh',['../sparsematrix__gpu_8cuh.html',1,'']]],
+  ['sparsematrix_5fomp_2eh_12',['sparsematrix_omp.h',['../sparsematrix__omp_8h.html',1,'']]],
+  ['split_5fand_5fjoin_2eh_13',['split_and_join.h',['../split__and__join_8h.html',1,'']]],
+  ['sqrt_5fcauchy_2eh_14',['sqrt_cauchy.h',['../../../matrix/html/sqrt__cauchy_8h.html',1,'']]],
+  ['sqrt_5fode_2eh_15',['sqrt_ode.h',['../../../matrix/html/sqrt__ode_8h.html',1,'']]],
+  ['stencil_2eh_16',['stencil.h',['../stencil_8h.html',1,'']]],
+  ['subroutines_2eh_17',['subroutines.h',['../subroutines_8h.html',1,'']]]
+];

@@ -1,0 +1,11 @@
+<map id="dg::RecursiveVectorTag" name="dg::RecursiveVectorTag">
+<area shape="rect" id="Node000001" title="This tag indicates composition/recursion." alt="" coords="68,152,243,177"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1_array_vector_tag.html" title=" " alt="" coords="5,225,151,251"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="135,189,92,227,89,223,131,185"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1_std_map_tag.html" title=" " alt="" coords="175,225,293,251"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="180,185,223,223,219,227,176,189"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_any_vector_tag.html" title="Vector Tag base class, indicates the basic Vector/container concept." alt="" coords="88,79,223,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="158,118,158,152,153,152,153,118"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_any_matrix_tag.html" title="tensor_category base class" alt="" coords="88,5,223,31"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="158,44,158,79,153,79,153,44"/>
+</map>

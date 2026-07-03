@@ -1,0 +1,13 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_m_p_i_topology.html" title=" " alt="" coords="5,37,171,77"/>
+<area shape="rect" id="Node000001" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_m_p_i_geometry2d.html" title=" " alt="" coords="219,5,407,45"/>
+<area shape="poly" id="edge1_Node000000_Node000001" title=" " alt="" coords="184,41,218,36,219,41,184,46"/>
+<area shape="rect" id="Node000003" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_m_p_i_geometry3d.html" title=" " alt="" coords="219,69,407,109"/>
+<area shape="poly" id="edge3_Node000000_Node000003" title=" " alt="" coords="184,68,219,73,218,79,184,74"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1geo_1_1_real_curvilinear_m_p_i_grid2d.html" title="A two&#45;dimensional MPI grid based on curvilinear coordinates." alt="" coords="483,5,663,45"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="420,23,483,23,483,28,420,28"/>
+<area shape="rect" id="Node000004" href="/home/matthias/Projekte/feltor/doc/dg.tag$structdg_1_1a_real_product_m_p_i_geometry3d.html" title=" " alt="" coords="455,69,692,109"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="420,87,454,87,454,92,420,92"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1geo_1_1_real_curvilinear_product_m_p_i_grid3d.html" title="A 2x1 curvilinear product space MPI grid." alt="" coords="740,62,919,117"/>
+<area shape="poly" id="edge5_Node000004_Node000005" title=" " alt="" coords="706,87,740,87,740,92,706,92"/>
+</map>

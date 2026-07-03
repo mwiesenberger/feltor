@@ -1,0 +1,9 @@
+<map id="dg::AnyPolicyTag" name="dg::AnyPolicyTag">
+<area shape="rect" id="Node000001" title="Execution Policy base class." alt="" coords="114,5,246,31"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_cuda_tag.html" title="CUDA implementation." alt="" coords="5,79,107,104"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="150,40,78,81,75,76,147,35"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_omp_tag.html" title="OpenMP parallel execution." alt="" coords="131,79,229,104"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="183,44,183,79,177,79,177,44"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1_serial_tag.html" title="Indicate sequential execution." alt="" coords="254,79,359,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="214,35,287,76,285,81,211,40"/>
+</map>

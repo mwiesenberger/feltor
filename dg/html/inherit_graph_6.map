@@ -1,0 +1,43 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="Node000000" href="$structdg_1_1_any_matrix_tag.html" title="tensor_category base class" alt="" coords="5,276,140,301"/>
+<area shape="rect" id="Node000001" href="$structdg_1_1_any_vector_tag.html" title="Vector Tag base class, indicates the basic Vector/container concept." alt="" coords="216,152,351,177"/>
+<area shape="poly" id="edge1_Node000000_Node000001" title=" " alt="" coords="92,264,133,224,159,204,187,186,215,175,217,180,189,191,162,208,137,228,96,268"/>
+<area shape="rect" id="Node000015" href="$structdg_1_1_cusp_matrix_tag.html" title="One of cusp&#39;s matrices, for these only the blas2 transfer and the symv( m,x,y) are implemented." alt="" coords="212,201,355,227"/>
+<area shape="poly" id="edge15_Node000000_Node000015" title=" " alt="" coords="110,268,187,235,225,224,227,229,189,241,112,273"/>
+<area shape="rect" id="Node000016" href="$structdg_1_1_dense_matrix_tag.html" title="indicate our dense matrix format" alt="" coords="208,251,359,276"/>
+<area shape="poly" id="edge16_Node000000_Node000016" title=" " alt="" coords="153,276,208,270,208,275,154,282"/>
+<area shape="rect" id="Node000017" href="$structdg_1_1_m_p_i_matrix_tag.html" title="indicate one of our mpi matrices" alt="" coords="216,300,351,325"/>
+<area shape="poly" id="edge17_Node000000_Node000017" title=" " alt="" coords="154,295,216,302,216,308,153,301"/>
+<area shape="rect" id="Node000018" href="$structdg_1_1_self_made_matrix_tag.html" title="Indicates that the type has a member function with the same name and interface (up to the matrix itse..." alt="" coords="198,349,369,375"/>
+<area shape="poly" id="edge18_Node000000_Node000018" title=" " alt="" coords="115,305,189,334,231,347,229,352,187,339,113,310"/>
+<area shape="rect" id="Node000019" href="$structdg_1_1_sparse_block_matrix_tag.html" title="indicate our sparse block matrix format" alt="" coords="188,399,379,424"/>
+<area shape="poly" id="edge19_Node000000_Node000019" title=" " alt="" coords="96,309,137,348,189,384,220,396,218,401,187,388,134,352,93,313"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1_any_scalar_tag.html" title="Scalar Tag base class." alt="" coords="447,79,581,104"/>
+<area shape="poly" id="edge2_Node000001_Node000002" title=" " alt="" coords="331,145,426,113,464,101,466,107,427,118,333,150"/>
+<area shape="rect" id="Node000007" href="$structdg_1_1_m_p_i_vector_tag.html" title="A distributed vector contains a data container and a MPI communicator." alt="" coords="447,128,581,153"/>
+<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="364,154,446,145,447,150,365,159"/>
+<area shape="rect" id="Node000008" href="$structdg_1_1_recursive_vector_tag.html" title="This tag indicates composition/recursion." alt="" coords="427,177,601,203"/>
+<area shape="poly" id="edge8_Node000001_Node000008" title=" " alt="" coords="365,171,427,178,426,183,364,176"/>
+<area shape="rect" id="Node000011" href="$structdg_1_1_shared_vector_tag.html" title="Indicate a contiguous chunk of shared memory." alt="" coords="437,227,591,252"/>
+<area shape="poly" id="edge11_Node000001_Node000011" title=" " alt="" coords="358,179,380,186,404,199,428,212,464,224,463,229,426,216,401,204,378,191,356,184"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1_arithmetic_tag.html" title="Types where std::is_arithmetic is true." alt="" coords="654,29,790,55"/>
+<area shape="poly" id="edge3_Node000002_Node000003" title=" " alt="" coords="581,73,667,52,668,57,582,78"/>
+<area shape="rect" id="Node000006" href="$structdg_1_1_complex_tag.html" title="complex number type" alt="" coords="659,79,785,104"/>
+<area shape="poly" id="edge6_Node000002_Node000006" title=" " alt="" coords="595,89,659,89,659,94,595,94"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1_floating_point_tag.html" title="Types where std::is_floating_point is true." alt="" coords="843,5,997,31"/>
+<area shape="poly" id="edge4_Node000003_Node000004" title=" " alt="" coords="803,30,842,25,843,30,804,35"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1_integral_tag.html" title="Types where std::is_integral is true." alt="" coords="861,55,979,80"/>
+<area shape="poly" id="edge5_Node000003_Node000005" title=" " alt="" coords="804,50,860,57,860,62,803,55"/>
+<area shape="rect" id="Node000009" href="$structdg_1_1_array_vector_tag.html" title=" " alt="" coords="649,128,795,153"/>
+<area shape="poly" id="edge9_Node000008_Node000009" title=" " alt="" coords="581,172,667,151,668,156,582,177"/>
+<area shape="rect" id="Node000010" href="$structdg_1_1_std_map_tag.html" title=" " alt="" coords="663,177,781,203"/>
+<area shape="poly" id="edge10_Node000008_Node000010" title=" " alt="" coords="615,187,663,187,663,193,615,193"/>
+<area shape="rect" id="Node000012" href="$structdg_1_1_array_scalar_tag.html" title=" " alt="" coords="651,227,793,252"/>
+<area shape="poly" id="edge12_Node000011_Node000012" title=" " alt="" coords="606,237,651,237,651,242,606,242"/>
+<area shape="rect" id="Node000013" href="$structdg_1_1_thrust_vector_tag.html" title="Indicate thrust/std &#45; like behaviour." alt="" coords="845,227,995,252"/>
+<area shape="poly" id="edge13_Node000012_Node000013" title=" " alt="" coords="808,237,844,237,844,242,808,242"/>
+<area shape="rect" id="Node000014" href="$structdg_1_1_cusp_vector_tag.html" title="special tag for cusp arrays" alt="" coords="1045,227,1188,252"/>
+<area shape="poly" id="edge14_Node000013_Node000014" title=" " alt="" coords="1009,237,1045,237,1045,242,1009,242"/>
+<area shape="rect" id="Node000020" href="$structdg_1_1_sparse_matrix_tag.html" title="indicate our sparse matrix format" alt="" coords="437,399,591,424"/>
+<area shape="poly" id="edge20_Node000019_Node000020" title=" " alt="" coords="392,409,437,409,437,414,392,414"/>
+</map>

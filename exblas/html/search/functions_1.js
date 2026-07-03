@@ -1,0 +1,6 @@
+var searchData=
+[
+  ['exdot_5fcpu_0',['exdot_cpu',['../namespacedg_1_1exblas.html#a020aba11430835ed502b897fe94eab6d',1,'dg::exblas::exdot_cpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t *h_superacc, int *status)'],['../namespacedg_1_1exblas.html#a5511b744a196e5830b9094b371832bbe',1,'dg::exblas::exdot_cpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t *h_superacc, int *status)']]],
+  ['exdot_5fgpu_1',['exdot_gpu',['../namespacedg_1_1exblas.html#a48b3fa9c609028c5a26e0280b35fbaa6',1,'dg::exblas::exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t *d_superacc, int *status)'],['../namespacedg_1_1exblas.html#a95d1caab696c6453b99cdf9ab52daec8',1,'dg::exblas::exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t *d_superacc, int *status)']]],
+  ['exdot_5fomp_2',['exdot_omp',['../namespacedg_1_1exblas.html#a77b3aef855b6280b5a2fae8e89216e09',1,'dg::exblas::exdot_omp(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t *h_superacc, int *status)'],['../namespacedg_1_1exblas.html#aa6a5971251a01870e26f2c769fef613d',1,'dg::exblas::exdot_omp(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t *h_superacc, int *status)']]]
+];

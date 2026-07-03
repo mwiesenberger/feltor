@@ -1,0 +1,5 @@
+<map id="dg::file::MPINcFile::rename_dim" name="dg::file::MPINcFile::rename_dim">
+<area shape="rect" id="Node000001" title="Rename a dimension from old_name to new_name." alt="" coords="5,5,144,45"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_serial_nc_file.html#a3618b3ae5fd2a1c317d3cb20ba1b8caa" title="Rename a dimension from old_name to new_name." alt="" coords="192,5,343,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="144,23,179,23,179,28,144,28"/>
+</map>

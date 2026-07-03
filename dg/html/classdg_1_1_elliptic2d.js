@@ -1,0 +1,28 @@
+var classdg_1_1_elliptic2d =
+[
+    [ "container_type", "classdg_1_1_elliptic2d.html#a7606ffcf9fd0147d60c92e6f609e55cd", null ],
+    [ "geometry_type", "classdg_1_1_elliptic2d.html#a6543ddcc7db211d63a88739b0a2a50d8", null ],
+    [ "matrix_type", "classdg_1_1_elliptic2d.html#abd56a3363170759cd31accdfb1ebdb0f", null ],
+    [ "value_type", "classdg_1_1_elliptic2d.html#a5e46ab0ef8866c954de782a95c6ca043", null ],
+    [ "Elliptic2d", "classdg_1_1_elliptic2d.html#ab8125f48ac64beb8ec88855e9d936583", null ],
+    [ "Elliptic2d", "classdg_1_1_elliptic2d.html#a75587db6136a5b4af3f04c6cacc5db44", null ],
+    [ "Elliptic2d", "classdg_1_1_elliptic2d.html#ad5f95f0a12291786731d55386382d2d6", null ],
+    [ "construct", "classdg_1_1_elliptic2d.html#aa3b4857f212051010c034b92695bb34a", null ],
+    [ "get_jfactor", "classdg_1_1_elliptic2d.html#a2ec1c9f348bb3c837a0016404844659a", null ],
+    [ "get_jump_weighting", "classdg_1_1_elliptic2d.html#aa965108896296ffe2691fc40ee531c94", null ],
+    [ "get_sigma", "classdg_1_1_elliptic2d.html#af3f03ccbd8ef56c7574cd7d42ed96356", null ],
+    [ "get_tau", "classdg_1_1_elliptic2d.html#a3deb094bba6155764aa145902779a610", null ],
+    [ "operator()", "classdg_1_1_elliptic2d.html#aebbe2c1b61e2623f43ad6ddd9c54ad25", null ],
+    [ "precond", "classdg_1_1_elliptic2d.html#a4753c63485d874e6e68abdc385d7773e", null ],
+    [ "set_chi", "classdg_1_1_elliptic2d.html#a9998edbac6da13e78a18ee90e0fab4af", null ],
+    [ "set_chi", "classdg_1_1_elliptic2d.html#a6f662e7f9e0b13225ed56000dfcfe152", null ],
+    [ "set_jfactor", "classdg_1_1_elliptic2d.html#a4fb79ca6e501af9f5ff2c7e8a9b195bd", null ],
+    [ "set_jump_weighting", "classdg_1_1_elliptic2d.html#a754bfa22f94da04435f733185c057188", null ],
+    [ "symv", "classdg_1_1_elliptic2d.html#a0fa0250431abf590439f8337ae2c66d7", null ],
+    [ "symv", "classdg_1_1_elliptic2d.html#a2a95573bc264d609a902f8c74d508af2", null ],
+    [ "symv", "classdg_1_1_elliptic2d.html#a5616955d0d3b2909b1ec538624a75e02", null ],
+    [ "variation", "classdg_1_1_elliptic2d.html#ac2a1e2d1ffbeb6a39c4400d3bd20d4e7", null ],
+    [ "variation", "classdg_1_1_elliptic2d.html#a15cd46c3812e7e7589ca226fa59ec525", null ],
+    [ "variation", "classdg_1_1_elliptic2d.html#a8c22cd7c414bbf2cd65ab241fa33a99b", null ],
+    [ "weights", "classdg_1_1_elliptic2d.html#aad27edced17e2c723cfafefaf993ab6d", null ]
+];

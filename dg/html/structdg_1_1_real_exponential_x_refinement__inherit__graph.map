@@ -1,0 +1,5 @@
+<map id="dg::RealExponentialXRefinement&lt; real_type &gt;" name="dg::RealExponentialXRefinement&lt; real_type &gt;">
+<area shape="rect" id="Node000001" title="The exponential refinement around the X&#45;point." alt="" coords="5,93,243,133"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1a_real_refinement_x2d.html" title="Abstract base class for 2d grid refinement that increases the number of grid cells of a fixed basis g..." alt="" coords="32,5,216,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="127,59,127,93,121,93,121,59"/>
+</map>

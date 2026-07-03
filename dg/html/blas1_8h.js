@@ -1,0 +1,25 @@
+var blas1_8h =
+[
+    [ "assign", "blas1_8h.html#gab0ca1b8d3f70004e25ddc2010f7e9e0d", null ],
+    [ "axpby", "blas1_8h.html#gae87ab17f2a8331d6210c59b3775db0f7", null ],
+    [ "axpby", "blas1_8h.html#ga20db094207e2f58e77ca01ff034ce41f", null ],
+    [ "axpbypgz", "blas1_8h.html#ga16f5c5c01d352263aee6d8b4c282d7ad", null ],
+    [ "construct", "blas1_8h.html#ga5dbfc632d4d66d2d926dd525ed7fcea8", null ],
+    [ "copy", "blas1_8h.html#ga0ed8d5b1a17d0e8882b2d253a0d3fbed", null ],
+    [ "dot", "blas1_8h.html#gaaab22d8f057bb35466d2bfcfddf1cf4d", null ],
+    [ "evaluate", "blas1_8h.html#gaad7b58d466d813898b68189b44619210", null ],
+    [ "kronecker", "blas1_8h.html#gadb2af43e4e5cf87153ede64c181ba61e", null ],
+    [ "kronecker", "blas1_8h.html#ga04a5fec2b7e6325a3f4c44ab223cdc81", null ],
+    [ "plus", "blas1_8h.html#ga56955c8d6fbec095c1f5b1e57779b91d", null ],
+    [ "pointwiseDivide", "blas1_8h.html#ga4e30e54e32bab62357425a0240d519ea", null ],
+    [ "pointwiseDivide", "blas1_8h.html#gaed1b7322791a0ac7ec25b9abe1608a02", null ],
+    [ "pointwiseDot", "blas1_8h.html#ga117cb07cd3e8b6a8580bb42a9c00ab40", null ],
+    [ "pointwiseDot", "blas1_8h.html#ga30bed3d80b7a8ef52d6ff8f82c5b6daf", null ],
+    [ "pointwiseDot", "blas1_8h.html#ga3d3fcab87e4c6df59ba719cf085ba2ad", null ],
+    [ "pointwiseDot", "blas1_8h.html#gab1332b3d86bc6e48b44a48d04c4da43b", null ],
+    [ "reduce", "blas1_8h.html#ga61cf5da3d6fd6325cb24522b7ac8a037", null ],
+    [ "scal", "blas1_8h.html#gac4e67d4aa98cc3b8601903570828e415", null ],
+    [ "subroutine", "blas1_8h.html#ga7386b5cb0144d5364b8ea8c8ce1482a5", null ],
+    [ "transform", "blas1_8h.html#ga493c6b70c8c889beaec1c3a669e3809b", null ],
+    [ "vdot", "blas1_8h.html#ga46d63d18eddaa34b72ea3f197f7d51fb", null ]
+];

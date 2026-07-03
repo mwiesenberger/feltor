@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['dg_0',['dg',['../../../dg/html/namespacedg.html',1,'']]],
+  ['dg_3a_3ablas1_1',['blas1',['../../../dg/html/namespacedg_1_1blas1.html',1,'dg']]],
+  ['dg_3a_3ablas2_2',['blas2',['../../../dg/html/namespacedg_1_1blas2.html',1,'dg']]],
+  ['dg_3a_3ablas2_3a_3adetail_3',['detail',['../../../dg/html/namespacedg_1_1blas2_1_1detail.html',1,'dg::blas2']]],
+  ['dg_3a_3acreate_4',['create',['../../../dg/html/namespacedg_1_1create.html',1,'dg']]],
+  ['dg_3a_3adetail_5',['detail',['../../../dg/html/namespacedg_1_1detail.html',1,'dg']]],
+  ['dg_3a_3ageo_6',['geo',['../namespacedg_1_1geo.html',1,'dg']]],
+  ['dg_3a_3ageo_3a_3acircular_7',['circular',['../namespacedg_1_1geo_1_1circular.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3aguenter_8',['guenter',['../namespacedg_1_1geo_1_1guenter.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3amod_9',['mod',['../namespacedg_1_1geo_1_1mod.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3apolynomial_10',['polynomial',['../namespacedg_1_1geo_1_1polynomial.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3asolovev_11',['solovev',['../namespacedg_1_1geo_1_1solovev.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3ataylor_12',['taylor',['../namespacedg_1_1geo_1_1taylor.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3atoroidal_13',['toroidal',['../namespacedg_1_1geo_1_1toroidal.html',1,'dg::geo']]],
+  ['dg_3a_3ageo_3a_3ax_14',['x',['../namespacedg_1_1geo_1_1x.html',1,'dg::geo']]],
+  ['dg_3a_3atensor_15',['tensor',['../../../dg/html/namespacedg_1_1tensor.html',1,'dg']]],
+  ['dg_3a_3ax_16',['x',['../../../dg/html/namespacedg_1_1x.html',1,'dg']]]
+];

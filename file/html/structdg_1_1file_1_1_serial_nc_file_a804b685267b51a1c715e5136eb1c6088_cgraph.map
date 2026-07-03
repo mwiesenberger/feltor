@@ -1,0 +1,11 @@
+<map id="dg::file::SerialNcFile::get_var" name="dg::file::SerialNcFile::get_var">
+<area shape="rect" id="Node000001" title="Read hyperslab slab from variable named name into container data." alt="" coords="5,101,156,141"/>
+<area shape="rect" id="Node000002" href="$structdg_1_1file_1_1_nc_hyperslab.html#a5c121af1fcac4fadff4cdf288656a395" title=" " alt="" coords="204,5,363,45"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="117,99,203,55,217,48,220,53,205,60,120,103"/>
+<area shape="rect" id="Node000003" href="$structdg_1_1file_1_1_nc_hyperslab.html#a124f8ade60022bf87d97f8f371094a0b" title=" " alt="" coords="204,69,363,109"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="156,107,190,101,191,107,157,112"/>
+<area shape="rect" id="Node000004" href="$structdg_1_1file_1_1_nc_hyperslab.html#a687535de3bdcc001cb9c4a2a62ac4494" title=" " alt="" coords="204,133,363,173"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="157,131,191,136,190,141,156,136"/>
+<area shape="rect" id="Node000005" href="$structdg_1_1file_1_1_nc_hyperslab.html#a5e0d5fb46ee1d14e37347223ffe75a2d" title=" " alt="" coords="204,197,363,237"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="120,139,205,183,220,189,217,194,203,188,117,144"/>
+</map>

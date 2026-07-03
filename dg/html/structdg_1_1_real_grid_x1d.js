@@ -1,0 +1,28 @@
+var structdg_1_1_real_grid_x1d =
+[
+    [ "host_grid", "structdg_1_1_real_grid_x1d.html#aa2e0eb9873451885d66e97df1a535b96", null ],
+    [ "host_vector", "structdg_1_1_real_grid_x1d.html#ac45708ed2eb1eaae622aa35e6ebe30c9", null ],
+    [ "value_type", "structdg_1_1_real_grid_x1d.html#a57a105d7214d9bc2b2173ec155059ce0", null ],
+    [ "RealGridX1d", "structdg_1_1_real_grid_x1d.html#a7f3809c7c3cc8bb2952add9b0823445c", null ],
+    [ "RealGridX1d", "structdg_1_1_real_grid_x1d.html#a0e7f34fe6c88dda18f6cc1c71c1392db", null ],
+    [ "abscissas", "structdg_1_1_real_grid_x1d.html#a7806d8dd6c65a5ad2d380f4ac8d6e49b", null ],
+    [ "bcx", "structdg_1_1_real_grid_x1d.html#a3fd5e18bbbe420ba5a98fd11311d825c", null ],
+    [ "contains", "structdg_1_1_real_grid_x1d.html#a3ea0d54654b61e5cbc354cefea6b6035", null ],
+    [ "display", "structdg_1_1_real_grid_x1d.html#a9d6e3c0c071389ba14fe3b91468b97a1", null ],
+    [ "f", "structdg_1_1_real_grid_x1d.html#ab2603ea643e937104408c0f26d6b50bb", null ],
+    [ "get_shape", "structdg_1_1_real_grid_x1d.html#a5ccfbbbff0d512e32f31f7ae648f3654", null ],
+    [ "grid", "structdg_1_1_real_grid_x1d.html#aa5d8260655e217b792ada95b6d41759d", null ],
+    [ "h", "structdg_1_1_real_grid_x1d.html#ac622d210bdc58772bd0dce4692b8e478", null ],
+    [ "inner_N", "structdg_1_1_real_grid_x1d.html#a26c44338cf80623a6aa9db0abba4beee", null ],
+    [ "lx", "structdg_1_1_real_grid_x1d.html#ac554dc786efd701a8c4d662acdf69431", null ],
+    [ "N", "structdg_1_1_real_grid_x1d.html#a8e3567e58f027c14cf169fd63710d7bb", null ],
+    [ "n", "structdg_1_1_real_grid_x1d.html#aa57a218e8b0e9467a5633fc46f54f265", null ],
+    [ "ndim", "structdg_1_1_real_grid_x1d.html#abeddf2f0fb71dbf4be47712f2e5e22ab", null ],
+    [ "outer_N", "structdg_1_1_real_grid_x1d.html#a848311bc41df382ce7ddae78b6898f32", null ],
+    [ "shape", "structdg_1_1_real_grid_x1d.html#a1464b9b04bfdd8f970ddf62069b08b08", null ],
+    [ "shift_topologic", "structdg_1_1_real_grid_x1d.html#a98f4f229b56a973e8ebd4442466f2dc7", null ],
+    [ "size", "structdg_1_1_real_grid_x1d.html#a620e29433cfe1488687fad0f4bcb4f74", null ],
+    [ "weights", "structdg_1_1_real_grid_x1d.html#a50dd8f27f941d97eadae44b25bd6f144", null ],
+    [ "x0", "structdg_1_1_real_grid_x1d.html#a9ed8df1f727d761c68272f302d30fd87", null ],
+    [ "x1", "structdg_1_1_real_grid_x1d.html#ab1da6ef2467e3c625aac4fbdc55a9c99", null ]
+];
