@@ -39,6 +39,8 @@ struct NC_Error : public std::exception
             return "NC ERROR Slab dimension does not match variable dimension!\n";
         else if( m_error == 1002)
             return "NC ERROR Cannot open file. File already open!\n";
+        else if( m_error == 1003) // reserved by MPINcFile, rethrown as std::runtime_error
+            return "NC ERROR Non-NetCDF error on rank 0!\n";
         return nc_strerror(m_error);}
   private:
     int m_error;

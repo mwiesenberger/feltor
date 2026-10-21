@@ -659,7 +659,36 @@ struct MPINcFile
     }
 
     // Here we handle errors, such that if they occur on rank0 all ranks will
-    // throw
+    // throw (NC_Error as NC_Error and any other std::exception as
+    // std::runtime_error with the same message)
+    static constexpr int s_other_error = 1003; // not a NetCDF error code
+    template<class F>
+    void mpi_catch( F&& f) const
+    {
+        int err = NC_NOERR;
+        std::string message;
+        if( m_rank0)
+        {
+            try
+            {
+                f();
+            }
+            catch( const NC_Error& e) { err = e.error();}
+            catch( const std::exception& e)
+            {
+                err = s_other_error;
+                message = e.what();
+            }
+        }
+        mpi_bcast( err); // this makes all calls blocking if not readonly!
+        if( err == s_other_error)
+        {
+            mpi_bcast( message);
+            throw std::runtime_error( message);
+        }
+        if( err)
+            throw NC_Error( err);
+    }
     template<class F, class ... Args>
     std::invoke_result_t<F, Args...> mpi_invoke( F&& f, Args&& ...args) const
     {
@@ -668,19 +697,10 @@ struct MPINcFile
         {
             return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
         }
-        int err = NC_NOERR;
         R r;
-        if( m_rank0)
-        {
-            try
-            {
-                r = std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-            }
-            catch( const NC_Error& e) { err = e.error();}
-        }
-        mpi_bcast( err);
-        if( err)
-            throw NC_Error( err);
+        mpi_catch( [&](){
+            r = std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+        });
         mpi_bcast( r);
         return r;
     }
@@ -692,18 +712,9 @@ struct MPINcFile
             std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
             return;
         }
-        int err = NC_NOERR;
-        if( m_rank0)
-        {
-            try
-            {
-                std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-            }
-            catch(const NC_Error& e) { err = e.error(); }
-        }
-        mpi_bcast( err); // this makes all calls blocking if not readonly!
-        if( err)
-            throw NC_Error( err);
+        mpi_catch( [&](){
+            std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+        });
     }
 
 
