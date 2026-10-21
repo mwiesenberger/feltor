@@ -239,6 +239,48 @@ TEST_CASE( "Open, groups, dims, atts")
 #endif
 }
 
+TEST_CASE( "Move semantics")
+{
+#ifdef WITH_MPI
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+#endif
+    dg::file::NcFile file( "move.nc", dg::file::nc_clobber);
+    file.put_att( {"title", "move"});
+    SECTION( "Move construction leaves rhs closed")
+    {
+        dg::file::NcFile other( std::move( file));
+        CHECK( not file.is_open());
+        REQUIRE( other.is_open());
+        {
+            // destruction of a moved-from object must not close the file
+            dg::file::NcFile tmp( std::move( other));
+            other = std::move( tmp);
+        }
+        REQUIRE( other.is_open());
+        CHECK( other.get_att_as<std::string>( "title") == "move");
+        other.close();
+    }
+    SECTION( "Move assignment swaps files")
+    {
+        dg::file::NcFile other( "move2.nc", dg::file::nc_clobber);
+        other.put_att( {"title", "move2"});
+        other = std::move( file);
+        REQUIRE( other.is_open());
+        REQUIRE( file.is_open());
+        CHECK( other.get_att_as<std::string>( "title") == "move");
+        CHECK( file.get_att_as<std::string>( "title") == "move2");
+        other.close();
+        file.close();
+        DG_RANK0 std::filesystem::remove( "move2.nc");
+    }
+    file.close();
+    DG_RANK0 std::filesystem::remove( "move.nc");
+#ifdef WITH_MPI
+    MPI_Barrier( MPI_COMM_WORLD);
+#endif
+}
+
 TEST_CASE( "Attributes")
 {
 #ifdef WITH_MPI

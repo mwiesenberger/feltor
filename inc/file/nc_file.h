@@ -174,10 +174,22 @@ struct SerialNcFile
     SerialNcFile& operator =(const SerialNcFile & rhs) = delete;
 
     /*! @brief Swap resources between two file handles
+     *
+     * After move construction \c rhs is not associated to any file.
+     * After move assignment \c rhs holds the file previously associated with
+     * \c *this (if any), which is closed when \c rhs is destroyed.
      */
-    SerialNcFile(SerialNcFile&& rhs) = default;
+    SerialNcFile(SerialNcFile&& rhs) noexcept
+    {
+        swap( rhs);
+    }
     ///@copydoc SerialNcFile::SerialNcFile(SerialNcFile&&)
-    SerialNcFile& operator =(SerialNcFile && rhs) = default;
+    SerialNcFile& operator =(SerialNcFile && rhs) noexcept
+    {
+        if( this != &rhs)
+            swap( rhs);
+        return *this;
+    }
 
     /// @brief Close open nc file and release all resources
     /// @note A destructor never throws any errors and we will just print a
@@ -1091,6 +1103,13 @@ struct SerialNcFile
     }
 
     private:
+    void swap( SerialNcFile& rhs) noexcept
+    {
+        std::swap( m_open, rhs.m_open);
+        std::swap( m_ncid, rhs.m_ncid);
+        std::swap( m_grp, rhs.m_grp);
+        std::swap( m_buffer, rhs.m_buffer);
+    }
     int name2varid( std::string id) const
     {
         // Variable ids are persistent once created

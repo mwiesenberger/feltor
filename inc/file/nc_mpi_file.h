@@ -73,7 +73,7 @@ struct MPINcFile
     ///@copydoc SerialNcFile::SerialNcFile(SerialNcFile&&)
     MPINcFile(MPINcFile&& rhs) = default;
     ///@copydoc SerialNcFile::SerialNcFile(SerialNcFile&&)
-    ///@note The communicator gruops of \c *this and \c rhs must the same
+    ///@note The communicator groups of \c *this and \c rhs must be the same
     MPINcFile& operator =(MPINcFile && rhs)
     {
         if( this!= &rhs)
@@ -85,12 +85,13 @@ struct MPINcFile
             MPI_Comm_compare( this->m_comm, rhs.m_comm, &result);
             // congruent, similar and ident all should be fine
             assert( result != MPI_UNEQUAL);
-            this->m_comm  = rhs.m_comm;
-            this->m_rank0 = rhs.m_rank0;
-            this->m_readonly = rhs.m_readonly;
-            this->m_file    = std::move( rhs.m_file);
-            this->m_buffer  = std::move( rhs.m_buffer);
-            this->m_receive = std::move( rhs.m_receive);
+            // Swap so that rhs knows how to close our previous file
+            std::swap( this->m_comm, rhs.m_comm);
+            std::swap( this->m_rank0, rhs.m_rank0);
+            std::swap( this->m_readonly, rhs.m_readonly);
+            this->m_file    = std::move( rhs.m_file); // swaps
+            std::swap( this->m_buffer, rhs.m_buffer);
+            std::swap( this->m_receive, rhs.m_receive);
         }
         return *this;
     }
@@ -719,8 +720,14 @@ struct MPINcFile
 
 
 
-    bool m_rank0;
-    bool m_readonly;
+    // m_rank0 and m_readonly are set in open(). They must be initialized here
+    // because member functions like is_open() or close() read them and may
+    // be called before open() (e.g. on a default constructed file), which
+    // would otherwise be undefined behaviour. With m_readonly = true every
+    // rank queries its own (closed) m_file locally, so all ranks agree that
+    // no file is open and no MPI communication is needed.
+    bool m_rank0 = true;
+    bool m_readonly = true;
     MPI_Comm m_comm;
     SerialNcFile m_file;
     // Buffer for device to host transfer, and dg::assign
