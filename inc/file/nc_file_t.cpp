@@ -144,6 +144,27 @@ TEST_CASE( "Open, groups, dims, atts")
         };
         CHECK( all_grps_r == ana);
     }
+    SECTION( "Relative group paths are resolved like in a filesystem")
+    {
+        file.def_grp_p( "/a/b");
+        file.def_grp_p( "/a/c");
+        file.set_grp( "/a/b");
+        file.set_grp( "../c"); // cd ../c
+        CHECK( file.get_current_path() == "/a/c");
+        CHECK( file.grp_is_defined( "../b"));
+        CHECK( not file.grp_is_defined( "../d"));
+        CHECK( file.grp_is_defined( ".."));
+        file.def_grp_p( "../d/e"); // mkdir -p ../d/e
+        CHECK( file.grp_is_defined( "/a/d/e"));
+        file.set_grp( "./../d/./e/");
+        CHECK( file.get_current_path() == "/a/d/e");
+        file.set_grp( "/a/"); // trailing slash
+        CHECK( file.get_current_path() == "/a");
+        file.set_grp( "../.."); // parent of root is root
+        CHECK( file.get_current_path() == "/");
+        CHECK_THROWS_AS( file.set_grp( "../does-not-exist"), dg::file::NC_Error);
+        CHECK( file.get_current_path() == "/");
+    }
     SECTION( "Documenting groups")
     {
         // ! [groups]

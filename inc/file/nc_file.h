@@ -335,11 +335,7 @@ struct SerialNcFile
     void def_grp_p( std::filesystem::path path)
     {
         check_open();
-        if( not path.has_root_path()) // it is a relative path
-        {
-            auto current = get_current_path();
-            path = (current / path);
-        }
+        path = abs_grp_path( path);
         int groupid = m_ncid;
         auto rel_path = path.relative_path();
         NC_Error_Handle err;
@@ -369,16 +365,14 @@ struct SerialNcFile
     /*! @brief Check for existence of the group given by path
      * @copydoc hide_grps_NetCDF_example
      * @param path Absolute or relative path to the current group
+     * ("." and ".." are resolved)
      */
     bool grp_is_defined( std::filesystem::path path) const
     {
         check_open();
-        std::string name = path.generic_string();
-        if( not path.has_root_path()) // it is a relative path
-        {
-            auto current = get_current_path();
-            name = (current / path ).generic_string();
-        }
+        std::string name = abs_grp_path( path).generic_string();
+        if( name == "/")
+            return true;
         int grpid=0;
         int retval = nc_inq_grp_full_ncid( m_ncid, name.c_str(), &grpid);
         return retval == NC_NOERR;
@@ -393,7 +387,9 @@ struct SerialNcFile
      *
      * @param path can be absolute or relative to the current group.
      * Empty string or "/" goes back to root group. "." is the current group
-     * and returns immediately.
+     * and returns immediately. ".." is the parent group (the parent of the
+     * root group is the root group). Paths like "../sibling" are resolved
+     * just like in a filesystem.
      */
     void set_grp( std::filesystem::path path = "")
     {
@@ -402,24 +398,19 @@ struct SerialNcFile
         std::string name = path.generic_string();
         if ( name == ".")
             return;
-        if ( name == "" or name == "/")
+        if ( name == "")
         {
             m_grp = m_ncid;
+            return;
         }
-        else if ( name == "..")
-        {
-            if( m_grp == m_ncid)
-                return;
-            err = nc_inq_grp_parent( m_grp, &m_grp);
-        }
+        name = abs_grp_path( path).generic_string();
+        if ( name == "/")
+            m_grp = m_ncid;
         else
         {
-            if( not path.has_root_path()) // it is a relative path
-            {
-                auto current = get_current_path();
-                name = (current / path ).generic_string();
-            }
-            err = nc_inq_grp_full_ncid( m_ncid, name.c_str(), &m_grp);
+            int grpid;
+            err = nc_inq_grp_full_ncid( m_ncid, name.c_str(), &grpid);
+            m_grp = grpid;
         }
     }
     /// @brief rename a subgroup in the current group from \c old_name to \c new_name
@@ -1109,6 +1100,21 @@ struct SerialNcFile
         std::swap( m_ncid, rhs.m_ncid);
         std::swap( m_grp, rhs.m_grp);
         std::swap( m_buffer, rhs.m_buffer);
+    }
+    // Make relative paths absolute and resolve "." and ".."
+    std::filesystem::path abs_grp_path( const std::filesystem::path& path) const
+    {
+        std::filesystem::path abs = path;
+        if( not path.has_root_path()) // it is a relative path
+            abs = get_current_path() / path;
+        abs = abs.lexically_normal();
+        // lexically_normal keeps (or creates, e.g. "/a/b/.." -> "/a/") a
+        // trailing separator. Iterating over such a path yields an empty last
+        // element, for which nc_def_grp in def_grp_p fails ("illegal
+        // characters"), so we remove it: "/a/" -> "/a" (but keep "/")
+        if( abs.has_relative_path() and not abs.has_filename())
+            abs = abs.parent_path();
+        return abs;
     }
     int name2varid( std::string id) const
     {
