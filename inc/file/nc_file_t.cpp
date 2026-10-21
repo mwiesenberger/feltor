@@ -442,6 +442,46 @@ TEST_CASE( "Test variables in the NcFile class")
 #endif
 }
 
+TEST_CASE( "Errors in reading/writing variables throw")
+{
+#ifdef WITH_MPI
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    // In MPI all ranks write/read the same 4 values
+    dg::file::MPINcHyperslab slab( 0, 4, MPI_COMM_WORLD),
+        out_of_range( 3, 4, MPI_COMM_WORLD);
+#else
+    dg::file::NcHyperslab slab( 0, 4), out_of_range( 3, 4);
+#endif
+    std::vector<double> data( 4, 7.), read;
+    dg::file::NcFile file( "errors.nc", dg::file::nc_clobber);
+    file.def_dim( "x", 4);
+    file.def_var_as<double>( "var", {"x"});
+    file.put_var( "var", slab, data);
+    CHECK_THROWS_AS( file.put_var( "does-not-exist", slab, data),
+        dg::file::NC_Error);
+    CHECK_THROWS_AS( file.put_var( "var", out_of_range, data),
+        dg::file::NC_Error);
+    file.close();
+
+    auto mode = GENERATE( dg::file::nc_nowrite, dg::file::nc_write);
+    INFO("TEST "<<( mode == dg::file::nc_write ? "WRITE" : "READ")<<" OPEN MODE\n");
+    file.open( "errors.nc", mode);
+    file.get_var( "var", slab, read);
+    CHECK( read == data);
+    CHECK_THROWS_AS( file.get_var( "does-not-exist", slab, read),
+        dg::file::NC_Error);
+    CHECK_THROWS_AS( file.get_var( "var", out_of_range, read),
+        dg::file::NC_Error);
+    double scalar;
+    CHECK_THROWS_AS( file.get_var( "var", {4}, scalar), dg::file::NC_Error);
+    file.close();
+    DG_RANK0 std::filesystem::remove( "errors.nc");
+#ifdef WITH_MPI
+    MPI_Barrier( MPI_COMM_WORLD);
+#endif
+}
+
 TEST_CASE( "File Benchmarks")
 {
 #ifdef WITH_MPI

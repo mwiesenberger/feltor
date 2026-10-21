@@ -106,9 +106,9 @@ void get_vara_detail(int ncid, int varid,
         // Sanity check
         int ndims;
         int e = nc_inq_varndims( ncid, varid, &ndims);
-        if( not e)
+        if( e)
             err = e;
-        if( (unsigned)ndims != slab.ndim())
+        else if( (unsigned)ndims != slab.ndim())
             err = 1001; // Our own error code
 
         std::vector<size_t> sizes( size, 1);
@@ -123,16 +123,20 @@ void get_vara_detail(int ncid, int varid,
         {
             if(r!=rank)
             {
-                int e = detail::get_vara_T( ncid, varid, &r_start[r*ndim],
+                if( not err) // do not touch the file after the first error
+                {
+                    int e = detail::get_vara_T( ncid, varid, &r_start[r*ndim],
                         &r_count[r*ndim], to_send.data()); // read data
+                    if( e) err = e;
+                }
+                // Always send so that the receiving rank does not block
                 MPI_Send( to_send.data(), (int)sizes[r], mpitype, r, r, comm);
-                if( not e) err = e;
             }
-            else // read own data
+            else if( not err) // read own data
             {
                 int e = detail::get_vara_T( ncid, varid, slab.startp(),
                         slab.countp(), thrust::raw_pointer_cast(data.data()));
-                if( not e) err = e;
+                if( e) err = e;
             }
         }
     }
