@@ -298,6 +298,7 @@ struct SerialNcFile
      */
     int get_format() const
     {
+        check_open();
         file::NC_Error_Handle err;
         int formatp;
         err = nc_inq_format(m_ncid, &formatp);
@@ -458,6 +459,7 @@ struct SerialNcFile
      */
     std::list<std::filesystem::path> get_grps_r( ) const
     {
+        check_open();
         auto grps = get_grps_abs_r(m_grp);
         std::list<std::filesystem::path> grps_v;
         for( auto grp : grps)
@@ -592,6 +594,7 @@ struct SerialNcFile
     /// @snippet{trimleft} nc_utilities_t.cpp check_dim
     bool dim_is_defined( std::string name) const
     {
+        check_open();
         int dimid=0;
         int retval = nc_inq_dimid( m_grp, name.c_str(), &dimid);
         return retval == NC_NOERR;
@@ -808,13 +811,14 @@ struct SerialNcFile
             const std::vector<std::string>& dim_names,
             const Attributes& atts = {})
     {
+        check_open();
         file::NC_Error_Handle err;
         std::vector<int> dimids( dim_names.size());
         for( unsigned u=0; u<dim_names.size(); u++)
             err = nc_inq_dimid( m_grp, dim_names[u].c_str(), &dimids[u]);
         int varid;
         err = nc_def_var( m_grp, name.c_str(), xtype, dim_names.size(),
-                &dimids[0], &varid);
+                dimids.data(), &varid);
         put_atts( atts, name);
     }
 
@@ -878,7 +882,7 @@ struct SerialNcFile
      * @param name Name of the variable to write data to. Must be visible in
      * the current group
      * @param start The coordinates (one for each dimension) to which to write
-     * data to
+     * data to (empty for a 0d variable)
      * @param data to write
      * @tparam T must be convertible to the datatype of the variable \c name
      *
@@ -890,8 +894,11 @@ struct SerialNcFile
     {
         int varid = name2varid( name);
         file::NC_Error_Handle err;
+        int ndims;
+        err = nc_inq_varndims( m_grp, varid, &ndims);
+        assert( (unsigned)ndims == start.size());
         std::vector<size_t> count( start.size(), 1);
-        err = detail::put_vara_T( m_grp, varid, &start[0], &count[0], &data);
+        err = detail::put_vara_T( m_grp, varid, start.data(), count.data(), &data);
     }
 
     /*! @brief Define a dimension and dimension variable in one go
@@ -1005,7 +1012,7 @@ struct SerialNcFile
         else
         {
             std::vector<size_t> count( start.size(), 1);
-            err = detail::get_vara_T( m_grp, varid, &start[0], &count[0], &data);
+            err = detail::get_vara_T( m_grp, varid, start.data(), count.data(), &data);
         }
     }
 

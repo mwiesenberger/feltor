@@ -130,9 +130,9 @@ struct NcHyperslab
     /// @return count vector
     std::vector<size_t>& count() { return m_count;}
     /// @return pointer to first element of start
-    const size_t* startp() const { return &m_start[0];}
+    const size_t* startp() const { return m_start.data();}
     /// @return pointer to first element of count
-    const size_t* countp() const { return &m_count[0];}
+    const size_t* countp() const { return m_count.data();}
     private:
     std::vector<size_t> m_start, m_count;
 };
