@@ -108,13 +108,15 @@ struct Probes
             record.function( result, ps...);
         }
      * @endcode
-     * The host vector has the size of the grid given in the constructor of the Probes class.
-     * The callback function is supposed to write its result into the given host vector.
+     * The callback function is supposed to write its result into \c result.
      *
+     * The \c result vector has the type of the first argument of the
+     * callback signature and the size of the grid given in the constructor.
      * The result is then interpolated to the probe positions and stored in the
      * netcdf file in the probes group under the given variable name, with the
-     * long name as attribute ("long_name") and the "dim" probes dimension.
+     * given attributes \c record.atts and the "pdim" probes dimension.
      * @note The netcdf file must be open when this method is called.
+     * The current group of the file is the same before and after the call.
      * @note If \c param.probes was \c false in the constructor this function returns immediately
      * @copydoc hide_tparam_listclass
      */
@@ -125,6 +127,7 @@ struct Probes
         using Result = get_first_argument_type_t<typename ListClass::value_type::Signature>;
         auto result = dg::construct<Result>( m_resultH);
         static_assert( dg::is_vector_v<Result>, "Result must be a vector type");
+        auto current = m_file->get_current_path();
         m_file->set_grp( m_grp);
 
         for ( auto& record : records)
@@ -136,7 +139,7 @@ struct Probes
             m_file->defput_var( record.name, {"pdim"}, record.atts,
                 {m_simple_probes}, m_simple_probes);
         }
-        m_file->set_grp("..");
+        m_file->set_grp( current);
     }
 
     /*! @brief Write (time-dependent) results of a list of callback functions to internal buffer
@@ -146,7 +149,9 @@ struct Probes
      * @param ps The parameters forwarded to the \c record.function( resultD,
      * ps...) The function is supposed to store its result into the given
      * device vector
-     * @note No data is written to file and the netcdf file does not need to be open.
+     * @note No data is written to file and the netcdf file does not need to
+     * be open, **except on the very first call** (of either \c buffer or \c
+     * write), where the variables are defined in the file.
      * @note If \c param.probes was \c false in the constructor this function returns immediately
      * @copydoc hide_tparam_listclass
      */
@@ -175,11 +180,13 @@ struct Probes
      *
      * @note If \c param.probes was \c false in the constructor this function returns immediately
      * @attention the netcdf file needs to be open when calling this function
+     * The current group of the file is the same before and after the call.
      */
     void flush()
     {
         if(!m_probes) return;
         // else we write the internal buffer to file
+        auto current = m_file->get_current_path();
         m_file->set_grp( m_grp);
         for( unsigned j=0; j<m_time_intern.size(); j++)
         {
@@ -193,7 +200,7 @@ struct Probes
         m_time_intern.clear();
         for( auto& field : m_simple_probes_intern)
             field.second.clear();
-        m_file->set_grp( "..");
+        m_file->set_grp( current);
     }
 
     /*! @brief Same as \c buffer followed by \c flush
@@ -226,6 +233,7 @@ struct Probes
     template<class value_type, class ListClass>
     void init( const ListClass& probe_list)
     {
+        auto current = m_file->get_current_path();
         m_file->set_grp( m_grp);
         for( auto& record : probe_list)
         {
@@ -233,12 +241,11 @@ struct Probes
             m_file->template def_var_as<value_type>( record.name, {"ptime", "pdim"});
             m_file->put_atts( record.atts, record.name);
         }
-        m_file->set_grp( "..");
+        m_file->set_grp( current);
     }
     bool m_probes = false;
     NcFile* m_file;
     std::filesystem::path m_grp;
-    int m_probe_grp_id;
     typename Topology::host_vector m_simple_probes;
 #ifdef MPI_VERSION
     std::conditional_t<

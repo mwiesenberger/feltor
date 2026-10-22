@@ -159,7 +159,7 @@ TEST_CASE( "Probes")
         file.get_var("Cosine", {u}, point);
         INFO( "Cosine "<<point<<" "<<cos(x)*cos(y)<<" "<<point - cos(x)*cos(y));
         CHECK_THAT( point, WithinAbs( cos(x)*cos(y) , 1e-7));
-        for( unsigned k=0; k<NT; k++)
+        for( unsigned k=0; k<=NT; k++)
         {
             double time = k*dt;
             file.get_var( "ptime", {k}, point);
@@ -174,4 +174,65 @@ TEST_CASE( "Probes")
 
     file.close();
     DG_RANK0 std::filesystem::remove( "probes.nc");
+}
+
+TEST_CASE( "Probes and groups")
+{
+#ifdef WITH_MPI
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {1, 1});
+#endif
+    dg::x::Grid2d grid( 0, 2.*M_PI, 0, 2.*M_PI, 3, 10, 10, dg::PER, dg::PER
+#ifdef WITH_MPI
+    , comm
+#endif
+    );
+    dg::file::NcFile file( "probes_grps.nc", dg::file::nc_clobber);
+    file.def_grp( "sim");
+    file.set_grp( "sim");
+    SECTION( "Probes do not change the current group")
+    {
+        auto params = dg::file::parse_probes( dg::file::string2Json(R"({
+            "probes": { "input" : "coords", "coords" : {
+                "coords-names" : ["x", "y"], "format" : {},
+                "x" : [0,1], "y" : [1,2] } } })"));
+        dg::file::Probes probes( file, grid, params);
+        CHECK( file.get_current_path() == "/sim");
+        CHECK( file.grp_is_defined( "/sim/probes"));
+        file.set_grp( "/");
+        probes.static_write( records_static_list, grid);
+        CHECK( file.get_current_path() == "/");
+        probes.buffer( 0., records_list, grid, 0.);
+        CHECK( file.get_current_path() == "/");
+        probes.flush();
+        CHECK( file.get_current_path() == "/");
+        file.set_grp( "/sim/probes");
+        CHECK( file.get_dim_size( "ptime") == 1);
+        CHECK( file.var_is_defined( "vectorX"));
+        CHECK( file.var_is_defined( "Sine"));
+    }
+    SECTION( "No probes means nothing is written")
+    {
+        dg::file::ProbesParams params; // probes == false
+        dg::file::Probes probes( file, grid, params);
+        probes.static_write( records_static_list, grid);
+        probes.write( 0., records_list, grid, 0.);
+        CHECK( not file.grp_is_defined( "probes"));
+        CHECK( file.get_current_path() == "/sim");
+    }
+    SECTION( "Wrong number of coordinates throws")
+    {
+        dg::file::ProbesParams params;
+        params.probes = true;
+        params.coords = {{0.,1.}};
+        params.coords_names = {"x"};
+        CHECK_THROWS_AS( dg::file::Probes( file, grid, params),
+            std::runtime_error);
+    }
+    file.close();
+    DG_RANK0 std::filesystem::remove( "probes_grps.nc");
+#ifdef WITH_MPI
+    MPI_Barrier( MPI_COMM_WORLD);
+#endif
 }
