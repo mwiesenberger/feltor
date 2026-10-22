@@ -399,7 +399,7 @@ struct MPINcFile
     template<class T, class Attributes = std::map<std::string, nc_att_t>>
     void def_dimvar_as( std::string name, size_t size, const Attributes& atts)
     {
-        mpi_invoke_void( &SerialNcFile::def_dimvar_as<T>, m_file, name, size, atts);
+        mpi_invoke_void( &SerialNcFile::def_dimvar_as<T, Attributes>, m_file, name, size, atts);
     }
     /*! @copydoc SerialNcFile::defput_dim
      *

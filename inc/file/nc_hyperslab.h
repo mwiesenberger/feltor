@@ -301,6 +301,8 @@ inline int mpi_comm_global2local_rank( MPI_Comm comm, int global_rank = 0, MPI_C
     MPI_Comm_group( global_comm, &global_group);//local call
     int local_root_rank;
     MPI_Group_translate_ranks(global_group, 1, &global_rank, local_group, &local_root_rank);
+    MPI_Group_free( &local_group);
+    MPI_Group_free( &global_group);
     return local_root_rank;
 }
 } // namespace detail
