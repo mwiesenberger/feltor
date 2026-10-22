@@ -93,10 +93,10 @@ void get_vara_detail(int ncid, int varid,
     std::vector<size_t> r_start( rank == local_root_rank ? size * ndim : 0);
     std::vector<size_t> r_count( rank == local_root_rank ? size * ndim : 0);
     MPI_Gather( slab.startp(), ndim, dg::getMPIDataType<size_t>(),
-                &r_start[0], ndim, dg::getMPIDataType<size_t>(),
+                r_start.data(), ndim, dg::getMPIDataType<size_t>(),
                 local_root_rank, comm);
     MPI_Gather( slab.countp(), ndim, dg::getMPIDataType<size_t>(),
-                &r_count[0], ndim, dg::getMPIDataType<size_t>(),
+                r_count.data(), ndim, dg::getMPIDataType<size_t>(),
                 local_root_rank, comm);
 
     MPI_Datatype mpitype = dg::getMPIDataType<get_value_type<host_vector>>();

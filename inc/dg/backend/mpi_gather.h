@@ -477,16 +477,16 @@ struct MPIContiguousGather
 #endif // DG_WITH_NCCL
             }
             else if constexpr ( dg::cuda_aware_mpi)
-                MPI_Waitall( m_rqst.size(), &m_rqst[0], MPI_STATUSES_IGNORE );
+                MPI_Waitall( m_rqst.size(), m_rqst.data(), MPI_STATUSES_IGNORE );
             else
             {
-                MPI_Waitall( m_rqst.size(), &m_rqst[0], MPI_STATUSES_IGNORE );
+                MPI_Waitall( m_rqst.size(), m_rqst.data(), MPI_STATUSES_IGNORE );
                 auto & h_buffer = m_h_buffer.template get<value_type>();
                 thrust::copy( h_buffer.begin(), h_buffer.end(), buffer.begin() );
             }
         }
         else
-            MPI_Waitall( m_rqst.size(), &m_rqst[0], MPI_STATUSES_IGNORE );
+            MPI_Waitall( m_rqst.size(), m_rqst.data(), MPI_STATUSES_IGNORE );
 
     }
     private:

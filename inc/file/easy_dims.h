@@ -116,7 +116,7 @@ bool check_real_time( int ncid, const char* name, int* dimID, int* tvarID)
     int num_unlim;
     err = nc_inq_unlimdims( ncid, &num_unlim, NULL);
     std::vector<int> unlim_dims(num_unlim);
-    err = nc_inq_unlimdims( ncid, &num_unlim, &unlim_dims[0]);
+    err = nc_inq_unlimdims( ncid, &num_unlim, unlim_dims.data());
     if( std::find( unlim_dims.begin(), unlim_dims.end(), *dimID) == std::end( unlim_dims))
         throw std::runtime_error( "Dimension "+std::string(name)+" already defined but not unlimited!\n");
     //// Check the length

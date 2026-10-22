@@ -358,9 +358,9 @@ struct SparseMatrix
     template<class value_type>
     void symv(SharedVectorTag, SerialTag, value_type alpha, const value_type* RESTRICT x, value_type beta, value_type* RESTRICT y) const
     {
-        const auto* row_ptr = thrust::raw_pointer_cast( &m_row_offsets[0]);
-        const auto* col_ptr = thrust::raw_pointer_cast( &m_cols[0]);
-        const auto* val_ptr = thrust::raw_pointer_cast( &m_vals[0]);
+        const auto* row_ptr = thrust::raw_pointer_cast( m_row_offsets.data());
+        const auto* col_ptr = thrust::raw_pointer_cast( m_cols.data());
+        const auto* val_ptr = thrust::raw_pointer_cast( m_vals.data());
         detail::spmv_cpu_kernel( m_cache, m_num_rows, m_num_cols,
             m_vals.size(), row_ptr, col_ptr, val_ptr, alpha, beta, x, y);
     }
@@ -368,9 +368,9 @@ struct SparseMatrix
     template<class value_type>
     void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const
     {
-        const auto* row_ptr = thrust::raw_pointer_cast( &m_row_offsets[0]);
-        const auto* col_ptr = thrust::raw_pointer_cast( &m_cols[0]);
-        const auto* val_ptr = thrust::raw_pointer_cast( &m_vals[0]);
+        const auto* row_ptr = thrust::raw_pointer_cast( m_row_offsets.data());
+        const auto* col_ptr = thrust::raw_pointer_cast( m_cols.data());
+        const auto* val_ptr = thrust::raw_pointer_cast( m_vals.data());
         detail::spmv_gpu_kernel( m_cache, m_num_rows, m_num_cols,
             m_vals.size(), row_ptr, col_ptr, val_ptr, alpha, beta, x, y);
     }
@@ -378,9 +378,9 @@ struct SparseMatrix
     template<class value_type>
     void symv(SharedVectorTag, OmpTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const
     {
-        const auto* row_ptr = thrust::raw_pointer_cast( &m_row_offsets[0]);
-        const auto* col_ptr = thrust::raw_pointer_cast( &m_cols[0]);
-        const auto* val_ptr = thrust::raw_pointer_cast( &m_vals[0]);
+        const auto* row_ptr = thrust::raw_pointer_cast( m_row_offsets.data());
+        const auto* col_ptr = thrust::raw_pointer_cast( m_cols.data());
+        const auto* val_ptr = thrust::raw_pointer_cast( m_vals.data());
         if( !omp_in_parallel())
         {
             #pragma omp parallel
