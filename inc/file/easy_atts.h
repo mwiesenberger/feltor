@@ -89,24 +89,112 @@ inline const std::map<std::string, std::string> version_flags =
 ///@cond
 namespace detail
 {
-template<class value_type>
-inline nc_type getNCDataType(){ assert( false && "Type not supported!\n" ); return NC_DOUBLE; }
-template<>
-inline nc_type getNCDataType<double>(){ return NC_DOUBLE;}
-template<>
-inline nc_type getNCDataType<float>(){ return NC_FLOAT;}
-template<>
-inline nc_type getNCDataType<int>(){ return NC_INT;}
-template<>
-inline nc_type getNCDataType<unsigned>(){ return NC_UINT;}
-template<>
-inline nc_type getNCDataType<bool>(){ return NC_BYTE;}
-template<>
-inline nc_type getNCDataType<std::string>(){ return NC_STRING;}
-template<>
-inline nc_type getNCDataType<const char*>(){ return NC_STRING;}
+template<class T>
+inline constexpr bool always_false_v = false;
 
-// Variant for user defined data types (compound types)
+// The NetCDF type corresponding to a C++ type (unsupported types do not compile)
+template<class value_type>
+constexpr nc_type getNCDataType()
+{
+    using T = value_type;
+    if constexpr( std::is_same_v<T, double>) return NC_DOUBLE;
+    else if constexpr( std::is_same_v<T, float>) return NC_FLOAT;
+    else if constexpr( std::is_same_v<T, char>) return NC_CHAR;
+    else if constexpr( std::is_same_v<T, signed char>) return NC_BYTE;
+    else if constexpr( std::is_same_v<T, unsigned char>) return NC_UBYTE;
+    else if constexpr( std::is_same_v<T, short>) return NC_SHORT;
+    else if constexpr( std::is_same_v<T, unsigned short>) return NC_USHORT;
+    else if constexpr( std::is_same_v<T, int>) return NC_INT;
+    else if constexpr( std::is_same_v<T, unsigned>) return NC_UINT;
+    // long is 64 bit on Linux and macOS but 32 bit on Windows
+    else if constexpr( std::is_same_v<T, long>) return sizeof(long) == 8 ? NC_INT64 : NC_INT;
+    else if constexpr( std::is_same_v<T, long long>) return NC_INT64;
+    else if constexpr( std::is_same_v<T, unsigned long long>) return NC_UINT64;
+    else if constexpr( std::is_same_v<T, bool>) return NC_BYTE;
+    else if constexpr( std::is_same_v<T, std::string> or
+                       std::is_same_v<T, const char*>) return NC_STRING;
+    else
+        static_assert( always_false_v<T>, "Type not supported by NetCDF!");
+}
+
+// C types for which NetCDF has typed attribute functions nc_put_att_<type> and
+// nc_get_att_<type> (strings are handled separately)
+template<class T>
+inline constexpr bool is_nc_att_type_v =
+    std::is_same_v<T, char> or std::is_same_v<T, signed char> or
+    std::is_same_v<T, unsigned char> or std::is_same_v<T, short> or
+    std::is_same_v<T, unsigned short> or std::is_same_v<T, int> or
+    std::is_same_v<T, unsigned> or std::is_same_v<T, long> or
+    std::is_same_v<T, long long> or std::is_same_v<T, unsigned long long> or
+    std::is_same_v<T, float> or std::is_same_v<T, double>;
+
+// Call the NetCDF function matching the C type T. NetCDF converts the values
+// to the attribute type xtype (and returns e.g. NC_ERANGE if a value is not
+// representable). We do not add any checks of our own.
+template<class T>
+int put_att_T( int ncid, int varid, const char* name, nc_type xtype,
+    size_t size, const T* data)
+{
+    static_assert( is_nc_att_type_v<T>);
+    if constexpr( std::is_same_v<T, char>) // always NC_CHAR
+        return nc_put_att_text( ncid, varid, name, size, data);
+    else if constexpr( std::is_same_v<T, signed char>)
+        return nc_put_att_schar( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, unsigned char>)
+        return nc_put_att_ubyte( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, short>)
+        return nc_put_att_short( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, unsigned short>)
+        return nc_put_att_ushort( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, int>)
+        return nc_put_att_int( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, unsigned>)
+        return nc_put_att_uint( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, long>)
+        return nc_put_att_long( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, long long>)
+        return nc_put_att_longlong( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, unsigned long long>)
+        return nc_put_att_ulonglong( ncid, varid, name, xtype, size, data);
+    else if constexpr( std::is_same_v<T, float>)
+        return nc_put_att_float( ncid, varid, name, xtype, size, data);
+    else
+        return nc_put_att_double( ncid, varid, name, xtype, size, data);
+}
+
+// Call the NetCDF function matching the C type T. NetCDF converts the values
+// from the attribute type (and returns e.g. NC_ERANGE if a value is not
+// representable or NC_ECHAR for text <-> number). No checks of our own.
+template<class T>
+int get_att_T( int ncid, int varid, const char* name, T* data)
+{
+    static_assert( is_nc_att_type_v<T>);
+    if constexpr( std::is_same_v<T, char>)
+        return nc_get_att_text( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, signed char>)
+        return nc_get_att_schar( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, unsigned char>)
+        return nc_get_att_ubyte( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, short>)
+        return nc_get_att_short( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, unsigned short>)
+        return nc_get_att_ushort( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, int>)
+        return nc_get_att_int( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, unsigned>)
+        return nc_get_att_uint( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, long>)
+        return nc_get_att_long( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, long long>)
+        return nc_get_att_longlong( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, unsigned long long>)
+        return nc_get_att_ulonglong( ncid, varid, name, data);
+    else if constexpr( std::is_same_v<T, float>)
+        return nc_get_att_float( ncid, varid, name, data);
+    else
+        return nc_get_att_double( ncid, varid, name, data);
+}
+
 // S allows both std::string and const char* to be used
 template<class S, class T>
 void put_att( int ncid, int varid, const std::tuple<S, nc_type,
@@ -119,30 +207,36 @@ void put_att( int ncid, int varid, const std::tuple<S, nc_type,
     const std::vector<T>& data = std::get<2>(att);
     unsigned size = data.size();
     NC_Error_Handle err;
-    // Test xtype ? netcdf allows xtype to be anything ...
-    if constexpr( std::is_same_v<T, int>)
+    if constexpr( is_nc_att_type_v<T>)
     {
-        err = nc_put_att_int( ncid, varid, name, xtype, size, &data[0]);
-    }
-    else if constexpr( std::is_same_v<T, unsigned>)
-    {
-        err = nc_put_att_uint( ncid, varid, name, xtype, size, &data[0]);
-    }
-    else if constexpr( std::is_same_v<T, float>)
-    {
-        err = nc_put_att_float( ncid, varid, name, xtype, size, &data[0]);
-    }
-    else if constexpr( std::is_same_v<T, double>)
-    {
-        err = nc_put_att_double( ncid, varid, name, xtype, size, &data[0]);
+        err = put_att_T( ncid, varid, name, xtype, size, data.data());
     }
     else if constexpr( std::is_same_v<T, std::string> or
                        std::is_same_v<T, const char*>)
     {
-        if( size != 1)
-            throw std::runtime_error( "Cannot write a string array attribute to NetCDF");
-        std::string tmp = data[0];
-        err = nc_put_att_text( ncid, varid, name, tmp.size(), tmp.c_str());
+        if( xtype == NC_STRING) // any number of strings
+        {
+            std::vector<const char*> strs( size);
+            for( unsigned u=0; u<size; u++)
+            {
+                if constexpr( std::is_same_v<T, std::string>)
+                    strs[u] = data[u].c_str();
+                else
+                    strs[u] = data[u];
+            }
+            err = nc_put_att_string( ncid, varid, name, size, strs.data());
+        }
+        else if( xtype == NC_CHAR) // exactly one string
+        {
+            if( size != 1)
+                throw std::runtime_error( "Cannot write a string array attribute "
+                    +name_string+" as NC_CHAR (use NC_STRING)");
+            std::string tmp = data[0];
+            err = nc_put_att_text( ncid, varid, name, tmp.size(), tmp.c_str());
+        }
+        else
+            throw std::runtime_error( "String attribute "+name_string
+                +" can only be written as NC_CHAR or NC_STRING");
     }
     else if constexpr( std::is_same_v<T, bool>)
     {
@@ -150,11 +244,16 @@ void put_att( int ncid, int varid, const std::tuple<S, nc_type,
         std::vector<signed char> dataB(size);
         for( unsigned i=0; i<size; i++)
             dataB[i] = data[i];
-        err = nc_put_att_schar( ncid, varid, name, NC_BYTE, size, &dataB[0]);
+        err = nc_put_att_schar( ncid, varid, name, xtype, size, dataB.data());
     }
-    else // default
+    else // user defined type (e.g. compound), written without conversion
     {
-        err = nc_put_att( ncid, varid, name, xtype, size, &data[0]);
+        size_t type_size;
+        err = nc_inq_type( ncid, xtype, NULL, &type_size);
+        if( type_size != sizeof(T))
+            throw std::runtime_error( "Size of given type does not match "
+                "NetCDF type of attribute "+name_string);
+        err = nc_put_att( ncid, varid, name, xtype, size, data.data());
     }
 }
 
@@ -165,19 +264,31 @@ void put_att( int ncid, int varid, std::tuple<S, nc_type, T> att)
                 std::vector<T>( 1, std::get<2>(att)) ));
 }
 
+// Type of an attribute if none is given explicitly: a single string is
+// written as NC_CHAR (the classic text attribute), several as NC_STRING
+template<class T>
+nc_type default_att_type( size_t size)
+{
+    if constexpr( std::is_same_v<T, std::string> or
+                  std::is_same_v<T, const char*>)
+        return size == 1 ? NC_CHAR : NC_STRING;
+    else
+        return getNCDataType<T>();
+}
+
 // Variants for normal types
 template<class S, class T>
 void put_att( int ncid, int varid, const std::pair<S, T>& att)
 {
     put_att( ncid, varid, std::make_tuple( att.first,
-                detail::getNCDataType<T>(), std::vector<T>(1,att.second)));
+                detail::default_att_type<T>(1), std::vector<T>(1,att.second)));
 }
 
 template<class S, class T>
 void put_att( int ncid, int varid, const std::pair<S, std::vector<T>>& att)
 {
     put_att( ncid, varid, std::make_tuple( att.first,
-                detail::getNCDataType<T>(), att.second));
+                detail::default_att_type<T>( att.second.size()), att.second));
 }
 // Amazing
 template<class S>
@@ -203,84 +314,52 @@ template<class T>
 std::vector<T> get_att_v( int ncid, int varid, std::string att)
 {
     auto name = att.c_str();
-    size_t size, str_len = 0;
+    size_t size;
     NC_Error_Handle err;
     err = nc_inq_attlen( ncid, varid, name, &size);
     nc_type xtype;
     err = nc_inq_atttype( ncid, varid, name, &xtype);
-    if ( xtype == NC_STRING or xtype == NC_CHAR)
+    if constexpr( std::is_same_v<T, std::string>)
     {
-        str_len = size;
-        size = 1;
+        if( xtype == NC_STRING)
+        {
+            // size is the number of strings
+            std::vector<char*> strs( size);
+            err = nc_get_att_string( ncid, varid, name, strs.data());
+            std::vector<T> data( strs.begin(), strs.end());
+            nc_free_string( size, strs.data());
+            return data;
+        }
+        // size is the number of characters (NetCDF returns NC_ECHAR if the
+        // attribute is not text)
+        std::string str( size, 'x');
+        err = nc_get_att_text( ncid, varid, name, str.data());
+        return std::vector<T>( 1, str);
     }
-    std::vector<T> data(size);
-    if ( xtype == NC_STRING or xtype == NC_CHAR)
-    {
-        std::string str( str_len, 'x');
-        err = nc_get_att_text( ncid, varid, name, str_len == 0 ? NULL : &str[0]);
-        if constexpr ( std::is_convertible_v<std::string,T>)
-            data[0] = str;
-        else
-            throw std::runtime_error("Cannot convert NC_STRING to given type");
-    }
-    else if ( xtype == NC_INT)
-    {
-        std::vector<int> tmp( size);
-        err = nc_get_att_int( ncid, varid, name, &tmp[0]);
-        if constexpr ( std::is_convertible_v<int,T>)
-            std::transform(tmp.begin(), tmp.end(), data.begin(), [](int val) { return T(val);});
-        else
-            throw std::runtime_error("Cannot convert NC_INT to given type");
-    }
-    else if ( xtype == NC_UINT)
-    {
-        std::vector<unsigned> tmp( size);
-        err = nc_get_att_uint( ncid, varid, name, &tmp[0]);
-        if constexpr ( std::is_convertible_v<unsigned,T>)
-            std::transform(tmp.begin(), tmp.end(), data.begin(), [](unsigned val) { return T(val);});
-        else
-            throw std::runtime_error("Cannot convert NC_UINT to given type");
-    }
-    else if ( xtype == NC_FLOAT)
-    {
-        std::vector<float> tmp( size);
-        err = nc_get_att_float( ncid, varid, name, &tmp[0]);
-        if constexpr ( std::is_convertible_v<float,T>)
-            std::transform(tmp.begin(), tmp.end(), data.begin(), [](float val) { return T(val);});
-        else
-            throw std::runtime_error("Cannot convert NC_FLOAT to given type");
-    }
-    else if ( xtype == NC_DOUBLE)
-    {
-        std::vector<double> tmp( size);
-        err = nc_get_att_double( ncid, varid, name, &tmp[0]);
-        if constexpr ( std::is_convertible_v<double,T>)
-            std::transform(tmp.begin(), tmp.end(), data.begin(), [](double val) { return T(val);});
-        else
-            throw std::runtime_error("Cannot convert NC_DOUBLE to given type");
-    }
-    else if( xtype == NC_BYTE) // counts as bool
-    {
-        std::vector<signed char> tmp(size);
-        err = nc_get_att_schar( ncid, varid, name, &tmp[0]);
-        if constexpr ( std::is_convertible_v<bool,T>)
-            std::transform(tmp.begin(), tmp.end(), data.begin(), [](signed char val) { return T(val);});
-        else
-            throw std::runtime_error("Cannot convert NC_BYTE to given type");
-    }
-    else // default
+    else if constexpr( std::is_same_v<T, bool>) // read as NC_BYTE, 0 is false
     {
         // std::vector<bool> is not necessarily contiguous
-        if constexpr (std::is_same_v<T, bool>)
-        {
-            std::vector<signed char> tmp(size);
-            err = nc_get_att( ncid, varid, name, &tmp[0]);
-            std::transform(tmp.begin(), tmp.end(), data.begin(), [](signed char val) { return T(val);});
-        }
-        else
-            err = nc_get_att( ncid, varid, name, &data[0]);
+        std::vector<signed char> tmp( size);
+        err = nc_get_att_schar( ncid, varid, name, tmp.data());
+        return std::vector<T>( tmp.begin(), tmp.end());
     }
-    return data;
+    else if constexpr( is_nc_att_type_v<T>)
+    {
+        std::vector<T> data( size);
+        err = get_att_T( ncid, varid, name, data.data());
+        return data;
+    }
+    else // user defined type (e.g. compound), read without conversion
+    {
+        size_t type_size;
+        err = nc_inq_type( ncid, xtype, NULL, &type_size);
+        if( type_size != sizeof(T))
+            throw std::runtime_error( "Size of given type does not match "
+                "NetCDF type of attribute "+att);
+        std::vector<T> data( size);
+        err = nc_get_att( ncid, varid, name, data.data());
+        return data;
+    }
 }
 
 inline dg::file::nc_att_t get_att_t( int ncid, int varid,
@@ -292,13 +371,18 @@ inline dg::file::nc_att_t get_att_t( int ncid, int varid,
     err = nc_inq_attlen( ncid, varid, name, &size);
     nc_type xtype;
     err = nc_inq_atttype( ncid, varid, name, &xtype);
-    if ( xtype == NC_INT and size == 1)
+    // Signed integer types are read as int, unsigned integer types as unsigned
+    // (NetCDF returns NC_ERANGE if 64 bit values do not fit)
+    bool is_int = ( xtype == NC_SHORT or xtype == NC_INT or xtype == NC_INT64);
+    bool is_uint = ( xtype == NC_UBYTE or xtype == NC_USHORT or xtype ==
+        NC_UINT or xtype == NC_UINT64);
+    if ( is_int and size == 1)
         return get_att_v<int>( ncid, varid, att_name)[0];
-    else if ( xtype == NC_INT and size != 1)
+    else if ( is_int and size != 1)
         return get_att_v<int>( ncid, varid, att_name);
-    else if ( xtype == NC_UINT and size == 1)
+    else if ( is_uint and size == 1)
         return get_att_v<unsigned>( ncid, varid, att_name)[0];
-    else if ( xtype == NC_UINT and size != 1)
+    else if ( is_uint and size != 1)
         return get_att_v<unsigned>( ncid, varid, att_name);
     else if ( xtype == NC_FLOAT and size == 1)
         return get_att_v<float>( ncid, varid, att_name)[0];
@@ -316,10 +400,10 @@ inline dg::file::nc_att_t get_att_t( int ncid, int varid,
     }
     else if ( xtype == NC_BYTE and size != 1)
         return get_att_v<bool>( ncid, varid, att_name);
-    else if ( xtype == NC_STRING || xtype == NC_CHAR)
+    else if ( xtype == NC_CHAR or (xtype == NC_STRING and size == 1))
         return get_att_v<std::string>( ncid, varid, att_name)[0];
     else
-        throw std::runtime_error( "Cannot convert attribute type to nc_att_t");
+        throw std::runtime_error( "Cannot convert attribute "+att_name+" to nc_att_t");
 }
 
 //namespace detail
@@ -328,7 +412,10 @@ inline dg::file::nc_att_t get_att_t( int ncid, int varid,
 template<class T>
 void get_att_h( int ncid, int varid, std::string att_name, T& att)
 {
-    att = get_att_v<T>( ncid, varid, att_name)[0];
+    auto vec = get_att_v<T>( ncid, varid, att_name);
+    if( vec.empty())
+        throw std::runtime_error( "Attribute "+att_name+" is empty");
+    att = vec[0];
 }
 template<class T>
 void get_att_h( int ncid, int varid, std::string att_name, std::vector<T>& att)
@@ -359,7 +446,7 @@ std::map<std::string, T> get_atts_as( int ncid, int varid)
     std::map < std::string, T> map;
     for( int i=0; i<number; i++)
     {
-        char att_name[NC_MAX_NAME]; // 256
+        char att_name[NC_MAX_NAME+1]; // 256 + null
         err = nc_inq_attname( ncid, varid, i, att_name);
         detail::get_att_h( ncid, varid, att_name, map[att_name]);
     }

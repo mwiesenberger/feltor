@@ -613,6 +613,18 @@ struct SerialNcFile
     /*! @brief Put an individual attribute of preset type to variable id
      * @tparam S std::string or const char*
      * @tparam T Cannot be an nc_att_t
+     * @note The NetCDF function matching \c T is called, i.e. \c
+     * nc_put_att_<type> for the C types listed in \c get_att_as (\c
+     * nc_put_att_schar for \c bool, \c nc_put_att_text for \c char) and NetCDF
+     * converts to the given \c nc_type (its errors, e.g. \c NC_ERANGE, are
+     * thrown as \c NC_Error). Any other \c T is written without conversion
+     * with \c nc_put_att and must have the size of the given \c nc_type. If
+     * \c T is a string (or a vector of strings) the given \c nc_type must be
+     * \c NC_CHAR (exactly one string) or \c NC_STRING (any number of strings).
+     * @attention If NetCDF reports a conversion error (e.g. \c NC_ERANGE
+     * because a value does not fit into the given \c nc_type) the attribute is
+     * nevertheless written (with the converted values) before the \c NC_Error
+     * is thrown. Use \c del_att to remove it if this is a concern.
      * @param att Attribute consisting of name, type and value
      * @param id Variable name in the current group or empty string, in which
      * case the attribute refers to the current group
@@ -629,8 +641,9 @@ struct SerialNcFile
      *
      * Example code
      * @snippet{trimleft} nc_file_t.cpp put_atts
-     * @note boolean values are mapped to byte NetCDF attributes (0b for true,
-     * 1b for false)
+     * @note boolean values are mapped to byte NetCDF attributes (1b for true,
+     * 0b for false). A single string is written as \c NC_CHAR, a vector of
+     * several strings as \c NC_STRING.
      * @tparam Attributes Any \c Iterable whose values can be used in \c put_att
      * i.e. either a \c std::pair or \c std::tuple
      * @param atts An iterable containing all the attributes for the variable
@@ -650,13 +663,26 @@ struct SerialNcFile
 
     /*! @brief Get an attribute named \c att_name of the group or variable \c id
      *
-     * @tparam T Any type in \c dg::file::nc_att_t or \c nc_att_t
-     * in which case the type specific nc attribute getters are called
-     * or \c std::vector<type> in which case the general \c nc_get_att is called
+     * @tparam T A scalar type, \c std::string, a \c std::vector thereof or
+     * \c nc_att_t
      * @param att_name Name of the attribute
      * @param id Variable name in the current group or empty string, in which
      * case the attribute refers to the current group
      * @return Attribute cast to type \c T
+     * @note The NetCDF getter matching \c T is called, i.e. \c
+     * nc_get_att_<type> for the C types \c char, \c signed \c char, \c
+     * unsigned \c char, \c short, \c unsigned \c short, \c int, \c unsigned,
+     * \c long, \c long \c long, \c unsigned \c long \c long, \c float and \c
+     * double, \c nc_get_att_schar for \c bool and \c nc_get_att_text or \c
+     * nc_get_att_string for \c std::string. NetCDF converts from the
+     * attribute type and its errors (e.g. \c NC_ERANGE if a value is not
+     * representable, \c NC_ECHAR for text vs. numbers) are thrown as \c
+     * NC_Error. Any other \c T is read without conversion with \c nc_get_att
+     * and must have the size of the attribute type. If \c T is a scalar the
+     * first value of the attribute is returned. If \c T is \c nc_att_t,
+     * signed integer types are read as \c int, unsigned integer types as \c
+     * unsigned, \c NC_BYTE as \c bool and \c NC_CHAR or a single \c NC_STRING
+     * as \c std::string.
      * @snippet{trimleft} nc_file_t.cpp put_att_x
      */
     template<class T>
@@ -675,7 +701,8 @@ struct SerialNcFile
 
     /*! @brief Read all NetCDF attributes of a certain type
      *
-     * @note byte attributes are mapped to boolean values (0b for true, 1b for false)
+     * @note byte attributes are mapped to boolean values (0b is false, any
+     * other value is true)
      * @return A Dictionary containing all the attributes of a certain type
      * for the variable or file. Can be empty if no attribute is present.
      * @param id Variable name in the current group or empty string, in which
@@ -683,6 +710,7 @@ struct SerialNcFile
      * @tparam T can be a primitive type like \c int or \c double or a vector
      * thereof \c std::vector<int> or a \c dg::file::nc_att_t in which case
      * attributes of heterogeneous types are captured
+     * (see \c get_att_as for the type conversions)
      */
     template<class T>
     std::map<std::string, T> get_atts_as( std::string id = "") const

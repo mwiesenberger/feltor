@@ -302,6 +302,116 @@ TEST_CASE( "Move semantics")
 #endif
 }
 
+TEST_CASE( "Attributes of all NetCDF types can be read")
+{
+#ifdef WITH_MPI
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+#endif
+    dg::file::NcFile file("foreign.nc", dg::file::nc_clobber);
+    // NetCDF types other than the ones in nc_att_t are written with an
+    // explicit nc_type
+    file.put_att( std::tuple{"short", NC_SHORT, std::vector{-3, 4}});
+    file.put_att( std::tuple{"int64", NC_INT64, 5});
+    file.put_att( std::tuple{"ubyte", NC_UBYTE, 200u});
+    file.put_att( std::tuple{"string", NC_STRING, std::string("hello")});
+    // Without explicit type the NetCDF type is inferred from the C type
+    file.put_atts( std::map<std::string, short>{{"default_short", 7}});
+    file.put_atts( std::map<std::string, long long>{{"default_int64", 8}});
+    DG_RANK0
+    {
+        double empty = 0;
+        nc_put_att_double( file.get_ncid(), NC_GLOBAL, "empty", NC_DOUBLE, 0, &empty);
+    }
+    INFO( "NetCDF range check on writing");
+    CHECK_THROWS_AS( file.put_att( std::tuple{"x", NC_SHORT, 100000}),
+        dg::file::NC_Error);
+    file.del_att( "x"); // NetCDF writes the attribute anyway
+    INFO( "Strings can only be NC_CHAR (exactly one) or NC_STRING");
+    CHECK_THROWS_AS( file.put_att( std::tuple{"x", NC_CHAR,
+        std::vector<std::string>{"a", "b"}}), std::runtime_error);
+    CHECK_THROWS_AS( file.put_att( std::tuple{"x", NC_INT, std::string("a")}),
+        std::runtime_error);
+    // Attributes that cannot be nc_att_t
+    file.def_grp( "bad");
+    file.set_grp( "bad");
+    file.put_att( std::tuple{"big", NC_INT64, 1LL << 40});
+    file.put_att( std::tuple{"strings", NC_STRING,
+        std::vector<std::string>{"a", "b"}});
+    // Without explicit type several strings are written as NC_STRING
+    file.put_atts( std::map<std::string, std::vector<std::string>>{
+        {"names", {"x", "y"}}});
+    file.set_grp( "/");
+    // Maximum length of attribute name
+    std::string long_name( NC_MAX_NAME, 'a');
+    file.put_att( {long_name, 1});
+    file.close();
+
+    auto mode = GENERATE( dg::file::nc_nowrite, dg::file::nc_write);
+    file.open( "foreign.nc", mode);
+    CHECK( file.get_att_vec_as<int>( "short") == std::vector{-3, 4});
+    CHECK( file.get_att_vec_as<double>( "short") == std::vector{-3., 4.});
+    CHECK( file.get_att_as<int>( "int64") == 5);
+    CHECK( file.get_att_as<unsigned>( "ubyte") == 200);
+    CHECK( file.get_att_as<std::string>( "string") == "hello");
+    CHECK( file.get_att_vec_as<double>( "empty").empty());
+    CHECK( file.get_att_as<int>( long_name) == 1);
+    DG_RANK0
+    {
+        INFO( "Attributes have the requested NetCDF type");
+        nc_type xtype;
+        nc_inq_atttype( file.get_grpid(), NC_GLOBAL, "short", &xtype);
+        CHECK( xtype == NC_SHORT);
+        nc_inq_atttype( file.get_grpid(), NC_GLOBAL, "int64", &xtype);
+        CHECK( xtype == NC_INT64);
+        nc_inq_atttype( file.get_grpid(), NC_GLOBAL, "ubyte", &xtype);
+        CHECK( xtype == NC_UBYTE);
+        nc_inq_atttype( file.get_grpid(), NC_GLOBAL, "string", &xtype);
+        CHECK( xtype == NC_STRING);
+        nc_inq_atttype( file.get_grpid(), NC_GLOBAL, "default_short", &xtype);
+        CHECK( xtype == NC_SHORT);
+        nc_inq_atttype( file.get_grpid(), NC_GLOBAL, "default_int64", &xtype);
+        CHECK( xtype == NC_INT64);
+    }
+    INFO( "NetCDF converts to the requested C type");
+    CHECK( file.get_att_vec_as<short>( "short") == std::vector<short>{-3, 4});
+    CHECK( file.get_att_as<long long>( "int64") == 5);
+    CHECK( file.get_att_as<unsigned char>( "ubyte") == 200);
+    INFO( "NetCDF conversion errors");
+    CHECK_THROWS_AS( file.get_att_as<double>( "string"), dg::file::NC_Error);
+    CHECK_THROWS_AS( file.get_att_as<std::string>( "short"), dg::file::NC_Error);
+    CHECK_THROWS_AS( file.get_att_as<signed char>( "ubyte"), dg::file::NC_Error);
+    CHECK_THROWS_AS( file.get_att_as<double>( "empty"), std::runtime_error);
+
+    std::map<std::string, dg::file::nc_att_t> ana = {
+        {"short", std::vector{-3, 4}},
+        {"int64", 5},
+        {"ubyte", 200u},
+        {"string", "hello"},
+        {"default_short", 7},
+        {"default_int64", 8},
+        {"empty", std::vector<double>{}},
+        {long_name, 1}
+    };
+    CHECK( file.get_atts() == ana);
+
+    file.set_grp( "bad");
+    CHECK( file.get_att_as<double>( "big") == double( 1LL << 40));
+    INFO( "NetCDF range check");
+    CHECK_THROWS_AS( file.get_att_as<int>( "big"), dg::file::NC_Error);
+    CHECK( file.get_att_vec_as<std::string>( "strings") ==
+        std::vector<std::string>{"a", "b"});
+    CHECK( file.get_att_vec_as<std::string>( "names") ==
+        std::vector<std::string>{"x", "y"});
+    // None of the attributes in this group can be represented by nc_att_t
+    CHECK_THROWS( file.get_atts());
+    file.close();
+    DG_RANK0 std::filesystem::remove( "foreign.nc");
+#ifdef WITH_MPI
+    MPI_Barrier( MPI_COMM_WORLD);
+#endif
+}
+
 TEST_CASE( "Attributes")
 {
 #ifdef WITH_MPI
