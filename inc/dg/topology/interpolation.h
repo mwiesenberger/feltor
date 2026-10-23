@@ -133,7 +133,7 @@ void choose_1d_abscissas( real_type X,
     auto it = std::lower_bound( abs.begin(), abs.end(), X);
     // Test if point already exists since then no interpolation is needed
     int idxX = -1;
-    if( fabs( X - *it) < 1e-13)
+    if( it != abs.end() and fabs( X - *it) < 1e-13)
         idxX = it - abs.begin();
     if( it != abs.begin() and fabs(  X - *(it-1)) < 1e-13)
         idxX = (it - abs.begin())-1;
