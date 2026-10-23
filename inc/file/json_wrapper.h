@@ -47,10 +47,70 @@ enum class error{
 
 ///@brief Switch how comments are treated in a json string or file
 enum class comments{
-    are_kept, //!< Keep comments in the Json value
+    are_kept, //!< Keep comments in the Json value (nlohmann::json cannot keep comments, so there this is the same as \c are_discarded)
     are_discarded, //!< Allow comments but discard them in the Json value
-    are_forbidden //!< Treat comments as invalid Json
+    are_forbidden //!< Treat comments as invalid Json (jsoncpp nevertheless accepts comments directly after an opening \c { or before a closing \c } of an object)
 };
+
+///@cond
+namespace detail
+{
+// Handle an error message according to error mode
+inline void handle_json_error( const std::string& message, enum error err)
+{
+    if( err == error::is_throw)
+        throw std::runtime_error( message);
+    else if (err == error::is_warning)
+        std::cerr << "WARNING: "<<message<<std::endl;
+}
+// Parse a stream; on error handle message (prefixed by prefix) according to
+// err and return a null value
+#ifdef DG_USE_JSONHPP
+inline JsonType parse_jsonhpp( std::istream& is, enum comments comm,
+    enum error err, const std::string& prefix)
+{
+    bool ignore_comments = ( comm != file::comments::are_forbidden);
+    try
+    {
+        return nlohmann::json::parse( is, nullptr, true, ignore_comments);
+    }
+    catch( nlohmann::json::parse_error& e)
+    {
+        handle_json_error( prefix + e.what(), err);
+    }
+    return JsonType();
+}
+#else
+inline JsonType parse_jsoncpp( std::istream& is, enum comments comm,
+    enum error err, const std::string& prefix)
+{
+    Json::CharReaderBuilder parser;
+    if( comments::are_forbidden == comm )
+        Json::CharReaderBuilder::strictMode( &parser.settings_);
+    else if( comments::are_discarded == comm )
+    {
+        Json::CharReaderBuilder::strictMode( &parser.settings_);
+        // workaround for a linker bug in jsoncpp from package manager
+        JsonType js_true (true);
+        JsonType js_false (false);
+        parser.settings_["allowComments"].swap( js_true);
+        parser.settings_["collectComments"].swap(js_false);
+    }
+    else
+        Json::CharReaderBuilder::setDefaults( &parser.settings_);
+
+    JsonType js;
+    std::string errs;
+    if( !parseFromStream( parser, is, &js, &errs) )
+    {
+        handle_json_error( prefix + errs, err);
+        return JsonType();
+    }
+    return js;
+}
+#endif
+} // namespace detail
+///@endcond
 
 /**
  * @brief Wrapped Access to Json values with error handling
@@ -351,7 +411,8 @@ struct WrappedJsonValue
  * \c error::is_throw:  throw a \c std::runtime_error containing an error message on any error that occurs on parsing;
  * \c error::is_warning: write the error message to std::cerr and return;
  * \c error::is_silent: silently return
- * @return js object with all the found variables in \c filename
+ * @return js object with all the found variables in \c filename (a null
+ * value if the file does not exist or cannot be parsed)
  */
 inline JsonType file2Json(std::string filename, enum comments comm =
         file::comments::are_discarded, enum error err = file::error::is_throw)
@@ -359,61 +420,16 @@ inline JsonType file2Json(std::string filename, enum comments comm =
     std::ifstream isI( filename);
     if( !isI.good())
     {
-        std::string message = "\nAn error occured while parsing "+filename+"\n";
-        message +=  "*** File does not exist! *** \n\n";
-        if( err == error::is_throw)
-            throw std::runtime_error( message);
-        else if (err == error::is_warning)
-            std::cerr << "WARNING: "<<message<<std::endl;
-        else
-        {
-        }
+        detail::handle_json_error( "\nAn error occured while parsing "
+            +filename+"\n*** File does not exist! *** \n\n", err);
         return JsonType();
     }
-    JsonType js;
+    std::string prefix = "An error occured while parsing "+filename+"\n";
 #ifdef DG_USE_JSONHPP
-    bool ignore_comments = false, allow_exceptions = false;
-    if ( comm == file::comments::are_discarded)
-        ignore_comments =  true;
-    if ( err == error::is_throw)
-        allow_exceptions = true; //throws nlohmann::json::parse_error
-
-    js = nlohmann::json::parse( isI, nullptr, allow_exceptions, ignore_comments);
-    if( !allow_exceptions && err == error::is_warning && js.is_discarded())
-    {
-        std::string message = "An error occured while parsing "+filename+"\n";
-        std::cerr << "WARNING: "<<message<<std::endl;
-    }
+    return detail::parse_jsonhpp( isI, comm, err, prefix);
 #else
-    Json::CharReaderBuilder parser;
-    if( comments::are_forbidden == comm )
-        Json::CharReaderBuilder::strictMode( &parser.settings_);
-    else if( comments::are_discarded == comm )
-    {
-        Json::CharReaderBuilder::strictMode( &parser.settings_);
-        // workaround for a linker bug in jsoncpp from package manager
-        JsonType js_true (true);
-        JsonType js_false (false);
-        parser.settings_["allowComments"].swap( js_true);
-        parser.settings_["collectComments"].swap(js_false);
-    }
-    else
-        Json::CharReaderBuilder::setDefaults( &parser.settings_);
-
-    std::string errs;
-    if( !parseFromStream( parser, isI, &js, &errs) )
-    {
-        std::string message = "An error occured while parsing "+filename+"\n"+errs;
-        if( err == error::is_throw)
-            throw std::runtime_error( message);
-        else if (err == error::is_warning)
-            std::cerr << "WARNING: "<<message<<std::endl;
-        else
-        {
-        }
-    }
+    return detail::parse_jsoncpp( isI, comm, err, prefix);
 #endif
-    return js;
 }
 
 /// @brief Same as <tt>js = dg::file::file2Json( filename, comm, err)</tt>
@@ -427,7 +443,6 @@ inline void file2Json(std::string filename, JsonType& js, enum comments comm = f
  * @brief Convenience wrapper to parse a string into a JsonType
  *
  * Parse a string into a Json Value
- * @attention This function will throw a \c std::runtime_error with the Json error string on any error that occurs on parsing.
  * @note included in \c json_utilities.h
  * @param input The string to interpret as a Json string
  * @param comm determines the handling of comments in the Json string
@@ -435,55 +450,18 @@ inline void file2Json(std::string filename, JsonType& js, enum comments comm = f
  * \c error::is_throw:  throw a \c std::runtime_error containing an error message on any error that occurs on parsing;
  * \c error::is_warning: write the error message to std::cerr and return;
  * \c error::is_silent: silently return
- * @return json object with all the found Json variables in \c input
+ * @return json object with all the found Json variables in \c input (a null
+ * value if \c input cannot be parsed)
  */
 inline JsonType string2Json(std::string input, enum comments comm = file::comments::are_discarded, enum error err = file::error::is_throw)
 {
-    JsonType js;
+    std::stringstream ss( input);
+    std::string prefix = "An error occured while parsing string\n";
 #ifdef DG_USE_JSONHPP
-    bool ignore_comments = false, allow_exceptions = false;
-    if ( comm == file::comments::are_discarded)
-        ignore_comments =  true;
-    if ( err == error::is_throw)
-        allow_exceptions = true; //throws nlohmann::json::parse_error
-
-
-    js = nlohmann::json::parse( input, nullptr, allow_exceptions, ignore_comments);
-    if( !allow_exceptions && err == error::is_warning && js.is_discarded())
-    {
-        std::string message = "An error occured while parsing \n";
-        std::cerr << "WARNING: "<<message<<std::endl;
-    }
-    return js;
-
+    return detail::parse_jsonhpp( ss, comm, err, prefix);
 #else
-
-    Json::CharReaderBuilder parser;
-    if( comments::are_forbidden == comm )
-        Json::CharReaderBuilder::strictMode( &parser.settings_);
-    else if( comments::are_discarded == comm )
-    {
-        Json::CharReaderBuilder::strictMode( &parser.settings_);
-        parser.settings_["allowComments"] = true;
-        parser.settings_["collectComments"] = false;
-    }
-    else
-        Json::CharReaderBuilder::setDefaults( &parser.settings_);
-
-    std::string errs;
-    std::stringstream ss(input);
-    if( !parseFromStream( parser, ss, &js, &errs) )
-    {
-        if( err == error::is_throw)
-            throw std::runtime_error( errs);
-        else if (err == error::is_warning)
-            std::cerr << "WARNING: "<<errs<<std::endl;
-        else
-        {
-        }
-    }
+    return detail::parse_jsoncpp( ss, comm, err, prefix);
 #endif
-    return js;
 }
 
 /// @brief Same as <tt>js = string2Json( input, comm, err)</tt>

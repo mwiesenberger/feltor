@@ -232,6 +232,47 @@ TEST_CASE("Json CPP wrapper")
         CHECK( ws.get( 0,0).asInt() == 42);
         CHECK( ws.get( 1,0).asInt() == 73);
     }
+    SECTION( "Comment handling")
+    {
+        // jsoncpp does not forbid comments directly after "{" or before "}"
+        std::string commented = R"({
+            "a" : // This is a comment
+            1
+        })";
+        for( auto comm : {dg::file::comments::are_kept,
+                          dg::file::comments::are_discarded})
+        {
+            dg::file::WrappedJsonValue ws( dg::file::string2Json( commented,
+                comm));
+            CHECK( ws["a"].asInt() == 1);
+        }
+        CHECK_THROWS_AS( dg::file::string2Json( commented,
+            dg::file::comments::are_forbidden), std::runtime_error);
+    }
+    SECTION( "Parse error handling")
+    {
+        std::string invalid = R"({ "a" : })";
+        CHECK_THROWS_AS( dg::file::string2Json( invalid), std::runtime_error);
+        CHECK_THROWS_AS( dg::file::file2Json( "does-not-exist.json"),
+            std::runtime_error);
+
+        std::stringstream ss;
+        auto cerr_buf = std::cerr.rdbuf( ss.rdbuf() );
+        auto js_silent = dg::file::string2Json( invalid,
+            dg::file::comments::are_discarded, dg::file::error::is_silent);
+        auto file_silent = dg::file::file2Json( "does-not-exist.json",
+            dg::file::comments::are_discarded, dg::file::error::is_silent);
+        bool silent = ss.str().empty();
+        auto js_warning = dg::file::string2Json( invalid,
+            dg::file::comments::are_discarded, dg::file::error::is_warning);
+        bool warning = not ss.str().empty();
+        std::cerr.rdbuf( cerr_buf );
+        CHECK( silent);
+        CHECK( warning);
+        CHECK( dg::file::WrappedJsonValue( js_silent).size() == 0);
+        CHECK( dg::file::WrappedJsonValue( js_warning).size() == 0);
+        CHECK( dg::file::WrappedJsonValue( file_silent).size() == 0);
+    }
     std::filesystem::remove( "file.json");
 
 }
