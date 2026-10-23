@@ -5,6 +5,8 @@
 #include <string>
 #include <sstream>
 #include <stdexcept> //std::runtime_error
+#include <limits>
+#include <cmath>
 
 #ifdef DG_USE_JSONHPP
 #include <nlohmann/json.hpp>
@@ -274,8 +276,13 @@ struct WrappedJsonValue
         default_str << "value "<<value;
         return get( idx, value, default_str.str());
     }
-    /// Wrap the corresponding JsonType function with error handling
+    /// Number of elements in an array or object (0 for other values)
     unsigned size() const{
+#ifdef DG_USE_JSONHPP
+        // nlohmann::json returns 1 for primitive values
+        if( !m_js.is_array() and !m_js.is_object())
+            return 0;
+#endif
         return (unsigned)m_js.size();
     }
     /// Wrap the corresponding JsonType function with error handling
@@ -290,9 +297,10 @@ struct WrappedJsonValue
         return type_error<double>( value, "a Double");
     }
     /// Wrap the corresponding JsonType function with error handling
+    /// @note Raises an error if the value is not an integral number that fits into \c unsigned
     unsigned asUInt( unsigned value = 0) const{
 #ifdef DG_USE_JSONHPP
-        if( m_js.is_number()) // check for sign?
+        if( is_integral_in_range<unsigned>())
             return m_js.template get<unsigned>();
 #else
         if( m_js.isUInt())
@@ -301,9 +309,10 @@ struct WrappedJsonValue
         return type_error<unsigned>( value, "an Unsigned");
     }
     /// Wrap the corresponding JsonType function with error handling
+    /// @note Raises an error if the value is not an integral number that fits into \c int
     int asInt( int value = 0) const{
 #ifdef DG_USE_JSONHPP
-        if( m_js.is_number())
+        if( is_integral_in_range<int>())
             return m_js.template get<int>();
 #else
         if( m_js.isInt())
@@ -335,6 +344,31 @@ struct WrappedJsonValue
         return type_error<std::string>( value, "a String");
     }
     private:
+#ifdef DG_USE_JSONHPP
+    // Same semantics as jsoncpp's isInt/isUInt: integers or doubles with
+    // integral value that fit into T
+    template<class T>
+    bool is_integral_in_range() const
+    {
+        if( m_js.is_number_unsigned())
+            return m_js.template get<unsigned long long>() <=
+                (unsigned long long)std::numeric_limits<T>::max();
+        if( m_js.is_number_integer())
+        {
+            long long v = m_js.template get<long long>();
+            return v >= (long long)std::numeric_limits<T>::min() and
+                   v <= (long long)std::numeric_limits<T>::max();
+        }
+        if( m_js.is_number_float())
+        {
+            double v = m_js.template get<double>();
+            return std::trunc(v) == v and
+                   v >= (double)std::numeric_limits<T>::min() and
+                   v <= (double)std::numeric_limits<T>::max();
+        }
+        return false;
+    }
+#endif
     WrappedJsonValue(JsonType js, error mode, std::string access):m_js(js), m_mode( mode), m_access_str(access) {}
     WrappedJsonValue get( std::string key, const JsonType& value, std::string default_str) const
     {

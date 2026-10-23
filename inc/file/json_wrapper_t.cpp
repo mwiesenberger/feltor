@@ -232,6 +232,33 @@ TEST_CASE("Json CPP wrapper")
         CHECK( ws.get( 0,0).asInt() == 42);
         CHECK( ws.get( 1,0).asInt() == 73);
     }
+    SECTION( "Size of values")
+    {
+        dg::file::WrappedJsonValue ws( js);
+        CHECK( ws["array"].size() == 2);
+        CHECK( ws["nested"].size() == 3);
+        CHECK( ws["hello"].size() == 0);
+        CHECK( ws["nested"]["hi"].size() == 0);
+    }
+    SECTION( "Integers are checked strictly")
+    {
+        dg::file::WrappedJsonValue ws( dg::file::string2Json( R"({
+            "neg" : -1, "frac" : 2.5, "integral" : 3.0, "big" : 1e20,
+            "max" : 4294967295})"));
+        CHECK( ws["neg"].asInt() == -1);
+        CHECK_THROWS_AS( ws["neg"].asUInt(), std::runtime_error);
+        CHECK_THROWS_AS( ws["frac"].asInt(), std::runtime_error);
+        CHECK_THROWS_AS( ws["frac"].asUInt(), std::runtime_error);
+        CHECK( ws["frac"].asDouble() == 2.5);
+        CHECK( ws["integral"].asInt() == 3);
+        CHECK( ws["integral"].asUInt() == 3);
+        CHECK_THROWS_AS( ws["big"].asInt(), std::runtime_error);
+        CHECK_THROWS_AS( ws["big"].asUInt(), std::runtime_error);
+        CHECK( ws["max"].asUInt() == 4294967295u);
+        CHECK_THROWS_AS( ws["max"].asInt(), std::runtime_error);
+        ws.set_mode( dg::file::error::is_silent);
+        CHECK( ws["neg"].asUInt( 7) == 7);
+    }
     SECTION( "Comment handling")
     {
         // jsoncpp does not forbid comments directly after "{" or before "}"
