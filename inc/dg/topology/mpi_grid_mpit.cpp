@@ -73,6 +73,13 @@ TEST_CASE( "MPI Grid")
             CHECK( gIdx == i);
         }
     }
+    SECTION( "Shape is global")
+    {
+        std::array<unsigned,2> shape = { nx*Nx, ny*Ny};
+        CHECK( g2d.shape(0) == shape[0]);
+        CHECK( g2d.shape(1) == shape[1]);
+        CHECK( g2d.get_shape() == shape);
+    }
     SECTION( "Start and count")
     {
         int gIdx;

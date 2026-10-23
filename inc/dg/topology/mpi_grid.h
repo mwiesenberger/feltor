@@ -169,7 +169,7 @@ struct aRealMPITopology
     // ///////////////// GETTERS ////////////////////////////
     /// @copydoc aRealTopology::get_shape
     std::array<unsigned,Nd> get_shape() const{
-        m_g.get_shape();
+        return m_g.get_shape();
     }
     /// @copydoc aRealTopology::get_abscissas
     std::array<host_vector,Nd> get_abscissas() const{
