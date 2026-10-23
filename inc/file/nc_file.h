@@ -72,13 +72,20 @@ namespace file
  *
  * @class hide_container_type
  * @tparam ContainerType May be anything that \c dg::get_tensor_category
- * recognises as a \c dg::SharedVectorTag. In \c defput* members the value type
- * determines the NetCDF type of the variable to define
+ * recognises as a \c dg::SharedVectorTag. The value type must be one of the C
+ * types for which NetCDF has typed functions \c nc_put_vara_<type> and \c
+ * nc_get_vara_<type>, i.e. \c char, \c signed \c char, \c unsigned \c char, \c
+ * short, \c unsigned \c short, \c int, \c unsigned, \c long, \c long \c long,
+ * \c unsigned \c long \c long, \c float or \c double (other types do not
+ * compile). In \c defput* members the value type determines the NetCDF type
+ * of the variable to define
  * @note In both \c put* and \c get* members it is possible for \c data to have
  * a different value type from the defined value type of the variable that is
  * being written/read, the NetCDF C-API simply converts it to
  * the requested type. For example a variable declared as \c NC_DOUBLE can be
- * read as/written from integer or float and vice versa.
+ * read as/written from integer or float and vice versa. Conversion errors
+ * reported by NetCDF (e.g. \c NC_ERANGE if a value is not representable) are
+ * thrown as \c NC_Error.
  */
 /*! @class hide_unlimited_issue
  *

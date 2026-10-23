@@ -9,6 +9,7 @@
 #endif //MPI_VERSION
 #include "nc_error.h"
 #include "nc_hyperslab.h"
+#include "easy_atts.h" // detail::is_nc_type_v
 
 /*!@file
  *
@@ -24,49 +25,67 @@ namespace file
 namespace detail
 {
 
+// Call the NetCDF function matching the C type T (NetCDF converts the values
+// from the variable type and returns e.g. NC_ERANGE if a value is not
+// representable)
 template<class T>
-inline int get_var_T( int /*ncid*/, int /*varID*/, T* /*data*/)
+inline int get_var_T( int ncid, int varid, T* data)
 {
-    assert( false && "Type not supported!\n" );
-    return NC_EBADTYPE;
-}
-template<>
-inline int get_var_T<float>( int ncid, int varID, float* data){
-    return nc_get_var_float( ncid, varID, data);
-}
-template<>
-inline int get_var_T<double>( int ncid, int varID, double* data){
-    return nc_get_var_double( ncid, varID, data);
-}
-template<>
-inline int get_var_T<int>( int ncid, int varID, int* data){
-    return nc_get_var_int( ncid, varID, data);
-}
-template<>
-inline int get_var_T<unsigned>( int ncid, int varID, unsigned* data){
-    return nc_get_var_uint( ncid, varID, data);
+    static_assert( is_nc_type_v<T>, "Type not supported by NetCDF!");
+    if constexpr( std::is_same_v<T, char>)
+        return nc_get_var_text( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, signed char>)
+        return nc_get_var_schar( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, unsigned char>)
+        return nc_get_var_ubyte( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, short>)
+        return nc_get_var_short( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, unsigned short>)
+        return nc_get_var_ushort( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, int>)
+        return nc_get_var_int( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, unsigned>)
+        return nc_get_var_uint( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, long>)
+        return nc_get_var_long( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, long long>)
+        return nc_get_var_longlong( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, unsigned long long>)
+        return nc_get_var_ulonglong( ncid, varid, data);
+    else if constexpr( std::is_same_v<T, float>)
+        return nc_get_var_float( ncid, varid, data);
+    else
+        return nc_get_var_double( ncid, varid, data);
 }
 template<class T>
-inline int get_vara_T( int /*ncid*/, int /*varID*/, const size_t* /*startp*/, const size_t* /*countp*/, T* /*data*/)
+inline int get_vara_T( int ncid, int varid, const size_t* startp,
+    const size_t* countp, T* data)
 {
-    assert( false && "Type not supported!\n" );
-    return NC_EBADTYPE;
-}
-template<>
-inline int get_vara_T<float>( int ncid, int varID, const size_t* startp, const size_t* countp, float* data){
-    return nc_get_vara_float( ncid, varID, startp, countp, data);
-}
-template<>
-inline int get_vara_T<double>( int ncid, int varID, const size_t* startp, const size_t* countp, double* data){
-    return nc_get_vara_double( ncid, varID, startp, countp, data);
-}
-template<>
-inline int get_vara_T<int>( int ncid, int varID, const size_t* startp, const size_t* countp, int* data){
-    return nc_get_vara_int( ncid, varID, startp, countp, data);
-}
-template<>
-inline int get_vara_T<unsigned>( int ncid, int varID, const size_t* startp, const size_t* countp, unsigned* data){
-    return nc_get_vara_uint( ncid, varID, startp, countp, data);
+    static_assert( is_nc_type_v<T>, "Type not supported by NetCDF!");
+    if constexpr( std::is_same_v<T, char>)
+        return nc_get_vara_text( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, signed char>)
+        return nc_get_vara_schar( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, unsigned char>)
+        return nc_get_vara_ubyte( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, short>)
+        return nc_get_vara_short( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, unsigned short>)
+        return nc_get_vara_ushort( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, int>)
+        return nc_get_vara_int( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, unsigned>)
+        return nc_get_vara_uint( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, long>)
+        return nc_get_vara_long( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, long long>)
+        return nc_get_vara_longlong( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, unsigned long long>)
+        return nc_get_vara_ulonglong( ncid, varid, startp, countp, data);
+    else if constexpr( std::is_same_v<T, float>)
+        return nc_get_vara_float( ncid, varid, startp, countp, data);
+    else
+        return nc_get_vara_double( ncid, varid, startp, countp, data);
 }
 #ifdef MPI_VERSION
 template<class host_vector>

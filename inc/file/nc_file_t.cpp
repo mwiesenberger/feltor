@@ -655,6 +655,74 @@ TEST_CASE( "Errors in reading/writing variables throw")
 #endif
 }
 
+template<class T>
+static void check_variable_type( dg::file::NcFile& file, std::string name,
+    nc_type xtype)
+{
+    INFO( "Variable "<<name);
+#ifdef WITH_MPI
+    // In MPI all ranks write/read the same 4 values
+    dg::file::MPINcHyperslab slab( 0, 4, MPI_COMM_WORLD);
+#else
+    dg::file::NcHyperslab slab( 0, 4);
+#endif
+    std::vector<T> data = {1, 2, 3, 4}, read;
+    file.def_var_as<T>( name, {"x"});
+    CHECK( file.get_var_type( name) == xtype);
+    file.put_var( name, slab, data);
+    file.get_var( name, slab, read);
+    CHECK( read == data);
+    if constexpr( not std::is_same_v<T, char>) // NC_CHAR is not a number
+    {
+        std::vector<double> readD;
+        file.get_var( name, slab, readD); // NetCDF converts
+        CHECK( readD == std::vector<double>{1., 2., 3., 4.});
+        file.def_var_as<T>( name+"_0d", {});
+        file.put_var( name+"_0d", {}, T(5));
+        CHECK( file.get_var_as<T>( name+"_0d") == T(5));
+    }
+}
+
+TEST_CASE( "Variables of all NetCDF types")
+{
+#ifdef WITH_MPI
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+#endif
+    dg::file::NcFile file( "vartypes.nc", dg::file::nc_clobber);
+    file.def_dim( "x", 4);
+    check_variable_type<char>(               file, "char", NC_CHAR);
+    check_variable_type<signed char>(        file, "schar", NC_BYTE);
+    check_variable_type<unsigned char>(      file, "uchar", NC_UBYTE);
+    check_variable_type<short>(              file, "short", NC_SHORT);
+    check_variable_type<unsigned short>(     file, "ushort", NC_USHORT);
+    check_variable_type<int>(                file, "int", NC_INT);
+    check_variable_type<unsigned>(           file, "uint", NC_UINT);
+    check_variable_type<long>(               file, "long",
+        sizeof(long) == 8 ? NC_INT64 : NC_INT);
+    check_variable_type<long long>(          file, "longlong", NC_INT64);
+    check_variable_type<unsigned long long>( file, "ulonglong", NC_UINT64);
+    check_variable_type<float>(              file, "float", NC_FLOAT);
+    check_variable_type<double>(             file, "double", NC_DOUBLE);
+
+    INFO( "NetCDF range check");
+#ifdef WITH_MPI
+    dg::file::MPINcHyperslab slab( 0, 4, MPI_COMM_WORLD);
+#else
+    dg::file::NcHyperslab slab( 0, 4);
+#endif
+    CHECK_THROWS_AS( file.put_var( "uchar", slab, std::vector<int>( 4, 300)),
+        dg::file::NC_Error);
+    file.put_var( "uchar", slab, std::vector<int>( 4, 200));
+    std::vector<signed char> read;
+    CHECK_THROWS_AS( file.get_var( "uchar", slab, read), dg::file::NC_Error);
+    file.close();
+    DG_RANK0 std::filesystem::remove( "vartypes.nc");
+#ifdef WITH_MPI
+    MPI_Barrier( MPI_COMM_WORLD);
+#endif
+}
+
 TEST_CASE( "File Benchmarks")
 {
 #ifdef WITH_MPI

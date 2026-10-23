@@ -117,10 +117,11 @@ constexpr nc_type getNCDataType()
         static_assert( always_false_v<T>, "Type not supported by NetCDF!");
 }
 
-// C types for which NetCDF has typed attribute functions nc_put_att_<type> and
-// nc_get_att_<type> (strings are handled separately)
+// C types for which NetCDF has typed functions, e.g. nc_put_att_<type>,
+// nc_get_att_<type>, nc_put_vara_<type> or nc_get_vara_<type> (strings are
+// handled separately)
 template<class T>
-inline constexpr bool is_nc_att_type_v =
+inline constexpr bool is_nc_type_v =
     std::is_same_v<T, char> or std::is_same_v<T, signed char> or
     std::is_same_v<T, unsigned char> or std::is_same_v<T, short> or
     std::is_same_v<T, unsigned short> or std::is_same_v<T, int> or
@@ -135,7 +136,7 @@ template<class T>
 int put_att_T( int ncid, int varid, const char* name, nc_type xtype,
     size_t size, const T* data)
 {
-    static_assert( is_nc_att_type_v<T>);
+    static_assert( is_nc_type_v<T>);
     if constexpr( std::is_same_v<T, char>) // always NC_CHAR
         return nc_put_att_text( ncid, varid, name, size, data);
     else if constexpr( std::is_same_v<T, signed char>)
@@ -168,7 +169,7 @@ int put_att_T( int ncid, int varid, const char* name, nc_type xtype,
 template<class T>
 int get_att_T( int ncid, int varid, const char* name, T* data)
 {
-    static_assert( is_nc_att_type_v<T>);
+    static_assert( is_nc_type_v<T>);
     if constexpr( std::is_same_v<T, char>)
         return nc_get_att_text( ncid, varid, name, data);
     else if constexpr( std::is_same_v<T, signed char>)
@@ -207,7 +208,7 @@ void put_att( int ncid, int varid, const std::tuple<S, nc_type,
     const std::vector<T>& data = std::get<2>(att);
     unsigned size = data.size();
     NC_Error_Handle err;
-    if constexpr( is_nc_att_type_v<T>)
+    if constexpr( is_nc_type_v<T>)
     {
         err = put_att_T( ncid, varid, name, xtype, size, data.data());
     }
@@ -343,7 +344,7 @@ std::vector<T> get_att_v( int ncid, int varid, std::string att)
         err = nc_get_att_schar( ncid, varid, name, tmp.data());
         return std::vector<T>( tmp.begin(), tmp.end());
     }
-    else if constexpr( is_nc_att_type_v<T>)
+    else if constexpr( is_nc_type_v<T>)
     {
         std::vector<T> data( size);
         err = get_att_T( ncid, varid, name, data.data());
