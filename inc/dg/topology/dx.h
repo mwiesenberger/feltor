@@ -17,6 +17,26 @@ namespace create
 {
 ///@cond
 
+template<class real_type>
+EllSparseBlockMat<real_type, thrust::host_vector> single_cell(
+    const SquareMatrix<real_type>& a)
+{
+    // A matrix with a single cell (N = 1)
+    // Every boundary block is the interior block a plus a correction that
+    // changes only one edge of the cell: a_bound_left = a + C_L changes the
+    // flux at the left edge, a_bound_right = a + C_R the flux at the right
+    // edge. A single cell has both edges at the boundary, so it needs both
+    // corrections: a + C_L + C_R = a_bound_left + a_bound_right - a
+    int n = a.size();
+    EllSparseBlockMat<real_type, thrust::host_vector> A(1, 1, 1, 1, n);
+    for( int i=0; i<n; i++)
+    for( int j=0; j<n; j++)
+        A.data[i*n+j] = a(i,j);
+    A.data_idx[0] = 0;
+    A.cols_idx[0] = 0;
+    return A;
+}
+
 
 /**
 * @brief Create and assemble a host Matrix for the centered 1d single derivative
@@ -68,6 +88,9 @@ EllSparseBlockMat<real_type, thrust::host_vector> dx_symm(int n, int N, real_typ
     //assemble the matrix
     if( bcx != PER)
     {
+        // see single_cell for why both boundary blocks are combined
+        if( N == 1)
+            return single_cell<real_type>( a_bound_left + a_bound_right - a);
         EllSparseBlockMat<real_type, thrust::host_vector> A(N, N, 3, 5, n);
         for( int i=0; i<n; i++)
         for( int j=0; j<n; j++)
@@ -158,6 +181,9 @@ EllSparseBlockMat<real_type, thrust::host_vector> dx_plus( int n, int N, real_ty
     //assemble the matrix
     if( bcx != PER)
     {
+        // see single_cell for why both boundary blocks are combined
+        if( N == 1)
+            return single_cell<real_type>( a_bound_left + a_bound_right - a);
         EllSparseBlockMat<real_type, thrust::host_vector> A(N, N, 2, 4, n);
         for( int i=0; i<n; i++)
         for( int j=0; j<n; j++)
@@ -242,6 +268,9 @@ EllSparseBlockMat<real_type, thrust::host_vector> dx_minus( int n, int N, real_t
     //assemble the matrix
     if(bcx != dg::PER)
     {
+        // see single_cell for why both boundary blocks are combined
+        if( N == 1)
+            return single_cell<real_type>( a_bound_left + a_bound_right - a);
         EllSparseBlockMat<real_type, thrust::host_vector> A(N, N, 2, 4, n);
         for( int i=0; i<n; i++)
         for( int j=0; j<n; j++)
@@ -325,6 +354,9 @@ EllSparseBlockMat<real_type, thrust::host_vector> jump( int n, int N, real_type 
     //assemble the matrix
     if(bcx != dg::PER)
     {
+        // see single_cell for why both boundary blocks are combined
+        if( N == 1)
+            return single_cell<real_type>( a_bound_left + a_bound_right - a);
         EllSparseBlockMat<real_type, thrust::host_vector> A(N, N, 3, 5, n);
         for( int i=0; i<n; i++)
         for( int j=0; j<n; j++)
