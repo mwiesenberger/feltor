@@ -32,7 +32,7 @@ class SquareMatrix
   public:
     typedef T value_type; //!< typically double or float
     /**
-    * @brief Construct empty SquareMatrix
+    * @brief Construct empty SquareMatrix (of size 0)
     */
     SquareMatrix() = default;
     /**
@@ -201,19 +201,23 @@ class SquareMatrix
         }
     }
 
-    /*! @brief two Matrices are considered equal if elements are equal
+    /*! @brief two Matrices are considered equal if they have the same size
+     * and their elements are equal
      *
      * @param rhs Matrix to be compared to this
      * @return true if rhs does not equal this
      */
     bool operator!=( const SquareMatrix& rhs) const{
+        if( n_ != rhs.n_)
+            return true;
         for( size_t i = 0; i < n_*n_; i++)
             if( data_[i] != rhs.data_[i])
                 return true;
         return false;
     }
 
-    /*! @brief two Matrices are considered equal if elements are equal
+    /*! @brief two Matrices are considered equal if they have the same size
+     * and their elements are equal
      *
      * @param rhs Matrix to be compared to this
      * @return true if rhs equals this
@@ -404,7 +408,7 @@ class SquareMatrix
     }
 
   private:
-    unsigned n_;
+    unsigned n_ = 0;
     std::vector<T> data_;
 };
 

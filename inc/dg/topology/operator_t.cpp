@@ -4,6 +4,18 @@
 
 TEST_CASE( "SquareMatrix")
 {
+    SECTION( "Size and comparison")
+    {
+        dg::SquareMatrix<double> empty, other_empty;
+        CHECK( empty.size() == 0);
+        CHECK( empty == other_empty);
+        dg::SquareMatrix<double> two( 2, 1.), three( 3, 1.);
+        CHECK( two != three);
+        CHECK( three != two);
+        CHECK( not (two == three));
+        CHECK( two != empty);
+        CHECK( two == dg::SquareMatrix<double>( 2, 1.));
+    }
 
     SECTION( "Misc")
     {
