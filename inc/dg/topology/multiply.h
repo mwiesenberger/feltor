@@ -448,7 +448,7 @@ void multiply3d( const SparseTensor<ContainerType0>& t, const ContainerType1& in
 template<class ContainerType0, class ContainerType1, class ContainerType2, class ContainerType3, class ContainerType4>
 void inv_multiply2d( const SparseTensor<ContainerType0>& t, const ContainerType1& in0, const ContainerType2& in1, ContainerType3& out0, ContainerType4& out1)
 {
-    inv_multiply2d( 1., t, in0, in1, out0, out1);
+    inv_multiply2d( 1., t, in0, in1, 0., out0, out1);
 }
 
 /**

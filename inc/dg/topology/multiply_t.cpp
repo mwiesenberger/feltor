@@ -97,6 +97,12 @@ TEST_CASE( "dg::tensor")
         CHECK( work0[0] == -5);
         CHECK( work1[0] == 6);
     }
+    SECTION( "inv_multiply2d without prefactors")
+    {
+        dg::tensor::inv_multiply2d( t, eight, nine, work0, work1);
+        CHECK( work0[0] == -5);
+        CHECK( work1[0] == 6);
+    }
     SECTION( "multiply2d")
     {
         inout0=eight, inout1=nine, inout2=two;
@@ -138,6 +144,13 @@ TEST_CASE( "dg::tensor")
             work1, work2);
         INFO( "Result         is ["<<work0[0]<<" "<<work1[0]<<" "<<work2[0]
             <<"] ([-13, 12, -2])");
+        CHECK( work0[0] == -13);
+        CHECK( work1[0] == 12);
+        CHECK( work2[0] == -2);
+    }
+    SECTION( "inv_multiply3d without prefactors")
+    {
+        dg::tensor::inv_multiply3d( t, eight, nine, two, work0, work1, work2);
         CHECK( work0[0] == -13);
         CHECK( work1[0] == 12);
         CHECK( work2[0] == -2);
