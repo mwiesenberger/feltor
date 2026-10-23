@@ -236,6 +236,8 @@ struct MPISparseBlockMat
  * Is needed for \c local2globalIdx and \c global2localIdx
  * @param g_cols 1 dimensional grid for the columns
  * @attention communicators in \c g_rows and \c g_cols need to be at least \c MPI_CONGRUENT
+ * @throw dg::Error if a row or column index is not part of \c g_rows or \c g_cols
+ * (only checked if the communicator has more than one rank)
  * @return MPI distributed spares block matrix of type <tt>dg::MHMatrix_t<real_type></tt>
  */
 template<class real_type, class ConversionPolicyRows, class ConversionPolicyCols>
@@ -284,7 +286,10 @@ auto make_mpi_sparseblockmat( // not actually communicating
     for( int k=0; k<bpl; k++)
     {
         int gIdx=0;
-        assert( g_rows.local2globalIdx( i*src.n, rank, gIdx)); // convert from block idx to idx !
+        // convert from block idx to idx !
+        if( !g_rows.local2globalIdx( i*src.n, rank, gIdx))
+            throw Error( Message(_ping_) << "Local row index "<<i*src.n
+                <<" is not part of the grid");
         inner.data_idx[i*bpl + k] = src.data_idx[ gIdx/src.n*bpl + k];
         inner.cols_idx[i*bpl + k] = src.cols_idx[ gIdx/src.n*bpl + k];
         if( inner.cols_idx[i*bpl+k] == invalid_idx)
@@ -292,7 +297,9 @@ auto make_mpi_sparseblockmat( // not actually communicating
         // find out if row is communicating
         int lIdx = 0, pid = 0;
         gIdx = inner.cols_idx[i*bpl + k]*src.n; // convert from block idx to idx !
-        assert( g_cols.global2localIdx( gIdx, lIdx, pid));
+        if( !g_cols.global2localIdx( gIdx, lIdx, pid))
+            throw Error( Message(_ping_) << "Column index "<<gIdx
+                <<" is not part of the grid");
         if ( pid != rank)
             local_row[i] = false;
     }
@@ -307,7 +314,9 @@ auto make_mpi_sparseblockmat( // not actually communicating
         int lIdx = 0, pid = 0;
         if( gIdx != invalid_idx)
         {
-            assert( g_cols.global2localIdx( gIdx*src.n, lIdx, pid));
+            if( !g_cols.global2localIdx( gIdx*src.n, lIdx, pid))
+                throw Error( Message(_ping_) << "Column index "<<gIdx*src.n
+                    <<" is not part of the grid");
             lIdx = lIdx/src.n; // convert from idx to block idx !
         }
         else

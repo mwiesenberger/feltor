@@ -40,6 +40,8 @@ namespace dg
  * num_rows
  * @param col_policy the conversion object
  *
+ * @throw dg::Error if a column index is not part of \c col_policy (only
+ * checked if the communicator has more than one rank)
  * @return a row distributed MPI matrix. If no MPI communication is needed the
  * collective communicator will have zero size.
  * @sa basictopology the MPI %grids defined in Level 3 can all be used as a
@@ -76,7 +78,9 @@ dg::MIHMatrix_t<real_type> make_mpi_matrix(
     for(int i = 0; i < (int)A.num_rows(); i++)
     for (int jj = A.row_offsets()[i]; jj < A.row_offsets()[i+1]; jj++)
     {
-        assert( col_policy.global2localIdx( A.column_indices()[jj], lIdx[jj], pids[jj]));
+        if( !col_policy.global2localIdx( A.column_indices()[jj], lIdx[jj], pids[jj]))
+            throw dg::Error( dg::Message(_ping_) << "Column index "
+                <<A.column_indices()[jj]<<" is not part of the grid");
         if( pids[jj] != rank)
         {
             global_row[i] = 1;
@@ -163,6 +167,8 @@ dg::MIHMatrix_t<real_type> make_mpi_matrix(
  * @param global the row indices and num_rows need to be global
  * @param row_policy the conversion object
  *
+ * @throw dg::Error if a row index is not part of \c row_policy (only
+ * checked if the communicator has more than one rank)
  * @return a row distributed MPI matrix. If no MPI communication is needed it
  * simply has row-indices converted from global to local indices. \c num_cols
  * is the one from \c global, \c num_rows is \c row_policy.local_size()
@@ -236,6 +242,7 @@ dg::IHMatrix_t<real_type> convertGlobal2LocalRows( const
  * @param local the column indices and num_cols need to be local, will be
  * global on output
  * @param policy the conversion object
+ * @throw dg::Error if a column index is not part of \c policy
  *
  * @sa basictopology the MPI %grids defined in Level 3 can all be used as a
  * ConversionPolicy
@@ -251,7 +258,9 @@ void convertLocal2GlobalCols( dg::IHMatrix_t<real_type>& local, const Conversion
     local.num_cols() = policy.size();
 
     for(unsigned i=0; i<local.column_indices().size(); i++)
-        assert( policy.local2globalIdx(local_cols[i], rank, local_cols[i]) );
+        if( !policy.local2globalIdx(local_cols[i], rank, local_cols[i]) )
+            throw dg::Error( dg::Message(_ping_) << "Local column index "
+                <<local_cols[i]<<" is not part of the grid");
     //local.set( local.num_rows(), policy.size(), local.row_offsets(), local_cols, local.values());
 }
 

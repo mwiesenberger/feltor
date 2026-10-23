@@ -4,6 +4,7 @@
 #include <thrust/gather.h>
 #include <thrust/scatter.h>
 #include <thrust/sequence.h>
+#include "exceptions.h"
 #include "tensor_traits.h"
 #include "tensor_traits_scalar.h"
 #include "tensor_traits_thrust.h"
@@ -396,8 +397,9 @@ thrust::host_vector<int> gIdx2gIdx( IntVec& gIdx, const ConversionPolicy& p)
 {
     thrust::host_vector<int> pids( gIdx.size());
     for(unsigned i=0; i<gIdx.size(); i++)
-        assert(p.global2localIdx(gIdx[i],
-                    gIdx[i], pids[i]) );
+        if( !p.global2localIdx(gIdx[i], gIdx[i], pids[i]) )
+            throw Error( Message(_ping_) << "Global index "<<gIdx[i]
+                <<" is not part of the grid");
     return pids;
 }
 

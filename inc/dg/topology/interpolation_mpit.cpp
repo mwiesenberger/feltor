@@ -109,4 +109,16 @@ TEST_CASE( "MPI Matrices")
             CHECK( mpi_temp.data().size() == 0);
 
     }
+    SECTION( "Indices outside the grid throw")
+    {
+        // The conversions must also happen if NDEBUG is defined
+        int outside = g2d.size();
+        dg::IHMatrix mat( 1, g2d.size(), thrust::host_vector<int>{0,1},
+            thrust::host_vector<int>{outside}, dg::HVec{1.});
+        if( size > 1) // a single rank needs no conversion
+            CHECK_THROWS_AS( dg::make_mpi_matrix( mat, g2d), dg::Error);
+        CHECK_THROWS_AS( dg::convertLocal2GlobalCols( mat, g2d), dg::Error);
+        thrust::host_vector<int> gIdx{ outside};
+        CHECK_THROWS_AS( dg::gIdx2gIdx( gIdx, g2d), dg::Error);
+    }
 }
