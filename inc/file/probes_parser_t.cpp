@@ -22,6 +22,26 @@ TEST_CASE( "Probes Parser")
         auto empty = dg::file::parse_probes( js_empty );
         CHECK( not empty.probes );
     }
+    SECTION( "Errors")
+    {
+        auto js_empty = dg::file::string2Json( R"({ "I" : "have no probes"})");
+        CHECK_THROWS_AS( dg::file::parse_probes( js_empty,
+            dg::file::error::is_throw), std::runtime_error);
+        std::stringstream ss;
+        auto cerr_buf = std::cerr.rdbuf( ss.rdbuf() );
+        auto empty = dg::file::parse_probes( js_empty, dg::file::error::is_warning);
+        std::cerr.rdbuf( cerr_buf );
+        CHECK( not empty.probes);
+        if( rank == 0) CHECK( not ss.str().empty());
+
+        auto js_unknown = dg::file::string2Json( R"({ "probes" : {"input" : "unknown"}})");
+        CHECK_THROWS_AS( dg::file::parse_probes( js_unknown), std::runtime_error);
+
+        dg::file::ProbesParams params;
+        params.coords = {{0.,1.},{0.}};
+        params.coords_names = {"x", "y"};
+        CHECK_THROWS_AS( params.get_coords_sizes(), std::runtime_error);
+    }
     SECTION( "Direct")
     {
         std::string probes = R"unique({

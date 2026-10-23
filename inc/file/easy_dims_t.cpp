@@ -59,6 +59,31 @@ TEST_CASE( "Easy dims")
         REQUIRE_NOTHROW(
             err = dg::file::define_dimensions( ncid, dim2_ids, &tvarID, *grid2d_ptr, {"time", "x", "y"}, true)
         );
+        INFO( "Check functions throw if existing dimensions do not match");
+        int dimID, varID;
+        dg::Grid1d g1d( 0., 1., 3, 5);
+        CHECK( not dg::file::check_dimension( ncid, &dimID, g1d, "does-not-exist"));
+        CHECK_THROWS_AS( dg::file::check_dimension( ncid, &dimID, g1d, "x"),
+            std::runtime_error); // wrong length
+        CHECK_THROWS_AS( dg::file::check_real_time<double>( ncid, "x", &dimID, &varID),
+            std::runtime_error); // not unlimited
+        CHECK_THROWS_AS( dg::file::check_real_time<float>( ncid, "time", &dimID, &varID),
+            std::runtime_error); // wrong type
+        CHECK( dg::file::check_real_time<double>( ncid, "time", &dimID, &varID));
+        CHECK( dg::file::check_dimensions( ncid, dim2_ids, dg::Grid0d()));
+
+        INFO( "Limited time");
+        int lim_ids[3];
+        dg::Grid2d g2d( 0., 1., 0., 1., 3, 4, 5);
+        CHECK( dg::file::define_limtime_xy( ncid, lim_ids, 7, &varID, g2d,
+            {"ltime", "ly", "lx"}) == NC_NOERR);
+        size_t len;
+        err = nc_inq_dimlen( ncid, lim_ids[0], &len);
+        CHECK( len == 7);
+        err = nc_inq_dimlen( ncid, lim_ids[1], &len);
+        CHECK( len == 3*5);
+        err = nc_inq_dimlen( ncid, lim_ids[2], &len);
+        CHECK( len == 3*4);
     }
 
     DG_RANK0 err = nc_close(ncid);
