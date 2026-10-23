@@ -43,8 +43,12 @@ namespace file
  * std::filesystem::current_path()
  * @param mode see \c dg::file::NcFileMode for possible values dg::file::nc_nowrite,
  * dg::file::nc_write, dg::file::nc_clobber, dg::file::nc_noclobber.
- * @attention Only netCDF-4 files can be created and only netCDF-4 files can be
- * opened for write access. All file formats can be opened in NC_NOWRITE mode.
+ * @attention Only netCDF-4 files can be created. All file formats can be
+ * opened in \c nc_nowrite mode. Non netCDF-4 files can technically be opened
+ * in \c nc_write mode, but since we do not expose the define mode of the
+ * classic formats, only writing data to already existing variables (and
+ * overwriting existing attributes without increasing their size) works;
+ * defining groups, dimensions, variables or new attributes will throw.
  * @sa NcFileMode
  */
 /*! @class hide_dimension_hiding
@@ -134,9 +138,9 @@ enum NcFileMode
  * @snippet nc_utilities_t.cpp ncfile
  *
  * @note This class cannot be copied/assigned but only moved/move-assign
- * @note Only netCDF-4 format is supported in write mode. The reason is that we
- * do not expose the \c nc_enddef and \c nc_redef meachanism of the old netCDF
- * formats. Read-only access of old netCDF formats works fine.
+ * @note Only netCDF-4 format is fully supported in write mode. The reason is
+ * that we do not expose the \c nc_enddef and \c nc_redef meachanism of the old
+ * netCDF formats. Read-only access of old netCDF formats works fine.
  * @note The class hides all integer ids that the NetCDF C-library uses as well
  * as the distinction between define mode and data mode.
  * ("Ids do not exist in the NetCDF data model!")
@@ -560,10 +564,11 @@ struct SerialNcFile
         return dims;
     }
 
-    /*! @brief Get all visible unlimited dimension names in the current group
+    /*! @brief Get all unlimited dimension names defined in the current group
      *
+     * In contrast to \c get_dims this function **does not** include the
+     * parent groups (even though their dimensions are visible)
      * @copydoc hide_dimension_hiding
-     * This function **does not** include the parent groups
      * @return All unlimited dimension names in current group.
      */
     std::vector<std::string> get_unlim_dims( ) const

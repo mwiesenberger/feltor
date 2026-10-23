@@ -42,7 +42,9 @@ struct ProbesParams
      * If \c false then no probes exist. The \c dg::file::Probes class
      * will write no probes in that case and all its member functions return immediately.
      *
-     * The \c dg::file::parse_probes will set this flag if "probes" field does not exist in input file.
+     * The \c dg::file::parse_probes function sets this flag to true only if
+     * the "probes" field exists in the input file and contains at least one
+     * probe coordinate.
      *
      * @note All MPI processes must agree on the value of \c probes
      */

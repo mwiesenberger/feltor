@@ -84,8 +84,12 @@ for f in format:
 @endcode
  *
  * @param js input json value
- * @param probes_err what to do if "probes" is missing from \c js (overwrites js error mode)
- * If silent, the ProbesParams remain empty if the field is absent
+ * @param probes_err what to do if "probes" is missing from \c js
+ * If silent, the ProbesParams remain empty if the field is absent. If
+ * "probes" is present, errors inside it are handled by the error mode of \c js
+ * @note Throws \c std::runtime_error if the "input" field is neither "coords"
+ * nor "file" or if the file given in "file" cannot be read or parsed
+ * (independent of the error mode of \c js)
  * @return parsed values
  * @attention In MPI all threads will read in the probes. Only the master thread
  * stores the coordinates in <tt>ProbesParams.coords[i]</tt> the others are empty

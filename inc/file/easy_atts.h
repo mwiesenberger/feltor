@@ -44,7 +44,7 @@ using nc_att_t = std::variant<int, unsigned, float, double, bool, std::string,
 inline std::string timestamp( int argc, char* argv[])
 {
     // TODO: once we're using C++20 this should be implemented using chrono
-    // Get local time
+    // Get UTC time
     auto ttt = std::time(nullptr);
     std::ostringstream oss;
     // time string  + program-name + args

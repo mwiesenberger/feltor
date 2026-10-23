@@ -198,7 +198,9 @@ void get_vara_detail(int ncid, int varid, unsigned slice,
 * @copydoc hide_tparam_host_vector
 * @param ncid NetCDF file or group ID
 * @param varid Variable ID
-* [unnamed Topology] The grid from which to construct \c start and \c count variables to forward to \c nc_get_vara
+* [unnamed Topology] Ignored in the serial version (the entire variable is read
+* with \c nc_get_var). In the MPI version the grid determines the local chunk
+* of data to read.
 * @param data contains the read data on return (must be of size \c grid.size() )
 * [unnamed bool] This parameter is there to make serial and parallel interface equal.
 * @copydoc hide_master_comment

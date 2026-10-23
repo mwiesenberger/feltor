@@ -12,7 +12,9 @@ namespace file{
  * produces vectors where the first dimension of the given grid varies
  * fastest. Thus, when defining variable dimensions the dimension name of the
  * first grid dimension needs to come last.
- * @note The unlimited dimension, if present, must be the first dimension.
+ * @note By convention the unlimited dimension, if present, is the first
+ * dimension. (This is required only by the classic NetCDF format, but many
+ * tools like paraview expect it)
  */
 
 /*!@brief A NetCDF Hyperslab for \c SerialNcFile

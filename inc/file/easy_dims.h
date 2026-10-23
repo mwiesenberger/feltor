@@ -384,7 +384,7 @@ int define_dimensions( int ncid, int *dimsIDs, int* tvarID, const Topology& g, s
  * @param g The dG grid from which data points for coordinate variable are generated using \c g.abscissas() in each dimension
  * @param name_dims Names for the dimension and coordinate variables (Must have size <tt> g.ndim() </tt>)  **in numpy python ordering** e.g. in 3d we have <tt> {"z", "y", "x"}</tt>; If \c name_dims.empty() then default names in <tt> {"z", "y", "x"} </tt> will be used
  * @tparam Topology <tt> typename Topology::value_type </tt> determines the datatype of the dimension variables
- * @note For a 0d grid, the default dimension name is "i", axis "I" and the dimension will be of size 1
+ * @note For a 0d grid, the function checks nothing and returns true
  * @return False if any dimension with given name does not exist, if no errors are thrown True
  * @sa check_dimension
  */
