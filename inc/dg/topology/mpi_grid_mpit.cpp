@@ -105,5 +105,23 @@ TEST_CASE( "MPI Grid")
             CHECK( g1d.local().p() == g1d.p());
         if( rank == size-1)
             CHECK( g1d.local().q() == g1d.q());
+        // The setters must give the same local grid as the constructor
+        auto check_local = [&]( const dg::MPIGrid1d& g)
+        {
+            dg::MPIGrid1d g_new( g.p(), g.q(), g.n(), g.N(), comm1d);
+            INFO( "Rank "<<rank<<" n "<<g.n()<<" N "<<g.N());
+            CHECK( g.local().p() == g_new.local().p());
+            CHECK( g.local().q() == g_new.local().q());
+            CHECK( g.local().N() == g_new.local().N());
+            CHECK( g.local().n() == g_new.local().n());
+        };
+        g1d.set_pq( {0.}, {1.});
+        check_local( g1d);
+        g1d.set_pq( {Zmin}, {Zmax});
+        check_local( g1d);
+        g1d.set( 2, 81);
+        check_local( g1d);
+        g1d.set( 3, 79);
+        check_local( g1d);
     }
 }

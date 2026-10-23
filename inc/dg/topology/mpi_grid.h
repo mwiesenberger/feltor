@@ -630,22 +630,7 @@ struct aRealMPITopology
         m_comm = dg::mpi_cart_kron( m_comms);
         mpi_cartdim_get( m_comm, &ndims);
         assert( (unsigned)ndims == Nd);
-        // The idea is that every grid gets the same amount and the
-        // rest is distributed to the lowest rank grids
-        int dims[Nd], periods[Nd], coords[Nd];
-        mpi_cart_get( m_comm, Nd, dims, periods, coords);
-        for( unsigned u=0;u<Nd; u++)
-        {
-            auto idx = increment(partition( m_g.N(u), dims[u]));
-            N[u] = idx[coords[u]+1]-idx[coords[u]] ;
-
-            p[u] = m_g.p(u) + m_g.h(u)*idx[coords[u]];
-            q[u] = m_g.p(u) + m_g.h(u)*idx[coords[u] +1];
-            // The local right boundary should be the same as the global right boundary
-            if( coords[u] == dims[u]-1)
-                q[u] = m_g.q(u);
-        }
-        m_l = { p, q, m_g.get_n(), N, m_g.get_bc()};
+        update_local();
     }
     ///@copydoc aRealTopology::aRealTopology(const std::array<RealGrid<real_type,1>,Nd>&)
     aRealMPITopology( const std::array< RealMPIGrid<real_type, 1>, Nd>& axes)
@@ -703,6 +688,30 @@ struct aRealMPITopology
     //We do not want that because we cannot distinguish if g is meant to be the local or the global grid...
     //aRealMPITopology( const RealGrid<real_type,Nd> & g, MPI_Comm comm);
     private:
+    void update_local()
+    {
+        if constexpr ( Nd > 0) // avoid zero sized array warnings
+        {
+            // The idea is that every grid gets the same amount and the
+            // rest is distributed to the lowest rank grids
+            int dims[Nd], periods[Nd], coords[Nd];
+            mpi_cart_get( m_comm, Nd, dims, periods, coords);
+            std::array<real_type,Nd> p, q;
+            std::array<unsigned,Nd> N;
+            for( unsigned u=0;u<Nd; u++)
+            {
+                auto idx = increment(partition( m_g.N(u), dims[u]));
+                N[u] = idx[coords[u]+1]-idx[coords[u]] ;
+
+                p[u] = m_g.p(u) + m_g.h(u)*idx[coords[u]];
+                q[u] = m_g.p(u) + m_g.h(u)*idx[coords[u] +1];
+                // The local right boundary should be the same as the global right boundary
+                if( coords[u] == dims[u]-1)
+                    q[u] = m_g.q(u);
+            }
+            m_l = { p, q, m_g.get_n(), N, m_g.get_bc()};
+        }
+    }
     void check_periods( std::array<dg::bc, Nd> bc) const
     {
         if constexpr ( Nd > 0) // avoid zero sized array warnings
@@ -751,38 +760,14 @@ struct aRealMPITopology
 template<class real_type,size_t Nd>
 void aRealMPITopology<real_type,Nd>::do_set( std::array<unsigned,Nd> new_n, std::array<unsigned,Nd> new_N)
 {
-    if constexpr ( Nd > 0) // avoid zero sized array warnings
-    {
-        m_g.set(new_n, new_N);
-        int dims[Nd], periods[Nd], coords[Nd];
-        mpi_cart_get( m_comm, Nd, dims, periods, coords);
-        std::array<unsigned, Nd> N;
-        for( unsigned u=0;u<Nd; u++)
-        {
-            auto idx = increment(partition( m_g.N(u), dims[u]));
-            N[u] = idx[coords[u]+1]-idx[coords[u]] ;
-        }
-        m_l.set( new_n, N);
-    }
-
+    m_g.set(new_n, new_N);
+    update_local();
 }
 template<class real_type,size_t Nd>
 void aRealMPITopology<real_type,Nd>::do_set_pq( std::array<real_type, Nd> x0, std::array<real_type,Nd> x1)
 {
-    if constexpr ( Nd > 0) // avoid zero sized array warnings
-    {
-        m_g.set_pq( x0, x1);
-        int dims[Nd], periods[Nd], coords[Nd];
-        mpi_cart_get( m_comm, Nd, dims, periods, coords);
-        std::array<real_type,Nd> p, q;
-        for( unsigned u=0;u<Nd; u++)
-        {
-            auto idx = increment(partition( m_g.N(u), dims[u]));
-            p[u] = m_g.p(u) + m_g.h(u)*idx[coords[u]];
-            q[u] = m_g.p(u) + m_g.h(u)*idx[coords[u] +1];
-        }
-        m_l.set_pq( p, q);
-    }
+    m_g.set_pq( x0, x1);
+    update_local();
 }
 template<class real_type,size_t Nd>
 void aRealMPITopology<real_type,Nd>::do_set( std::array<dg::bc, Nd> bcs)
