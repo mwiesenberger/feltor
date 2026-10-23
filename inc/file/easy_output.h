@@ -103,6 +103,10 @@ namespace file
 namespace detail
 {
 
+// TODO Variables of user defined (compound) types are not supported. Support
+// for complex numbers (std::complex, thrust::complex) following the convention
+// of xarray (a compound type with the fields "r" and "i") could be valuable.
+
 // Call the NetCDF function matching the C type T (NetCDF converts the values
 // to the variable type and returns e.g. NC_ERANGE if a value is not
 // representable)

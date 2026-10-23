@@ -77,8 +77,9 @@ namespace file
  * nc_get_vara_<type>, i.e. \c char, \c signed \c char, \c unsigned \c char, \c
  * short, \c unsigned \c short, \c int, \c unsigned, \c long, \c long \c long,
  * \c unsigned \c long \c long, \c float or \c double (other types do not
- * compile). In \c defput* members the value type determines the NetCDF type
- * of the variable to define
+ * compile). User defined (e.g. compound) types, including complex numbers,
+ * are not supported for now. In \c defput* members the value type determines
+ * the NetCDF type of the variable to define
  * @note In both \c put* and \c get* members it is possible for \c data to have
  * a different value type from the defined value type of the variable that is
  * being written/read, the NetCDF C-API simply converts it to
@@ -816,7 +817,9 @@ struct SerialNcFile
      * @copydoc hide_dimension_order
      * @copydoc hide_dimension_hiding
      * @param atts Attributes to put for the variable
-     * @note This function overload is useful if you want to use a compound type
+     * @note This function overload allows to define a variable of a user
+     * defined (e.g. compound) type. However, such variables cannot be written
+     * or read with \c put_var and \c get_var for now.
      */
     template<class Attributes = std::map<std::string, nc_att_t>>
     void def_var( std::string name, nc_type xtype,
