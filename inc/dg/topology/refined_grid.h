@@ -506,7 +506,7 @@ struct RealCartesianRefinedGrid3d : public dg::aRealGeometry3d<real_type>
     {
         RealGrid1d<real_type> gx( this->x0(), this->x1(), nx, Nx, this->bcx());
         RealGrid1d<real_type> gy( this->y0(), this->y1(), ny, Ny, this->bcy());
-        RealGrid1d<real_type> gz( this->y0(), this->y1(), nz, Nz, this->bcz());
+        RealGrid1d<real_type> gz( this->z0(), this->z1(), nz, Nz, this->bcz());
         thrust::host_vector<real_type> w[3], a[3];
         refX_->generate( gx, w[0], a[0]);
         refY_->generate( gy, w[1], a[1]);
@@ -523,7 +523,7 @@ struct RealCartesianRefinedGrid3d : public dg::aRealGeometry3d<real_type>
                 w_[2][(s*w[1].size()+i)*w[0].size()+j] = w[2][s];
                 a_[0][(s*w[1].size()+i)*w[0].size()+j] = a[0][j];
                 a_[1][(s*w[1].size()+i)*w[0].size()+j] = a[1][i];
-                a_[2][(s*w[1].size()+i)*w[0].size()+j] = a[1][s];
+                a_[2][(s*w[1].size()+i)*w[0].size()+j] = a[2][s];
             }
     }
     virtual void do_set(std::array<unsigned,3> new_n, std::array<unsigned,3> new_N)override final{

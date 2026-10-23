@@ -95,6 +95,29 @@ TEST_CASE( "Refinement")
         CHECK( integral - M_PI*M_PI == 0);
     }
 
+    SECTION( "Linear Refinement 3d")
+    {
+        // Linear refinement yields an equidistant grid with more cells
+        dg::LinearRefinement lin(2);
+        dg::CartesianRefinedGrid3d g3d_f( lin,lin,lin, 0., 1., 2., 4., 10.,
+                13., 3, 4, 5, 6);
+        dg::Grid3d g3d( 0., 1., 2., 4., 10., 13., 3, 8, 10, 12);
+        REQUIRE( g3d_f.size() == g3d.size());
+        std::vector<dg::HVec> map = g3d_f.map();
+        std::vector<dg::HVec> sol = { dg::evaluate( dg::cooX3d, g3d),
+            dg::evaluate( dg::cooY3d, g3d), dg::evaluate( dg::cooZ3d, g3d)};
+        for( unsigned u=0; u<3; u++)
+            for( unsigned i=0; i<g3d.size(); i++)
+            {
+                INFO( "Coordinate "<<u<<" index "<<i);
+                CHECK( fabs( map[u][i] - sol[u][i]) < 1e-13);
+            }
+        dg::HVec vol = dg::create::volume( g3d_f);
+        double volume = dg::blas1::dot( vol, 1.);
+        INFO( "Volume is "<<volume<<" (6)");
+        CHECK( fabs( volume - 6.) < 1e-13);
+    }
+
     //also test P D^f_x Q f_c = D^c_x f
     SECTION( "P D_x^f Q = D_x^c")
     {
@@ -125,9 +148,6 @@ TEST_CASE( "Refinement")
 
     SECTION( "Finite element REFINEMENT")
     {
-        dg::LinearRefinement lin(3);
-        dg::CartesianRefinedGrid3d g3d_f( lin,lin,lin, 0., 2*M_PI, 0., 2*M_PI,
-                0., 2*M_PI, 5, 20, 20, 20);
         unsigned n = 5, Nx = 20, Ny = 20;
         for( unsigned m = 1; m<8; m++)
         {
