@@ -131,7 +131,7 @@ inline JsonType parse_jsoncpp( std::istream& is, enum comments comm,
  *
  * The interface of \c WrappedJsonValue is modelled after jsoncpp's \c Json::Value:
  * @code
-auto js = dg::file::file2Json( "test.json", js);
+auto js = dg::file::file2Json( "test.json");
 dg::file::WrappedJsonValue ws( js, dg::file::error::is_throw);
 try{
     std::string hello = ws.get( "hello", "").asString();
@@ -152,7 +152,7 @@ void some_function( dg::file::WrappedJsonValue ws)
     int value = ws[ "some_non_existent_key"].asUInt();
 }
 
-dg::file::WrappedJsonValue js;
+dg::file::WrappedJsonValue js( dg::file::string2Json( R"({"nested" : {}})"));
 try{
     some_function( js["nested"]);
 } catch ( std::exception& e){ std::cerr << e.what()<<std::endl; }

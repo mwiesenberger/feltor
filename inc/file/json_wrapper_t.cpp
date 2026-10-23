@@ -12,7 +12,7 @@ TEST_CASE("Json HPP wrapper")
 TEST_CASE("Json CPP wrapper")
 #endif
 {
-    std::ofstream file( "file.json");
+    std::ofstream file( "json_wrapper.json");
     file << R"unique({
         "hello": "world",
         "array": [ 42, 73],
@@ -27,8 +27,8 @@ TEST_CASE("Json CPP wrapper")
         }
     })unique";
     file.close();
-    REQUIRE( std::filesystem::exists( "file.json"));
-    auto js = dg::file::file2Json( "file.json");
+    REQUIRE( std::filesystem::exists( "json_wrapper.json"));
+    auto js = dg::file::file2Json( "json_wrapper.json");
     std::string hello0, hello1;
     int idx0, idx1, idx2, idx3;
     unsigned uint0, uint1, uint2;
@@ -103,92 +103,32 @@ TEST_CASE("Json CPP wrapper")
     }
     SECTION( "Error throws")
     {
-        // We just test if the message contains certain key words
+        // We test that it throws and that the message contains certain key words
+        using Catch::Matchers::ContainsSubstring;
         dg::file::WrappedJsonValue ws( js, dg::file::error::is_throw);
-        try{
-            hello0 = ws[ "hell"].asString( "default" );
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"hell\"") != std::string::npos);
-        }
-        try{
-            hello1 = ws.get( "hell", "default").asString( );
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"hell\"") != std::string::npos);
-        }
-        try{
-            idx0 = ws[ "array"][2].asInt();
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"array\"") != std::string::npos);
-            CHECK( s.find("2") != std::string::npos);
-        }
-        try{
-            idx0 = ws[ "array"].get(2,0).asInt();
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"array\"") != std::string::npos);
-            CHECK( s.find("2") != std::string::npos);
-        }
-        try{
-            idx0 = ws["hello"].asInt();
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"hello\"") != std::string::npos);
-            CHECK( s.find("\"world\"") != std::string::npos);
-            CHECK( s.find("Int") != std::string::npos);
-        }
-        try{
-            idx1 = ws[ "arr"][1].asInt( );
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"arr\"") != std::string::npos);
-        }
-        try{
-            hi = ws[ "neted"]["hi"].asDouble( );
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"neted\"") != std::string::npos);
-        }
-        try{
-            test = ws[ "nested"]["bol"].asBool( true);
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"nested\"") != std::string::npos);
-            CHECK( s.find("\"bol\"") != std::string::npos);
-        }
-        try{
-            uint0 = ws["nested"]["another_net"]["number"].asUInt();
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"nested\"") != std::string::npos);
-            CHECK( s.find("\"another_net\"") != std::string::npos);
-        }
-        try{
-            uint1 = ws["hello"]["another_net"]["number"].asUInt();
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("\"hello\"") != std::string::npos);
-            CHECK( s.find("\"another_net\"") != std::string::npos);
-        }
-        try{
-            uint2 = ws[0][2]["number"].asUInt();
-        }catch( std::exception& e)
-        {
-            std::string s = e.what();
-            CHECK( s.find("0") != std::string::npos);
-        }
+        CHECK_THROWS_WITH( ws[ "hell"].asString( "default" ),
+            ContainsSubstring("\"hell\""));
+        CHECK_THROWS_WITH( ws.get( "hell", "default").asString( ),
+            ContainsSubstring("\"hell\""));
+        CHECK_THROWS_WITH( ws[ "array"][2].asInt(),
+            ContainsSubstring("\"array\"") && ContainsSubstring("2"));
+        CHECK_THROWS_WITH( ws[ "array"].get(2,0).asInt(),
+            ContainsSubstring("\"array\"") && ContainsSubstring("2"));
+        CHECK_THROWS_WITH( ws["hello"].asInt(),
+            ContainsSubstring("\"hello\"") && ContainsSubstring("\"world\"")
+            && ContainsSubstring("Int"));
+        CHECK_THROWS_WITH( ws[ "arr"][1].asInt( ),
+            ContainsSubstring("\"arr\""));
+        CHECK_THROWS_WITH( ws[ "neted"]["hi"].asDouble( ),
+            ContainsSubstring("\"neted\""));
+        CHECK_THROWS_WITH( ws[ "nested"]["bol"].asBool( true),
+            ContainsSubstring("\"nested\"") && ContainsSubstring("\"bol\""));
+        CHECK_THROWS_WITH( ws["nested"]["another_net"]["number"].asUInt(),
+            ContainsSubstring("\"nested\"") && ContainsSubstring("\"another_net\""));
+        CHECK_THROWS_WITH( ws["hello"]["another_net"]["number"].asUInt(),
+            ContainsSubstring("\"hello\"") && ContainsSubstring("\"another_net\""));
+        CHECK_THROWS_WITH( ws[0][2]["number"].asUInt(),
+            ContainsSubstring("0"));
     }
     SECTION("Access")
     {
@@ -300,6 +240,6 @@ TEST_CASE("Json CPP wrapper")
         CHECK( dg::file::WrappedJsonValue( js_warning).size() == 0);
         CHECK( dg::file::WrappedJsonValue( file_silent).size() == 0);
     }
-    std::filesystem::remove( "file.json");
+    std::filesystem::remove( "json_wrapper.json");
 
 }
