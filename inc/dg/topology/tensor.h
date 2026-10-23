@@ -58,41 +58,44 @@ struct SparseTensor
      * @param grid used to create explicit zeroes (Index 0) and ones (Index 1)
      */
     template<class Topology>
-    SparseTensor( const Topology& grid){
-		construct(grid);
+    SparseTensor( const Topology& grid): m_mat_idx(3,0), m_values(2)
+    {
+        for( int i=0; i<3; i++)
+            m_mat_idx( i,i) = 1;
+        dg::assign( dg::evaluate( dg::zero, grid), m_values[0]);
+        dg::assign( dg::evaluate( dg::one, grid), m_values[1]);
     }
 
     /**
     * @brief Construct the unit tensor
     * @param copyable used to create explicit zeroes (Index 0) and ones (Index 1)
     */
-    SparseTensor( const container& copyable ){
-        construct(copyable);
+    SparseTensor( const container& copyable ): m_mat_idx(3,0),
+        m_values(2, copyable)
+    {
+        for( int i=0; i<3; i++)
+            m_mat_idx( i,i) = 1;
+        dg::blas1::copy( 0., m_values[0]);
+        dg::blas1::copy( 1., m_values[1]);
     }
     /**
      * @brief Construct the unit tensor
+     *
+     * Same as <tt>*this = SparseTensor( grid)</tt>
      * @param grid used to create explicit zeroes (Index 0) and ones (Index 1)
      */
     template<class Topology>
     void construct( const Topology& grid){
-		m_mat_idx.resize(3,0);
-        for( int i=0; i<3; i++)
-            m_mat_idx( i,i) = 1;
-   		m_values.resize(2);
-        dg::assign( dg::evaluate( dg::zero, grid), m_values[0]);
-        dg::assign( dg::evaluate( dg::one, grid), m_values[1]);
+        *this = SparseTensor( grid);
     }
     /**
     * @brief Construct the unit tensor
+    *
+    * Same as <tt>*this = SparseTensor( copyable)</tt>
     * @param copyable used to create explicit zeroes (Index 0) and ones (Index 1)
     */
     void construct( const container& copyable ){
-		m_mat_idx.resize(3,0);
-        for( int i=0; i<3; i++)
-            m_mat_idx( i,i) = 1;
-        m_values.assign(2,copyable);
-        dg::blas1::copy( 0., m_values[0]);
-        dg::blas1::copy( 1., m_values[1]);
+        *this = SparseTensor( copyable);
     }
 
     /**

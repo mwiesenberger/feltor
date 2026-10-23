@@ -59,4 +59,13 @@ TEST_CASE( "dg::SparseTensor")
     result = {70,30,70, 30,90,70, 70,70,90};
     CHECK( result == line_element( sparse3d));
 
+    INFO( "construct overwrites all indices with the unit tensor");
+    const std::vector<double> unit = {1,0,0, 0,1,0, 0,0,1};
+    dg::SparseTensor<thrust::host_vector<double> > t;
+    t.construct( grid);
+    CHECK( unit == line_element( t));
+    dense2d.construct( grid);
+    CHECK( unit == line_element( dense2d));
+    sparse3d.construct( eight);
+    CHECK( unit == line_element( sparse3d));
 }
