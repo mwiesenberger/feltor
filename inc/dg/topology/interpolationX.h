@@ -36,14 +36,15 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation( const thrus
  * @param x X-coordinates of interpolation points
  * @param y Y-coordinates of interpolation points
  * @param g The Grid on which to operate
- * @param globalbcz NEU for common interpolation. DIR for zeros at Box
+ * @param globalbcx boundary condition in x (the y direction uses \c dg::NEU),
+ * see \c dg::create::interpolation
  *
  * @return interpolation matrix
  */
 template<class real_type>
-dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation( const thrust::host_vector<real_type>& x, const thrust::host_vector<real_type>& y, const aRealTopologyX2d<real_type>& g , dg::bc globalbcz = dg::NEU)
+dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation( const thrust::host_vector<real_type>& x, const thrust::host_vector<real_type>& y, const aRealTopologyX2d<real_type>& g , dg::bc globalbcx = dg::NEU)
 {
-    return interpolation( x,y, g.grid(), globalbcz);
+    return interpolation( x,y, g.grid(), globalbcx);
 }
 
 
@@ -56,15 +57,16 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation( const thrus
  * @param y Y-coordinates of interpolation points
  * @param z Z-coordinates of interpolation points
  * @param g The Grid on which to operate
- * @param globalbcz determines what to do if values lie exactly on the boundary
+ * @param globalbcx boundary condition in x (the y direction uses \c dg::NEU
+ * and the z direction \c dg::PER), see \c dg::create::interpolation
  *
  * @return interpolation matrix
  * @note The values of x, y and z must lie within the boundaries of g
  */
 template<class real_type>
-dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation( const thrust::host_vector<real_type>& x, const thrust::host_vector<real_type>& y, const thrust::host_vector<real_type>& z, const aRealTopologyX3d<real_type>& g, dg::bc globalbcz= dg::NEU)
+dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation( const thrust::host_vector<real_type>& x, const thrust::host_vector<real_type>& y, const thrust::host_vector<real_type>& z, const aRealTopologyX3d<real_type>& g, dg::bc globalbcx= dg::NEU)
 {
-    return interpolation( x,y,z, g.grid(), globalbcz);
+    return interpolation( x,y,z, g.grid(), globalbcx);
 }
 
 /**

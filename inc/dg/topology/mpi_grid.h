@@ -290,16 +290,16 @@ struct aRealMPITopology
     /// Equivalent to <tt>p(0)</tt>
     template<size_t Md = Nd>
     real_type x0() const {return m_g.x0();}
-    /// Equivalent to <tt>p(1)</tt>
-    template<size_t Md = Nd>
-    real_type x1() const {return m_g.x1();}
-    /// Equivalent to <tt>p(2)</tt>
-    template<size_t Md = Nd>
-    real_type y0() const {return m_g.y0();}
     /// Equivalent to <tt>q(0)</tt>
     template<size_t Md = Nd>
-    real_type y1() const {return m_g.y1();}
+    real_type x1() const {return m_g.x1();}
+    /// Equivalent to <tt>p(1)</tt>
+    template<size_t Md = Nd>
+    real_type y0() const {return m_g.y0();}
     /// Equivalent to <tt>q(1)</tt>
+    template<size_t Md = Nd>
+    real_type y1() const {return m_g.y1();}
+    /// Equivalent to <tt>p(2)</tt>
     template<size_t Md = Nd>
     real_type z0() const {return m_g.z0();}
     /// Equivalent to <tt>q(2)</tt>
@@ -780,7 +780,7 @@ void aRealMPITopology<real_type,Nd>::do_set( std::array<dg::bc, Nd> bcs)
 ///@endcond
 
 /**
- * @brief The simplest implementation of aRealMPITopology3d
+ * @brief The simplest implementation of aRealMPITopology
  * @ingroup basictopology
  * @snippet{trimleft} evaluation_t.cpp evaluate2d
  */

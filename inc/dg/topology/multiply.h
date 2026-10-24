@@ -197,7 +197,7 @@ void scal( SparseTensor<ContainerType0>& t, const ContainerType1& mu)
 }
 
 /**
- * @brief \f$ w^i = \sum_{i=0}^1 \lambda t^{ij}v_j + \mu w^i \text{ for } i\in \{0,1\}\f$
+ * @brief \f$ w^i = \sum_{j=0}^1 \lambda t^{ij}v_j + \mu w^i \text{ for } i\in \{0,1\}\f$
  *
  * Multiply a tensor with a vector in 2d.
  * Ignore the 3rd dimension in \c t.
@@ -221,7 +221,7 @@ void multiply2d( const ContainerTypeL& lambda, const SparseTensor<ContainerType0
 }
 
 /**
- * @brief \f$ w^i = \sum_{i=0}^2\lambda t^{ij}v_j + \mu w^i \text{ for } i\in \{0,1,2\}\f$
+ * @brief \f$ w^i = \sum_{j=0}^2\lambda t^{ij}v_j + \mu w^i \text{ for } i\in \{0,1,2\}\f$
  *
  * Multiply a tensor with a vector in 3d.
  * @param t input Tensor
@@ -248,10 +248,11 @@ void multiply3d( const ContainerTypeL& lambda, const SparseTensor<ContainerType0
 }
 
 /**
- * @brief \f$ v_j = \sum_{i=0}^1\lambda (t^{-1})_{ji}w^i + \mu v_j \text{ for } i\in \{0,1\}\f$
+ * @brief \f$ v_j = \sum_{i=0}^1\lambda (t^{-1})_{ji}w^i + \mu v_j \text{ for } j\in \{0,1\}\f$
  *
  * Multiply the inverse of a tensor \c t with a vector in 2d.
- * Ignore the 3rd dimension in \c t. The inverse of \c t is computed inplace.
+ * Ignore the 3rd dimension in \c t.
+ * The inverse of \c t is never stored but computed elementwise on the fly.
  * @param t input Tensor
  * @param lambda (input) (may be a vector or an actual number like 0 or 1)
  * @param in0 (input) first component of \c w    (may alias out0)
@@ -272,10 +273,10 @@ void inv_multiply2d( const ContainerTypeL& lambda, const SparseTensor<ContainerT
 }
 
 /**
- * @brief \f$ v_j = \sum_{i=0}^2\lambda(t^{-1})_{ji}w^i + \mu v_j \text{ for } i\in \{0,1,2\}\f$i
+ * @brief \f$ v_j = \sum_{i=0}^2\lambda(t^{-1})_{ji}w^i + \mu v_j \text{ for } j\in \{0,1,2\}\f$
  *
  * Multiply the inverse of a tensor with a vector in 3d.
- * The inverse of \c t is computed inplace.
+ * The inverse of \c t is never stored but computed elementwise on the fly.
  * @param t input Tensor
  * @param lambda (input) (may be a vector or an actual number like 0 or 1)
  * @param in0 (input)  first component  of \c w (may alias out0)
@@ -302,7 +303,7 @@ void inv_multiply3d( const ContainerTypeL& lambda, const SparseTensor<ContainerT
 /**
 * @brief \f$\det_{2d}( t)\f$
 *
-* Compute the minor determinant of a tensor \f$ \det_{2d}(t) := t_{00}t_{01}-t_{10}t_{11}\f$.
+* Compute the minor determinant of a tensor \f$ \det_{2d}(t) := t_{00}t_{11}-t_{10}t_{01}\f$.
 * @param t the input tensor
 * @return the upper left minor determinant of \c t
  * @note This function is just a shortcut for a call to \c dg::blas1::evaluate
@@ -395,7 +396,7 @@ ContainerType volume( const SparseTensor<ContainerType>& t)
 
 //For convenience
 /**
- * @brief \f$ w^i = \sum_{i=0}^1 t^{ij}v_j  \text{ for } i\in \{0,1\}\f$
+ * @brief \f$ w^i = \sum_{j=0}^1 t^{ij}v_j  \text{ for } i\in \{0,1\}\f$
  *
  * Multiply a tensor with a vector in 2d.
  * Ignore the 3rd dimension in \c t.
@@ -414,7 +415,7 @@ void multiply2d( const SparseTensor<ContainerType0>& t, const ContainerType1& in
 }
 
 /**
- * @brief \f$ w^i = \sum_{i=0}^2 t^{ij}v_j \text{ for } i\in \{0,1,2\}\f$
+ * @brief \f$ w^i = \sum_{j=0}^2 t^{ij}v_j \text{ for } i\in \{0,1,2\}\f$
  *
  * Multiply a tensor with a vector in 3d.
  * @param t input Tensor
@@ -434,10 +435,11 @@ void multiply3d( const SparseTensor<ContainerType0>& t, const ContainerType1& in
 }
 
 /**
- * @brief \f$ v_j = \sum_{i=0}^1(t^{-1})_{ji}w^i \text{ for } i\in \{0,1\}\f$
+ * @brief \f$ v_j = \sum_{i=0}^1(t^{-1})_{ji}w^i \text{ for } j\in \{0,1\}\f$
  *
  * Multiply the inverse of a tensor \c t with a vector in 2d.
- * Ignore the 3rd dimension in \c t. The inverse of \c t is computed inplace.
+ * Ignore the 3rd dimension in \c t.
+ * The inverse of \c t is never stored but computed elementwise on the fly.
  * @param t input Tensor
  * @param in0 (input) first component of \c w    (may alias out0)
  * @param in1 (input) second component of \c w   (may alias out1)
@@ -452,10 +454,10 @@ void inv_multiply2d( const SparseTensor<ContainerType0>& t, const ContainerType1
 }
 
 /**
- * @brief \f$ v_j = \sum_{i=0}^2(t^{-1})_{ji}w^i \text{ for } i\in \{0,1,2\}\f$i
+ * @brief \f$ v_j = \sum_{i=0}^2(t^{-1})_{ji}w^i \text{ for } j\in \{0,1,2\}\f$
  *
  * Multiply the inverse of a tensor with a vector in 3d.
- * The inverse of \c t is computed inplace.
+ * The inverse of \c t is never stored but computed elementwise on the fly.
  * @param t input Tensor
  * @param in0 (input)  first component  of \c w (may alias out0)
  * @param in1 (input)  second component of \c w (may alias out1)
@@ -473,7 +475,7 @@ void inv_multiply3d( const SparseTensor<ContainerType0>& t, const ContainerType1
 }
 
 /**
- * @brief \f$ y = \alpha \lambda\mu \sum_{i=0}^1 v_it^{ij}w_j + \beta y \text{ for } i\in \{0,1\}\f$
+ * @brief \f$ y = \alpha \lambda\mu \sum_{i,j=0}^1 v_it^{ij}w_j + \beta y\f$
  *
  * Ignore the 3rd dimension in \c t.
  * @param alpha scalar input prefactor
@@ -512,18 +514,18 @@ void scalar_product2d(
 }
 
 /**
- * @brief \f$ y = \alpha \lambda\mu \sum_{i=0}^2 v_it^{ij}w_j + \beta y \text{ for } i\in \{0,1,2\}\f$
+ * @brief \f$ y = \alpha \lambda\mu \sum_{i,j=0}^2 v_it^{ij}w_j + \beta y\f$
  *
  * @param alpha scalar input prefactor
  * @param lambda second input prefactor
  * @param v0 (input) first component  of \c v  (may alias w0)
  * @param v1 (input) second component of \c v  (may alias w1)
- * @param v2 (input) third component of \c v  (may alias w1)
+ * @param v2 (input) third component of \c v  (may alias w2)
  * @param t input Tensor
  * @param mu third input prefactor
  * @param w0 (input) first component  of \c w  (may alias v0)
  * @param w1 (input) second component of \c w  (may alias v1)
- * @param w2 (input) third component of \c w  (may alias v1)
+ * @param w2 (input) third component of \c w  (may alias v2)
  * @param beta scalar output prefactor
  * @param y (output)
  * @note This function is just a shortcut for a call to \c dg::blas1::evaluate

@@ -97,7 +97,7 @@ void pushForwardPerp( const Functor1& vR, const Functor2& vZ,
  * @copydoc hide_container_geometry
  * @param vR input R-component in cartesian or cylindrical coordinates
  * @param vZ input Z-component in cartesian or cylindrical coordinates
- * @param vPhi input Z-component in cartesian or cylindrical coordinates
+ * @param vPhi input Phi-component in cartesian or cylindrical coordinates
  * @param vx x-component of vector (gets properly resized)
  * @param vy y-component of vector (gets properly resized)
  * @param vz z-component of vector (gets properly resized)

@@ -58,7 +58,7 @@ struct RealGrid;
  * @class hide_grid_description
  * This grid defines a discretization of the \f$N_d\f$ dimensional hypercube
  * given by
- * \f[ [\vec p, \vec q] = [p_0, p_1] \times [p_1,q_1] \times ... \times
+ * \f[ [\vec p, \vec q] = [p_0, q_0] \times [p_1,q_1] \times ... \times
  * [p_{N_d-1}, q_{N_d-1}]\f]
  * Each axis \f$ [p_i, q_i] \f$ is discretized using \f$ N_i\f$ equidistant
  * cells. Each cells is then further discretized using \f$ n_i\f$
@@ -283,16 +283,16 @@ struct aRealTopology
     /// Equivalent to <tt>p(0)</tt>
     template<size_t Md = Nd>
     real_type x0() const {return std::get<0>(m_x0);}
-    /// Equivalent to <tt>p(1)</tt>
-    template<size_t Md = Nd>
-    real_type x1() const {return std::get<0>(m_x1);}
-    /// Equivalent to <tt>p(2)</tt>
-    template<size_t Md = Nd>
-    real_type y0() const {return std::get<1>(m_x0);}
     /// Equivalent to <tt>q(0)</tt>
     template<size_t Md = Nd>
-    real_type y1() const {return std::get<1>(m_x1);}
+    real_type x1() const {return std::get<0>(m_x1);}
+    /// Equivalent to <tt>p(1)</tt>
+    template<size_t Md = Nd>
+    real_type y0() const {return std::get<1>(m_x0);}
     /// Equivalent to <tt>q(1)</tt>
+    template<size_t Md = Nd>
+    real_type y1() const {return std::get<1>(m_x1);}
+    /// Equivalent to <tt>p(2)</tt>
     template<size_t Md = Nd>
     real_type z0() const {return std::get<2>(m_x0);}
     /// Equivalent to <tt>q(2)</tt>

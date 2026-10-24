@@ -110,7 +110,7 @@ struct aRealGeometry3d : public aRealTopology<real_type,3>
     *  The elements of the inverse metric tensor are the contravariant elements
     *  of the metric \f$g\f$. If x,y,z are the coordinates, then
     \f[
-    g^{-1} = \begin{pmatrix} g^{xx}(x,y,z) & g^{xy}(x,y,z) & g^{zz}(x,y,z)\\
+    g^{-1} = \begin{pmatrix} g^{xx}(x,y,z) & g^{xy}(x,y,z) & g^{xz}(x,y,z)\\
       & g^{yy}(x,y,z) & g^{yz}(x,y,z) \\
       & & g^{zz}(x,y,z)\end{pmatrix}
     \f]

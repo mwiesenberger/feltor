@@ -91,7 +91,8 @@ using get_mpi_view_type =
  * @attention This version will NOT adapt the communicators in \c out
  * @attention out will NOT be resized
  * @param in contiguous 3d vector (must be of size \c grid.size())
- * @param out contains <tt>grid.nz()*grid.Nz()</tt> 2d vector views of 2d size on output
+ * @param out contains <tt>grid.local().shape(2)</tt> 2d vector views of 2d size on output
+ * (summed over the processes in z this equals <tt>grid.shape(2)</tt>)
  * @param grid provide dimensions in 3rd and first two dimensions
  * @tparam MPIContainer An MPI_Vector of a \c SharedContainer
 */
@@ -113,7 +114,8 @@ void split( MPIContainer& in, std::vector<get_mpi_view_type<MPIContainer> >&
 * may take longer due to the many calls to MPI group creation functions
 * @param in contiguous 3d vector (must be of size \c grid.size())
 * @param grid provide dimensions in 3rd and first two dimensions
-* @return \c out contains <tt>grid.nz()*grid.Nz()</tt> 2d vector views of 2d size on output
+* @return \c out contains <tt>grid.local().shape(2)</tt> 2d vector views of 2d size on output
+* (summed over the processes in z this equals <tt>grid.shape(2)</tt>)
 * @note two seperately split vectors have congruent (not identical) MPI_Communicators Note here the MPI concept of congruent (same process group, different contexts) vs. identical (same process group, same context) communicators.
 * @tparam MPIContainer An MPI_Vector of a \c SharedContainer
 */

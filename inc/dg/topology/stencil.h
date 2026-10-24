@@ -186,10 +186,11 @@ dg::IHMatrix_t<real_type> window_stencil(
  * @brief A stencil for the dg Slope limiter
  *
  * This stencil is specifically made to implement a dg slope limiter
- * @param g the grid, grid.n() must be greater than 0
+ * @param g the grid, grid.n() must be greater than 1
  * @param bound Determine what to do at the boundary. For Neumann conditions the
  * boundary points are simply duplicated, For Dirichlet they are duplicated
  * as well and the values are multiplied with -1
+ * @throw dg::Error if <tt>grid.n() == 1</tt>
  * @return A sparse matrix with 0 or 3n entries per row (the zero coefficient has 3n entries, the remaining coefficients have 0). The values contain the transformation matrices necessary to implement the filter
  * @tparam real_type The value type of the matrix
  * @sa \c dg::blas2::stencil \c dg::CSRSlopeLimiter

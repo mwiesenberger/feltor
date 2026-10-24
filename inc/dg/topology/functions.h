@@ -11,8 +11,6 @@ namespace dg{
 ///@addtogroup basics
 ///@{
 
-/// This enum can be used in \c dg::evaluate
-
 ///@brief \f$ f(x, ...) = 0\f$
 template<class T, class ...Ts>
 DG_DEVICE

@@ -128,7 +128,7 @@ dg::SparseMatrix< int, real_type, thrust::host_vector> projection(
  * @param g_old The old grid
  *
  * @return transformation matrix
- * @note The boundaries of the old grid must lie within the boundaries of the new grid
+ * @note The boundaries of the old and the new grid must coincide
  * @note If the grid are very incompatible the matrix-matrix multiplication can take a while
  */
 template<class real_type, size_t Nd>

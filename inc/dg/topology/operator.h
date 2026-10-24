@@ -240,6 +240,7 @@ class SquareMatrix
      * @brief add
      *
      * @param op
+     * @attention \c op must have the same size as this matrix (else the behaviour is undefined)
      *
      * @return
      */
@@ -253,6 +254,7 @@ class SquareMatrix
      * @brief subtract
      *
      * @param op
+     * @attention \c op must have the same size as this matrix (else the behaviour is undefined)
      *
      * @return
      */
@@ -280,6 +282,7 @@ class SquareMatrix
      *
      * @param lhs
      * @param rhs
+     * @attention \c lhs must have the same size as \c rhs (else the behaviour is undefined)
      *
      * @return
      */
@@ -294,6 +297,7 @@ class SquareMatrix
      *
      * @param lhs
      * @param rhs
+     * @attention \c lhs must have the same size as \c rhs (else the behaviour is undefined)
      *
      * @return
      */
@@ -336,6 +340,7 @@ class SquareMatrix
      *
      * @param lhs
      * @param rhs
+     * @attention \c lhs must have the same size as \c rhs (else the behaviour is undefined)
      *
      * @return
      */
@@ -432,7 +437,8 @@ namespace create
  * For example
  * @snippet{trimleft} operator_t.cpp det
  * @tparam T value type
- * @throw std::runtime_error if the matrix is singular
+ * @throw std::runtime_error if the matrix is singular, i.e. if the absolute
+ * value of a pivot element is not larger than 1e-15
  * @param m  contains lu decomposition of input on output (inplace transformation)
  * @param p contains the pivot elements on output (will be resized)
  * @return determinant of \c m

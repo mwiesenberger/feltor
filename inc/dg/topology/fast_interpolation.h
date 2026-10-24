@@ -220,9 +220,9 @@ dg::HMatrix_t<real_type> fast_interpolation1d( const RealGrid1d<real_type>& t, u
  * @return a matrix that when applied to vectors on the old grid produces a
  * vector on the new grid
  * @param t The existing (old/fine) grid
- * @param dividen integer divisor, the new grid has \c n/multiplyn polynomial
+ * @param dividen integer divisor, the new grid has \c n/dividen polynomial
  * coefficients
- * @param divideNx integer divisor, the new grid has \c Nx/multiplyNx points
+ * @param divideNx integer divisor, the new grid has \c Nx/divideNx points
  */
 template<class real_type>
 dg::HMatrix_t<real_type> fast_projection1d( const RealGrid1d<real_type>& t, unsigned dividen, unsigned divideNx)
@@ -388,7 +388,7 @@ auto fast_interpolation( const Topology& t, unsigned multiplyn, unsigned multipl
 ///@brief Create projection matrix for integer dividers in the first 2
 ///grid dimensions
 ///@copydetails fast_projection1d(const RealGrid1d<real_type>&,unsigned,unsigned)
-///@param divideNy integer multiplier, the new grid has \c Ny/divideNy points
+///@param divideNy integer divisor, the new grid has \c Ny/divideNy points
 template<class Topology>
 auto fast_projection( const Topology& t, unsigned dividen, unsigned divideNx, unsigned divideNy)
 {

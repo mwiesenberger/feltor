@@ -486,7 +486,6 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
  * @copydoc hide_method
  *
  * @return interpolation matrix
- * @attention removes explicit zeros in the interpolation matrix
  */
 template<class host_vector, class real_type, typename = std::enable_if_t<dg::is_vector_v<host_vector>>>
 dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
@@ -520,7 +519,6 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
  * @copydoc hide_method
  *
  * @return interpolation matrix
- * @attention removes explicit zeros in the interpolation matrix
  */
 template<class host_vector, class real_type>
 dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
@@ -557,8 +555,6 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
  * @copydoc hide_method
  *
  * @return interpolation matrix
- * @attention removes explicit zeros from the interpolation matrix
- * @attention all points (x, y, z) must lie within or on the boundaries of g
  */
 template<class host_vector, class real_type>
 dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
