@@ -154,6 +154,26 @@ TEST_CASE( "The grid class")
             CHECK( q[2] == 0);
         }
     }
+    SECTION( "Shift a point one domain length left of x0")
+    {
+        // The point is mirrored exactly onto x1 and must not be mirrored again
+        auto bcx = GENERATE( dg::PER, dg::NEU, dg::DIR, dg::DIR_NEU, dg::NEU_DIR);
+        double x0 = 1., x1 = 3., x = -1.;
+        bool negative = false;
+        dg::create::detail::shift( negative, x, bcx, x0, x1);
+        INFO( "bc "<<dg::bc2str( bcx)<<" x "<<x<<" negative "<<negative);
+        if( bcx == dg::PER)
+        {
+            CHECK( x == x0);
+            CHECK( not negative);
+        }
+        else
+        {
+            CHECK( x == x1);
+            // Dirichlet at x0 flips the sign
+            CHECK( negative == (bcx == dg::DIR || bcx == dg::DIR_NEU));
+        }
+    }
     SECTION( "Test 1d contains function")
     {
         dg::Grid1d g1d( 1., 1.+2.*M_PI, 3, 10, dg::PER);

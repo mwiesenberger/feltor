@@ -57,7 +57,7 @@ void shift( bool& negative, real_type & x, dg::bc bc, real_type x0, real_type x1
             if( bc == dg::DIR || bc == dg::DIR_NEU)
                 negative = !negative;//swap sign
         }
-        if( x >= x1){
+        if( x > x1){
             x = 2.*x1 - x;
             if( bc == dg::DIR || bc == dg::NEU_DIR) //notice the different boundary NEU_DIR to the above DIR_NEU !
                 negative = !negative; //swap sign

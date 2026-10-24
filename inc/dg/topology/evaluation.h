@@ -125,7 +125,7 @@ auto evaluate( result_type (*f)( value_type0, value_type1, value_type2), const T
 template<class real_type>
 thrust::host_vector<real_type> integrate( const thrust::host_vector<real_type>& in, const RealGrid<real_type,1>& g, dg::direction dir = dg::forward)
 {
-    double h = g.hx();
+    real_type h = g.hx();
     unsigned n = g.nx();
     thrust::host_vector<real_type> to_out(g.size(), 0.);
     thrust::host_vector<real_type> to_in(in);

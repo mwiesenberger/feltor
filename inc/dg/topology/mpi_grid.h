@@ -461,9 +461,9 @@ struct aRealMPITopology
     void display( std::ostream& os = std::cout) const
     {
         os << "GLOBAL GRID \n";
-        m_g.display();
+        m_g.display( os);
         os << "LOCAL GRID \n";
-        m_l.display();
+        m_l.display( os);
     }
 
     ///@copydoc aRealTopology::contains(const Vector&)const
@@ -486,11 +486,11 @@ struct aRealMPITopology
      * @param rank Rank of the process that contains the localIdx
      * @param globalIdx (write only) Global index of the element
      * @sa The main usage of this function is dg::make_mpi_matrix and dg::global2local
-     * @return true if succesful, false else
+     * @return true if succesful, false if \c localIdx is not smaller than the
+     * local size of the \c rank grid or if an MPI call is unsuccesful
      */
     bool local2globalIdx( int localIdx, int rank, int& globalIdx)const
     {
-        // TODO shouldn't this test for m_l.size() ? How is this used?
         // ATTENTION This function cannot depend on who is calling it
         // so it cannot depend on m_l
         if( localIdx < 0 || localIdx >= (int)m_g.size()) return false;
@@ -511,6 +511,8 @@ struct aRealMPITopology
             current = current / shapeu;
             gIdx[u] = lIdx + idx[coords[u]]*m_g.n(u);
         }
+        if( current != 0) // localIdx >= local size of rank
+            return false;
         globalIdx = gIdx[int(Nd)-1]; // prevent overflow if Nd == 0
         for( int u=int(Nd)-2; u>=0; u--)
             globalIdx = globalIdx*m_g.shape(u) + gIdx[u];

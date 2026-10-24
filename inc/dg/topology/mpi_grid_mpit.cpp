@@ -80,6 +80,37 @@ TEST_CASE( "MPI Grid")
         CHECK( g2d.shape(1) == shape[1]);
         CHECK( g2d.get_shape() == shape);
     }
+    SECTION( "local2globalIdx rejects indices outside the local vector")
+    {
+        for( int pid=0; pid<size; pid++)
+        {
+            // Every process can compute the local size of pid
+            int lsize = 0, gIdx = 0;
+            for( int i=0; i<(int)g2d.size(); i++)
+            {
+                int lIdx = 0, p = 0;
+                g2d.global2localIdx( i, lIdx, p);
+                if( p == pid)
+                    lsize++;
+            }
+            INFO( "Rank "<<rank<<" pid "<<pid<<" local size "<<lsize);
+            CHECK( g2d.local2globalIdx( lsize-1, pid, gIdx));
+            CHECK( not g2d.local2globalIdx( lsize, pid, gIdx));
+            CHECK( not g2d.local2globalIdx( -1, pid, gIdx));
+        }
+    }
+    SECTION( "Display")
+    {
+        std::stringstream ss;
+        g2d.display( ss);
+        // global and local grid parameters
+        CHECK( ss.str().find( "GLOBAL GRID") != std::string::npos);
+        CHECK( ss.str().find( "    N  = "+std::to_string(Nx)) != std::string::npos);
+        CHECK( ss.str().find( "    N  = "+std::to_string(g2d.local().N(0)))
+                != std::string::npos);
+        CHECK( ss.str().find( "LOCAL GRID") != std::string::npos);
+        CHECK( ss.str().find( "LOCAL GRID") < ss.str().rfind( "    N  = "));
+    }
     SECTION( "Start and count")
     {
         int gIdx;
