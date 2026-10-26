@@ -74,8 +74,10 @@ void fpedot_omp(int * status, unsigned size, std::array<T,N>& fpe, Functor f, Po
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();
         std::array<T,N> & myacc = acc[tid];
-        int l = tid * size / tnum;
-        int r = ((tid+1) * size / tnum)  - 1;
+        // Thread boundaries tid*size/tnum must not overflow unsigned: with
+        // 128 threads this happens for size 2^26 already
+        int l = (tid * int64_t(size)) / tnum;
+        int r = ((tid+1) * int64_t(size)) / tnum  - 1;
         for( unsigned u=0; u<N; u++)
             myacc[u] = T(0);
         for(int i = l; i <= r; i++)
