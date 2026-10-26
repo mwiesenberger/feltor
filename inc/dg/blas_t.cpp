@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <limits>
 
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -9,6 +10,7 @@
 #endif
 
 #include "blas.h"
+#include "functors.h"
 
 #include "catch2/catch_test_macros.hpp"
 #include "catch2/generators/catch_generators.hpp"
@@ -244,6 +246,29 @@ TEST_CASE( "Exact dot product")
         auto fv = make_x_vector<dg::fDVec>( h_fv);
         CHECK( dg::blas1::dot( fv, 1.f) == float(sol));
     }
+}
+
+TEST_CASE( "Dot throws on NaN or Inf")
+{
+    // Sizes test the serial and the OpenMP version (size >= 100)
+    // With MPI only even ranks hold the non-finite value but all ranks throw
+    int rank = 0;
+#ifdef WITH_MPI
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+#endif
+    unsigned size = GENERATE( 10u, 1003u);
+    double nonfinite = GENERATE( std::numeric_limits<double>::quiet_NaN(),
+            std::numeric_limits<double>::infinity());
+    INFO( "Size "<<size<<" with "<<nonfinite<<" on rank "<<rank);
+    thrust::host_vector<double> h_v( size, 1.);
+    if( rank%2 == 0)
+        h_v[size/2] = nonfinite;
+    auto v = make_x_vector<dg::DVec>( h_v);
+    bool hasnan = dg::blas1::reduce( v, false,
+            thrust::logical_or<bool>(), dg::ISNFINITE<double>());
+    CHECK( hasnan);
+    CHECK_THROWS_AS( dg::blas1::dot( v, v), dg::Error);
+    CHECK_THROWS_AS( dg::blas2::dot( v, 1., v), dg::Error);
 }
 #ifndef WITH_MPI
 TEST_CASE( "Blas2 documentation")

@@ -147,6 +147,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
             //double r1;
             //double x = TwoProductFMA(get_element(a,i),get_element(b,i),r1);
             double x = (double)get_element(a,i)*(double)get_element(b,i);
+            if( !std::isfinite(x) ) error[tid] = true;
             cache.Accumulate(x);
             //cache.Accumulate(r1);
         }
@@ -229,6 +230,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
             //double x2 = x1*c[i];
             double x1 = (double)get_element(a,i)*(double)get_element(b,i);
             double x2 = x1*(double)get_element(c,i);
+            if( !std::isfinite(x2) ) error[tid] = true;
             cache.Accumulate(x2);
         }
 #endif// _WITHOUT_VCL

@@ -274,25 +274,6 @@ TEST_CASE( "Accuracy Dense Matrix")
 }
 #endif
 
-TEST_CASE( "Dot throws")
-{
-    // TEST if dot throws on NaN
-    INFO( "TEST if dot throws on Inf or Nan");
-#ifdef WITH_MPI
-    int rank;
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-    // only some ranks throw?
-    dg::MDVec x { dg::DVec{10, rank%2 == 0? -10. : +10.}, MPI_COMM_WORLD};
-#else
-    dg::DVec x(10, -10);
-#endif
-    dg::blas1::transform( x,x, dg::LN<double>());
-    bool hasnan = dg::blas1::reduce( x, false,
-            thrust::logical_or<bool>(), dg::ISNFINITE<double>());
-    REQUIRE( hasnan);
-    CHECK_THROWS_AS( dg::blas1::dot( x,x), std::exception);
-}
-
 TEST_CASE( "Complex scalar products")
 {
     using namespace Catch::Matchers;
