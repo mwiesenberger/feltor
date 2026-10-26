@@ -99,7 +99,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
     int maxthreads = omp_get_max_threads();
     std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
     std::vector<int32_t> ready(maxthreads * linesize);
-    std::vector<bool> error( maxthreads, false);
+    std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
     #pragma omp parallel
     {
@@ -171,7 +171,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
     int maxthreads = omp_get_max_threads();
     std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
     std::vector<int32_t> ready(maxthreads * linesize);
-    std::vector<bool> error( maxthreads, false);
+    std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
     #pragma omp parallel
     {
