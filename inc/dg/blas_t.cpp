@@ -202,7 +202,7 @@ TEST_CASE( "Exact dot product")
 #ifdef WITH_MPI
     MPI_Comm_size( MPI_COMM_WORLD, &ranks);
 #endif
-    unsigned size = GENERATE( range( 1u, 21u), values( {99u, 100u, 101u, 1003u}));
+    unsigned size = GENERATE( range( 1u, 21u), values( {99u, 100u, 101u, 999u, 1003u}));
     INFO( "Local size "<<size<<" on "<<ranks<<" ranks");
     const double big = ldexp( 1., 100);
     thrust::host_vector<double> h_v( size), h_w( size, 1.);
@@ -239,6 +239,18 @@ TEST_CASE( "Exact dot product")
         dg::blas1::scal( v, -1.);
         CHECK( dg::blas1::dot( v, w) == -sol);
         CHECK( dg::blas2::dot( v, w, w) == -sol);
+    }
+    SECTION( "vdot and complex dot")
+    {
+        // These use floating point expansions instead of a superaccumulator
+        CHECK( dg::blas1::vdot( []DG_DEVICE( double x, double y){ return x*y;},
+                    v, w) == sol);
+        thrust::host_vector<thrust::complex<double>> h_cv( size);
+        for( unsigned i=0; i<size; i++)
+            h_cv[i] = thrust::complex<double>( h_v[i], -h_v[i]);
+        auto cv = make_x_vector<dg::cDVec>( h_cv);
+        thrust::complex<double> csol( sol, -sol);
+        CHECK( dg::blas1::dot( w, cv) == csol);
     }
     SECTION( "Float")
     {

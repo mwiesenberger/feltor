@@ -39,11 +39,16 @@ __device__ void warpReduce64( T * a, unsigned int tid)
     int modulo_factor = 64/2;
     while( modulo_factor >=  1 )
     {
+        // Thread tid reads FPE tid+modulo_factor and writes FPE tid. For
+        // tid >= modulo_factor, FPE tid is read by thread tid-modulo_factor,
+        // so all threads must finish reading before any thread writes
+        T y[N];
+        for( unsigned k=0; k<N; k++)
+            y[k] = a[k*THREADS_PER_BLOCK+tid+modulo_factor];
+        __syncwarp();
         for( unsigned k=0; k<N; k++)
         {
-            // The reads and writes overlap here (but not the interesting part, so no sync
-            // we don't care what happens in the overlap part))
-            T x = a[k*THREADS_PER_BLOCK+tid+modulo_factor];
+            T x = y[k];
             #pragma unroll
             for(unsigned i = 0; i != N; ++i) {
                 T s;
