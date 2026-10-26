@@ -11,6 +11,8 @@
 #include "blas.h"
 
 #include "catch2/catch_test_macros.hpp"
+#include "catch2/generators/catch_generators.hpp"
+#include "catch2/generators/catch_generators_range.hpp"
 
 struct Expression{
    DG_DEVICE
@@ -176,6 +178,72 @@ TEST_CASE( "blas")
         CHECK( result(testmap2["b"]) == 20);
     }
 
+}
+
+// Distribute the same local vector to all ranks
+template<class Vector>
+static auto make_x_vector( const thrust::host_vector<dg::get_value_type<Vector>>& local)
+{
+#ifdef WITH_MPI
+    return dg::MPI_Vector<Vector>( dg::construct<Vector>( local), MPI_COMM_WORLD);
+#else
+    return dg::construct<Vector>( local);
+#endif
+}
+
+TEST_CASE( "Exact dot product")
+{
+    // The sum is exact before it is rounded: 2^100 + 1 - 2^100 = 1
+    // Sizes test the remainder of the vectorized loop (multiples of 8) and
+    // the OpenMP version (size >= 100)
+    int ranks = 1;
+#ifdef WITH_MPI
+    MPI_Comm_size( MPI_COMM_WORLD, &ranks);
+#endif
+    unsigned size = GENERATE( range( 1u, 21u), values( {99u, 100u, 101u, 1003u}));
+    INFO( "Local size "<<size<<" on "<<ranks<<" ranks");
+    const double big = ldexp( 1., 100);
+    thrust::host_vector<double> h_v( size), h_w( size, 1.);
+    unsigned plus = 0, minus = 0, ones = 0;
+    for( unsigned i=0; i<size; i++)
+    {
+        if( i%3 == 0)
+            h_v[i] = big, plus++;
+        else if( i%3 == 1)
+            h_v[i] = 1., ones++;
+        else
+            h_v[i] = -big, minus++;
+    }
+    // A single rounding of the exact result
+    const double sol = double(plus-minus)*ranks*big + double(ones*ranks);
+    auto v = make_x_vector<dg::DVec>( h_v);
+    auto w = make_x_vector<dg::DVec>( h_w);
+    SECTION( "Two vectors")
+    {
+        CHECK( dg::blas1::dot( v, w) == sol);
+        CHECK( dg::blas1::dot( w, v) == sol);
+    }
+    SECTION( "Vector and scalar")
+    {
+        CHECK( dg::blas1::dot( v, 1.) == sol);
+    }
+    SECTION( "Three vectors")
+    {
+        CHECK( dg::blas2::dot( v, w, w) == sol);
+        CHECK( dg::blas2::dot( w, v, w) == sol);
+    }
+    SECTION( "Negative sum")
+    {
+        dg::blas1::scal( v, -1.);
+        CHECK( dg::blas1::dot( v, w) == -sol);
+        CHECK( dg::blas2::dot( v, w, w) == -sol);
+    }
+    SECTION( "Float")
+    {
+        thrust::host_vector<float> h_fv( h_v.begin(), h_v.end());
+        auto fv = make_x_vector<dg::fDVec>( h_fv);
+        CHECK( dg::blas1::dot( fv, 1.f) == float(sol));
+    }
 }
 #ifndef WITH_MPI
 TEST_CASE( "Blas2 documentation")
