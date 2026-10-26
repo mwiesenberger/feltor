@@ -29,7 +29,9 @@ struct aRealRefinementX2d
     void generate( const RealGridX2d<real_type>& g_old, thrust::host_vector<real_type>& weightsX, thrust::host_vector<real_type>& weightsY, thrust::host_vector<real_type>& abscissasX, thrust::host_vector<real_type>& abscissasY) const
     {
         thrust::host_vector<real_type> wx, ax, wy, ay;
-        RealGrid1d<real_type> gx( g_old.x0(), g_old.x1(), g_old.n(), g_old.Nx(), g_old.bcx());
+        // The X-point is never on the periodic x boundary (fx < 1), so a
+        // non-periodic bc refines only the left side of x1 if fx == 0
+        RealGrid1d<real_type> gx( g_old.x0(), g_old.x1(), g_old.n(), g_old.Nx(), dg::DIR);
         do_generateX(gx,g_old.inner_Nx(), wx,ax);
         RealGridX1d<real_type> gy( g_old.y0(), g_old.y1(), g_old.fy(), g_old.n(), g_old.Ny(), g_old.bcy());
         do_generateY(gy,wy,ay);
@@ -107,11 +109,20 @@ struct RealIdentityXRefinement : public aRealRefinementX2d<real_type>
 };
 
 /**
- * @brief RealEquidistant cell refinement around the X-point
+ * @brief Equidistant cell refinement around the X-point
  */
 template<class real_type>
 struct RealEquidistXRefinement : public aRealRefinementX2d<real_type>
 {
+    /**
+     * @brief Divide cells around the X-point into equidistant cells
+     *
+     * @param add_x number of additional cells in each refined cell in x
+     * @param add_y number of additional cells in each refined cell in y
+     * @param howmanyX number of cells on each side of the X-point to refine in x
+     * @param howmanyY number of cells on each side of the X-point to refine in y
+     * @sa RealEquidistRefinement
+     */
     RealEquidistXRefinement( unsigned add_x, unsigned add_y, unsigned howmanyX=1, unsigned howmanyY=1): add_x_(add_x), howm_x_(howmanyX), add_y_(add_y), howm_y_(howmanyY){ }
     virtual RealEquidistXRefinement* clone()const override final{return new RealEquidistXRefinement(*this);}
     private:
@@ -151,20 +162,20 @@ struct RealEquidistXRefinement : public aRealRefinementX2d<real_type>
         abscissas = detail::normalize_weights_and_compute_abscissas( g.grid(), weights);
     }
     virtual unsigned do_Ny_new( unsigned Ny, real_type fy) const override final{
-        if( fy==0 ) return Ny + 2*add_y_;
-        return Ny + 4*add_y_;
+        if( fy==0 ) return Ny + 2*add_y_*howm_y_;
+        return Ny + 4*add_y_*howm_y_;
     }
     virtual unsigned do_Nx_new( unsigned Nx, real_type fx) const override final{
-        if( fx==0 ) return Nx + add_x_;
-        return Nx + 2*add_x_;
+        if( fx==0 ) return Nx + add_x_*howm_x_;
+        return Nx + 2*add_x_*howm_x_;
     }
     virtual real_type do_fx_new( unsigned Nx, real_type fx) const override final{
         if( fx==0 ) return 0;
-        return (fx*(real_type)Nx + (real_type)add_x_)/(real_type)(Nx+2.*add_x_);
+        return (fx*(real_type)Nx + (real_type)(add_x_*howm_x_))/(real_type)(Nx+2.*add_x_*howm_x_);
     }
     virtual real_type do_fy_new( unsigned Ny, real_type fy) const override final{
         if( fy==0 ) return 0;
-        return (fy*(real_type)Ny + (real_type)add_y_)/(real_type)(Ny+4.*add_y_);
+        return (fy*(real_type)Ny + (real_type)(add_y_*howm_y_))/(real_type)(Ny+4.*add_y_*howm_y_);
     }
 };
 
