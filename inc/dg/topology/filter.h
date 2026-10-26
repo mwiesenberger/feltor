@@ -164,7 +164,7 @@ DG_DEVICE real_type median( unsigned i, const int* row_offsets,
 /**
  * @brief Compute (lower) Median of input numbers
  *
- * The (lower) median of N numbers is the N/2 (rounded up) largest number.
+ * The (lower) median of N numbers is the N/2 (rounded up) smallest number.
  * Another definition is implicit
  * \f$ \text{Median}(x) := \{ m : \sum_i \text{sgn}(x_i - m) = 0\} \f$
  * The Median is taken over all points contained
