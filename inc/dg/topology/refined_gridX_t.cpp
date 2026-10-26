@@ -52,13 +52,12 @@ static std::array<std::vector<double>,2> check_refinedX(
     return {bx, by};
 }
 
-// Number of cells of width h/(add+1) in a list of cell boundaries
-static unsigned num_refined( const std::vector<double>& b, double h,
-    unsigned add)
+// Number of cells of given width in a list of cell boundaries
+static unsigned num_cells( const std::vector<double>& b, double width)
 {
     unsigned num = 0;
     for( unsigned i=0; i+1<b.size(); i++)
-        if( fabs( b[i+1]-b[i] - h/(add+1)) < 1e-13)
+        if( fabs( b[i+1]-b[i] - width) < 1e-13)
             num++;
     return num;
 }
@@ -94,8 +93,8 @@ TEST_CASE( "Refinement X")
             INFO( "howmany "<<howm);
             dg::EquidistXRefinement ref( 2, 1, howm, howm);
             auto b = check_refinedX( ref, 0.25, 0.25, dg::DIR);
-            CHECK( num_refined( b[0], 1./8., 2) == 2*howm*3);
-            CHECK( num_refined( b[1], 2./8., 1) == 4*howm*2);
+            CHECK( num_cells( b[0], 1./8./3.) == 2*howm*3);
+            CHECK( num_cells( b[1], 2./8./2.) == 4*howm*2);
         }
         // Without X-point refine at the right x and the periodic y boundary
         for( dg::bc bcx : {dg::DIR, dg::PER})
@@ -103,9 +102,24 @@ TEST_CASE( "Refinement X")
             INFO( "bcx "<<dg::bc2str( bcx));
             dg::EquidistXRefinement ref( 2, 1, 2, 2);
             auto b = check_refinedX( ref, 0., 0., bcx);
-            CHECK( num_refined( b[0], 1./8., 2) == 2*3);
+            CHECK( num_cells( b[0], 1./8./3.) == 2*3);
             CHECK( fabs( b[0][b[0].size()-7] - 0.75) < 1e-13);
-            CHECK( num_refined( b[1], 2./8., 1) == 2*2*2);
+            CHECK( num_cells( b[1], 2./8./2.) == 2*2*2);
+        }
+    }
+    SECTION( "Exponential X Refinement")
+    {
+        // x is refined equidistantly, in y the cells next to the X-point are
+        // halved add_y times, which leaves two cells of width h/2^add_y
+        for( std::array<unsigned,3> p : {std::array<unsigned,3>{2,2,1},
+                std::array<unsigned,3>{1,3,2}})
+        {
+            unsigned add_x = p[0], add_y = p[1], howm = p[2];
+            INFO( "add_x "<<add_x<<" add_y "<<add_y<<" howmany "<<howm);
+            dg::ExponentialXRefinement ref( add_x, add_y, howm, howm);
+            auto b = check_refinedX( ref, 0.25, 0.25, dg::DIR);
+            CHECK( num_cells( b[0], 1./8./(add_x+1)) == 2*howm*(add_x+1));
+            CHECK( num_cells( b[1], 2./8./pow(2,add_y)) == 4*2);
         }
     }
 }

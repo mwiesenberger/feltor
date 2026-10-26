@@ -181,12 +181,25 @@ struct RealEquidistXRefinement : public aRealRefinementX2d<real_type>
 
 /**
  * @brief The exponential refinement around the X-point
+ *
+ * The y-direction is refined exponentially, the x-direction equidistantly
+ * as in \c RealEquidistXRefinement
  */
 template<class real_type>
 struct RealExponentialXRefinement : public aRealRefinementX2d<real_type>
 {
+    /**
+     * @brief Refine cells around the X-point
+     *
+     * @param add_x number of additional cells in each refined cell in x
+     * @param add_y number of additional cells in the cells next to the
+     * X-point in y; every new cell halves the cell closest to the X-point
+     * @param howmanyX number of cells on each side of the X-point to refine in x
+     * @param howmanyY unused
+     * @sa RealEquidistRefinement RealExponentialRefinement
+     */
     RealExponentialXRefinement( unsigned add_x, unsigned add_y, unsigned howmanyX=1, unsigned howmanyY=1): add_x_(add_x), howm_x_(howmanyX), add_y_(add_y), howm_y_(howmanyY){ }
-    virtual RealExponentialXRefinement* clone()const{return new RealExponentialXRefinement(*this);}
+    virtual RealExponentialXRefinement* clone()const override final{return new RealExponentialXRefinement(*this);}
     private:
     unsigned add_x_, howm_x_, add_y_, howm_y_;
     virtual void do_generateX( const RealGrid1d<real_type>& gx, unsigned nodeXX, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const override final
@@ -196,24 +209,24 @@ struct RealExponentialXRefinement : public aRealRefinementX2d<real_type>
     }
     virtual void do_generateY( const RealGridX1d<real_type>& g, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const override final
     {
-        RealExponentialRefinement<real_type> expo0( add_x_, 0);
+        RealExponentialRefinement<real_type> expo0( add_y_, 0);
         if( add_y_ == 0) { return expo0.generate( g.grid(), weights, abscissas); }
         if( g.f()  == 0) { return expo0.generate( RealGrid1d<real_type>( g.x0(), g.x1(), g.n(), g.N(), dg::PER), weights, abscissas); }
         thrust::host_vector<real_type> w1, w2, w3;
         thrust::host_vector<real_type> a1, a2, a3;
         unsigned node1 = g.outer_N();
         RealExponentialRefinement<real_type> expo1( add_y_, node1);
-        expo1.generate( RealGrid1d<real_type>(g.x0(),g.x1(),g.n(), g.outer_N(), dg::DIR), w1,a1); //left side
-        expo0.generate( RealGrid1d<real_type>(g.x0(),g.x1(),g.n(), g.inner_N(), dg::PER), w2,a2); //inner side
-        expo0.generate( RealGrid1d<real_type>(g.x0(),g.x1(),g.n(), g.outer_N(), dg::DIR), w3,a3); //right side
-        //now combine unnormalized weights
-        thrust::host_vector<real_type> wtot( g.size() + 4*g.n()*add_x_);
+        expo1.generate( RealGrid1d<real_type>(g.x0()                  ,g.x0()+g.outer_N()*g.h(), g.n(), g.outer_N(), dg::DIR), w1,a1); //left side
+        expo0.generate( RealGrid1d<real_type>(g.x0()+g.outer_N()*g.h(),g.x1()-g.outer_N()*g.h(), g.n(), g.inner_N(), dg::PER), w2,a2); //inner side
+        expo0.generate( RealGrid1d<real_type>(g.x1()-g.outer_N()*g.h(),g.x1()                  , g.n(), g.outer_N(), dg::DIR), w3,a3); //right side
+        //now combine and unnormalize weights
+        thrust::host_vector<real_type> wtot( w1.size() + w2.size() + w3.size());
         for( unsigned i=0; i<w1.size() ; i++)
-            wtot[i] = w1[i];
+            wtot[i]                     = w1[i]*expo1.N_new( g.outer_N(), dg::DIR)/g.outer_N();
         for( unsigned i=0; i<w2.size(); i++)
-            wtot[w1.size()+i] = w2[i];
+            wtot[w1.size()+i]           = w2[i]*expo0.N_new( g.inner_N(), dg::PER)/g.inner_N();
         for( unsigned i=0; i<w3.size(); i++)
-            wtot[w1.size()+w2.size()+i] = w3[i];
+            wtot[w1.size()+w2.size()+i] = w3[i]*expo0.N_new( g.outer_N(), dg::DIR)/g.outer_N();
         weights = wtot;
 
         abscissas = detail::normalize_weights_and_compute_abscissas( g.grid(), weights);
@@ -223,12 +236,12 @@ struct RealExponentialXRefinement : public aRealRefinementX2d<real_type>
         return Ny + 4*add_y_;
     }
     virtual unsigned do_Nx_new( unsigned Nx, real_type fx) const override final{
-        if( fx==0 ) return Nx + add_x_;
-        return Nx + 2*add_x_;
+        if( fx==0 ) return Nx + add_x_*howm_x_;
+        return Nx + 2*add_x_*howm_x_;
     }
     virtual real_type do_fx_new( unsigned Nx, real_type fx) const override final{
         if( fx==0 ) return 0;
-        return (fx*(real_type)Nx + (real_type)add_x_)/(real_type)(Nx+2.*add_x_);
+        return (fx*(real_type)Nx + (real_type)(add_x_*howm_x_))/(real_type)(Nx+2.*add_x_*howm_x_);
     }
     virtual real_type do_fy_new( unsigned Ny, real_type fy) const override final{
         if( fy==0 ) return 0;
