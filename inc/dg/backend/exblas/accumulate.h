@@ -16,6 +16,7 @@
  *        Matthias Wiesenberger -- mattwi@fysik.dtu.dk
  */
 #pragma once
+#include <array>
 #include "config.h"
 #include "mylibm.hpp"
 //this file has a direct correspondance to gpu code accumulate.cuh

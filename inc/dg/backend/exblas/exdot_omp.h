@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "accumulate.h"
 #include "ExSUM.FPE.hpp"

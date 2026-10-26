@@ -15,6 +15,8 @@
  */
 #ifndef EXSUM_FPE_HPP_
 #define EXSUM_FPE_HPP_
+#include <algorithm> // std::fill
+#include <utility> // std::swap
 #include "accumulate.h"
 
 namespace dg

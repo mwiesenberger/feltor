@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <cmath>
 #include <iostream>
+#include <array>
+#include <vector>
 
 #include <omp.h>
 #include "accumulate.h"

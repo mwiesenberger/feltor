@@ -10,6 +10,7 @@
 #include <cstdint> //definition of int64_t
 #include <cmath>
 #include <cassert>
+#include <type_traits>
 ////////////////////////////////////////////////////////////////////////
 //nvcc does not compile the avx512 instruction set, so do not include it
 #ifdef __NVCC__
