@@ -93,12 +93,12 @@ struct RealIdentityXRefinement : public aRealRefinementX2d<real_type>
     }
     private:
     virtual void do_generateX( const RealGrid1d<real_type>& g, unsigned, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const override final{
-        weights=dg::create::weights(g);
-        abscissas = g.abscissas()[0];
+        weights = thrust::host_vector<real_type>( g.size(), 1);
+        abscissas = g.abscissas(0);
     }
     virtual void do_generateY( const RealGridX1d<real_type>& g, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const override final{
-        weights=dg::create::weights(g);
-        abscissas = g.abscissas()[0];
+        weights = thrust::host_vector<real_type>( g.size(), 1);
+        abscissas = g.abscissas(0);
     }
     virtual unsigned do_Nx_new( unsigned Nx_old, real_type) const override final{ return Nx_old; }
     virtual unsigned do_Ny_new( unsigned Ny_old, real_type) const override final{ return Ny_old; }

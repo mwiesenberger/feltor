@@ -98,7 +98,7 @@ struct RealIdentityRefinement : public aRealRefinement1d<real_type>
     virtual RealIdentityRefinement* clone()const override final{return new RealIdentityRefinement();}
     private:
     virtual void do_generate( const RealGrid1d<real_type>& g, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const override final{
-        weights=dg::create::weights(g);
+        weights = thrust::host_vector<real_type>( g.size(), 1);
         abscissas=g.abscissas(0);
     }
     virtual unsigned do_N_new( unsigned N_old, bc) const override final{

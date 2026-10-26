@@ -206,6 +206,7 @@ set(DG_TESTS
   topology/operator_tensor_t.cpp
   topology/projection_t.cpp
   topology/refined_grid_t.cpp
+  topology/refined_gridX_t.cpp
   topology/stencil_t.cpp
   topology/tensor_t.cpp
   topology/transform_t.cpp

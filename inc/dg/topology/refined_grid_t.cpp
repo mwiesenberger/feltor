@@ -66,6 +66,26 @@ TEST_CASE( "Refinement")
         INFO( "SUM IS: "<<sum<<" ("<<new_N<<")");
         CHECK( sum  == new_N);
     }
+    SECTION( "Identity Refinement")
+    {
+        // The identity refinement reproduces the Cartesian grid
+        dg::IdentityRefinement id;
+        dg::CartesianRefinedGrid2d g2d_f( id, id, 0., 1., 2., 4., 3, 4, 5);
+        dg::CartesianGrid2d g2d( 0., 1., 2., 4., 3, 4, 5);
+        REQUIRE( g2d_f.size() == g2d.size());
+        std::vector<dg::HVec> map = g2d_f.map();
+        std::vector<dg::HVec> sol = { dg::evaluate( dg::cooX2d, g2d),
+            dg::evaluate( dg::cooY2d, g2d)};
+        dg::HVec vol_f = dg::create::volume( g2d_f);
+        dg::HVec vol = dg::create::volume( g2d);
+        for( unsigned i=0; i<g2d.size(); i++)
+        {
+            INFO( "Index "<<i);
+            CHECK( map[0][i] == sol[0][i]);
+            CHECK( map[1][i] == sol[1][i]);
+            CHECK( vol_f[i] == vol[i]);
+        }
+    }
     SECTION( "Linear Refinement")
     {
         dg::LinearRefinement lin(3);
