@@ -98,6 +98,10 @@ inline double myldexp(double x, int e)
     } caster;
 
     caster.d = x;
+    // Subnormal numbers have no implicit leading bit, so adding to the
+    // exponent bits does not scale them
+    if( unlikely( (caster.i & 0x7ff0000000000000ull) == 0))
+        return std::ldexp( x, e);
     caster.i += (uint64_t)e << 52;
     return caster.d;
 }
