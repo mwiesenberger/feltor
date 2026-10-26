@@ -2,6 +2,7 @@
 #include <iomanip>
 #include "interpolation.h"
 #include "grid.h"
+#include "split_and_join.h"
 #include "catch2/catch_all.hpp"
 
 
@@ -49,6 +50,25 @@ TEST_CASE( "The grid class")
         CHECK( g.Nx() == 9);
         CHECK( g.Ny() == 5);
         CHECK( g.Nz() == 4);
+    }
+    SECTION( "set_axis")
+    {
+        dg::Grid3d g( -10, 10, -5, 5, -7, -3, n, Nx, Ny, Nz);
+        g.set_axis( 1, 4, 7);
+        CHECK( g.get_n() == std::array<unsigned,3>{n, 4, 1});
+        CHECK( g.get_N() == std::array<unsigned,3>{Nx, 7, Nz});
+    }
+    SECTION( "assign3dfrom2d")
+    {
+        dg::Grid3d g( -10, 10, -5, 5, -7, -3, n, Nx, Ny, Nz);
+        const dg::HVec in2d = dg::evaluate( []( double x, double y){
+                return x+2*y;}, dg::Grid2d( g.gx(), g.gy()));
+        dg::HVec out;
+        dg::assign3dfrom2d( in2d, out, g);
+        REQUIRE( out.size() == g.size());
+        for( unsigned k=0; k<g.shape(2); k++)
+            for( unsigned i=0; i<in2d.size(); i++)
+                CHECK( out[k*in2d.size()+i] == in2d[i]);
     }
     SECTION( "The shift function")
     {

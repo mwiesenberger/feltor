@@ -61,7 +61,7 @@ struct TestGrid : public dg::aRealGeometry2d<double>
     }
 };
 
-double test_function( double x, double y){
+static double test_function( double x, double y){
     return ( x*x + y*y);
 }
 

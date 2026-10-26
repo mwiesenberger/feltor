@@ -11,6 +11,7 @@
 #include "dg/blas.h"
 #include "derivatives.h"
 #include "projection.h"
+#include "prolongation.h"
 #include "evaluation.h"
 #include "fast_interpolation.h"
 
@@ -213,6 +214,47 @@ TEST_CASE( "Projection")
     }
 
 #ifndef WITH_MPI
+    SECTION( "transformation")
+    {
+        // Linear functions are transformed exactly and integrals are conserved
+        dg::Grid2d g_old( 0., M_PI, 0., 1., 3, 4, 5);
+        dg::Grid2d g_new( 0., M_PI, 0., 1., 2, 6, 3);
+        dg::IHMatrix T = dg::create::transformation( g_new, g_old);
+        auto linear = []( double x, double y){ return 2.*x - 3.*y + 1.;};
+        const dg::HVec v_old = dg::evaluate( linear, g_old);
+        const dg::HVec sol = dg::evaluate( linear, g_new);
+        dg::HVec v_new( sol);
+        dg::blas2::symv( T, v_old, v_new);
+        for( unsigned i=0; i<sol.size(); i++)
+            CHECK( fabs( v_new[i] - sol[i]) < 1e-13);
+        const dg::HVec s_old = dg::evaluate( sine, g_old);
+        dg::blas2::symv( T, s_old, v_new);
+        double integral_old = dg::blas1::dot( s_old, dg::create::weights( g_old));
+        double integral_new = dg::blas1::dot( v_new, dg::create::weights( g_new));
+        INFO( "Integral old "<<integral_old<<" new "<<integral_new);
+        CHECK( fabs( integral_old - integral_new) < 1e-14);
+    }
+    SECTION( "reduction and projection along axes")
+    {
+        dg::Grid3d g3d( 0., 1., 0., 2., 0., 3., 3, 4, 5, 6);
+        // reduction sums over the points of the reduced axes
+        dg::IHMatrix R = dg::create::reduction( std::array{0u,2u}, g3d);
+        const dg::HVec ones = dg::evaluate( dg::one, g3d);
+        dg::HVec r = dg::evaluate( dg::zero, g3d.gy());
+        dg::blas2::symv( R, ones, r);
+        for( unsigned i=0; i<r.size(); i++)
+            CHECK( r[i] == g3d.shape(0)*g3d.shape(2));
+        // projection integrates over the reduced axes
+        dg::IHMatrix P = dg::create::projection( std::array{0u,2u}, g3d);
+        const dg::HVec xyz = dg::evaluate( []( double x, double y, double z){
+                return x*y*z;}, g3d);
+        dg::blas2::symv( P, xyz, r);
+        // int_0^1 x dx int_0^3 z dz = 0.5*4.5
+        const dg::HVec sol = dg::evaluate( []( double y){ return 2.25*y;},
+                g3d.gy());
+        for( unsigned i=0; i<r.size(); i++)
+            CHECK( fabs( r[i] - sol[i]) < 1e-13);
+    }
     SECTION( "backproject 1d")
     {
         unsigned n=3, N = 20;

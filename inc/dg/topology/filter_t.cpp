@@ -9,31 +9,41 @@
 
 #include "catch2/catch_all.hpp"
 
-double function( double x, double y){return sin(x)*sin(y);}
-double function( double x, double y, double z){return sin(x)*sin(y)*sin(z);}
+static double function( double x, double y){return sin(x)*sin(y);}
+static double function( double x, double y, double z){return sin(x)*sin(y)*sin(z);}
 
 const unsigned Nx = 8, Ny = 10, Nz = 6;
 
 TEST_CASE("Filter")
 {
-
-    std::vector<double> x = {7,2,3, -20,4,7, 2.3,2.1,4, 4,15,-2};
-    std::vector<double> medians = {7,4.5,3,2.5,3,3.5,3,2.65,3,3.5,4,3.5};
-    std::vector<double> mad = {0,2.5,1,2.5,1,2.5,1,1,1,1.3,1.9,1.45};
-    int row_offsets[2] = {0, 3};
-    std::vector<int> column_indices = {0,1,2,3,4,5,6,7,8,9,10,11,12};
-    double result;
-    dg::CSRMedianFilter median_filter;
-    for( unsigned i=1; i<x.size()+1; i+=2)
+    SECTION( "Median and switching median filter")
     {
-        row_offsets[1] = i;
-        median_filter( 0, row_offsets, &column_indices[0], &x[0], &x[0], &result);
-        INFO( "Median of [");
-        int k=0;
-        for( k=0; k<row_offsets[1]-1; k++)
-            INFO( x[k]<<", ");
-        INFO(x[k]<<"] is "<<result<<" ("<<medians[i-1]<<")");
-        CHECK( result == medians[i-1]);
+        std::vector<double> x = {7,2,3, -20,4,7, 2.3,2.1,4, 4,15,-2};
+        std::vector<double> medians = {7,4.5,3,2.5,3,3.5,3,2.65,3,3.5,4,3.5};
+        std::vector<double> mad = {0,2.5,1,2.5,1,2.5,1,1,1,1.3,1.9,1.45};
+        int row_offsets[2] = {0, 3};
+        std::vector<int> column_indices = {0,1,2,3,4,5,6,7,8,9,10,11,12};
+        double result;
+        dg::CSRMedianFilter median_filter;
+        double alpha = 2.;
+        dg::CSRSWMFilter<double> swm_filter( alpha);
+        for( unsigned i=1; i<x.size()+1; i+=2)
+        {
+            row_offsets[1] = i;
+            median_filter( 0, row_offsets, &column_indices[0], &x[0], &x[0], &result);
+            INFO( "Median of [");
+            int k=0;
+            for( k=0; k<row_offsets[1]-1; k++)
+                INFO( x[k]<<", ");
+            INFO(x[k]<<"] is "<<result<<" ("<<medians[i-1]<<")");
+            CHECK( result == medians[i-1]);
+            // x[0] is replaced by the median if it deviates by more than alpha*mad
+            swm_filter( 0, row_offsets, &column_indices[0], &x[0], &x[0], &result);
+            double swm = fabs( x[0] - medians[i-1]) > alpha*mad[i-1] ?
+                medians[i-1] : x[0];
+            INFO( "Switching median is "<<result<<" ("<<swm<<")");
+            CHECK( result == swm);
+        }
     }
     //We test if the Modal Filter on 3 polynomials has the same effect as the
     //projection matrix

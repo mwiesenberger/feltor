@@ -15,6 +15,25 @@ static double function( double x, double y, double z){return sin(x)*sin(y)*sin(z
 
 using Matrix = dg::SparseMatrix<int, double, thrust::host_vector>;
 
+// Convert a dense row-major matrix to a csr matrix without zeros
+static Matrix dense2csr( unsigned rows, unsigned cols,
+    const std::vector<double>& dense)
+{
+    thrust::host_vector<int> row_offsets(1,0), column_indices;
+    thrust::host_vector<double> values;
+    for( unsigned i=0; i<rows; i++)
+    {
+        for( unsigned j=0; j<cols; j++)
+            if( dense[i*cols+j] != 0)
+            {
+                column_indices.push_back( j);
+                values.push_back( dense[i*cols+j]);
+            }
+        row_offsets.push_back( values.size());
+    }
+    return Matrix( rows, cols, row_offsets, column_indices, values);
+}
+
 TEST_CASE( "Interpolation")
 {
     const unsigned n = 3, Nx = 9, Ny = 5, Nz = 4;
@@ -264,5 +283,63 @@ TEST_CASE( "Interpolation")
         else
             CHECK( error < 0.061);
 
+    }
+}
+
+TEST_CASE( "Tensor products")
+{
+    SECTION( "inv_backscatter inverts backscatter")
+    {
+        dg::Grid3d g3d( 0., 1., 0., 2., 0., 3., 3, 4, 5, 2);
+        const dg::HVec v = dg::evaluate( []( double x, double y, double z){
+                return sin(x)*cos(y)*z;}, g3d);
+        dg::HVec w(v), x(v);
+        dg::blas2::symv( dg::create::backscatter( g3d), v, w);
+        dg::blas2::symv( dg::create::inv_backscatter( g3d), w, x);
+        for( unsigned i=0; i<v.size(); i++)
+            CHECK( fabs( x[i] - v[i]) < 1e-13);
+        dg::Grid2d g2d( 0., 1., 0., 2., 4, 4, 5);
+        const dg::HVec v2 = dg::evaluate( []( double x, double y){
+                return sin(x)*cos(y);}, g2d);
+        dg::HVec w2(v2), x2(v2);
+        dg::blas2::symv( dg::create::backscatter( g2d), v2, w2);
+        dg::blas2::symv( dg::create::inv_backscatter( g2d), w2, x2);
+        for( unsigned i=0; i<v2.size(); i++)
+            CHECK( fabs( x2[i] - v2[i]) < 1e-13);
+    }
+    SECTION( "Tensor products of sparse matrices")
+    {
+        // L is 2x2, R is 2x3
+        const std::vector<double> L = {1,2, 0,3}, R = {4,0,5, 0,6,0};
+        unsigned lr = 2, lc = 2, rr = 2, rc = 3;
+        Matrix l = dense2csr( lr, lc, L), r = dense2csr( rr, rc, R);
+        dg::HVec x( lc*rc);
+        for( unsigned J=0; J<x.size(); J++)
+            x[J] = J+1;
+        // M_IJ = L_ki R_lj with I = k*rr+l, J = i*rc+j
+        dg::HVec y( lr*rr);
+        dg::blas2::symv( dg::tensorproduct( l, r), x, y);
+        for( unsigned k=0; k<lr; k++)
+        for( unsigned m=0; m<rr; m++)
+        {
+            double sol = 0;
+            for( unsigned i=0; i<lc; i++)
+            for( unsigned j=0; j<rc; j++)
+                sol += L[k*lc+i]*R[m*rc+j]*x[i*rc+j];
+            CHECK( y[k*rr+m] == sol);
+        }
+        // M_kJ = L_ki R_kj with J = i*rc+j
+        dg::HVec yc( lr);
+        dg::blas2::symv( dg::tensorproduct_cols( l, r), x, yc);
+        for( unsigned k=0; k<lr; k++)
+        {
+            double sol = 0;
+            for( unsigned i=0; i<lc; i++)
+            for( unsigned j=0; j<rc; j++)
+                sol += L[k*lc+i]*R[k*rc+j]*x[i*rc+j];
+            CHECK( yc[k] == sol);
+        }
+        Matrix r3 = dense2csr( 3, 3, std::vector<double>( 9, 1.));
+        CHECK_THROWS_AS( dg::tensorproduct_cols( l, r3), dg::Error);
     }
 }
