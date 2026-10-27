@@ -22,6 +22,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <atomic>
 
 #include "accumulate.h"
 #include "ExSUM.FPE.hpp"
@@ -33,26 +34,23 @@ namespace exblas{
 ///@cond
 namespace cpu{
 
-//MW: does this implementation code a manual lock?
-
 /**
  * \brief Parallel reduction step
  *
  * \param step step among threads
  * \param acc1 superaccumulator of the first thread
  * \param acc2 superaccumulator of the second thread
+ * \param ready level the second thread has reached
  */
 inline void ReductionStep(int step, int64_t * acc1, int64_t * acc2,
-    int volatile * ready)
+    const std::atomic<int32_t> * ready)
 {
+    // Wait for thread 2 to be ready; acquire makes its accumulator visible
+    while(ready->load( std::memory_order_acquire) < step) {
 #ifndef _WITHOUT_VCL
-    _mm_prefetch((char const*)ready, _MM_HINT_T0);
-    // Wait for thread 2 to be ready
-    while(*ready < step) {
-        // wait
         _mm_pause();
-    }
 #endif//_WITHOUT_VCL
+    }
     int imin = IMIN, imax = IMAX;
     Normalize( acc1, imin, imax);
     imin = IMIN, imax = IMAX;
@@ -69,18 +67,16 @@ inline void ReductionStep(int step, int64_t * acc1, int64_t * acc2,
  * \param tnum number of threads
  * \param acc superaccumulator
  */
-inline void Reduction(unsigned int tid, unsigned int tnum, std::vector<int32_t>& ready,
+inline void Reduction(unsigned int tid, unsigned int tnum, std::vector<std::atomic<int32_t>>& ready,
     std::vector<int64_t>& acc, int const linesize)
 {
     // Custom tree reduction
     for(unsigned int s = 1; (unsigned)(1 << (s-1)) < tnum; ++s)
     {
         // 1<<(s-1) = 0001, 0010, 0100, ... = 1,2,4,8,16,...
-        int32_t volatile * c = &ready[tid * linesize];
-        ++*c; //set: ready for level s
-#ifdef _WITHOUT_VCL
-#pragma omp barrier //all threads are ready for level s
-#endif
+        // set: ready for level s; release publishes our accumulator
+        // (a volatile flag is neither atomic nor a memory fence)
+        ready[tid * linesize].store( s, std::memory_order_release);
         if(tid % (1 << s) == 0) { //1<<s = 2,4,8,16,32,...
             //only the tid thread executes this block, tid2 just sets ready
             unsigned int tid2 = tid | (1 << (s-1)); //effectively adds 1, 2, 4,...
@@ -98,7 +94,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
     int const linesize = 16;    // * sizeof(int32_t)
     int maxthreads = omp_get_max_threads();
     std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
-    std::vector<int32_t> ready(maxthreads * linesize);
+    std::vector<std::atomic<int32_t>> ready(maxthreads * linesize); // value-initialized to 0
     std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
     #pragma omp parallel
@@ -107,7 +103,6 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
         unsigned int tnum = omp_get_num_threads();
 
         CACHE cache(&acc[tid*BIN_COUNT]);
-        *(int32_t volatile *)(&ready[tid * linesize]) = 0;  // Race here, who cares?
 
 #ifndef _WITHOUT_VCL
         int l = ((tid * int64_t(N)) / tnum) & ~7ul; // & ~7ul == round down to multiple of 8
@@ -170,7 +165,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
     int const linesize = 16;    // * sizeof(int32_t) (MW avoid false sharing?)
     int maxthreads = omp_get_max_threads();
     std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
-    std::vector<int32_t> ready(maxthreads * linesize);
+    std::vector<std::atomic<int32_t>> ready(maxthreads * linesize); // value-initialized to 0
     std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
     #pragma omp parallel
@@ -179,7 +174,6 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
         unsigned int tnum = omp_get_num_threads();
 
         CACHE cache(&acc[tid*BIN_COUNT]);
-        *(int32_t volatile *)(&ready[tid * linesize]) = 0;  // Race here, who cares?
 
 #ifndef _WITHOUT_VCL
         int l = ((tid * int64_t(N)) / tnum) & ~7ul;// & ~7ul == round down to multiple of 8
