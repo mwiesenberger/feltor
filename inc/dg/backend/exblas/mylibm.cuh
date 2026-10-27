@@ -50,17 +50,13 @@ __device__
 inline double OddRoundSumNonnegative(double th, double tl) {
     // Adapted from:
     // Sylvie Boldo, and Guillaume Melquiond. "Emulation of a FMA and correctly rounded sums: proved algorithms using rounding to odd." IEEE Transactions on Computers, 57, no. 4 (2008): 462-471.
-    union {
-        double d;
-        long l;
-    } thdb;
-
-    thdb.d = th + tl;
+    // CUDA intrinsics instead of type punning with a union (undefined in C++)
+    long long int thdb = __double_as_longlong( th + tl);
     // - if the mantissa of th is odd, there is nothing to do
     // - otherwise, round up as both tl and th are positive
     // in both cases, this means setting the msb to 1 when tl>0
-    thdb.l |= (tl != 0.0);
-    return thdb.d;
+    thdb |= (tl != 0.0);
+    return __longlong_as_double( thdb);
 }
 }//namespace gpu
 }//namespace exblas

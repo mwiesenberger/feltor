@@ -30,6 +30,10 @@ namespace dg
 namespace exblas{
 
 /*! @brief Utility union to display all bits of a double (using <a href="https://en.wikipedia.org/wiki/Type_punning">type-punning</a>)
+@warning Reading the member that was not written last is undefined behaviour
+in C++ (unlike in C). GCC, Clang and MSVC support it as an extension, but for
+well-defined code copy the bits with \c std::memcpy (or \c std::bit_cast in
+C++20) instead
 @code
 double result; // = ...
 udouble res;
@@ -43,6 +47,10 @@ union udouble{
 };
 
 /*! @brief Utility union to display all bits of a float (using <a href="https://en.wikipedia.org/wiki/Type_punning">type-punning</a>)
+@warning Reading the member that was not written last is undefined behaviour
+in C++ (unlike in C). GCC, Clang and MSVC support it as an extension, but for
+well-defined code copy the bits with \c std::memcpy (or \c std::bit_cast in
+C++20) instead
 @code
 float result; // = ...
 ufloat res;

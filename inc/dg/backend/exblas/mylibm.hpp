@@ -17,6 +17,7 @@
 #ifndef MYLIBM_HPP_INCLUDED
 #define MYLIBM_HPP_INCLUDED
 
+#include <cstring> // std::memcpy
 #include "config.h"
 
 namespace dg
@@ -37,16 +38,11 @@ inline double myrint(double x)
 #ifndef _WITHOUT_VCL
 #if defined( __GNUG__) || defined( _MSC_VER)
     // Workaround gcc bug 51033
-    union {
-        __m128d v;
-        double d[2];
-    } r;
     //_mm_round_sd(_mm_undefined_pd(), _mm_set_sd(x));
     //__m128d undefined;
     //r.v = _mm_round_sd(_mm_setzero_pd(), _mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT);
     //r.v = _mm_round_sd(undefined, _mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT);
-    r.v = _mm_round_pd(_mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT);
-    return r.d[0];
+    return _mm_cvtsd_f64( _mm_round_pd(_mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT));
 #else
     double r;
     //asm("roundsd $0, %1, %0" : "=x" (r) : "x" (x));
@@ -58,33 +54,25 @@ inline double myrint(double x)
 #endif//_WITHOUT_VCL
 }
 
-//inline double uint64_as_double(uint64_t i)
-//{
-//    double d;
-//    asm("movsd %0, %1" : "=x" (d) : "g" (i) :);
-//    return d;
-//}
+// Reinterpret the bits of a double; unlike type punning with a union,
+// std::memcpy is well-defined in C++ and compiles to a register move
+inline uint64_t double_as_uint64(double x)
+{
+    uint64_t i;
+    std::memcpy( &i, &x, sizeof(i));
+    return i;
+}
+inline double uint64_as_double(uint64_t i)
+{
+    double x;
+    std::memcpy( &x, &i, sizeof(x));
+    return x;
+}
 
 inline int exponent(double x)
 {
     // simpler frexp
-    union {
-        double d;
-        uint64_t i;
-    } caster;
-    caster.d = x;
-    uint64_t e = ((caster.i >> 52) & 0x7ff) - 0x3ff;
-    return e;
-}
-
-inline int biased_exponent(double x)
-{
-    union {
-        double d;
-        uint64_t i;
-    } caster;
-    caster.d = x;
-    uint64_t e = (caster.i >> 52) & 0x7ff;
+    uint64_t e = ((double_as_uint64(x) >> 52) & 0x7ff) - 0x3ff;
     return e;
 }
 
@@ -92,30 +80,13 @@ inline int biased_exponent(double x)
 inline double myldexp(double x, int e)
 {
     // Scale x by e
-    union {
-        double d;
-        uint64_t i;
-    } caster;
-
-    caster.d = x;
+    uint64_t i = double_as_uint64(x);
     // Subnormal numbers have no implicit leading bit, so adding to the
     // exponent bits does not scale them
-    if( unlikely( (caster.i & 0x7ff0000000000000ull) == 0))
+    if( unlikely( (i & 0x7ff0000000000000ull) == 0))
         return std::ldexp( x, e);
-    caster.i += (uint64_t)e << 52;
-    return caster.d;
-}
-
-inline double exp2i(int e)
-{
-    // simpler ldexp
-    union {
-        double d;
-        uint64_t i;
-    } caster;
-
-    caster.i = (uint64_t)(e + 0x3ff) << 52;
-    return caster.d;
+    i += (uint64_t)e << 52;
+    return uint64_as_double(i);
 }
 
 // Assumptions: th>tl>=0, no overlap between th and tl
@@ -123,17 +94,12 @@ inline double OddRoundSumNonnegative(double th, double tl)
 {
     // Adapted from:
     // Sylvie Boldo, and Guillaume Melquiond. "Emulation of a FMA and correctly rounded sums: proved algorithms using rounding to odd." IEEE Transactions on Computers, 57, no. 4 (2008): 462-471.
-    union {
-        double d;
-        int64_t l;
-    } thdb;
-
-    thdb.d = th + tl;
+    uint64_t thdb = double_as_uint64( th + tl);
     // - if the mantissa of th is odd, there is nothing to do
     // - otherwise, round up as both tl and th are positive
     // in both cases, this means setting the msb to 1 when tl>0
-    thdb.l |= (tl != 0.0);
-    return thdb.d;
+    thdb |= (tl != 0.0);
+    return uint64_as_double( thdb);
 }
 
 #ifdef THREADSAFE //MW: we don't define this anywhere?
