@@ -34,11 +34,11 @@ inline int free_reduce_communicators( MPI_Comm, int, void* attribute, void*)
  * @brief This function can be used to partition communicators for the \c
  * exblas::reduce_mpi_cpu function
  *
- * If the ranks in \c comm are aligned in rows of 128 (or any number <= 256)
+ * If the ranks in \c comm are aligned in rows of 128
  * \c comm_mod is the 1d communicator for the rows and \c comm_mod_reduce
  * is the communicator for the columns. The last row may contain fewer than 128
- * ranks and \c comm_mod may contain 1 rank fewer than the others in the last
- * columns
+ * ranks, so the last columns of \c comm_mod_reduce may contain 1 rank fewer
+ * than the others
  *
  * @param comm the input communicator (unmodified, may not be \c MPI_COMM_NULL)
  * @param comm_mod the line communicator in \c comm, consists of all rank/mod
@@ -103,11 +103,15 @@ inline void mpi_reduce_communicator(MPI_Comm comm,
 
 /*! @brief reduce a number of superaccumulators distributed among mpi processes
 
- * We cannot sum more than 256 accumulators before we need to normalize again, so
- * we need to split the reduction into several steps if more than 256 processes
- * are involved. This function normalizes, reduces, normalizes, reduces and
+ * The words of a normalized superaccumulator are smaller than \f$ 2^{56}\f$
+ * (\c exblas::DIGITS bits), so we cannot sum more than 128 accumulators in 64
+ * bit integers before we need to normalize again. We therefore split the
+ * reduction into several steps if more than 128 processes are involved.
+ * This function normalizes, reduces, normalizes, reduces and
  * broadcasts the result to all participating processes.  As usual the resulting
  * superaccumulator is unnormalized.
+ * @attention The second step sums one accumulator per row of 128 processes, so
+ * the number of processes in \c comm must not exceed \f$ 128^2 = 16384\f$
  * @param num_superacc number of Superaccumulators each process holds
  * @param in unnormalized input superaccumulators ( must be of size
  * num_superacc*\c exblas::BIN_COUNT, allocated on the cpu) (read/write,
@@ -116,8 +120,7 @@ inline void mpi_reduce_communicator(MPI_Comm comm,
  * num_superacc*\c exblas::BIN_COUNT, allocated on the cpu) (write, may not
  * alias in)
  * @param comm The complete MPI communicator
- * @param comm_mod This is the line communicator of up to 128 ranks ( or any
- * other number <256)
+ * @param comm_mod This is the line communicator of up to 128 ranks
  * @param comm_mod_reduce This is the column communicator consisting of all
  * rank 0, 1, 2, ...,127 processes in all comm_mod
  * @sa \c exblas::mpi_reduce_communicator to generate the required communicators

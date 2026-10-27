@@ -193,7 +193,8 @@ void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c
  * superaccumulator) in **host memory** with size at least \c exblas::BIN_COUNT
  * (39) (contents are overwritten, the function does not allocate memory i.e.
  * the memory needs to be allocated **before** calling the function)
- * @param status 0 indicates success, 1 indicates an input value was NaN or Inf
+ * @param status 0 indicates success, 1 indicates that a product of the inputs
+ * was NaN or Inf (which includes NaN or Inf inputs and overflow of the product)
  */
 /*!@class hide_deviceacc
  * @param d_superacc pointer to an array of 64 bit integegers (the
@@ -201,7 +202,8 @@ void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c
  * exblas::BIN_COUNT (39) (contents are overwritten, the function does not
  * allocate memory i.e. the memory needs to be allocated **before** calling the
  * function)
- * @param status 0 indicates success, 1 indicates an input value was NaN or Inf
+ * @param status 0 indicates success, 1 indicates that a product of the inputs
+ * was NaN or Inf (which includes NaN or Inf inputs and overflow of the product)
  */
 
 ///@brief Serial version of exact dot product

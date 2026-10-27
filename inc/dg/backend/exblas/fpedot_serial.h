@@ -28,7 +28,10 @@ namespace exblas{
  * @tparam Functor a Functor
  * @tparam PointerOrValues must be one of <tt> T, T&&, T&, const T&, T* or const T* </tt>, where \c T is a scalar type. If it is a pointer type,
  *  then we iterate through the pointed data from 0 to \c size, else we consider the value constant in every iteration.
- * @param status 0 indicates success, 2 means the FPE overflowed
+ * @param status (read/write) Set to 2 if the FPE overflowed i.e. the sum
+ * cannot be represented by \c N floating point numbers, which in particular
+ * happens if a value is NaN or Inf. Otherwise \c status is not changed (the
+ * GPU version sets it to 0), so it should be initialized with 0
  * @param size size of the arrays to sum
  * @param fpe the FPE holding the result (write-only)
  * @param f the functor
