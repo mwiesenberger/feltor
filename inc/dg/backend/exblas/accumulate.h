@@ -187,12 +187,14 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x) {
         // accumulator[i] has sign !S (just after update)
         // carry has sign !S
         // carrybit has sign S
-        carry = (oldword + carry) >> DIGITS;    // Arithmetic shift
+        // unsigned addition and shift: signed overflow and left shift of
+        // negative numbers are undefined
+        carry = (int64_t)((uint64_t)oldword + (uint64_t)carry) >> DIGITS;    // Arithmetic shift
         bool s = oldword > 0;
         carrybit = (s ? 1ll << KRX : (unsigned long long)(-1ll) << KRX); //MW left shift of negative number is undefined so convert to unsigned
 
         // Cancel carry-save bits
-        cpu::xadd(accumulator[i], (int64_t) -(carry << DIGITS), overflow);
+        cpu::xadd(accumulator[i], (int64_t)( 0 - ((uint64_t)carry << DIGITS)), overflow);
         if(TSAFE && unlikely(s ^ overflow)) {
             // (Another) overflow of sign S
             carrybit *= 2;
@@ -266,20 +268,21 @@ inline void Accumulate( int64_t* accumulator, vcl::Vec8d x) {
 * @return  carry in bit (sign)
 */
 inline bool Normalize( int64_t *accumulator, int& imin, int& imax) {
+    // unsigned left shift: left shift of negative numbers is undefined
     int64_t carry_in = accumulator[imin] >> DIGITS;
-    accumulator[imin] -= carry_in << DIGITS;
+    accumulator[imin] -= (int64_t)((uint64_t)carry_in << DIGITS);
     int i;
     // Sign-extend all the way
     for (i = imin + 1; i < BIN_COUNT; ++i) {
         accumulator[i] += carry_in;
         int64_t carry_out = accumulator[i] >> DIGITS;    // Arithmetic shift
-        accumulator[i] -= (carry_out << DIGITS);
+        accumulator[i] -= (int64_t)((uint64_t)carry_out << DIGITS);
         carry_in = carry_out;
     }
     imax = i - 1;
 
     // Do not cancel the last carry to avoid losing information
-    accumulator[imax] += carry_in << DIGITS;
+    accumulator[imax] += (int64_t)((uint64_t)carry_in << DIGITS);
 
     return carry_in < 0;
 }

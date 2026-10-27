@@ -19,7 +19,7 @@ __device__ inline int64_t atomicAdd( int64_t* address, int64_t val)
     {
         assumed = old; //*address_as_ull might change during the time the CAS is reached
         old = atomicCAS(address_as_ull, assumed,
-                          (unsigned long long int)(val + (int64_t)old));
+                          (unsigned long long int)val + old);
     } while( old != assumed);//try as often as necessary
     //assume that bit patterns don't change when casting
     //return the original value stored at address
@@ -32,7 +32,9 @@ __device__ inline int64_t xadd( int64_t &sa, int64_t x, unsigned char &of) {
     // !OF        -> carry=0
     //int64_t y = atom_add(sa, x);
     int64_t y = atomicAdd(&sa, x);
-    int64_t z = y + x; // since the value sa->superacc[i] can be changed by another work item
+    // since the value sa->superacc[i] can be changed by another work item
+    // (unsigned addition: signed overflow is undefined)
+    int64_t z = (int64_t)((uint64_t)y + (uint64_t)x);
 
     // TODO: cover also underflow
     of = 0;

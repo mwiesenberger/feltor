@@ -153,7 +153,8 @@ inline int64_t xadd(int64_t & memref, int64_t x, unsigned char & of)
 #if (defined (_WITHOUT_VCL) || defined(_MSC_VER)) && !TSAFE
 //manually compute non-atomic load-ADDC-store
 	int64_t y = memref;
-	memref = y + x;
+	// unsigned addition: signed overflow is undefined
+	memref = (int64_t)((uint64_t)y + (uint64_t)x);
 	int64_t x63 = (x >> 63) & 1;
 	int64_t y63 = (y >> 63) & 1;
 	int64_t r63 = (memref >> 63) & 1;

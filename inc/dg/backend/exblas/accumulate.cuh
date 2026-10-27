@@ -90,12 +90,14 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x, int stride =
         // accumulator[i] has sign !S (just after update)
         // carry has sign !S
         // carrybit has sign S
-        carry = (oldword + carry) >> DIGITS;    // Arithmetic shift
+        // unsigned addition and shifts: signed overflow and left shift of
+        // negative numbers are undefined
+        carry = (int64_t)((uint64_t)oldword + (uint64_t)carry) >> DIGITS;    // Arithmetic shift
         bool s = oldword > 0;
-        carrybit = (s ? 1l << KRX : -1l << KRX);
+        carrybit = (s ? 1ll << KRX : (int64_t)((uint64_t)(-1ll) << KRX));
 
         // Cancel carry-accumulatorve bits
-        xadd(accumulator[i * stride], (int64_t) -(carry << DIGITS), overflow);
+        xadd(accumulator[i * stride], (int64_t)( 0 - ((uint64_t)carry << DIGITS)), overflow);
         carry += carrybit;
 
         ++i;
@@ -156,20 +158,21 @@ inline void Accumulate( int64_t* accumulator, double x, int stride = 1) { //tran
 */
 __device__
 inline int Normalize( int64_t *accumulator, int& imin, int& imax, int stride = 1) {
+    // unsigned left shift: left shift of negative numbers is undefined
     int64_t carry_in = accumulator[(imin)*stride] >> DIGITS;
-    accumulator[(imin)*stride] -= carry_in << DIGITS;
+    accumulator[(imin)*stride] -= (int64_t)((uint64_t)carry_in << DIGITS);
     int i;
     // Sign-extend all the way
     for (i = imin + 1; i < BIN_COUNT; ++i) {
         accumulator[i*stride] += carry_in;
         int64_t carry_out = accumulator[i*stride] >> DIGITS;    // Arithmetic shift
-        accumulator[i*stride] -= (carry_out << DIGITS);
+        accumulator[i*stride] -= (int64_t)((uint64_t)carry_out << DIGITS);
         carry_in = carry_out;
     }
     imax = i - 1;
 
     // Do not cancel the last carry to avoid losing information
-    accumulator[imax*stride] += carry_in << DIGITS;
+    accumulator[imax*stride] += (int64_t)((uint64_t)carry_in << DIGITS);
 
     return carry_in < 0;
 }
