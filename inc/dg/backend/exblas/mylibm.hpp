@@ -26,7 +26,7 @@ namespace exblas{
 namespace cpu{
 
 inline int64_t myllrint(double x) {
-#if not defined _WITHOUT_VCL && not defined( _MSC_VER)
+#if not defined EXBLAS_WITHOUT_VCL && not defined( _MSC_VER)
     return _mm_cvtsd_si64(_mm_set_sd(x));
 #else
     return std::llrint(x);
@@ -35,7 +35,7 @@ inline int64_t myllrint(double x) {
 
 inline double myrint(double x)
 {
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
 #if defined( __GNUG__) || defined( _MSC_VER)
     // Workaround gcc bug 51033
     //_mm_round_sd(_mm_undefined_pd(), _mm_set_sd(x));
@@ -46,12 +46,12 @@ inline double myrint(double x)
 #else
     double r;
     //asm("roundsd $0, %1, %0" : "=x" (r) : "x" (x));
-    asm(ASM_BEGIN "roundsd %0, %1, 0" ASM_END : "=x" (r) : "x" (x));
+    asm(EXBLAS_ASM_BEGIN "roundsd %0, %1, 0" EXBLAS_ASM_END : "=x" (r) : "x" (x));
     return r;
 #endif
 #else
     return std::rint(x);
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
 }
 
 // Reinterpret the bits of a double; unlike type punning with a union,
@@ -103,11 +103,11 @@ inline double OddRoundSumNonnegative(double th, double tl)
 }
 
 #ifdef THREADSAFE //MW: we don't define this anywhere?
-#define TSAFE 1
-#define LOCK_PREFIX "lock "
+#define EXBLAS_TSAFE 1
+#define EXBLAS_LOCK_PREFIX "lock "
 #else
-#define TSAFE 0 //MW: so I guess it's always 0 i.e. false
-#define LOCK_PREFIX
+#define EXBLAS_TSAFE 0 //MW: so I guess it's always 0 i.e. false
+#define EXBLAS_LOCK_PREFIX
 #endif
 
 // signedcarry in {-1, 0, 1}
@@ -116,7 +116,7 @@ inline int64_t xadd(int64_t & memref, int64_t x, unsigned char & of)
 
 //msvc doesn't allow inline assembler code
 //If we don't have VCL, then sometimes the assembler code also makes problems
-#if (defined (_WITHOUT_VCL) || defined(_MSC_VER)) && !TSAFE
+#if (defined (EXBLAS_WITHOUT_VCL) || defined(_MSC_VER)) && !EXBLAS_TSAFE
 //manually compute non-atomic load-ADDC-store
 	int64_t y = memref;
 	// unsigned addition: signed overflow is undefined
@@ -134,11 +134,11 @@ inline int64_t xadd(int64_t & memref, int64_t x, unsigned char & of)
     // !OF        -> carry=0
     int64_t oldword = x;
 #ifdef ATT_SYNTAX
-    asm volatile (LOCK_PREFIX"xaddq %1, %0\n"
+    asm volatile (EXBLAS_LOCK_PREFIX"xaddq %1, %0\n"
         "setob %2"
      : "+m" (memref), "+r" (oldword), "=q" (of) : : "cc", "memory");
 #else
-    asm volatile (LOCK_PREFIX"xadd %1, %0\n"
+    asm volatile (EXBLAS_LOCK_PREFIX"xadd %1, %0\n"
         "seto %2"
      : "+m" (memref), "+r" (oldword), "=q" (of) : : "cc", "memory");
 #endif //ATT_SYNTAX
@@ -146,7 +146,7 @@ inline int64_t xadd(int64_t & memref, int64_t x, unsigned char & of)
 #endif //_MSC_VER
 }
 
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
 inline bool horizontal_or(vcl::Vec8d const & a) {
     //return _mm512_movemask_pd(a) != 0;
     vcl::Vec8db p = a != 0;
@@ -157,7 +157,7 @@ inline bool horizontal_or(vcl::Vec8d const & a) {
 inline bool horizontal_or( const double & a){
     return a!= 0;
 }
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
 
 
 }//namespace cpu

@@ -47,9 +47,9 @@ inline void ReductionStep(int step, int64_t * acc1, int64_t * acc2,
 {
     // Wait for thread 2 to be ready; acquire makes its accumulator visible
     while(ready->load( std::memory_order_acquire) < step) {
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
         _mm_pause();
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
     }
     int imin = IMIN, imax = IMAX;
     Normalize( acc1, imin, imax);
@@ -104,7 +104,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
 
         CACHE cache(&acc[tid*BIN_COUNT]);
 
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
         int l = ((tid * int64_t(N)) / tnum) & ~7ul; // & ~7ul == round down to multiple of 8
         int r = ((((tid+1) * int64_t(N)) / tnum) & ~7ul) - 1;
 
@@ -135,7 +135,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
             cache.Accumulate(x);
             //cache.Accumulate(r1);
         }
-#else// _WITHOUT_VCL
+#else// EXBLAS_WITHOUT_VCL
         int l = ((tid * int64_t(N)) / tnum);
         int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;
         for(int i = l; i <= r; i++) {
@@ -146,7 +146,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
             cache.Accumulate(x);
             //cache.Accumulate(r1);
         }
-#endif// _WITHOUT_VCL
+#endif// EXBLAS_WITHOUT_VCL
         cache.Flush();
         int imin=IMIN, imax=IMAX;
         Normalize(&acc[tid*BIN_COUNT], imin, imax);
@@ -175,7 +175,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
 
         CACHE cache(&acc[tid*BIN_COUNT]);
 
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
         int l = ((tid * int64_t(N)) / tnum) & ~7ul;// & ~7ul == round down to multiple of 8
         int r = ((((tid+1) * int64_t(N)) / tnum) & ~7ul) - 1;
 
@@ -216,7 +216,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
             //cache.Accumulate(x2);
             //cache.Accumulate(r2);
         }
-#else// _WITHOUT_VCL
+#else// EXBLAS_WITHOUT_VCL
         int l = ((tid * int64_t(N)) / tnum);
         int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;
         for(int i = l; i <= r; i++) {
@@ -227,7 +227,7 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
             if( !std::isfinite(x2) ) error[tid] = true;
             cache.Accumulate(x2);
         }
-#endif// _WITHOUT_VCL
+#endif// EXBLAS_WITHOUT_VCL
         cache.Flush();
         int imin=IMIN, imax=IMAX;
         Normalize(&acc[tid*BIN_COUNT], imin, imax);
@@ -250,11 +250,11 @@ void exdot_omp(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, in
     static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
     bool error = false;
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
     cpu::ExDOTFPE<cpu::FPExpansionVect<vcl::Vec8d, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, h_superacc, &error);
 #else
     cpu::ExDOTFPE<cpu::FPExpansionVect<double, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, h_superacc, &error);
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
     *status = 0;
     if( error ) *status = 1;
 }
@@ -267,11 +267,11 @@ void exdot_omp(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, Po
     static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue3>::value, "PointerOrValue3 needs to be T or T* with T one of (const) float or (const) double");
     bool error = false;
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
     cpu::ExDOTFPE<cpu::FPExpansionVect<vcl::Vec8d, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, x3_ptr, h_superacc, &error);
 #else
     cpu::ExDOTFPE<cpu::FPExpansionVect<double, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, x3_ptr, h_superacc, &error);
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
     *status = 0;
     if( error ) *status = 1;
 }

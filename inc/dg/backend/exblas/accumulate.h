@@ -29,7 +29,7 @@ namespace cpu {
 ///////////////////////////////////////////////////////////////////////////
 //********* Here, the change from float to double happens ***************//
 ///////////////////////////////////////////////////////////////////////////
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
 inline vcl::Vec8d make_vcl_vec8d( double x, int){
     return vcl::Vec8d(x);
 }
@@ -57,7 +57,7 @@ inline vcl::Vec8d make_vcl_vec8d( const float* x, int i, int num){
         tmp[j] = (double)x[i+j];
     return vcl::Vec8d().load_partial( num, tmp);
 }
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
 template<class T>
 inline T get_element( T x, int){
 	return x;
@@ -89,11 +89,11 @@ inline std::enable_if_t<std::is_integral_v<T>,T> KnuthTwoSum(T a, T b, T & s)
 template<typename T>
 inline T TwoProductFMA(T a, T b, T &d) {
     T p = a * b;
-#ifdef _WITHOUT_VCL
+#ifdef EXBLAS_WITHOUT_VCL
     d = a*b-p;
 #else
     d = vcl::mul_sub_x(a, b, p); //extra precision even if FMA is not available
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
     return p;
 }
 
@@ -101,7 +101,7 @@ inline T TwoProductFMA(T a, T b, T &d) {
 // FPE Accumulate and Round function for leightweight implementation
 ////////////////////////////////////////////////////////////////////////////////
 //does not check for NaN
-template<typename T, size_t N> UNROLL_ATTRIBUTE
+template<typename T, size_t N> EXBLAS_UNROLL_ATTRIBUTE
 void Accumulate(T x, std::array<T,N>& fpe , int* status)
 {
     if( x == T(0) )
@@ -199,7 +199,7 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x) {
 
         // Cancel carry-save bits
         cpu::xadd(accumulator[i], (int64_t)( 0 - ((uint64_t)carry << DIGITS)), overflow);
-        if(TSAFE && EXBLAS_UNLIKELY(s ^ overflow)) {
+        if(EXBLAS_TSAFE && EXBLAS_UNLIKELY(s ^ overflow)) {
             // (Another) overflow of sign S
             carrybit *= 2;
         }
@@ -243,7 +243,7 @@ inline void Accumulate( int64_t* accumulator, double x) {
         xscaled *= DELTASCALE;
     }
 }
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
 inline void Accumulate( int64_t* accumulator, vcl::Vec8d x) {
     double v[8];
     x.store(v);
@@ -255,7 +255,7 @@ inline void Accumulate( int64_t* accumulator, vcl::Vec8d x) {
         exblas::cpu::Accumulate(accumulator, v[j]);
     }
 }
-#endif //_WITHOUT_VCL
+#endif //EXBLAS_WITHOUT_VCL
 ////////////////////////////////////////////////////////////////////////////////
 // Normalize functions
 ////////////////////////////////////////////////////////////////////////////////

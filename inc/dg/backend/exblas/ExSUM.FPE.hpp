@@ -92,7 +92,7 @@ FPExpansionVect<T,N,TRAITS>::FPExpansionVect(int64_t * sa) :
     std::fill(a, a + N, 0);
 }
 
-template<typename T, int N, typename TRAITS> UNROLL_ATTRIBUTE
+template<typename T, int N, typename TRAITS> EXBLAS_UNROLL_ATTRIBUTE
 void FPExpansionVect<T,N,TRAITS>::Accumulate(T x)
 {
     // Experimental

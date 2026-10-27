@@ -14,18 +14,18 @@
 ////////////////////////////////////////////////////////////////////////
 //nvcc does not compile the avx512 instruction set, so do not include it
 #ifdef __NVCC__
-#define _WITHOUT_VCL
+#define EXBLAS_WITHOUT_VCL
 #endif //__NVCC__
 #ifdef __APPLE__ //Condition for mac users to define without VCL
-#define _WITHOUT_VCL
+#define EXBLAS_WITHOUT_VCL
 #endif//__APPLE__
 #ifdef WITHOUT_VCL
-#define _WITHOUT_VCL
+#define EXBLAS_WITHOUT_VCL
 #endif//WITHOUT_VCL
 
 ////////////////////////////////////////////////////////////////////////
 //include vcl if available
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
 
 #define MAX_VECTOR_SIZE 512 //configuration of vcl
 #define VCL_NAMESPACE vcl
@@ -36,40 +36,38 @@
 #include "vcl/vectorclass.h" //vcl by Agner Fog, may also include immintrin.h e.g.
 #endif
 #if INSTRSET <5
-#define _WITHOUT_VCL
+#define EXBLAS_WITHOUT_VCL
 #pragma message("WARNING: Instruction set below SSE4.1! Deactivating vectorization!")
 #elif INSTRSET <7
 #pragma message( "NOTE: If available, it is recommended to activate AVX instruction set (-mavx) or higher")
 #endif//INSTRSET
 
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
 
 #if defined __INTEL_COMPILER
-#define UNROLL_ATTRIBUTE
+#define EXBLAS_UNROLL_ATTRIBUTE
 #elif defined __GNUC__
 
 #ifdef __APPLE__ //MAC does not know "unroll-loops"
-#define UNROLL_ATTRIBUTE
+#define EXBLAS_UNROLL_ATTRIBUTE
 #elif defined __clang__
-#define UNROLL_ATTRIBUTE
+#define EXBLAS_UNROLL_ATTRIBUTE
 #else
-#define UNROLL_ATTRIBUTE __attribute__((optimize("unroll-loops")))
+#define EXBLAS_UNROLL_ATTRIBUTE __attribute__((optimize("unroll-loops")))
 #endif // __APPLE__
 
 #else
-#define UNROLL_ATTRIBUTE
+#define EXBLAS_UNROLL_ATTRIBUTE
 #endif
 
 #ifdef ATT_SYNTAX
-#define ASM_BEGIN ".intel_syntax;"
-#define ASM_END ";.att_syntax"
+#define EXBLAS_ASM_BEGIN ".intel_syntax;"
+#define EXBLAS_ASM_END ";.att_syntax"
 #else
-#define ASM_BEGIN
-#define ASM_END
+#define EXBLAS_ASM_BEGIN
+#define EXBLAS_ASM_END
 #endif
 
-// Debug mode
-#define paranoid_assert(x) assert(x)
 // Making C code less readable in an attempt to make assembly more readable
 // TODO Replace with the attributes [[likely]] and [[unlikely]] once we
 // switch to C++20

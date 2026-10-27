@@ -69,7 +69,7 @@ namespace cpu{
 template<typename CACHE, typename PointerOrValue1, typename PointerOrValue2>
 void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* acc, bool* error) {
     CACHE cache(acc);
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
     int r = (( int64_t(N) ) & ~7ul);
     for(int i = 0; i < r; i+=8) {
 #ifndef _MSC_VER
@@ -95,7 +95,7 @@ void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* acc, boo
         cache.Accumulate(x);
         //cache.Accumulate(r1);
     }
-#else// _WITHOUT_VCL
+#else// EXBLAS_WITHOUT_VCL
     for(int i = 0; i < N; i++) {
         //double r1;
         //double x = TwoProductFMA(get_element(a,i),get_element(b,i),r1);
@@ -104,14 +104,14 @@ void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* acc, boo
         cache.Accumulate(x);
         //cache.Accumulate(r1);
     }
-#endif// _WITHOUT_VCL
+#endif// EXBLAS_WITHOUT_VCL
     cache.Flush();
 }
 
 template<typename CACHE, typename PointerOrValue1, typename PointerOrValue2, typename PointerOrValue3>
 void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, int64_t* acc, bool* error) {
     CACHE cache(acc);
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
     int r = (( int64_t(N))  & ~7ul);
     for(int i = 0; i < r; i+=8) {
 #ifndef _MSC_VER
@@ -147,14 +147,14 @@ void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c
         //cache.Accumulate(x2);
         //cache.Accumulate(r2);
     }
-#else// _WITHOUT_VCL
+#else// EXBLAS_WITHOUT_VCL
     for(int i = 0; i < N; i++) {
         double x1 = (double)get_element(a,i)*(double)get_element(b,i);
         double x2 = x1*(double)get_element(c,i);
         if( !std::isfinite(x2) ) *error = true;
         cache.Accumulate(x2);
     }
-#endif// _WITHOUT_VCL
+#endif// EXBLAS_WITHOUT_VCL
     cache.Flush();
 }
 }//namespace cpu
@@ -235,11 +235,11 @@ void exdot_cpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, in
     for( int i=0; i<exblas::BIN_COUNT; i++)
         h_superacc[i] = 0;
     bool error = false;
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
     cpu::ExDOTFPE_cpu<cpu::FPExpansionVect<vcl::Vec8d, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, h_superacc, &error);
 #else
     cpu::ExDOTFPE_cpu<cpu::FPExpansionVect<double, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, h_superacc, &error);
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
     *status = 0;
     if( error ) *status = 1;
 }
@@ -255,11 +255,11 @@ void exdot_cpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, Po
     for( int i=0; i<exblas::BIN_COUNT; i++)
         h_superacc[i] = 0;
     bool error = false;
-#ifndef _WITHOUT_VCL
+#ifndef EXBLAS_WITHOUT_VCL
     cpu::ExDOTFPE_cpu<cpu::FPExpansionVect<vcl::Vec8d, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, x3_ptr, h_superacc, &error);
 #else
     cpu::ExDOTFPE_cpu<cpu::FPExpansionVect<double, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, x3_ptr, h_superacc, &error);
-#endif//_WITHOUT_VCL
+#endif//EXBLAS_WITHOUT_VCL
     *status = 0;
     if( error ) *status = 1;
 }
