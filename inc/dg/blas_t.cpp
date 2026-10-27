@@ -263,18 +263,20 @@ TEST_CASE( "Exact dot product")
 TEST_CASE( "Dot of subnormal numbers")
 {
     // Subnormal sums are exact in double precision as well
-    int ranks = 1;
+    // With MPI only rank 0 holds the values so that the sum stays subnormal
+    int rank = 0;
 #ifdef WITH_MPI
-    MPI_Comm_size( MPI_COMM_WORLD, &ranks);
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
     // Sizes test the serial and the OpenMP version (size >= 100)
     unsigned size = GENERATE( 5u, 1003u);
-    INFO( "Local size "<<size<<" on "<<ranks<<" ranks");
+    INFO( "Local size "<<size<<" on rank "<<rank);
     const double dmin = std::numeric_limits<double>::min();
     const double tiny = std::numeric_limits<double>::denorm_min();
     thrust::host_vector<double> h_v( size, 0.), h_w( size, 1.);
-    h_v[0] = tiny, h_v[1] = dmin/4., h_v[2] = dmin, h_v[3] = -dmin;
-    const double sol = ranks*(tiny + dmin/4.);
+    if( rank == 0)
+        h_v[0] = tiny, h_v[1] = dmin/4., h_v[2] = dmin, h_v[3] = -dmin;
+    const double sol = tiny + dmin/4.;
     REQUIRE( sol < dmin); // the result is subnormal
     auto v = make_x_vector<dg::DVec>( h_v);
     auto w = make_x_vector<dg::DVec>( h_w);
