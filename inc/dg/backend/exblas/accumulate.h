@@ -119,17 +119,21 @@ void Accumulate(T x, std::array<T,N>& fpe , int* status)
     }
 }
 /**
-* @brief Convert a fpe to the nearest number (CPU version)
+* @brief Convert a fpe to a single number (CPU version)
 *
-* @param fpe a pointer to N doubles on the CPU (representing the fpe)
-* @return the double precision number nearest to the fpe
+* The components are first accumulated into an fpe of size 2, whose sum is
+* then rounded. The result is therefore not always correctly rounded but may
+* differ by 1 ulp from the number nearest to the fpe (e.g. for
+* \f$ 1 + 2^{-53} + 2^{-120}\f$ the result is 1 instead of \f$ 1+2^{-52}\f$)
+* @param fpe the floating point expansion (N values of type T on the CPU)
+* @return the sum of the fpe rounded to T
 */
 template<class T, size_t N>
 inline T Round( const std::array<T,N>& fpe ) {
     // Our own implementation
     // Just accumulate to a FPE of size 2 and return sum;
     std::array<T, 2> fpe_red{T(0),T(0)};
-    int status_red;
+    int status_red = 0;
     for( unsigned u = 0; u<N; u++)
         Accumulate( fpe[u], fpe_red, &status_red);
     return fpe_red[0] + fpe_red[1];
