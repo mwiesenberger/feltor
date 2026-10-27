@@ -93,19 +93,6 @@ static constexpr int IMIN           = 0; //!< first index in a superaccumulator
 static constexpr int IMAX           = BIN_COUNT-1; //!< last index in a superaccumulator
 static constexpr double DELTASCALE = double(1ull << DIGITS); //!< Assumes KRX>0
 
-///@brief Characterizes the result of summation
-enum Status
-{
-    //MW: not used anywhere but it would probably be useful to work it in?
-    Exact, /*!< Reproducible and accurate */
-    Inexact, /*!< non-accurate */
-    MinusInfinity, /*!< minus infinity */
-    PlusInfinity, /*!< plus infinity */
-    Overflow, /*!< overflow occurred */
-    sNaN, /*!< not-a-number */
-    qNaN /*!< not-a-number */
-};
-
 ///@cond
 template<class T>
 struct ValueTraits

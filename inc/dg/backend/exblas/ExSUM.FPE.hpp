@@ -16,7 +16,6 @@
 #ifndef EXSUM_FPE_HPP_
 #define EXSUM_FPE_HPP_
 #include <algorithm> // std::fill
-#include <utility> // std::swap
 #include "accumulate.h"
 
 namespace dg
@@ -72,9 +71,6 @@ struct FPExpansionVect
 
 private:
     void FlushVector(T x) const;
-    void Insert(T & x);
-    void Insert(T & x1, T & x2);
-    static void Swap(T & x1, T & x2);
     static T twosum(T a, T b, T & s);
 
     int64_t* superacc;
@@ -119,72 +115,6 @@ template<typename T, int N, typename TRAITS>
 T FPExpansionVect<T,N,TRAITS>::twosum(T a, T b, T & s)
 {
 	return KnuthTwoSum(a, b, s);
-}
-
-template<typename T, int N, typename TRAITS>
-void FPExpansionVect<T,N,TRAITS>::Swap(T & x1, T & x2)
-{
-    std::swap(x1, x2);
-}
-
-template<typename T, int N, typename TRAITS> UNROLL_ATTRIBUTE
-void FPExpansionVect<T,N,TRAITS>::Insert(T & x)
-{
-    if(TRAITS::Sort) {
-        // Insert at tail. Unconditional version.
-        // Rotate accumulators:
-        // x <= a[0]
-        // a[0] <= a[1]
-        // a[1] <= a[2]
-        // ...
-        // a[N-2] <= a[N-1]
-        // a[N-1] <= x
-        //T xb = a[0];
-        T xb = T().load_a((double*)&a[0]);
-        for(int i = 0; i != N-1; ++i)
-        {
-            //a[i] = a[i+1];
-            T v;
-            v.load_a((double*)&a[i+1]);
-            v.store_a((double*)&a[i]);
-        }
-        //a[N-1] = x;
-        x.store_a((double*)&a[N-1]);
-        x = xb;
-    }
-    else {
-        // Insert at head
-        // Conditional or unconditional
-        Swap(x, a[0]);
-    }
-}
-
-template<typename T, int N, typename TRAITS> UNROLL_ATTRIBUTE
-void FPExpansionVect<T,N,TRAITS>::Insert(T & x1, T & x2)
-{
-    if(TRAITS::Sort) {
-        // x1 <= a[0]
-        // x2 <= a[1]
-        // a[0] <= a[2]
-        // a[1] <= a[3]
-        // a[i] <= a[i+2]
-        // a[N-3] <= a[N-1]
-        // a[N-2] <= x1
-        // a[N-1] <= x2
-        T x1b = a[0];
-        T x2b = a[1];
-        for(int i = 0; i != N-2; ++i) {
-            a[i] = a[i+2];
-        }
-        a[N-2] = x1;
-        a[N-1] = x2;
-        x1 = x1b;
-        x2 = x2b;
-    }
-    else {
-        Swap(x1, a[0]);
-        Swap(x2, a[1]);
-    }
 }
 
 template<typename T, int N, typename TRAITS>
