@@ -9,12 +9,26 @@
 #include <mpi.h>
 #include <array>
 #include <vector>
-#include <map>
 #include "accumulate.h"
 
 namespace dg
 {
 namespace exblas {
+
+///@cond
+namespace detail
+{
+// Free the cached communicators when the communicator they belong to is freed
+inline int free_reduce_communicators( MPI_Comm, int, void* attribute, void*)
+{
+    auto* comms = static_cast<std::array<MPI_Comm, 2>*>( attribute);
+    MPI_Comm_free( &(*comms)[0]);
+    MPI_Comm_free( &(*comms)[1]);
+    delete comms;
+    return MPI_SUCCESS;
+}
+}//namespace detail
+///@endcond
 
 /**
  * @brief This function can be used to partition communicators for the \c
@@ -34,22 +48,38 @@ namespace exblas {
  * @attention The creation of new communicators involves communication between all
  * participation processes (comm in this case).
  * In order to avoid excessive creation of new MPI communicators
- * (there is a limit to how many a program can create), the function keeps
- * a (static) record of which communicators it has been called with. If you
+ * (there is a limit to how many a program can create), the function caches
+ * the created communicators as an attribute of \c comm. If you
  * repeatedly call this function with the same \c comm only the first call will
- * actually create new communicators.
+ * actually create new communicators. They are freed when \c comm is freed and
+ * are not copied by \c MPI_Comm_dup.
  */
 inline void mpi_reduce_communicator(MPI_Comm comm,
     MPI_Comm* comm_mod, MPI_Comm* comm_mod_reduce){
-    //we keep track of communicators that were created in the past
-    // (static function variables are constructed the program
-    // encounters them and destruced at program termination)
-    static std::map<MPI_Comm, std::array<MPI_Comm, 2>> comm_mods;
+    // We cache the communicators as an attribute of comm: unlike a map keyed
+    // by the handle this is not fooled by a freed and reused handle and all
+    // ranks agree on whether the communicators exist
+    // The communicators are not copied by MPI_Comm_dup (MPI_COMM_NULL_COPY_FN):
+    // a duplicate creates its own on first use, which keeps the separate
+    // communication context of the duplicate and avoids collective calls in
+    // the copy callback (that is also called by the non-blocking MPI_Comm_idup)
+    static int keyval = [](){
+        int key;
+        MPI_Comm_create_keyval( MPI_COMM_NULL_COPY_FN,
+            detail::free_reduce_communicators, &key, nullptr);
+        return key;
+    }();
     assert( comm != MPI_COMM_NULL);
-    if( comm_mods.count(comm) == 1 )
+    // The attribute is a pointer: MPI_Comm_set_attr takes the pointer itself,
+    // but MPI_Comm_get_attr takes the address of a pointer (declared as void*
+    // although it is used as void**), into which it writes the stored pointer
+    std::array<MPI_Comm, 2>* comms;
+    int found;
+    MPI_Comm_get_attr( comm, keyval, &comms, &found);
+    if( found)
     {
-        *comm_mod = comm_mods[comm][0];
-        *comm_mod_reduce = comm_mods[comm][1];
+        *comm_mod = (*comms)[0];
+        *comm_mod_reduce = (*comms)[1];
         return;
     }
     int rank, size;
@@ -67,7 +97,8 @@ inline void mpi_reduce_communicator(MPI_Comm comm,
     // https://github.com/open-mpi/ompi/issues/13081
     MPI_Comm_split( comm, rank%mod, rank, comm_mod_reduce);
 
-    comm_mods[comm] = {*comm_mod, *comm_mod_reduce};
+    MPI_Comm_set_attr( comm, keyval,
+        new std::array<MPI_Comm, 2>{*comm_mod, *comm_mod_reduce});
 }
 
 /*! @brief reduce a number of superaccumulators distributed among mpi processes
@@ -104,11 +135,11 @@ MPI_Comm comm, MPI_Comm comm_mod, MPI_Comm comm_mod_reduce )
     MPI_Comm_size( comm_mod, &size_comm_mod);
     if( size_comm == size_comm_mod) // size < 128
     {
-        MPI_Allreduce( in, out, num_superacc*exblas::BIN_COUNT, MPI_LONG, MPI_SUM, comm);
+        MPI_Allreduce( in, out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T, MPI_SUM, comm);
         return;
     }
 
-    MPI_Reduce(in, out, num_superacc*exblas::BIN_COUNT, MPI_LONG, MPI_SUM, 0,
+    MPI_Reduce(in, out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T, MPI_SUM, 0,
         comm_mod);
     int rank;
     MPI_Comm_rank( comm_mod, &rank);
@@ -125,11 +156,11 @@ MPI_Comm comm, MPI_Comm comm_mod, MPI_Comm comm_mod_reduce )
                 for( int k=0; k<exblas::BIN_COUNT; k++)
                     in[i*BIN_COUNT+k] = out[i*BIN_COUNT+k];
             }
-            MPI_Reduce(in, out, num_superacc*exblas::BIN_COUNT, MPI_LONG,
+            MPI_Reduce(in, out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T,
                 MPI_SUM, 0, comm_mod_reduce);
         }
     }
-    MPI_Bcast( out, num_superacc*exblas::BIN_COUNT, MPI_LONG, 0, comm);
+    MPI_Bcast( out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T, 0, comm);
 }
 
 }//namespace exblas
