@@ -316,6 +316,7 @@ void ExDOTCompleteFinal(
 ///@brief GPU version of exact dot product
 ///@copydoc hide_exdot2
 ///@copydoc hide_deviceacc
+///@copydoc hide_gpu_static_buffer
 template<class PointerOrValue1, class PointerOrValue2, size_t NBFPE=3>
 __host__
 void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t* d_superacc, int* status)
@@ -337,6 +338,7 @@ void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, in
 ///@brief GPU version of exact dot product
 ///@copydoc hide_exdot3
 ///@copydoc hide_deviceacc
+///@copydoc hide_gpu_static_buffer
 template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3, size_t NBFPE=3>
 __host__
 void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t* d_superacc, int* status)

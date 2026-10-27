@@ -171,6 +171,7 @@ static constexpr unsigned NUM_FPES                    = 64; //# of blocks
 /*!@brief GPU version of fpe generalized dot product
  *
  * @copydetails fpedot_cpu
+ * @copydoc hide_gpu_static_buffer
  */
 template<class T, size_t N, class Functor, class ...PointerOrValues>
 __host__
