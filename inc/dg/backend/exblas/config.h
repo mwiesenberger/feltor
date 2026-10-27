@@ -71,12 +71,14 @@
 // Debug mode
 #define paranoid_assert(x) assert(x)
 // Making C code less readable in an attempt to make assembly more readable
+// TODO Replace with the attributes [[likely]] and [[unlikely]] once we
+// switch to C++20
 #if not defined _MSC_VER //there is no builtin_expect on msvc:
-#define likely(x)       __builtin_expect(!!(x), 1)
-#define unlikely(x)     __builtin_expect(!!(x), 0)
+#define EXBLAS_LIKELY(x)       __builtin_expect(!!(x), 1)
+#define EXBLAS_UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #else
-#define likely(x) (x)
-#define unlikely(x) (x)
+#define EXBLAS_LIKELY(x) (x)
+#define EXBLAS_UNLIKELY(x) (x)
 #endif
 
 namespace dg

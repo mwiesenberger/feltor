@@ -184,7 +184,7 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x) {
     int64_t carrybit;
     int64_t oldword = cpu::xadd(accumulator[i], x, overflow);
     // To propagate over- or underflow
-    while(unlikely(overflow)) {
+    while(EXBLAS_UNLIKELY(overflow)) {
         // Carry or borrow
         // oldword has sign S
         // x has sign S
@@ -199,7 +199,7 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x) {
 
         // Cancel carry-save bits
         cpu::xadd(accumulator[i], (int64_t)( 0 - ((uint64_t)carry << DIGITS)), overflow);
-        if(TSAFE && unlikely(s ^ overflow)) {
+        if(TSAFE && EXBLAS_UNLIKELY(s ^ overflow)) {
             // (Another) overflow of sign S
             carrybit *= 2;
         }

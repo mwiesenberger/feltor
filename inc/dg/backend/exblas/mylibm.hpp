@@ -83,7 +83,7 @@ inline double myldexp(double x, int e)
     uint64_t i = double_as_uint64(x);
     // Subnormal numbers have no implicit leading bit, so adding to the
     // exponent bits does not scale them
-    if( unlikely( (i & 0x7ff0000000000000ull) == 0))
+    if( EXBLAS_UNLIKELY( (i & 0x7ff0000000000000ull) == 0))
         return std::ldexp( x, e);
     i += (uint64_t)e << 52;
     return uint64_as_double(i);
