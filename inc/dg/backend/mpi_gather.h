@@ -692,7 +692,9 @@ struct MPIGather
     * that the calling process receives from that PID ( = gather map)
     * @param chunk_size If the communication pattern consists of equally sized
     * chunks one can specify in \c recvIdx only the starting indices of each
-    * chunk and use \c chunk_size to specify how many indices should be sent
+    * chunk in units of \c chunk_size and use \c chunk_size to specify how
+    * many indices should be sent, i.e. the index \c i in \c recvIdx receives
+    * the elements <tt>i*chunk_size, ..., (i+1)*chunk_size-1</tt>
     * @param comm The MPI communicator participating in the gather
     * operations
     * @note Messages will be received in \c buffer in the order that <tt>for(
@@ -742,7 +744,7 @@ struct MPIGather
                 {
                     for( unsigned k=0; k<chunk_size; k++)
                     {
-                        g2.push_back(idx.second[l] + k);
+                        g2.push_back(idx.second[l]*chunk_size + k);
                     }
                     idx.second[l] = start + l; // repoint index to store index in units of chunk_size
                 }

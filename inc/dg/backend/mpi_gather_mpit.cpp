@@ -161,6 +161,40 @@ TEMPLATE_TEST_CASE( "Gather MPI", "", int, double)
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
+TEST_CASE( "Gather chunks")
+{
+    int rank, size;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    // Receive num chunks of size 2 from the next rank; the indices in recvIdx
+    // are in units of the chunk size. Few chunks per rank are sent directly,
+    // many chunks are gathered into a store first
+    unsigned chunk_size = 2;
+    auto num = GENERATE( 3u, 20u);
+    INFO( "Number of chunks "<<num);
+    thrust::host_vector<double> v( 100);
+    for( unsigned i=0; i<v.size(); i++)
+        v[i] = 1000*rank + i;
+    int from = (rank+1)%size;
+    std::map<int, thrust::host_vector<int>> recvIdx;
+    for( unsigned u=0; u<num; u++)
+        recvIdx[from].push_back( 2*u); // not contiguous
+    dg::MPIGather<thrust::device_vector> mpi_gather( recvIdx, chunk_size,
+        MPI_COMM_WORLD);
+    CHECK( mpi_gather.isContiguous() == (num < 10));
+    thrust::device_vector<double> v_d = v;
+    thrust::device_vector<double> buffer( mpi_gather.buffer_size());
+    REQUIRE( buffer.size() == num*chunk_size);
+    mpi_gather.global_gather_init( v_d, buffer);
+    mpi_gather.global_gather_wait( buffer);
+    for( unsigned u=0; u<num; u++)
+    for( unsigned k=0; k<chunk_size; k++)
+    {
+        INFO( "Rank "<<rank<<" chunk "<<u<<" element "<<k);
+        CHECK( buffer[u*chunk_size+k] == 1000*from + 2*u*chunk_size + k);
+    }
+}
+
 TEST_CASE("MPIAllreduce")
 {
     int rank, size;
