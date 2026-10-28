@@ -19,10 +19,12 @@ template<class real_type, class value_type>
     const int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
     const int grid_size = gridDim.x*blockDim.x;
     const int right_ = right_range[1]-right_range[0];
+    // size counts all right_size columns but only right_ of them are computed
+    const int lines = size/right_size*right_;
     //every thread takes num_rows/grid_size rows
-    for( int row = thread_id; row<size; row += grid_size)
+    for( int row = thread_id; row<lines; row += grid_size)
     {
-        int rr = row/right_size, rrn = rr/n;
+        int rr = row/right_, rrn = rr/n;
         int s=rrn/num_rows,
             i = (rrn)%num_rows,
             k = (rr)%n,
@@ -64,10 +66,12 @@ template<class real_type, class value_type, size_t n, size_t blocks_per_line>
     const int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
     const int grid_size = gridDim.x*blockDim.x;
     const int right_ = right_range[1]-right_range[0];
+    // size counts all right_size columns but only right_ of them are computed
+    const int lines = size/right_size*right_;
     //every thread takes num_rows/grid_size rows
     if( beta != 0)
     {
-    for( int row = thread_id; row<size; row += grid_size)
+    for( int row = thread_id; row<lines; row += grid_size)
     {
         value_type temp[blocks_per_line]={0};
         if(right_size==1)
@@ -90,7 +94,7 @@ template<class real_type, class value_type, size_t n, size_t blocks_per_line>
         }
         else
         {
-            int rr = row/right_size;
+            int rr = row/right_;
             int rrn = rr/n, k = rr%n;
             int s=rrn/num_rows, i = (rrn)%num_rows;
             int j=right_range[0]+row%right_;
@@ -114,7 +118,7 @@ template<class real_type, class value_type, size_t n, size_t blocks_per_line>
     }
     else
     {
-    for( int row = thread_id; row<size; row += grid_size)
+    for( int row = thread_id; row<lines; row += grid_size)
     {
         value_type temp[blocks_per_line]={0};
         if(right_size==1)
@@ -137,7 +141,7 @@ template<class real_type, class value_type, size_t n, size_t blocks_per_line>
         }
         else
         {
-            int rr = row/right_size;
+            int rr = row/right_;
             int rrn = rr/n, k = rr%n;
             int s=rrn/num_rows, i = (rrn)%num_rows;
             int j=right_range[0]+row%right_;

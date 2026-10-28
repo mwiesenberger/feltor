@@ -77,6 +77,13 @@ TEST_CASE( "Derivatives X")
         double dist = sqrt(dg::blas2::dot(error, w2d, error));
         INFO("Distance "<<i<<" to true solution: "<<dist);
         CHECK( dist <  1e-3);
+        // with beta = 1 the result is added to y
+        Vector y = f2d;
+        dg::blas2::symv( 1., m2[i], f2d, 1., y);
+        dg::blas1::axpbypgz( 1., f2d, 1., sol2[i], -1., y);
+        dist = sqrt(dg::blas2::dot(y, w2d, y));
+        INFO("Distance "<<i<<" to true solution with beta = 1: "<<dist);
+        CHECK( dist <  1e-3);
     }
     SECTION( "Three dimensional")
     {
@@ -98,11 +105,13 @@ TEST_CASE( "Derivatives X")
         Vector sol3[] = {dx3d, dy3d, dz3d, null3, null3, null3};
 
         auto i = GENERATE( 0,1,2,3,4,5);
+        auto beta = GENERATE( 0., 1.);
+        // with beta = 1 the result is added to y
         Vector error = f3d;
-        dg::blas2::symv( m3[i], f3d, error);
-        dg::blas1::axpby( 1., sol3[i], -1., error);
+        dg::blas2::symv( 1., m3[i], f3d, beta, error);
+        dg::blas1::axpbypgz( 1., sol3[i], beta, f3d, -1., error);
         double dist = sqrt(dg::blas2::dot(error, w3d, error));
-        INFO("Distance "<<i<<" to true solution: "<<dist);
+        INFO("Distance "<<i<<" to true solution with beta = "<<beta<<": "<<dist);
         if ( i==2)
             CHECK( dist < 1e-2); // DZ  is 2nd order
         else if( i==5)
