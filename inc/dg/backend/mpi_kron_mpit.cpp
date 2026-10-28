@@ -34,6 +34,15 @@ TEST_CASE("MPI Kron test")
         CHECK( mm.at(same).root == comm);
         CHECK( mm.at(same).remain_dims == remain_dims);
     }
+    SECTION( "Wrong number of dimensions throws")
+    {
+        MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0,0},
+            {false,false,false}, true);
+        CHECK_THROWS_AS( dg::mpi_cart_sub( comm, {1,0}), dg::Error);
+        CHECK_THROWS_AS( dg::mpi_cart_sub( comm, {1,0,0,0}), dg::Error);
+        CHECK_THROWS_AS( dg::mpi_cart_split_as<4>( comm), dg::Error);
+        CHECK( dg::mpi_cart_split_as<2>( comm).size() == 2);
+    }
     SECTION( "Check double sub does not segfault")
     {
         // This tests for issue in openmpi 4.0.0
