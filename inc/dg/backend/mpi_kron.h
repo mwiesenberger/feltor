@@ -184,7 +184,9 @@ inline MPI_Comm mpi_cart_sub( MPI_Comm comm, std::vector<int> remain_dims, bool
  * transpose communicators, such that the first dimension in \c comms is the
  * last dimension in the return Cartesian communicator
  * @param comms input communicators
- * @return Kronecker product of communicators
+ * @return Kronecker product of communicators. If \c comms is empty \c
+ * MPI_COMM_NULL is returned, if it contains only one communicator that
+ * communicator is returned
  * @copydoc hide_mpi_cart_rationale
  */
 inline MPI_Comm mpi_cart_kron( std::vector<MPI_Comm> comms)

@@ -11,28 +11,29 @@ TEST_CASE("MPI Kron test")
     int rank, size;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
     MPI_Comm_size( MPI_COMM_WORLD, &size);
-    const auto& mm = dg::detail::mpi_cart_registry;
-    SECTION( "Check sub entry creation")
+    SECTION( "Sub returns the cached communicator")
     {
-        MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0,0},
+        std::vector<int> np3d = {0,0,0};
+        MPI_Dims_create( size, 3, &np3d[0]);
+        MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, np3d,
             {false,false,false}, true);
 
-        std::vector<int> remain_dims = {1, 0, 0};
-        MPI_Comm comm_sub100;
-        dg::mpi_cart_sub( comm, &remain_dims[0], &comm_sub100);
+        MPI_Comm comm_sub100 = dg::mpi_cart_sub( comm, {1,0,0});
+        int ndims;
+        dg::mpi_cartdim_get( comm_sub100, &ndims);
+        CHECK( ndims == 1);
+        int coords[1], np[1] = {0}, periods[1];
+        dg::mpi_cart_get( comm_sub100, 1, np, periods, coords);
+        CHECK( np[0] == np3d[0]);
 
-        dg::register_mpi_cart_sub( comm, &remain_dims[0], comm_sub100);
-
-        CHECK( mm.at(comm_sub100).root == comm);
-        CHECK( mm.at(comm_sub100).remain_dims == remain_dims);
-
-        MPI_Comm same = dg::mpi_cart_sub( comm, {1,0,0}, false);
-        CHECK( same == comm_sub100);
-
-        same = dg::mpi_cart_sub( comm, {0,0,1});
-        remain_dims = {0,0,1};
-        CHECK( mm.at(same).root == comm);
-        CHECK( mm.at(same).remain_dims == remain_dims);
+        CHECK( dg::mpi_cart_sub( comm, {1,0,0}) == comm_sub100);
+        // Subbing all dimensions returns the communicator itself
+        CHECK( dg::mpi_cart_sub( comm, {1,1,1}) == comm);
+        // A sub of a sub is the same as the sub of the root
+        MPI_Comm comm_sub101 = dg::mpi_cart_sub( comm, {1,0,1});
+        CHECK( dg::mpi_cart_sub( comm_sub101, {1,0}) == comm_sub100);
+        CHECK( dg::mpi_cart_sub( comm_sub101, {0,1}) ==
+            dg::mpi_cart_sub( comm, {0,0,1}));
     }
     SECTION( "Wrong number of dimensions throws")
     {
@@ -78,8 +79,7 @@ TEST_CASE("MPI Kron test")
         dg::mpi_cart_get( kron, 2, np, periods, coords);
         CHECK( np[0] == np3d[0]);
         CHECK( np[1] == np3d[2]);
-        CHECK(mm.at(kron).root == comm);
-        CHECK(mm.at(kron).remain_dims == std::vector<int>{1,0,1});
+        CHECK( kron == dg::mpi_cart_sub( comm, {1,0,1}));
         MPI_Comm comm_sub010 = dg::mpi_cart_sub( comm, {0,1,0});
         MPI_Comm comm111 = MPI_COMM_NULL;
         CHECK_THROWS_AS(
@@ -101,15 +101,26 @@ TEST_CASE("MPI Kron test")
         MPI_Comm joined = dg::mpi_cart_kron( axes);
         CHECK( joined == comm);
 
-        //if(rank==0)dg::mpi_cart_registry_display();
         // A test originating from geometry_elliptic_mpib
         auto taxe = dg::mpi_cart_kron( {axes[0], axes[1]});
-        //if(rank==0)dg::mpi_cart_registry_display();
         auto paxes = dg::mpi_cart_split_as<2>( taxe);
-        //if(rank==0)dg::mpi_cart_registry_display();
         auto kaxe = dg::mpi_cart_kron( paxes);
-        //if(rank==0)dg::mpi_cart_registry_display();
         CHECK( kaxe == taxe);
+    }
+    SECTION( "Kronecker of one or no communicator")
+    {
+        MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
+        MPI_Comm comm_sub10 = dg::mpi_cart_sub( comm, {1,0});
+        CHECK( dg::mpi_cart_kron( {comm_sub10}) == comm_sub10);
+        CHECK( dg::mpi_cart_kron( std::vector<MPI_Comm>{}) == MPI_COMM_NULL);
+    }
+    SECTION( "Kronecker of communicators with different roots throws")
+    {
+        MPI_Comm comm0 = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
+        MPI_Comm comm1 = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
+        MPI_Comm comm0_sub10 = dg::mpi_cart_sub( comm0, {1,0});
+        MPI_Comm comm1_sub01 = dg::mpi_cart_sub( comm1, {0,1});
+        CHECK_THROWS( dg::mpi_cart_kron( {comm0_sub10, comm1_sub01}));
     }
     SECTION( "Documentation")
     {
@@ -126,7 +137,5 @@ TEST_CASE("MPI Kron test")
         CHECK( axes2d[1] == axes3d[2]);
         //! [split and join]
     }
-
-    dg::detail::mpi_cart_registry_clear();
 }
 
