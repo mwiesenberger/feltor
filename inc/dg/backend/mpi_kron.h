@@ -2,9 +2,9 @@
 #include <cassert>
 #include <array>
 #include <vector>
-#include <algorithm> // std::copy_n
-#include <iostream>
+#include <algorithm> // std::copy_n, std::all_of
 #include <map>
+#include <memory>
 #include "mpi_cart.h"
 #include "exceptions.h"
 
@@ -18,83 +18,105 @@ namespace dg
  * manually tracking their parent Cartesian communicators.  However, this is
  * needed in the \c dg::blas1::kronecker and \c dg::kronecker functions.
  */
+/*! @class hide_mpi_cart_ownership
+ * @note The dg library caches the communicators that \c dg::mpi_cart_sub
+ * creates. Repeat calls that ask for the same dimensions of the same root
+ * communicator, i.e. the Cartesian communicator from which they derive and
+ * that was created by \c dg::mpi_cart_create, return the same communicator.
+ * All derived communicators are freed when the root is freed and must not be
+ * freed by the user. The user must only free the root communicator.
+ */
 ///@cond
 namespace detail{
-// I think the mpi registry should not be exposed to the User
-// It may be an idea to hint at it in the grid documentation
-// inline declared functions generate no warning about "defined but not used"...
-// and can be defined in multiple translation units
-struct MPICartInfo
+// The communicators that derive from one root Cartesian communicator through
+// dg::mpi_cart_sub, keyed by their remain_dims relative to the root.
+// The root itself is the entry with all remain_dims true
+struct MPICartFamily
 {
-    MPI_Comm root;
-    std::vector<int> remain_dims;
-    // std::vector<int> periods; // no need to track because the root and all the children have the same periods
+    std::map<std::vector<int>, MPI_Comm> members;
 };
-//we keep track of communicators that were created in the past
-// inline variables have the same address in multiple translation units
-// and have external linkage by default
-inline std::map<MPI_Comm, MPICartInfo> mpi_cart_registry;
-
-inline void mpi_cart_registry_display( std::ostream& out = std::cout)
+// The attribute of every member of a family
+struct MPICartNode
 {
-    out << "MPI Cart registry\n";
-    for ( auto pair : detail::mpi_cart_registry)
+    std::shared_ptr<MPICartFamily> family;
+    std::vector<int> remain_dims; // relative to the root
+};
+
+// Called by MPI when a member is freed; the root frees all other members
+inline int mpi_cart_delete_node( MPI_Comm comm, int, void* attribute, void*)
+{
+    auto* node = static_cast<MPICartNode*>( attribute);
+    auto& members = node->family->members;
+    const std::vector<int>& re = node->remain_dims;
+    if( std::all_of( re.begin(), re.end(), [](int r){ return r;}))
     {
-        auto& re = pair.second.remain_dims;
-        out << "Comm "<<pair.first<<" Root "<<pair.second.root<<" Remains size "<<re.size();
-        out << " r:";
-        for( unsigned i=0; i<re.size(); i++)
-            out << " "<<re[i];
-        out << std::endl;
+        // Freeing a member calls this function, which erases the member from
+        // members, so we cannot iterate over members and use a copy instead
+        auto children = members;
+        for( auto& child : children)
+            if( child.second != comm)
+                MPI_Comm_free( &child.second);
     }
+    else
+        members.erase( re);
+    delete node;
+    return MPI_SUCCESS;
 }
 
-inline void mpi_cart_registry_clear( )
+// The attribute is not copied by MPI_Comm_dup (MPI_COMM_NULL_COPY_FN): a
+// duplicate becomes the root of its own family on first use
+inline int mpi_cart_keyval()
 {
-    mpi_cart_registry.clear();
+    static int keyval = [](){
+        int key;
+        MPI_Comm_create_keyval( MPI_COMM_NULL_COPY_FN, mpi_cart_delete_node,
+            &key, nullptr);
+        return key;
+    }();
+    return keyval;
 }
 
-inline void mpi_cart_register_cart( MPI_Comm comm)
+// Return the node of comm or nullptr if comm is not a member of a family
+inline const MPICartNode* mpi_cart_find( MPI_Comm comm)
 {
-    // Register Cartesian comm if not already there
-    auto it = detail::mpi_cart_registry.find( comm);
-    if( it == detail::mpi_cart_registry.end())
+    // MPI_Comm_get_attr takes the address of a pointer (declared as void*
+    // although it is used as void**), into which it writes the stored pointer
+    MPICartNode* node;
+    int found;
+    MPI_Comm_get_attr( comm, mpi_cart_keyval(), &node, &found);
+    return found ? node : nullptr;
+}
+
+// Add comm to family
+inline void mpi_cart_add( MPI_Comm comm, std::shared_ptr<MPICartFamily>
+    family, const std::vector<int>& remain_dims)
+{
+    family->members[remain_dims] = comm;
+    MPI_Comm_set_attr( comm, mpi_cart_keyval(),
+        new MPICartNode{ family, remain_dims});
+}
+
+// Return the node of comm, make comm the root of a new family if it is not a
+// member of a family yet
+inline const MPICartNode& mpi_cart_node( MPI_Comm comm)
+{
+    const MPICartNode* node = mpi_cart_find( comm);
+    if( node == nullptr)
     {
         int ndims;
         dg::mpi_cartdim_get( comm, &ndims);
-        std::vector<int> remain_dims( ndims, true);
-        detail::MPICartInfo info{ comm, remain_dims};
-        detail::mpi_cart_registry[comm] = info;
+        mpi_cart_add( comm, std::make_shared<MPICartFamily>(),
+            std::vector<int>( ndims, true));
+        node = mpi_cart_find( comm);
     }
+    return *node;
 }
 }
-
-/*! @brief Manually register a call to \c MPI_Cart_sub with the dg library
- *
- * @param comm communicator with Cartesian structure (handle) (parameter used
- * in \c MPI_Cart_sub)
- * @param remain_dims The actual parameter used in \c MPI_Cart_sub
- * corresponding to \c comm
- * @param newcomm communicator containing the subgrid that includes the calling
- * process (handle) (parameter used in \c MPI_Cart_sub)
- * @copydoc hide_mpi_cart_rationale
- */
-inline void register_mpi_cart_sub( MPI_Comm comm, const int remain_dims[], MPI_Comm newcomm)
-{
-    // How should we handle row-major vs column-major issue?
-    detail::mpi_cart_register_cart( comm);
-    detail::MPICartInfo info = detail::mpi_cart_registry.at(comm);
-    unsigned ndims = info.remain_dims.size();
-    for( unsigned u=0; u<ndims; u++)
-        info.remain_dims[u]  = remain_dims[u];
-    detail::mpi_cart_registry[newcomm] = info;
-}
-// Can't decide whether to make register_mpi_cart_sub public ...
 ///@endcond
 ///@addtogroup mpi_utility
 ///@{
 
-/*! @brief Call and register a call to \c MPI_Cart_sub with the dg library
+/*! @brief Call \c MPI_Cart_sub or return the communicator of a previous call
  *
  * @param comm communicator with Cartesian structure (handle) (parameter used
  * in \c MPI_Cart_sub)
@@ -106,19 +128,14 @@ inline void register_mpi_cart_sub( MPI_Comm comm, const int remain_dims[], MPI_C
  * @note Notice the transposition in \c remain_dims ! In the dg-library we
  * always transpose Cartesian communicators to effectively make the process
  * ranking column-major instead of row-major.
- * @param duplicate Determines what happens in case \c MPI_Cart_sub was already
- * registered with \c comm and the same \c
- * remain_dims. True: call \c MPI_Cart_sub and generate a novel communicator
- * even if a duplicate exists. False: first check if a communicator that was
- * subbed from \c comm with \c remain_dims was previously registered. In case
- * one is found <tt>return existing_comm;</tt>.  Else, call and register \c
- * MPI_Cart_sub.
  * @return communicator containing the subgrid that includes the calling
- * process (handle) (parameter used in \c MPI_Cart_sub)
+ * process (handle) (parameter used in \c MPI_Cart_sub). If a previous call
+ * already created the communicator with the same dimensions of the same root,
+ * that communicator is returned.
+ * @copydoc hide_mpi_cart_ownership
  * @copydoc hide_mpi_cart_rationale
  */
-inline MPI_Comm mpi_cart_sub( MPI_Comm comm, std::vector<int> remain_dims, bool
-    duplicate = false)
+inline MPI_Comm mpi_cart_sub( MPI_Comm comm, std::vector<int> remain_dims)
 {
     int ndims;
     dg::mpi_cartdim_get( comm, &ndims);
@@ -126,40 +143,26 @@ inline MPI_Comm mpi_cart_sub( MPI_Comm comm, std::vector<int> remain_dims, bool
         throw Error(Message(_ping_)<<"remain_dims has "<<remain_dims.size()
                 <<" entries but comm has "<<ndims<<" dimensions");
 
-    detail::mpi_cart_register_cart( comm);
-    detail::MPICartInfo info = detail::mpi_cart_registry.at(comm);
-    // info.remain_dims may be larger than remain_dims because comm may have a parent
-    // but exactly remain_dims.size() entries are true
-    int counter =0;
-    for( unsigned u=0; u<info.remain_dims.size(); u++)
-        if( info.remain_dims[u])
-        {
-            info.remain_dims[u]  = remain_dims[counter];
-            counter ++;
-        }
-    assert( counter == (int)remain_dims.size());
-    if( not duplicate)
-    {
-        for (auto it = detail::mpi_cart_registry.begin(); it !=
-            detail::mpi_cart_registry.end(); ++it)
-        {
-//            int comp_root;
-//            MPI_Comm_compare( it->second.root, info.root, &comp_root);
-//            if( (comp_root == MPI_IDENT or comp_root == MPI_CONGRUENT) and
-//                it->second.remain_dims == info.remain_dims)
-            if( it->second.root == info.root && it->second.remain_dims ==
-                info.remain_dims)
-            {
-                return it->first;
-            }
-        }
-    }
+    const detail::MPICartNode& node = detail::mpi_cart_node( comm);
+    // The true entries of node.remain_dims are the dimensions of comm
+    // root_dims may be larger than remain_dims because comm may have a
+    // parent but exactly remain_dims.size() entries are true
+    std::vector<int> root_dims = node.remain_dims;
+    unsigned counter = 0;
+    for( auto& r : root_dims)
+        if( r)
+            r = (remain_dims[counter++] != 0);
+    assert( counter == remain_dims.size());
+    auto& members = node.family->members;
+    auto it = members.find( root_dims);
+    if( it != members.end())
+        return it->second;
     MPI_Comm newcomm;
-    int err = dg::mpi_cart_sub( comm, &remain_dims[0], &newcomm);
+    int err = dg::mpi_cart_sub( comm, remain_dims.data(), &newcomm);
     if( err != MPI_SUCCESS)
         throw Error(Message(_ping_)<<
                 "Cannot create Cartesian sub comm from given communicator");
-    register_mpi_cart_sub( comm, &remain_dims[0], newcomm);
+    detail::mpi_cart_add( newcomm, node.family, root_dims);
     return newcomm;
 }
 
@@ -170,8 +173,9 @@ inline MPI_Comm mpi_cart_sub( MPI_Comm comm, std::vector<int> remain_dims, bool
  * comms[u]);</tt> for all <tt>u < comms.size();</tt>
  *
  * Unless \c comms is empty or contains only 1 communicator all input comms
- * must be registered in the dg library as Cartesian communicators that derive
- * from the same root Cartesian communicator.
+ * must have been returned by \c dg::mpi_cart_sub (or \c dg::mpi_cart_split,
+ * \c dg::mpi_cart_kron) from the same root Cartesian communicator, else
+ * \c dg::Error is thrown.
  * Furthermore the comms must be mutually orthogonal i.e. any \c true entry in
  * \c remain_dims can exist in only exactly one comm.  The resulting \c
  * remain_dims of the output is then the union of all \c remain_dims of the
@@ -187,6 +191,7 @@ inline MPI_Comm mpi_cart_sub( MPI_Comm comm, std::vector<int> remain_dims, bool
  * @return Kronecker product of communicators. If \c comms is empty \c
  * MPI_COMM_NULL is returned, if it contains only one communicator that
  * communicator is returned
+ * @copydoc hide_mpi_cart_ownership
  * @copydoc hide_mpi_cart_rationale
  */
 inline MPI_Comm mpi_cart_kron( std::vector<MPI_Comm> comms)
@@ -198,35 +203,27 @@ inline MPI_Comm mpi_cart_kron( std::vector<MPI_Comm> comms)
     if( comms.size() == 1)
         return comms[0];
 
-    std::vector<detail::MPICartInfo> infos(comms.size());
-
+    std::vector<const detail::MPICartNode*> nodes( comms.size());
     for( unsigned u=0; u<comms.size(); u++)
     {
-    try{
-        infos [u] = detail::mpi_cart_registry.at(comms[u]);
-    }catch( std::exception& e)
-    {
-        std::cerr << "Did not find "<<comms[u]<<" in Registry!\n";
-        detail::mpi_cart_registry_display();
-        throw e;
-
-    }
-    }
-    MPI_Comm root = infos[0].root;
-    for( unsigned u=0; u<comms.size(); u++)
-        if( infos[u].root != root)
+        nodes[u] = detail::mpi_cart_find( comms[u]);
+        if( nodes[u] == nullptr)
             throw Error(Message(_ping_)<<
-                    "In mpi_cart_kron all comms must have same root comm "
-                    <<root<<" Offending comm number "<<u<<" with root "
-                    <<infos[u].root);
-    auto root_info = detail::mpi_cart_registry.at(root);
-    size_t ndims = root_info.remain_dims.size();
+                    "In mpi_cart_kron comm number "<<u
+                    <<" was not created by dg::mpi_cart_sub");
+        // this just compares the two std::shared_ptr -> very cheap: 
+        if( nodes[u]->family != nodes[0]->family)
+            throw Error(Message(_ping_)<<
+                    "In mpi_cart_kron all comms must have same root comm. "
+                    <<"Offending comm number "<<u);
+    }
+    size_t ndims = nodes[0]->remain_dims.size();
     std::vector<int> remain_dims( ndims, false) ;
     unsigned current_free_k=0;
     for( unsigned u=0; u<comms.size(); u++)
     {
         for( unsigned k=0; k<ndims; k++)
-        if( infos[u].remain_dims[k])
+        if( nodes[u]->remain_dims[k])
         {
             if( remain_dims[k])
                 throw Error(Message(_ping_)<<
@@ -234,11 +231,13 @@ inline MPI_Comm mpi_cart_kron( std::vector<MPI_Comm> comms)
             if( k < current_free_k)
                 throw Error(Message(_ping_)<<
                     "Cannot form kronecker product with communicators in reverse order compared to original ");
-            remain_dims[k] = infos[u].remain_dims[k];
+            remain_dims[k] = nodes[u]->remain_dims[k];
             current_free_k = k+1;
         }
     }
-    return dg::mpi_cart_sub( root_info.root, remain_dims, false);
+    MPI_Comm root = nodes[0]->family->members.at( std::vector<int>( ndims,
+        true));
+    return dg::mpi_cart_sub( root, remain_dims);
 }
 
 /*!
@@ -261,10 +260,10 @@ MPI_Comm mpi_cart_kron( const Vector& comms)
  * the i-th axis, in \c comm
  * @attention Notice the transpose. The first dimension in \c comm is the last
  * dimension in the return vector.
+ * @copydoc hide_mpi_cart_ownership
  */
 inline std::vector<MPI_Comm> mpi_cart_split( MPI_Comm comm)
 {
-    // Check that there is a Comm that was already split
     int ndims;
     dg::mpi_cartdim_get( comm, &ndims);
 
@@ -273,7 +272,7 @@ inline std::vector<MPI_Comm> mpi_cart_split( MPI_Comm comm)
     {
         std::vector<int> remain_dims(ndims, 0);
         remain_dims[u] = 1;
-        comms[u] = mpi_cart_sub( comm, remain_dims, false);
+        comms[u] = mpi_cart_sub( comm, remain_dims);
     }
     return comms;
 }
@@ -287,6 +286,7 @@ inline std::vector<MPI_Comm> mpi_cart_split( MPI_Comm comm)
  * @return Array of 1-dimensional Cartesian communicators
  * @attention Notice the transpose. The first dimension in \c comm is the last
  * dimension in the return vector.
+ * @copydoc hide_mpi_cart_ownership
  */
 template<size_t Nd>
 std::array<MPI_Comm, Nd> mpi_cart_split_as( MPI_Comm comm)
@@ -303,25 +303,6 @@ std::array<MPI_Comm, Nd> mpi_cart_split_as( MPI_Comm comm)
 }
 
 
-
-// Need to think about those again
-// /*! @brief unregister a communicator
-// * For example if a communicator was freed
-// * @param comm delete associated registry entry
-// */
-//void unregister_mpi_comm( MPI_Comm comm)
-//{
-//    detail::mpi_cart_registry.erase( comm);
-//}
-//
-// /*! @brief call \c MPI_Comm_free(comm) followed by \c dg::unregister_mpi_comm(comm)
-// * @param comm free communicator and delete associated registry entry
-// */
-//void mpi_comm_free( MPI_Comm * comm)
-//{
-//    MPI_Comm_free(comm);
-//    unregister_mpi_comm( *comm);
-//}
 
 ///@}
 

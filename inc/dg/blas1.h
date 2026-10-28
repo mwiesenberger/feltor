@@ -817,10 +817,10 @@ inline ContainerType construct( const from_ContainerType& from, Params&& ... ps)
  * @endcode
  * @attention In particular this means that in MPI all the communicators in the
  * input argument vectors need to be Cartesian communicators that were created
- * from a common Cartesian root communicator and both root and all sub
- * communicators need to be registered in the dg library through calls to \c
- * dg::register_mpi_cart_sub or \c dg::mpi_cart_sub. Further, the order of
- * input-communicators must match the dimensions in the common root
+ * from a common Cartesian root communicator through calls to \c
+ * dg::mpi_cart_sub (or \c dg::mpi_cart_split, \c dg::mpi_cart_kron).
+ * Further, the order of input-communicators must match the dimensions in the
+ * common root
  * communicator (see \c dg::mpi_cart_kron) i.e. currently **in MPI it is not
  * possible to transpose with this function**
  *

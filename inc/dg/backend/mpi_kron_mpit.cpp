@@ -6,6 +6,14 @@
 #include "exblas/mpi_accumulate.h"
 #include "catch2/catch_test_macros.hpp"
 
+// Count communicators that are freed and carry the count_free_keyval attribute
+static int freed_count = 0;
+static int count_free( MPI_Comm, int, void*, void*)
+{
+    freed_count++;
+    return MPI_SUCCESS;
+}
+
 TEST_CASE("MPI Kron test")
 {
     int rank, size;
@@ -34,6 +42,7 @@ TEST_CASE("MPI Kron test")
         CHECK( dg::mpi_cart_sub( comm_sub101, {1,0}) == comm_sub100);
         CHECK( dg::mpi_cart_sub( comm_sub101, {0,1}) ==
             dg::mpi_cart_sub( comm, {0,0,1}));
+        MPI_Comm_free( &comm);
     }
     SECTION( "Wrong number of dimensions throws")
     {
@@ -43,6 +52,7 @@ TEST_CASE("MPI Kron test")
         CHECK_THROWS_AS( dg::mpi_cart_sub( comm, {1,0,0,0}), dg::Error);
         CHECK_THROWS_AS( dg::mpi_cart_split_as<4>( comm), dg::Error);
         CHECK( dg::mpi_cart_split_as<2>( comm).size() == 2);
+        MPI_Comm_free( &comm);
     }
     SECTION( "Check double sub does not segfault")
     {
@@ -63,6 +73,8 @@ TEST_CASE("MPI Kron test")
 
         CHECK( comms.size() == 2);
         CHECK( comms2.size() == 2);
+        MPI_Comm_free( &comm);
+        MPI_Comm_free( &comm2);
     }
 
     SECTION( "Direct kronecker")
@@ -106,6 +118,7 @@ TEST_CASE("MPI Kron test")
         auto paxes = dg::mpi_cart_split_as<2>( taxe);
         auto kaxe = dg::mpi_cart_kron( paxes);
         CHECK( kaxe == taxe);
+        MPI_Comm_free( &comm);
     }
     SECTION( "Kronecker of one or no communicator")
     {
@@ -113,6 +126,7 @@ TEST_CASE("MPI Kron test")
         MPI_Comm comm_sub10 = dg::mpi_cart_sub( comm, {1,0});
         CHECK( dg::mpi_cart_kron( {comm_sub10}) == comm_sub10);
         CHECK( dg::mpi_cart_kron( std::vector<MPI_Comm>{}) == MPI_COMM_NULL);
+        MPI_Comm_free( &comm);
     }
     SECTION( "Kronecker of communicators with different roots throws")
     {
@@ -120,7 +134,49 @@ TEST_CASE("MPI Kron test")
         MPI_Comm comm1 = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
         MPI_Comm comm0_sub10 = dg::mpi_cart_sub( comm0, {1,0});
         MPI_Comm comm1_sub01 = dg::mpi_cart_sub( comm1, {0,1});
-        CHECK_THROWS( dg::mpi_cart_kron( {comm0_sub10, comm1_sub01}));
+        CHECK_THROWS_AS( dg::mpi_cart_kron( {comm0_sub10, comm1_sub01}),
+            dg::Error);
+        MPI_Comm_free( &comm0);
+        MPI_Comm_free( &comm1);
+    }
+    SECTION( "Kronecker of communicators unknown to dg throws")
+    {
+        MPI_Comm comm0 = dg::mpi_cart_create( MPI_COMM_WORLD, {0}, {0});
+        MPI_Comm comm1 = dg::mpi_cart_create( MPI_COMM_WORLD, {0}, {0});
+        CHECK_THROWS_AS( dg::mpi_cart_kron( {comm0, comm1}), dg::Error);
+        MPI_Comm_free( &comm0);
+        MPI_Comm_free( &comm1);
+    }
+    SECTION( "Freed communicators are not confused with new ones")
+    {
+        // MPI may reuse the handles of freed communicators
+        int count_free_keyval;
+        MPI_Comm_create_keyval( MPI_COMM_NULL_COPY_FN, count_free,
+            &count_free_keyval, nullptr);
+        for( unsigned i=0; i<4; i++)
+        {
+            MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
+            MPI_Comm comm_sub10 = dg::mpi_cart_sub( comm, {1,0});
+            MPI_Comm comm_sub01 = dg::mpi_cart_sub( comm, {0,1});
+            int ndims;
+            dg::mpi_cartdim_get( comm_sub10, &ndims);
+            CHECK( ndims == 1);
+            dg::mpi_cartdim_get( comm_sub01, &ndims);
+            CHECK( ndims == 1);
+            CHECK( comm_sub10 != comm_sub01);
+            CHECK( dg::mpi_cart_kron( {comm_sub10, comm_sub01}) == comm);
+            MPI_Comm_set_attr( comm_sub10, count_free_keyval, nullptr);
+            MPI_Comm_set_attr( comm_sub01, count_free_keyval, nullptr);
+            // Freeing a cached communicator before the root must not lead to
+            // a double free
+            if( i%2 == 0)
+                MPI_Comm_free( &comm_sub10);
+            freed_count = 0;
+            MPI_Comm_free( &comm);
+            // The root frees the remaining cached communicators
+            CHECK( freed_count == ( i%2 == 0 ? 1 : 2));
+        }
+        MPI_Comm_free_keyval( &count_free_keyval);
     }
     SECTION( "Documentation")
     {
@@ -136,6 +192,7 @@ TEST_CASE("MPI Kron test")
         CHECK( axes2d[0] == axes3d[0]);
         CHECK( axes2d[1] == axes3d[2]);
         //! [split and join]
+        MPI_Comm_free( &comm);
     }
 }
 
