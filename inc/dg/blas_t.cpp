@@ -80,6 +80,9 @@ TEST_CASE( "blas")
         dg::blas1::copy( 2., arrdvec1);
         INFO( "Recursive DVec Copy Scalar to");
         CHECK(result(arrdvec1[0]) == 2);
+        INFO( "Recursive vector of DVec reduction");
+        CHECK( dg::blas1::reduce( arrdvec1, 0., thrust::plus<double>()) ==
+            2*9*size);
         CHECK(result(arrdvec1[1]) == 2);
 
         //dg::blas1::axpby( 2., vec1 , 3, arrdvec1);

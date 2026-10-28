@@ -222,14 +222,16 @@ inline void doSubroutine( RecursiveVectorTag, Subroutine f, container&& x, Conta
 }
 
 template<class T, class ContainerType, class BinaryOp, class UnaryOp>
-inline T doReduce( RecursiveVectorTag, const ContainerType& x, T init, BinaryOp
+inline T doReduce( RecursiveVectorTag, const ContainerType& x, T zero, BinaryOp
         op, UnaryOp unary_op)
 {
     //reduce sequentially recursively
+    // zero must stay the neutral element in the inner reductions (e.g. MPI)
+    T result = zero;
     for ( unsigned u=0; u<x.size(); u++)
-        init = doReduce( get_tensor_category<decltype( x[u])>(), x[u], init, op,
-                unary_op);
-    return init;
+        result = op( result, doReduce( get_tensor_category<decltype( x[u])>(),
+                x[u], zero, op, unary_op));
+    return result;
 }
 
 } //namespace detail
