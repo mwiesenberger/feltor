@@ -165,7 +165,7 @@ inline void doSymv( get_value_type<Vector1> alpha,
 template< class Matrix, class Vector1, class Vector2>
 inline void doSymv( Matrix&& m, const Vector1& x, Vector2& y, MPIMatrixTag, StdMapTag )
 {
-    for( auto el : y)
+    for( const auto& el : y)
         dg::blas2::symv( std::forward<Matrix>(m), do_get_vector_element(x,el.first,get_tensor_category<Vector1>()), do_get_vector_element(y,el.first,get_tensor_category<Vector2>()));
 }
 
@@ -179,7 +179,7 @@ inline void doSymv( get_value_type<Vector1> alpha,
                 StdMapTag
                 )
 {
-    for( auto el : y)
+    for( const auto& el : y)
         dg::blas2::symv( alpha, std::forward<Matrix>(m), do_get_vector_element(x,el.first,get_tensor_category<Vector1>()), beta, do_get_vector_element(y,el.first,get_tensor_category<Vector2>()));
 }
 
