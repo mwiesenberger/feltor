@@ -308,6 +308,34 @@ TEST_CASE( "Dot throws on NaN or Inf")
     CHECK_THROWS_AS( dg::blas1::dot( v, v), dg::Error);
     CHECK_THROWS_AS( dg::blas2::dot( v, 1., v), dg::Error);
 }
+TEST_CASE( "DenseMatrix gemv")
+{
+    // The summation is unrolled in blocks of 8, 4, 2 and 1 columns; small
+    // integers make the result exact independent of the order of summation
+    unsigned num_cols = GENERATE( range( 0u, 21u));
+    INFO( "Number of columns "<<num_cols);
+    std::vector<dg::x::DVec> columns( num_cols);
+    std::vector<double> coeffs( num_cols);
+    for( unsigned u=0; u<num_cols; u++)
+    {
+        columns[u] = make_x_vector<dg::DVec>( thrust::host_vector<double>( 7,
+            double(u+1)));
+        coeffs[u] = double(u%3) - 1.;
+    }
+    const dg::x::DVec y0 = make_x_vector<dg::DVec>( thrust::host_vector<double>(
+        7, 3.));
+    dg::x::DVec y = y0, ana = y0;
+    // y = alpha M c + beta y
+    double alpha = 0.5, beta = 0.25;
+    dg::blas2::gemv( alpha, dg::asDenseMatrix( dg::asPointers( columns)), coeffs,
+        beta, y);
+    dg::blas1::scal( ana, beta);
+    for( unsigned u=0; u<num_cols; u++)
+        dg::blas1::axpby( alpha*coeffs[u], columns[u], 1., ana);
+    dg::blas1::axpby( 1., ana, -1., y);
+    CHECK( dg::blas1::dot( y, y) == 0);
+}
+
 #ifndef WITH_MPI
 TEST_CASE( "Blas2 documentation")
 {

@@ -31,6 +31,11 @@ inline void doSymv(
     if( size != m.num_cols()) {
         throw Error( Message(_ping_)<<"x has the wrong size "<<x.size()<<" Number of columns is "<<m.num_cols());
     }
+    if( size == 0)
+    {
+        dg::blas1::scal( y, beta);
+        return;
+    }
     // naive summation
     //dg::blas1::scal( y, beta);
     //for( unsigned i=0; i<size; i++)
