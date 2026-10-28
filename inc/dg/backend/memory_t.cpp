@@ -110,6 +110,16 @@ TEST_CASE( "ClonePtr")
         h0 = cat;
     }
     CHECK( h0->speak() == "Cat");
+    SECTION( "release")
+    {
+        aAnimal* owned = h0.get();
+        aAnimal* released = h0.release();
+        CHECK( released == owned);
+        CHECK( h0.get() == nullptr);
+        CHECK( !h0);
+        CHECK( released->speak() == "Cat");
+        delete released;
+    }
 }
 TEST_CASE( "AnyVector")
 {

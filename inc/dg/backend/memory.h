@@ -104,7 +104,7 @@ struct ClonePtr
         m_ptr.reset( ptr);
     }
     ///Releases ownership of managed object, \c get() returns \c nullptr after call
-    Cloneable* release() noexcept { m_ptr.release();}
+    Cloneable* release() noexcept { return m_ptr.release();}
     /**
     * @brief Clone the given object and replace the currently held one
     * @param src a Cloneable object
