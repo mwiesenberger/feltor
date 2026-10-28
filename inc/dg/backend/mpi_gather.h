@@ -727,7 +727,9 @@ struct MPIGather
         for( auto& chunks : recvChunks)
             num_messages+= chunks.second.size(); // size of vector of chunks
         unsigned size = recvChunks.size(); // number of pids involved
-        double avg_msg_per_pid = (double)num_messages/(double)size; // > 1
+        // A rank that receives nothing must not make the average NaN
+        double avg_msg_per_pid = size == 0 ? 0. :
+            (double)num_messages/(double)size; // >= 1
         MPI_Allreduce( MPI_IN_PLACE, &avg_msg_per_pid, 1, MPI_DOUBLE, MPI_MAX, comm);
         m_contiguous = ( avg_msg_per_pid < 10); // 10 is somewhat arbitrary
         if( not m_contiguous) // messages are too fractioned

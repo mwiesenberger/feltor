@@ -195,6 +195,30 @@ TEST_CASE( "Gather chunks")
     }
 }
 
+TEST_CASE( "Gather when some ranks receive nothing")
+{
+    int rank, size;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    // Rank 0 receives nothing, all other ranks receive 3 elements from rank 0
+    thrust::host_vector<double> v( 10);
+    for( unsigned i=0; i<v.size(); i++)
+        v[i] = 1000*rank + i;
+    std::map<int, thrust::host_vector<int>> recvIdx;
+    if( rank != 0)
+        recvIdx[0] = std::vector<int>{1,2,3};
+    dg::MPIGather<thrust::device_vector> mpi_gather( recvIdx, MPI_COMM_WORLD);
+    // 1 message per rank is not fragmented
+    CHECK( mpi_gather.isContiguous());
+    thrust::device_vector<double> v_d = v;
+    thrust::device_vector<double> buffer( mpi_gather.buffer_size());
+    REQUIRE( buffer.size() == (rank == 0 ? 0 : 3));
+    mpi_gather.global_gather_init( v_d, buffer);
+    mpi_gather.global_gather_wait( buffer);
+    for( unsigned u=0; u<buffer.size(); u++)
+        CHECK( buffer[u] == u+1);
+}
+
 TEST_CASE("MPIAllreduce")
 {
     int rank, size;
