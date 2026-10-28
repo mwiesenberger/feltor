@@ -47,7 +47,7 @@ struct EllSparseBlockMat
     /// Value used to pad the rows of the cols_idx array
     /// The data_idx must always be valid
     static constexpr int invalid_index = -1;
-    ///@brief default constructor does nothing
+    ///@brief Empty matrix with 0 rows and columns and <tt>left_size = right_size = 1</tt>
     EllSparseBlockMat() = default;
     /**
     * @brief Allocate storage
@@ -169,12 +169,12 @@ struct EllSparseBlockMat
     Vector<int> cols_idx; //!< is of size num_rows*num_blocks_per_line and contains the column indices % n into the vector
     Vector<int> data_idx; //!< has the same size as cols_idx and contains indices into the data array, i.e. the block number
     Vector<int> right_range; //!< range (can be used to apply the matrix to only part of the right rows
-    int num_rows; //!< number of block rows, each row contains blocks
-    int num_cols; //!< number of block columns
-    int blocks_per_line; //!< number of blocks in each line
-    int n;  //!< each block has size n*n
-    int left_size; //!< size of the left Kronecker delta
-    int right_size; //!< size of the right Kronecker delta (is e.g 1 for a x - derivative)
+    int num_rows = 0; //!< number of block rows, each row contains blocks
+    int num_cols = 0; //!< number of block columns
+    int blocks_per_line = 0; //!< number of blocks in each line
+    int n = 0;  //!< each block has size n*n
+    int left_size = 1; //!< size of the left Kronecker delta
+    int right_size = 1; //!< size of the right Kronecker delta (is e.g 1 for a x - derivative)
     private:
     template<class value_type>
     void launch_multiply_kernel(SerialTag, value_type alpha, const value_type* RESTRICT x, value_type beta, value_type* RESTRICT y) const;
@@ -226,7 +226,7 @@ an mpi - distributed \c EllSparseBlockMat
 template<class real_type, template <class > class Vector>
 struct CooSparseBlockMat
 {
-    ///@brief default constructor does nothing
+    ///@brief Empty matrix with 0 rows, columns and entries and <tt>left_size = right_size = 1</tt>
     CooSparseBlockMat() = default;
     /**
     * @brief Allocate storage
@@ -340,12 +340,12 @@ struct CooSparseBlockMat
     Vector<int> cols_idx; //!< is of size \c num_entries and contains the column indices
     Vector<int> rows_idx; //!< is of size \c num_entries and contains the row indices
     Vector<int> data_idx; //!< is of size \c num_entries and contains indices into the data array
-    int num_rows; //!< number of rows
-    int num_cols; //!< number of columns (never actually used with pointer approach
-    int num_entries; //!< number of entries in the matrix
-    int n;  //!< each block has size n*n
-    int left_size; //!< size of the left Kronecker delta
-    int right_size; //!< size of the right Kronecker delta (is e.g 1 for a x - derivative)
+    int num_rows = 0; //!< number of rows
+    int num_cols = 0; //!< number of columns (never actually used with pointer approach
+    int num_entries = 0; //!< number of entries in the matrix
+    int n = 0;  //!< each block has size n*n
+    int left_size = 1; //!< size of the left Kronecker delta
+    int right_size = 1; //!< size of the right Kronecker delta (is e.g 1 for a x - derivative)
     private:
     template<class value_type>
     void launch_multiply_kernel(SerialTag, value_type alpha, const value_type** x, value_type beta, value_type* RESTRICT y) const;

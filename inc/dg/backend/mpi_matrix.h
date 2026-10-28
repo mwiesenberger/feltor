@@ -590,7 +590,7 @@ struct MPIDistMat
     LocalMatrixOuter m_o;
     MPIGather<Vector> m_g;
     Vector<int> m_scatter;
-    enum dist_type m_dist;
+    enum dist_type m_dist = row_dist;
     detail::MPIAllreduce m_reduce;
     mutable detail::AnyVector<Vector>  m_recv_buffer, m_comp_buffer ;
 };

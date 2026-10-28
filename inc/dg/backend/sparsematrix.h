@@ -108,7 +108,7 @@ struct SparseMatrix
     template<class OtherMatrix>
     using enable_if_serial = std::enable_if_t<std::is_same_v<typename OtherMatrix::policy, SerialTag>, OtherMatrix>;
 
-    /*! @brief Empty matrix
+    /*! @brief Empty matrix with 0 rows and 0 columns
      *
      * Set values using either \c setFromCoo or \c set members
      */
@@ -679,7 +679,7 @@ struct SparseMatrix
 #endif
             m_cache;
 
-    size_t m_num_rows, m_num_cols;
+    size_t m_num_rows = 0, m_num_cols = 0;
     Vector<Index> m_row_offsets, m_cols;
     Vector<Value> m_vals;
 };

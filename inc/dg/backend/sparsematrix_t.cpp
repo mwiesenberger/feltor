@@ -5,6 +5,7 @@
 #include "tensor_traits_std.h"
 #include "tensor_traits_thrust.h"
 #include "sparsematrix.h"
+#include "sparseblockmat.h"
 #include "../blas1.h"
 #include "../blas2.h"
 #include "catch2/catch_all.hpp"
@@ -20,6 +21,36 @@ TEST_CASE("Format conversion")
 
 
 }
+TEST_CASE( "Default constructed matrices are empty")
+{
+    SECTION( "SparseMatrix")
+    {
+        dg::SparseMatrix<int,double,thrust::host_vector> mat;
+        CHECK( mat.num_rows() == 0);
+        CHECK( mat.num_cols() == 0);
+        CHECK( mat.num_nnz() == 0);
+    }
+    SECTION( "EllSparseBlockMat")
+    {
+        dg::EllSparseBlockMat<double,thrust::host_vector> mat;
+        CHECK( mat.num_rows == 0);
+        CHECK( mat.num_cols == 0);
+        CHECK( mat.left_size == 1);
+        CHECK( mat.right_size == 1);
+        CHECK( mat.total_num_rows() == 0);
+        CHECK( mat.total_num_cols() == 0);
+    }
+    SECTION( "CooSparseBlockMat")
+    {
+        dg::CooSparseBlockMat<double,thrust::host_vector> mat;
+        CHECK( mat.num_entries == 0);
+        CHECK( mat.left_size == 1);
+        CHECK( mat.right_size == 1);
+        CHECK( mat.total_num_rows() == 0);
+        CHECK( mat.total_num_cols() == 0);
+    }
+}
+
 TEST_CASE( "Construct sparse matrix")
 {
     size_t num_rows = 3, num_cols = 5, num_nnz = 6;
