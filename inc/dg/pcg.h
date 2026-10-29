@@ -197,8 +197,8 @@ class PCG
             return blas1::vdot( detail::DOT(), x0, w, x1); // this returns floating point
     }
     ContainerType m_r, m_p, m_ap;
-    unsigned m_max_iter;
-    bool m_verbose = false, m_throw_on_fail = true, m_cocg = false;
+    unsigned m_max_iter = 0;
+    bool m_verbose = false, m_throw_on_fail = true;
 };
 
 /*!
@@ -239,7 +239,7 @@ unsigned PCG< ContainerType, mode>::solve( Matrix&& A, ContainerType0& x, const 
         return 0;
     blas2::symv( std::forward<Preconditioner>(P), m_r, m_p );
     auto dotzr_old = dot( m_p, W, m_r), alpha(dotzr_old), dotzr_new(dotzr_old);
-    for( unsigned i=1; i<m_max_iter; i++)
+    for( unsigned i=1; i<=m_max_iter; i++)
     {
         blas2::symv( std::forward<Matrix>(A), m_p, m_ap);
         alpha =  dotzr_old/dot( m_p, W, m_ap);

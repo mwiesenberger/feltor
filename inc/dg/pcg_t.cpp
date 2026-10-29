@@ -16,6 +16,18 @@ TEST_CASE( "PCG real")
         pcg.set_max( 3);
         CHECK( pcg.get_max() == 3);
     }
+    SECTION( "Maximum number of iterations")
+    {
+        // A matrix with 3 distinct eigenvalues needs exactly 3 iterations
+        std::vector<double> A = {1.,2.,3.}, b = {1.,1.,1.}, x = {0.,0.,0.};
+        dg::PCG pcg( b, 3);
+        CHECK( pcg.solve( A, x, b, 1., 1.) == 3);
+        for( unsigned u=0; u<3; u++)
+            CHECK( fabs( x[u] - 1./A[u]) < 1e-15);
+        x = {0.,0.,0.};
+        pcg.set_max( 2);
+        CHECK_THROWS_AS( pcg.solve( A, x, b, 1., 1.), dg::Fail);
+    }
     SECTION( "Invert almost singular")
     {
         // This was tested for SquareMatrix in operator_t
