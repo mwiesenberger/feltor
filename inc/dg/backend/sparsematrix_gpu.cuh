@@ -82,8 +82,6 @@ struct CusparseHandle
 };
 
 
-inline bool cusparse_is_initialized = false;
-
 // https://docs.nvidia.com/cuda/cusparse/#cusparsespmv
 struct CSRCache_gpu
 {
@@ -130,7 +128,13 @@ struct CSRCache_gpu
         std::swap( m_dBuffer, src.m_dBuffer);
         std::swap( m_bufferSize, src.m_bufferSize);
     }
-    void forget() { m_active = false;}
+    void forget()
+    {
+        // the descriptor points to the old sparsity pattern
+        if( m_active)
+            cusparseDestroySpMat( m_matA);
+        m_active = false;
+    }
     bool isUpToDate() const { return m_active;}
     template<class I, class V>
     void update(
@@ -149,7 +153,7 @@ struct CSRCache_gpu
         cudaMalloc( &x_ptr, num_cols*sizeof(V));
         err = cusparseCreateDnVec( &vecX, num_cols, x_ptr, getCudaDataType<V>());
         V * y_ptr;
-        cudaMalloc( &y_ptr, num_cols*sizeof(V));
+        cudaMalloc( &y_ptr, num_rows*sizeof(V));
         err = cusparseCreateDnVec( &vecY, num_rows, y_ptr, getCudaDataType<V>());
         size_t bufferSize = 0;
         V alpha = 1, beta = 0;
@@ -161,6 +165,7 @@ struct CSRCache_gpu
         if ( m_dBuffer != nullptr)
             cudaFree( m_dBuffer);
         cudaMalloc( &m_dBuffer, bufferSize);
+        m_bufferSize = bufferSize;
 
         m_active = true;
 #if (CUDART_VERSION >= 12040) // _preprocess only exists as of 12.4 
