@@ -46,3 +46,22 @@ TEST_CASE( "Horner")
     }
 
 }
+
+TEST_CASE( "Composition")
+{
+    SECTION( "Two functors")
+    {
+        // f(g(x,y)) = 2*(x+y)
+        auto fg = dg::compose( []( double x){ return 2*x;},
+                []( double x, double y){ return x+y;});
+        CHECK( fg( 1., 2.) == 6.);
+    }
+    SECTION( "Three functors")
+    {
+        // f0(f1(f2(x,y))) = 2*(x*y)+1, the outermost functor is applied last
+        auto f012 = dg::compose( []( double x){ return x+1;},
+                []( double x){ return 2*x;},
+                []( double x, double y){ return x*y;});
+        CHECK( f012( 2., 3.) == 13.);
+    }
+}

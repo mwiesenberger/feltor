@@ -144,3 +144,18 @@ TEST_CASE( "Elliptic3d")
         CHECK ( dg::blas2::dot( y, w3d, y)  < 1e-16*dg::blas2::dot( x, w3d, x));
     }
 }
+
+TEST_CASE( "Boundary conditions and directions")
+{
+    // Elliptic converts boundary conditions and directions with enums.h
+    for( auto bc : { dg::PER, dg::DIR, dg::DIR_NEU, dg::NEU_DIR, dg::NEU})
+    {
+        CHECK( dg::str2bc( dg::bc2str( bc)) == bc);
+        CHECK( dg::inverse( dg::inverse( bc)) == bc);
+    }
+    for( auto dir : { dg::forward, dg::backward, dg::centered})
+    {
+        CHECK( dg::str2direction( dg::direction2str( dir)) == dir);
+        CHECK( dg::inverse( dg::inverse( dir)) == dir);
+    }
+}
