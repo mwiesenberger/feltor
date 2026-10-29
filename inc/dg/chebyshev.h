@@ -252,7 +252,7 @@ struct ChebyshevPreconditioner
  * @brief Approximate inverse Chebyshev Polynomial Preconditioner \f$ A^{-1} = \frac{c_0}{2} I + \sum_{k=1}^{r}c_kT_k( Z)\f$
  *
  * This is the polynomial preconditioner as proposed by <a href="https://ieeexplore.ieee.org/document/1245544">Dag and Semlyen, A New Preconditioned Conjugate Gradient Power Flow, IEEE Transactions on power Systems, 18, (2003)</a>
- * We have \f$ c_k = \sqrt{\lambda_\min\lambda_\max}^{-1} (\sqrt{\lambda_\min/\lambda_\max}-1)^k / (\sqrt{\lambda_\min/\lambda_\max }+ 1)^k\f$ and \f$ Z = 2 ( A - (\lambda_\max + \lambda_\min)I/2)/(\lambda_\max-\lambda_\min)\f$
+ * We have \f$ c_k = 2\sqrt{\lambda_\min\lambda_\max}^{-1} (\sqrt{\lambda_\min/\lambda_\max}-1)^k / (\sqrt{\lambda_\min/\lambda_\max }+ 1)^k\f$ and \f$ Z = 2 ( A - (\lambda_\max + \lambda_\min)I/2)/(\lambda_\max-\lambda_\min)\f$
  *
  * They propose to use \f$ \lambda_\min = \lambda_\max / (5r)\f$ where r is the degree
  * of the polynomial
@@ -286,7 +286,7 @@ struct ModifiedChebyshevPreconditioner
     void symv( const ContainerType0& x, ContainerType1& y)
     {
         value_type theta = (m_ev_min+m_ev_max)/2., delta = (m_ev_max-m_ev_min)/2.;
-        value_type c_k = 1./sqrt(m_ev_min*m_ev_max);
+        value_type c_k = 2./sqrt(m_ev_min*m_ev_max);
         dg::blas1::axpby( c_k/2., x, 0., y);
         if( m_degree == 0) return;
         dg::blas2::symv( m_op, x, m_ax);

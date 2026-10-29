@@ -183,6 +183,16 @@ TEST_CASE( "Chebyshev")
             CHECK( y1[u] == 1./theta);
         }
     }
+    SECTION( "ModifiedChebyshevPreconditioner")
+    {
+        // The polynomial approximates the inverse of A with an error of
+        // O(q^degree) with q = (sqrt(lmax/lmin)-1)/(sqrt(lmax/lmin)+1) = 0.27
+        dg::ModifiedChebyshevPreconditioner<std::vector<double>, std::vector<double>>
+            pre( A, x, lmin, lmax, 20);
+        dg::blas2::symv( pre, b, x);
+        for( unsigned u=0; u<4; u++)
+            CHECK( fabs( x[u] - 1./A[u]) < 1e-10);
+    }
     SECTION( "x_is_zero")
     {
         // x_is_zero ignores the content of x (also NaN)
