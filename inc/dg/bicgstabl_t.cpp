@@ -75,8 +75,10 @@ TEST_CASE( "Solvers")
     }
     SECTION( "cheby" )
     {
-        // TODO Chebyshev diverges in this test (or at least does not converge)
+        // Chebyshev converges slowly here because the condition number
+        // lmax/lmin is large; we only check that the error decreases
         INFO("CHEBYSHEV SOLVER");
+        const double res0 = res;
         dg::ChebyshevIteration cheby( x);
         unsigned num_iter =200;
         cheby.solve( A, x, b, lmin, 2*lmax, num_iter);
@@ -84,11 +86,14 @@ TEST_CASE( "Solvers")
         dg::blas1::axpby( 1.,x,-1.,error);
         res = sqrt(dg::blas2::dot(w2d , error));
         INFO( "L2 Norm of Error is           " << res);
+        CHECK( res < 0.5*res0);
     }
     SECTION( "P cheby" )
     {
-        // TODO Chebyshev diverges in this test (or at least does not converge)
+        // Chebyshev converges slowly here because the condition number
+        // lmax/lmin is large; we only check that the error decreases
         INFO("PRECONDITIONED CHEBYSHEV SOLVER");
+        const double res0 = res;
         dg::ChebyshevIteration cheby( x);
         unsigned num_iter =200;
         cheby.solve( A, x, b, A.precond(), lmin, lmax, num_iter);
@@ -96,6 +101,7 @@ TEST_CASE( "Solvers")
         dg::blas1::axpby( 1.,x,-1.,error);
         res = sqrt(dg::blas2::dot(w2d , error));
         INFO( "L2 Norm of Error is           " << res);
+        CHECK( res < 0.5*res0);
     }
     SECTION( "bicgstabl" )
     {
@@ -142,4 +148,54 @@ TEST_CASE( "Solvers")
     }
 
 
+}
+
+TEST_CASE( "Chebyshev")
+{
+    // A diagonal matrix with Eigenvalues in [1,3] and the identity as weights
+    std::vector<double> A = {1., 1.5, 2., 3.}, b = {1., 1., 1., 1.}, x( 4, 0.);
+    dg::ChebyshevIteration<std::vector<double>> cheby( x);
+    const double lmin = 1., lmax = 3., theta = 2.;
+    SECTION( "Convergence")
+    {
+        cheby.solve( A, x, b, lmin, lmax, 40);
+        for( unsigned u=0; u<4; u++)
+            CHECK( fabs( x[u] - 1./A[u]) < 1e-12);
+        // The preconditioner P = 2 scales the spectrum of PA to [2,6]
+        x.assign( 4, 0.);
+        cheby.solve( A, x, b, 2., 2*lmin, 2*lmax, 40);
+        for( unsigned u=0; u<4; u++)
+            CHECK( fabs( x[u] - 1./A[u]) < 1e-12);
+    }
+    SECTION( "One iteration")
+    {
+        // One iteration from x=0 is x_1 = P b / theta with or without x_is_zero
+        std::vector<double> x0( 4, 0.), x1( 4, NAN), y0( 4, 0.), y1( 4, NAN);
+        cheby.solve( A, x0, b, lmin, lmax, 1, false);
+        cheby.solve( A, x1, b, lmin, lmax, 1, true);
+        cheby.solve( A, y0, b, 1., lmin, lmax, 1, false);
+        cheby.solve( A, y1, b, 1., lmin, lmax, 1, true);
+        for( unsigned u=0; u<4; u++)
+        {
+            CHECK( x0[u] == 1./theta);
+            CHECK( x1[u] == 1./theta);
+            CHECK( y0[u] == 1./theta);
+            CHECK( y1[u] == 1./theta);
+        }
+    }
+    SECTION( "x_is_zero")
+    {
+        // x_is_zero ignores the content of x (also NaN)
+        std::vector<double> x0( 4, 0.), x1( 4, NAN), y0( 4, 0.), y1( 4, NAN);
+        cheby.solve( A, x0, b, lmin, lmax, 5, false);
+        cheby.solve( A, x1, b, lmin, lmax, 5, true);
+        cheby.solve( A, y0, b, 1., lmin, lmax, 5, false);
+        cheby.solve( A, y1, b, 1., lmin, lmax, 5, true);
+        for( unsigned u=0; u<4; u++)
+        {
+            CHECK( fabs( x1[u] - x0[u]) < 1e-15);
+            CHECK( fabs( y0[u] - x0[u]) < 1e-15);
+            CHECK( fabs( y1[u] - x0[u]) < 1e-15);
+        }
+    }
 }

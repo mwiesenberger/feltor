@@ -112,7 +112,8 @@ class ChebyshevIteration
         else
         {
             dg::blas1::copy( 0., m_xm1); //x_{k-1}
-            dg::blas1::axpby( 1./theta, b, 0., x); //x_1
+            // write-only in x such that NaN in x is overwritten
+            dg::blas1::evaluate( x, dg::equals(), dg::PairSum(), 1./theta, b); //x_1
         }
         for ( unsigned k=1; k<num_iter; k++)
         {
@@ -171,10 +172,9 @@ class ChebyshevIteration
         }
         else
         {
+            dg::blas1::copy( 0., m_xm1); //x_{k-1}
             dg::blas2::symv( std::forward<MatrixType1>(P), b, x);
-            if( num_iter == 1) return;
-            dg::blas1::scal( m_xm1, 0.);
-            dg::blas1::scal( x, 1./theta);
+            dg::blas1::scal( x, 1./theta); //x_1
         }
         for ( unsigned k=1; k<num_iter; k++)
         {
