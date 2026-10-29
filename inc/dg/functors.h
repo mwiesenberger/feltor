@@ -199,9 +199,9 @@ template <class T>
 struct ISNFINITE
 {
 #ifdef __CUDACC__
-    DG_DEVICE bool operator()(T x){ return !isfinite(x);}
+    DG_DEVICE bool operator()(T x) const{ return !isfinite(x);}
 #else
-    bool operator()( T x){ return !std::isfinite(x);}
+    bool operator()( T x) const{ return !std::isfinite(x);}
 #endif
 };
 
@@ -225,7 +225,7 @@ template <class T>
 struct ISNSANE
 {
 #ifdef __CUDACC__
-    DG_DEVICE bool operator()(T x){
+    DG_DEVICE bool operator()(T x) const{
         if( !isfinite(x))
             return true;
         if( x > 1e100 || x < -1e100)
@@ -233,7 +233,7 @@ struct ISNSANE
         return false;
     }
 #else
-    bool operator()( T x){
+    bool operator()( T x) const{
         if( !std::isfinite(x))
             return true;
         if( x > 1e100 || x < -1e100)
@@ -521,7 +521,7 @@ struct Distance
 {
     Distance( double x0, double y0): m_x0(x0), m_y0(y0){}
     DG_DEVICE
-    double operator()(double x, double y){
+    double operator()(double x, double y) const{
         return sqrt( (x-m_x0)*(x-m_x0) + (y-m_y0)*(y-m_y0));
     }
     private:
@@ -536,7 +536,8 @@ struct Distance
 struct Line{
     Line(double x0, double y0, double x1, double y1) :
         m_x0(x0), m_y0(y0), m_x1(x1), m_y1(y1){}
-    double operator()(double x){
+    DG_DEVICE
+    double operator()(double x) const{
         return m_y1*(x-m_x0)/(m_x1-m_x0) + m_y0*(x-m_x1)/(m_x0-m_x1);
     }
     private:
@@ -2054,7 +2055,7 @@ struct Histogram
      *
      * @return
      */
-    double binwidth() {return binwidth_;}
+    double binwidth() const {return binwidth_;}
     /**
      * @brief Access computed histogram
      *
