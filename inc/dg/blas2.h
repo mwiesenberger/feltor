@@ -129,7 +129,7 @@ inline auto dot( const ContainerType1& x, const MatrixType& m, const ContainerTy
  * @copydoc hide_ContainerType
  */
 template< class MatrixType, class ContainerType>
-inline get_value_type<MatrixType> dot( const MatrixType& m, const ContainerType& x)
+inline auto dot( const MatrixType& m, const ContainerType& x)
 {
     return dg::blas2::dot( x, m, x);
 }

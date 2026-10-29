@@ -128,6 +128,12 @@ TEST_CASE( "blas")
         double result1 = dg::blas1::dot( arrdvec1, arrdvec1)/(double)size;
         INFO( "blas1/2 dot recursive Scalar Vector ");
         CHECK(result == result1);
+
+        // dot( m, x) is an alias for dot( x, m, x) also for integer and float m
+        std::array<double, 3> array_h{ 0.5, 1.5, 1.+1e-12};
+        INFO( "blas2 dot alias with integer and float matrix");
+        CHECK( dg::blas2::dot( 2, array_h) == dg::blas2::dot( array_h, 2, array_h));
+        CHECK( dg::blas2::dot( arr1, array_h) == dg::blas2::dot( array_h, arr1, array_h));
     }
     SECTION( "SYMV functions")
     {
