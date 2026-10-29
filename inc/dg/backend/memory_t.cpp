@@ -16,7 +16,7 @@ struct aAnimal
     }
 };
 
-std::string aAnimal::speak()const { return "Animal";}
+inline std::string aAnimal::speak()const { return "Animal";}
 
 struct Mouse: public aAnimal
 {
@@ -135,16 +135,18 @@ TEST_CASE( "AnyVector")
     auto& vv = buffer.get<double>();
     // auto == std::vector<Verbose<double>>
     vv[7].a = 1.7;
-    INFO( buffer.get<double>()[7].a<<" (1.7)\n");
+    CHECK( buffer.get<double>()[7].a == 1.7);
     INFO( "### Resize with same size shouldn't do anything\n");
     buffer.set<double>( 10);
+    CHECK( buffer.get<double>().size() == 10);
+    CHECK( buffer.get<double>()[7].a == 1.7);
 
     INFO( "### Reset buffer (Construct)\n");
     buffer.set<float>( 10); // Construct float
     INFO( "### Cast buffer (check that no copy or move is displayed)\n");
     auto& w = buffer.get<float>();
     w[7].a = 42.f;
-    INFO( buffer.get<float>()[7].a<<" (42)\n");
+    CHECK( buffer.get<float>()[7].a == 42.f);
     INFO( "### Test typeid\n");
     CHECK_THROWS_AS( buffer.get<double>(), std::bad_any_cast);
     INFO( "### Construct 2nd buffer\n");
@@ -152,17 +154,18 @@ TEST_CASE( "AnyVector")
     buffer2.set<double>(4);
     INFO( "### Test swap (no copies or moves) \n");
     std::swap ( buffer, buffer2);
-    INFO( buffer2.get<float>()[7].a<<" (42)\n");
+    CHECK( buffer2.get<float>()[7].a == 42.f);
+    CHECK( buffer.get<double>().size() == 4);
     INFO( "### Construct verbose vector \n");
     verbose_vec<float> to_swap( 4);
     INFO( "### Swap in verbose vector of same type (no copy or move) \n");
     buffer2.swap( to_swap);
     CHECK( to_swap.size() == 10);
+    CHECK( to_swap[7].a == 42.f);
     INFO( "### Construct verbose vector \n");
     verbose_vec<double> to_swap_d( 3, 7.);
     INFO( "### Swap in verbose vector of another type (no copy or move) \n");
     buffer2.swap( to_swap_d);
     CHECK( to_swap_d.size() == 0);
-    INFO( buffer2.get<double>()[2].a<<" (7)\n");
     CHECK( buffer2.get<double>()[2].a == 7);
 }

@@ -39,8 +39,8 @@ TEST_CASE( "The view class")
     dg::assign( const_view, assign);
     INFO("Assigned vector element "<<assign[42]<<" (42)\n");
     CHECK( assign[42] == 42);
-    INFO("Assigned vector has "<<construct.size()<<" (50) elements\n");
-    CHECK( construct.size() == 50);
+    INFO("Assigned vector has "<<assign.size()<<" (50) elements\n");
+    CHECK( assign.size() == 50);
 
     INFO("Const View has "<<const_view.size()<<" (50) elements\n");
     CHECK( const_view.size() == 50);

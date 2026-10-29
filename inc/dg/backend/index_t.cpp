@@ -23,6 +23,11 @@ TEST_CASE( "Test index lib")
                 INFO("{"<<idx.first<<","<<idx.second[u]<<"} ");
             INFO("\n");
         }
+        // unique local indices per pid in order of their first appearance
+        std::map<int, thrust::host_vector<int>> ana_map = {
+            {0, std::vector{2,1}}, {1, std::vector{0,1}},
+            {2, std::vector{6,1,3}}, {5, std::vector{6,0}}};
+        CHECK( recv_map == ana_map);
         thrust::host_vector<int> ana = std::vector{ 2, 4, 7, 0, 1, 5, 6, 3, 7, 2, 8, 0, 8};
         CHECK( ana == bufferIdx);
     }
