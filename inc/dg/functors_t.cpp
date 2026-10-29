@@ -65,3 +65,39 @@ TEST_CASE( "Composition")
         CHECK( f012( 2., 3.) == 13.);
     }
 }
+
+TEST_CASE( "Histogram")
+{
+    SECTION( "Histogram")
+    {
+        // 4 bins [0,1), [1,2), [2,3), [3,4); values outside are discarded
+        dg::Grid1d g1d( 0, 4, 1, 4);
+        dg::Histogram<> hist( g1d, {0.5, 1.5, 1.6, 2.5, 2.6, 2.7, -0.5, 4.0, 5.});
+        thrust::host_vector<double> centres = dg::evaluate( dg::cooX1d, g1d);
+        std::vector<double> sol = { 1./3., 2./3., 1., 0.};
+        for( unsigned u=0; u<4; u++)
+        {
+            INFO( "Bin "<<u);
+            CHECK( hist( centres[u]) == sol[u]);
+        }
+        CHECK( hist( -0.5) == 0.);
+        CHECK( hist( 4.0) == 0.);
+        CHECK_THROWS_AS( dg::Histogram<>( dg::Grid1d( 0, 4, 2, 4), {0.5}),
+            dg::Error);
+    }
+    SECTION( "Histogram2D")
+    {
+        // 2x2 bins; the pairs outside the domain are discarded
+        dg::Grid2d g2d( 0, 2, 0, 2, 1, 2, 2);
+        dg::Histogram2D<> hist( g2d, {0.5, 1.5, 1.5, 1.5, -1., 0.5},
+                                     {0.5, 0.5, 1.5, 1.5, 0.5, 2.0});
+        CHECK( hist( 0.5, 0.5) == 0.5);
+        CHECK( hist( 1.5, 0.5) == 0.5);
+        CHECK( hist( 0.5, 1.5) == 0.);
+        CHECK( hist( 1.5, 1.5) == 1.);
+        CHECK( hist( -1., 0.5) == 0.);
+        CHECK( hist( 0.5, 2.0) == 0.);
+        CHECK_THROWS_AS( dg::Histogram2D<>( dg::Grid2d( 0, 2, 0, 2, 2, 2, 2),
+            {0.5}, {0.5}), dg::Error);
+    }
+}

@@ -2011,6 +2011,9 @@ struct Horner2d
 
 /**
  * @brief Compute a histogram on a 1D grid
+ *
+ * The counts are normalized such that the largest bin has the value 1
+ * (all bins are 0 if no input value falls in a bin)
  * @tparam container
  */
 template <class container = thrust::host_vector<double> >
@@ -2018,8 +2021,11 @@ struct Histogram
 {
      /**
      * @brief Construct a histogram from number of bins and an input vector
-     * @param g1d grid on which to compute the histogram ( grid.h() is the binwidth)
-     * @param in input vector (if grid.x0() < in[i] <grid.x1() it falls in a bin)
+     * @param g1d grid on which to compute the histogram ( grid.h() is the
+     * binwidth, each cell is a bin, \c g1d.n() must be 1)
+     * @param in input vector (if grid.x0() <= in[i] < grid.x1() it falls in a
+     * bin, else it is discarded)
+     * @throw dg::Error if \c g1d.n() is not 1
      */
     Histogram(const dg::Grid1d& g1d, const std::vector<double>& in) :
     g1d_(g1d),
@@ -2027,16 +2033,19 @@ struct Histogram
     binwidth_(g1d_.h()),
     count_(dg::evaluate(dg::zero,g1d_))
     {
+        if( g1d_.n() != 1)
+            throw dg::Error( dg::Message(_ping_)<<"Histogram needs n = 1 but grid has n = "<<g1d_.n());
         for (unsigned j=0;j<in_.size();j++)
         {
-            unsigned bin =floor( (in_[j]-g1d_.x0())/binwidth_ );
-            bin = std::max(bin,(unsigned) 0);
-            bin = std::min(bin,(unsigned)(g1d_.size()-1));
-            count_[bin ]+=1.;
+            double bin = floor( (in_[j]-g1d_.x0())/binwidth_ );
+            if( !( bin >= 0 && bin < g1d_.N())) // also discards NaN
+                continue;
+            count_[(unsigned)bin]+=1.;
         }
         //Normalize
-        unsigned Ampmax = (unsigned)thrust::reduce( count_.begin(), count_.end(),0.,   thrust::maximum<double>()  );
-        dg::blas1::scal(count_,1./Ampmax);
+        double Ampmax = thrust::reduce( count_.begin(), count_.end(),0.,   thrust::maximum<double>()  );
+        if( Ampmax > 0)
+            dg::blas1::scal(count_,1./Ampmax);
 
     }
 
@@ -2051,14 +2060,15 @@ struct Histogram
      *
      * @param x
      *
-     * @return
+     * @return normalized count of the bin that contains \c x, 0 if \c x is
+     * not in <tt> [x0, x1) </tt>
      */
     double operator()(double x)const
     {
-        unsigned bin = floor((x-g1d_.x0())/binwidth_+0.5);
-        bin = std::max(bin,(unsigned) 0);
-        bin = std::min(bin,(unsigned)(g1d_.size()-1));
-        return count_[bin];
+        double bin = floor((x-g1d_.x0())/binwidth_);
+        if( !( bin >= 0 && bin < g1d_.N()))
+            return 0.;
+        return count_[(unsigned)bin];
     }
 
     private:
@@ -2070,6 +2080,9 @@ struct Histogram
 
 /**
  * @brief Compute a histogram on a 2D grid
+ *
+ * The counts are normalized such that the largest bin has the value 1
+ * (all bins are 0 if no input pair falls in a bin)
  * @tparam container
  */
 template <class container = thrust::host_vector<double> >
@@ -2077,9 +2090,14 @@ struct Histogram2D
 {
      /**
      * @brief Construct a histogram from number of bins and an input vector
-     * @param g2d grid on which to compute the histogram ( grid.h() is the binwidth)
-     * @param inx input vector in x - direction (if grid.x0() < in[i] <grid.x1() it falls in a bin)
-     * @param iny input vector in y - direction (if grid.y0() < in[i] <grid.y1() it falls in a bin)
+     * @param g2d grid on which to compute the histogram ( grid.hx() and
+     * grid.hy() are the binwidths, each cell is a bin, \c g2d.nx() and \c
+     * g2d.ny() must be 1)
+     * @param inx input vector in x - direction
+     * @param iny input vector in y - direction (same size as \c inx; if
+     * grid.x0() <= inx[i] < grid.x1() and grid.y0() <= iny[i] < grid.y1() the
+     * pair falls in a bin, else it is discarded)
+     * @throw dg::Error if \c g2d.nx() or \c g2d.ny() is not 1
      */
     Histogram2D(const dg::Grid2d& g2d, const std::vector<double>& inx,const std::vector<double>& iny) :
     g2d_(g2d),
@@ -2089,22 +2107,21 @@ struct Histogram2D
     binwidthy_(g2d_.hy()),
     count_(dg::evaluate(dg::zero,g2d_))
     {
-
+        if( g2d_.nx() != 1 || g2d_.ny() != 1)
+            throw dg::Error( dg::Message(_ping_)<<"Histogram2D needs n = 1 but grid has nx = "<<g2d_.nx()<<" and ny = "<<g2d_.ny());
         for (unsigned j=0;j<iny_.size();j++)
         {
-            unsigned biny =floor((iny_[j]-g2d_.y0())/binwidthy_) ;
-            biny = std::max(biny,(unsigned) 0);
-            biny = std::min(biny,(unsigned)(g2d_.Ny()-1));
-
-            unsigned binx =floor((inx_[j]-g2d_.x0())/binwidthx_) ;
-            binx = std::max(binx,(unsigned) 0);
-            binx = std::min(binx,(unsigned)(g2d_.Nx()-1));
-            count_[biny*g2d_.Nx()+binx ]+=1.;
+            double biny = floor((iny_[j]-g2d_.y0())/binwidthy_) ;
+            double binx = floor((inx_[j]-g2d_.x0())/binwidthx_) ;
+            if( !( binx >= 0 && binx < g2d_.Nx() && biny >= 0 && biny < g2d_.Ny()))
+                continue;
+            count_[(unsigned)biny*g2d_.Nx()+(unsigned)binx ]+=1.;
 
         }
         //Normalize
-        unsigned Ampmax =  (unsigned)thrust::reduce( count_.begin(),   count_.end(),0.,thrust::maximum<double>()  );
-        dg::blas1::scal(count_,  1./Ampmax);
+        double Ampmax =  thrust::reduce( count_.begin(),   count_.end(),0.,thrust::maximum<double>()  );
+        if( Ampmax > 0)
+            dg::blas1::scal(count_,  1./Ampmax);
 
     }
 
@@ -2114,17 +2131,16 @@ struct Histogram2D
      * @param x
      * @param y
      *
-     * @return
+     * @return normalized count of the bin that contains <tt> (x,y) </tt>, 0
+     * if <tt> (x,y) </tt> is not in the grid domain
      */
     double operator()(double x, double y)const
     {
-        unsigned binx = floor((x-g2d_.x0())/binwidthx_+0.5) ;
-        binx = std::max(binx,(unsigned) 0);
-        binx = std::min(binx,(unsigned)(g2d_.Nx()-1));
-        unsigned biny = floor((y-g2d_.y0())/binwidthy_+0.5) ;
-        biny = std::max(biny,(unsigned) 0);
-        biny = std::min(biny,(unsigned)(g2d_.Ny()-1));
-        return count_[biny*g2d_.Nx()+binx ];
+        double binx = floor((x-g2d_.x0())/binwidthx_) ;
+        double biny = floor((y-g2d_.y0())/binwidthy_) ;
+        if( !( binx >= 0 && binx < g2d_.Nx() && biny >= 0 && biny < g2d_.Ny()))
+            return 0.;
+        return count_[(unsigned)biny*g2d_.Nx()+(unsigned)binx ];
 
     }
     private:
