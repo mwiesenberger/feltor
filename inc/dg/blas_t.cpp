@@ -181,6 +181,28 @@ TEST_CASE( "blas")
         INFO( "axpby "<<result(testmap2["b"]) );
         CHECK( result(testmap2["a"]) == 20);
         CHECK( result(testmap2["b"]) == 20);
+        // Each vector in testmap is {10,20,30} on each rank
+        double product = dg::blas1::vdot( []DG_DEVICE( double x, double y){
+            return x*y;}, testmap, testmap);
+        CHECK( product == 2*1400*size);
+        CHECK_THROWS_AS( dg::blas1::vdot( []DG_DEVICE( double x, double y){
+            return x*y;}, testmap, testmap3), dg::Error);
+        double sum = dg::blas1::reduce( testmap, 0., thrust::plus<double>());
+        CHECK( sum == 2*60*size);
+        auto hostmap = dg::construct<std::map<std::string, dg::x::HVec>>(
+            testmap);
+        CHECK( hostmap.size() == 2);
+        CHECK( result( hostmap["a"]) == 10);
+        std::map<std::string, dg::x::HVec> assigned{ { "c", hvec1}};
+        dg::assign( testmap, assigned);
+        CHECK( assigned.size() == 2);
+        CHECK( assigned.count( "c") == 0);
+        CHECK( result( assigned["b"]) == 10);
+        CHECK( dg::blas2::dot( testmap, 2., testmap) == 2*2*1400*size);
+        CHECK( dg::blas2::dot( testmap, dvec1, testmap) == 2*36000*size);
+        CHECK( dg::blas2::dot( testmap, testmap, testmap) == 2*36000*size);
+        CHECK_THROWS_AS( dg::blas2::dot( testmap, testmap3, testmap),
+            dg::Error);
     }
 
 }

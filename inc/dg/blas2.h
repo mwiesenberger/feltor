@@ -12,6 +12,7 @@
 #include "backend/blas2_dispatch_mpi.h"
 #endif //MPI_VERSION
 #include "backend/blas2_dispatch_vector.h"
+#include "backend/blas2_dispatch_map.h"
 
 
 /*!@file

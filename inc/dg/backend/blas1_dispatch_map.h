@@ -12,12 +12,69 @@
 ///@cond
 namespace dg
 {
+template<class to_ContainerType, class from_ContainerType, class ...Params>
+inline to_ContainerType construct( const from_ContainerType& src, Params&& ...ps);
+template<class from_ContainerType, class to_ContainerType, class ...Params>
+inline void assign( const from_ContainerType&, to_ContainerType&, Params&& ...ps);
+
+namespace detail
+{
+template<class To, class From, class ...Params>
+To doConstruct( const From& src, StdMapTag, StdMapTag, Params&&...ps )
+{
+    To t;
+    using inner_vector = typename To::mapped_type;
+    for( const auto& el : src)
+        t.emplace( el.first, dg::construct<inner_vector>(el.second,
+            std::forward<Params>(ps)...));
+    return t;
+}
+template<class From, class To, class ...Params>
+void doAssign( const From& src, To& to, StdMapTag, StdMapTag, Params&&...ps )
+{
+    // to gets the same keys as src
+    for( auto it = to.begin(); it != to.end(); )
+    {
+        if( src.count( it->first) == 0)
+            it = to.erase( it);
+        else
+            ++it;
+    }
+    for( const auto& el : src)
+        dg::assign( el.second, to[el.first], std::forward<Params>(ps)...);
+}
+} //namespace detail
 
 namespace blas1
 {
 
 namespace detail
 {
+
+template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
+inline void doDot_fpe( StdMapTag, int* status, std::array<T,N>& fpe, Functor f,
+    const ContainerType& x, const ContainerTypes& ...xs)
+{
+    //find out which one is the map and determine the keys
+    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, ContainerType, ContainerType, ContainerTypes...>::value;
+    //reduce received data (serial execution)
+    for( unsigned k=0; k<N; k++)
+        fpe[k] = T(0);
+    for( const auto& el : get_idx<vector_idx>(x,xs...))
+    {
+        std::array<T,N> tmp;
+        try{
+        doDot_fpe( status, tmp, f,
+            do_get_vector_element(x, el.first, get_tensor_category<ContainerType>()),
+            do_get_vector_element(xs, el.first, get_tensor_category<ContainerTypes>())...);
+        }catch( std::out_of_range& err)
+        {
+            throw dg::Error( dg::Message(_ping_)<<"Wrong key '"<<el.first<<"' in blas1::vdot "<<err.what());
+        }
+        for (unsigned k = 0; k < N; ++k)
+            exblas::cpu::Accumulate( tmp[k], fpe, status);
+    }
+}
 
 template< class Vector1, class Vector2>
 inline std::vector<int64_t> doDot_superacc( int* status, const Vector1& x1, const Vector2& x2, StdMapTag)
@@ -51,6 +108,19 @@ inline std::vector<int64_t> doDot_superacc( int* status, const Vector1& x1, cons
     return acc;
 }
 /////////////////////////////////////////////////////////////////////////////////////
+
+template<class T, class ContainerType, class BinaryOp, class UnaryOp>
+inline T doReduce( StdMapTag, const ContainerType& x, T zero, BinaryOp
+        op, UnaryOp unary_op)
+{
+    //reduce sequentially recursively
+    // zero must stay the neutral element in the inner reductions (e.g. MPI)
+    T result = zero;
+    for( const auto& el : x)
+        result = op( result, doReduce( get_tensor_category<decltype(
+            el.second)>(), el.second, zero, op, unary_op));
+    return result;
+}
 
 //dispatch
 template< class Subroutine, class container, class ...Containers>
