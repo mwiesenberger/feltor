@@ -575,7 +575,7 @@ void pointwiseDot(  value_type alpha, const ContainerType1& x1, const ContainerT
  *
  * @param x ContainerType x may alias y
  * @param y (write-only) ContainerType y contains result, may alias x
- * @param op unary %SquareMatrix to use on every element
+ * @param op unary operator to use on every element
  * @tparam UnaryOp Functor with signature: <tt> value_type operator()( value_type) </tt>
  * @note \c UnaryOp must be callable on the device in use. In particular, with CUDA it must be of functor tpye (@b not a function) and its signatures must contain the \__device__ specifier. (s.a. \ref DG_DEVICE)
  * @copydoc hide_naninf
@@ -706,7 +706,7 @@ inline void subroutine( Subroutine f, ContainerType&& x, ContainerTypes&&... xs)
  *
  * @note This function is trivially parallel and the MPI version simply calls the appropriate shared memory version
  * The user is responsible for making sure that the result has the correct communicator
- * @note For the function \f$ f(x_0, x_1, ..., x_{n-1}) = x_0 x_1 ... x_{n-1} \f$ <tt> dg::blas1::kronecker(y, dg::equals(), x_0, x_1, ...) </tt>computes the actual Kronecker product of the arguments **in reversed order** \f[ y = x_{n-1} \otimes x_{n-2} \otimes ... \otimes x_1 \otimes x_0\f] (or the outer product)
+ * @note For the function \f$ f(x_0, x_1, ..., x_{n-1}) = x_0 x_1 ... x_{n-1} \f$ <tt> dg::blas1::kronecker(y, dg::equals(), dg::Product(), x_0, x_1, ...) </tt>computes the actual Kronecker product of the arguments **in reversed order** \f[ y = x_{n-1} \otimes x_{n-2} \otimes ... \otimes x_1 \otimes x_0\f] (or the outer product)
  * With this behaviour we can in e.g. Cartesian coordinates naturally define functions \f$ f(x,y,z)\f$ and evaluate this function on product space coordinates and have **\f$ x \f$ as the fastest varying coordinate in memory**.
  *
  * @tparam BinarySubroutine Functor with signature: <tt> void ( value_type_g, value_type_y&) </tt> i.e. it reads the first (and second) and writes into the second argument
@@ -808,7 +808,7 @@ inline ContainerType construct( const from_ContainerType& from, Params&& ... ps)
  * @note The return type is inferred from the \c execution_policy and the \c
  * tensor_category of the input vectors.  It is unspecified. It is such that
  * the resulting vector is exactly compatible in a call to
- * <tt> dg::kronecker( result, dg::equals(), f, x0, xs...); </tt>
+ * <tt> dg::blas1::kronecker( result, dg::equals(), f, x0, xs...); </tt>
  *
  * The MPI distributed version of this function is implemented as
  * @code{.cpp}
