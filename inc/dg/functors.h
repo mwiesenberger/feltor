@@ -159,9 +159,9 @@ struct POSVALUE
 };
 
 /**
- * @brief \f$ f(x) = \f$ \c x mod m > 0 ? x mod m : x mod m + m
+ * @brief \f$ f(x) = \f$ \c x mod m >= 0 ? x mod m : x mod m + m
  *
- * returns (positive) modulo
+ * returns (non-negative) modulo in <tt> [0,m) </tt>
  * @tparam T value type
  */
 template <class T= double>
@@ -422,7 +422,7 @@ struct SlopeLimiterProduct
 /**
  * @brief
      \f$ f(\psi) = \begin{cases}
-        1  \text{ if } \psi_{\min} < \psi < \psi_{\max}\\
+        1  \text{ if } \psi_{\min} \leq \psi \leq \psi_{\max}\\
         0  \text{ else}
      \end{cases}\f$
  */
@@ -616,8 +616,8 @@ struct Gaussian
      *
      * @param x0 x-center-coordinate
      * @param y0 y-center-coordinate
-     * @param sigma_x x - variance (must be !=0)
-     * @param sigma_y y - variance (must be !=0)
+     * @param sigma_x x - standard deviation (must be !=0)
+     * @param sigma_y y - standard deviation (must be !=0)
      * @param amp Amplitude
      */
     Gaussian( double x0, double y0, double sigma_x, double sigma_y, double amp)
@@ -799,9 +799,9 @@ struct Gaussian3d
      * @param x0 x-center-coordinate
      * @param y0 y-center-coordinate
      * @param z0 z-center-coordinate
-     * @param sigma_x x - variance (must be !=0)
-     * @param sigma_y y - variance (must be !=0)
-     * @param sigma_z z - variance (must be !=0)
+     * @param sigma_x x - standard deviation (must be !=0)
+     * @param sigma_y y - standard deviation (must be !=0)
+     * @param sigma_z z - standard deviation (must be !=0)
      * @param amp Amplitude
      */
     Gaussian3d( double x0, double y0, double z0, double sigma_x, double sigma_y, double sigma_z, double amp)
@@ -864,7 +864,7 @@ struct GaussianX
      * @brief A %Gaussian in x
      *
      * @param x0 x-center-coordinate
-     * @param sigma_x x - variance (must be !=0)
+     * @param sigma_x x - standard deviation (must be !=0)
      * @param amp Amplitude
      */
     GaussianX( double x0, double sigma_x, double amp)
@@ -902,12 +902,12 @@ struct GaussianY
      * @brief Functor returning a gaussian
      *
      * @param y0 y-center-coordinate
-     * @param sigma_y y - variance (must be !=0)
+     * @param sigma_y y - standard deviation (must be !=0)
      * @param amp Amplitude
      */
     GaussianY( double y0, double sigma_y, double amp)
         : m_y0(y0), m_sigma_y(sigma_y), m_amp(amp){
-            assert( m_sigma_y != 0  &&  "sigma_x must be !=0 in GaussianY");
+            assert( m_sigma_y != 0  &&  "sigma_y must be !=0 in GaussianY");
     }
     /**
      * @brief Return the value of the gaussian
@@ -940,7 +940,7 @@ struct GaussianZ
      * @brief Functor returning a gaussian
      *
      * @param z0 z-center-coordinate
-     * @param sigma_z z - variance (must be !=0)
+     * @param sigma_z z - standard deviation (must be !=0)
      * @param amp Amplitude
      */
     GaussianZ( double z0, double sigma_z, double amp)
@@ -1343,8 +1343,8 @@ struct PolynomialHeaviside {
         ((16 a_l^3 - 29 a_l^2 (x - x_l) + 20 a_l (x - x_l)^2 - 5 (x - x_l)^3) (a_l + x -
    x_l)^4)/(32 a_l^7) \text{ if } |x-x_l| < a_l \\
         1  \text{ if } x_l + a_l < x < x_r-a_r \\
-        ((16 a_r^3 - 29 a_r^2 (x - x_r) + 20 a_r (x - x_r)^2 - 5 (x - x_r)^3) (a_r + x -
-   x_l)^4)/(32 a_r^7) \text{ if } |x-x_r| < a_r \\
+        ((16 a_r^3 + 29 a_r^2 (x - x_r) + 20 a_r (x - x_r)^2 + 5 (x - x_r)^3) (a_r - x +
+   x_r)^4)/(32 a_r^7) \text{ if } |x-x_r| < a_r \\
    0 \text{ if } x > x_r + a_r
      \end{cases}\f$
 
@@ -1477,7 +1477,7 @@ struct DPolynomialHeaviside {
     1 \text{ if } \eta < \eta_c \\
     \exp\left( -\alpha  \left(\frac{\eta-\eta_c}{1-\eta_c} \right)^{2s}\right) \text { if } \eta \geq \eta_c \\
     0 \text{ else} \\
-    \eta=\frac{i}{1-n}
+    \eta=\frac{i}{n-1}
     \end{cases}\f$
 
     where n is the number of polynomial coefficients
@@ -1525,7 +1525,7 @@ struct ExponentialFilter
  \f$
 
  with \f$ r = \sqrt{(x-x_0)^2 + (y-y_0)^2}\f$, \f$
- \theta = \arctan_2( (y-y_), (x-x_0))\f$,
+ \theta = \arctan_2( (y-y_0), (x-x_0))\f$,
  \f$J_0, J_1\f$ are
  Bessel functions of the first kind of order 0 and 1 and
  \f$\lambda = \gamma/R\f$ with \f$ \gamma = 3.83170597020751231561\f$
@@ -1606,7 +1606,7 @@ struct Lamb
 
       Return a 2d vortex function
      * where \f$ i\in \{0,1,2\}\f$ is the mode number and r and \f$\theta\f$ are poloidal coordinates
- with \f$ r = \sqrt{(x-x_0)^2 + (y-y_0)^2}\f$, \f$ \theta = \arctan_2( (y-y_), (x-x_0))\f$,
+ with \f$ r = \sqrt{(x-x_0)^2 + (y-y_0)^2}\f$, \f$ \theta = \arctan_2( (y-y_0), (x-x_0))\f$,
         \f$ g_0 = 3.831896621 \f$,
         \f$ g_1 = -3.832353624 \f$,
         \f$ g_2 = 7.016\f$,
