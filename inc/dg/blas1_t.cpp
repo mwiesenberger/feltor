@@ -227,8 +227,11 @@ TEST_CASE("blas1")
         dg::DVec xsd(xs), ysd(ys);
         dg::cDVec yd(y.size());
 #endif
-        dg::blas1::kronecker( yd, dg::equals(), []DG_DEVICE(double x, double y,
-                    double z, double u){ return thrust::complex<double>{x+y+z+u,1};}, xsd, ysd, zs, ws);
+        // The functors capture imag, i.e. they have a data member that must
+        // be copied to the device
+        double imag = 1.;
+        dg::blas1::kronecker( yd, dg::equals(), [imag]DG_DEVICE(double x, double y,
+                    double z, double u){ return thrust::complex<double>{x+y+z+u,imag};}, xsd, ysd, zs, ws);
         INFO( "Kronecker test (X ox Y)");
 #ifdef WITH_MPI
         CHECK( yd.data() == sold.data());
@@ -237,8 +240,8 @@ TEST_CASE("blas1")
         CHECK( yd == sold);
 #endif
 
-        auto ydd = dg::kronecker( []DG_DEVICE( double x, double y, double z, double
-            u){ return thrust::complex<double>{x+y+z+u,1};}, xsd, ysd, zs, ws);
+        auto ydd = dg::kronecker( [imag]DG_DEVICE( double x, double y, double z, double
+            u){ return thrust::complex<double>{x+y+z+u,imag};}, xsd, ysd, zs, ws);
         INFO( "Kronecker test (X ox Y)");
 #ifdef WITH_MPI
         CHECK( ydd.data() == sold.data());

@@ -2,6 +2,7 @@
 #define _DG_BLAS_CUDA_
 #include <thrust/transform_reduce.h>
 #include <thrust/system/cuda/execution_policy.h>
+#include <type_traits>
 #include "exceptions.h"
 #include "exblas/exdot_cuda.cuh"
 #include "exblas/fpedot_cuda.cuh"
@@ -137,7 +138,10 @@ inline void doKronecker_dispatch( dg::CudaTag, Pointer y, size_t size, Binary &&
     const size_t BLOCK_SIZE = 256;
     const size_t NUM_BLOCKS = std::min<size_t>((size-1)/BLOCK_SIZE+1, 65000);
     thrust::device_vector<size_t> tmp( sizes.begin(), sizes.end());
-    kronecker_kernel<Binary,F,N,Pointer,PointerOrValues...> <<<NUM_BLOCKS, BLOCK_SIZE>>>(size,
+    // The kernel must take binary and f by value: Binary and F may be
+    // deduced as lvalue references to host memory
+    kronecker_kernel<std::decay_t<Binary>,std::decay_t<F>,N,Pointer,PointerOrValues...>
+        <<<NUM_BLOCKS, BLOCK_SIZE>>>(size,
             thrust::raw_pointer_cast(tmp.data()),
             y,
             std::forward<Binary>(binary), std::forward<F>(f),
