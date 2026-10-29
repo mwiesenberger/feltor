@@ -47,6 +47,13 @@ TEST_CASE("Simpsons")
         dg::Simpsons<double> simpsons;
         // Forgetting init function will throw
         CHECK_THROWS_AS( simpsons.add( -1, 32), dg::Error);
+        // Times must strictly increase
+        simpsons.init( 0., 1.);
+        CHECK_THROWS_AS( simpsons.add( 0., 1.), dg::Error);
+        // Only order 2 and 3 are allowed
+        CHECK_THROWS_AS( dg::Simpsons<double>( 0), dg::Error);
+        CHECK_THROWS_AS( simpsons.set_order( 4), dg::Error);
+        CHECK( simpsons.get_order() == 3);
     }
     SECTION( "2nd order")
     {

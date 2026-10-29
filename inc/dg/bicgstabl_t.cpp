@@ -150,6 +150,12 @@ TEST_CASE( "Solvers")
 
 }
 
+TEST_CASE( "BICGSTABl")
+{
+    std::vector<double> x( 4, 0.);
+    CHECK_THROWS_AS( dg::BICGSTABl<std::vector<double>>( x, 10, 0), dg::Error);
+}
+
 TEST_CASE( "Chebyshev")
 {
     // A diagonal matrix with Eigenvalues in [1,3] and the identity as weights

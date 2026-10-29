@@ -45,11 +45,11 @@ struct Simpsons
     }
     ///@copydoc Simpsons(unsigned)
     void set_order( unsigned order){
+        if( !(order == 2 || order == 3))
+            throw dg::Error(dg::Message()<<"Integration order must be either 2 or 3!");
         m_order=order;
         m_t.resize( order-1);
         m_u.resize(order-1);
-        if( !(order == 2 || order == 3))
-            throw dg::Error(dg::Message()<<"Integration order must be either 2 or 3!");
     }
     ///Access current integration order
     unsigned get_order() const{return m_order;}
@@ -83,7 +83,7 @@ struct Simpsons
      * @attention the \c init function must be called before you can add values to the integral
      */
     void add( value_type t_new, const ContainerType& u_new){
-        if( t_new < m_t.front())
+        if( t_new <= m_t.front())
             throw dg::Error(dg::Message()<<"New time must be strictly larger than old time (or you forgot to call the init function)!");
         auto pt0 = m_t.begin();
         auto pt1 = std::next( pt0);

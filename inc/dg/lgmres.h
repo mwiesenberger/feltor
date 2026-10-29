@@ -259,7 +259,9 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
 			}
             m_HH[iteration+1][iteration] = m_H[iteration+1][iteration]
                 = sqrt(dg::blas2::dot(m_V[iteration+1],S,m_V[iteration+1]));
-            dg::blas1::scal(m_V[iteration+1],1.0/m_H[iteration+1][iteration]);
+            // H == 0 is a happy breakdown: the residual below is zero
+            if( m_H[iteration+1][iteration] != 0)
+                dg::blas1::scal(m_V[iteration+1],1.0/m_H[iteration+1][iteration]);
 
             // Now solve the least squares problem
             // using Givens Rotations transforming H into
@@ -310,7 +312,7 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
 			m_H[iteration][iteration] = tmp;
 			// Finally apply the new Givens rotation on the s vector
 			tmp = m_givens[iteration][0]*m_s[iteration] + m_givens[iteration][1]*m_s[iteration+1];
-			m_s[iteration+1] = -m_givens[iteration][1]*m_s[iteration] + m_givens[iteration][1]*m_s[iteration+1];
+			m_s[iteration+1] = -m_givens[iteration][1]*m_s[iteration] + m_givens[iteration][0]*m_s[iteration+1];
 			m_s[iteration] = tmp;
 
             rho = fabs(m_s[iteration+1]);
@@ -347,8 +349,8 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
     {
         if( m_throw_on_fail)
         {
-            throw dg::Fail( eps, Message(_ping_)
-                <<"After "<<counter<<" LGMRES iterations");
+            throw dg::Fail( tol, Message(_ping_)
+                <<"After "<<counter<<" LGMRES iterations with rtol "<<eps<<" and atol "<<eps*nrmb_correction );
         }
         m_converged = false;
     }

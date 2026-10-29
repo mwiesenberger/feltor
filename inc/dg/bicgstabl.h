@@ -44,9 +44,13 @@ class BICGSTABl
      *
      * @param copyable A ContainerType must be copy-constructible from this
      * @param max_iterations Maximum number of iterations (there is 2 matrix-vector products plus 2 Preconditioner-vector products per iteration)
-     * @param l_input Size of polynomial used for stabilisation.
+     * @param l_input Size of polynomial used for stabilisation (must be at least 1).
      * Usually 2 or 4 is a good number (makes \c l_input Bi-CG iterations before computing the minimal residual)
      * @note \c l_input=1 computes exactly the same as Bi-CGstab does
+     * @note The iterations are done in blocks of \c l_input, i.e. the
+     * maximum number of iterations is effectively rounded up to the next
+     * multiple of \c l_input
+     * @throw dg::Error if \c l_input is 0
      */
     BICGSTABl( const ContainerType& copyable, unsigned max_iterations,
             unsigned l_input):
@@ -54,6 +58,8 @@ class BICGSTABl
         m_l(l_input),
         m_tmp(copyable)
     {
+        if( m_l == 0)
+            throw dg::Error( dg::Message(_ping_)<<"BICGSTABl needs l_input >= 1");
         rhat.assign(m_l+1,copyable);
         uhat.assign(m_l+1,copyable);
         sigma.assign(m_l+1,0);
@@ -96,7 +102,7 @@ class BICGSTABl
     /**
      * @brief Solve \f$ Ax = b\f$ using a preconditioned BICGSTABl method
      *
-     * The iteration stops if \f$ ||P(Ax-b)||_W < \epsilon( ||Pb||_S + C) \f$ where \f$C\f$ is
+     * The iteration stops if \f$ ||P(Ax-b)||_W < \epsilon( ||Pb||_W + C) \f$ where \f$C\f$ is
      * the absolute error in units of \f$ \epsilon\f$ and \f$ W \f$ defines a square norm
      * @attention The stopping criterion differs from that of \c CG or \c LGMRES by the preconditioner. It is unfortunately cumbersome to obtain the real residual in this algorithm. If \c P is diagonal there is the opportunity to use \c W to offset its effect.
      * @param A A matrix
