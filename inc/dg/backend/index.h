@@ -403,36 +403,5 @@ thrust::host_vector<int> gIdx2gIdx( IntVec& gIdx, const ConversionPolicy& p)
     return pids;
 }
 
-/**
- * @brief Construct from global indices index map
- *
- * Uses the \c global2localIdx() member of MPITopology to generate \c
- * localIndexMap and \c pidIndexMap
- * @param globalIndexMap Each element <tt> globalIndexMap[i] </tt>
- * represents a global vector index from (or to) where to take the value
- * <tt>buffer[i]</tt>. There are <tt> local_buffer_size =
- * globalIndexMap.size() </tt> messages.
- * @param p the conversion object
- * @tparam ConversionPolicy has to have the members:
- *  - <tt> bool global2localIdx(unsigned,unsigned&,unsigned&) const;</tt>
- *  where the first parameter is the global index and the other two are the
- *  output pair (localIdx, rank). return true if successful, false if
- *  global index is not part of the grid
- *  - <tt> MPI_Comm %communicator() const;</tt>  returns the communicator
- *  to use in the gatherscatter
- *  - <tt> local_size(); </tt> return the local vector size
- * @sa basictopology the MPI %grids defined in Level 3 can all be used as a
- * ConversionPolicy
- */
-template<class ConversionPolicy, class IntVec = thrust::host_vector<int>>
-std::map<int, IntVec> gIdx2unique_idx(
-    const IntVec& globalIndexMap,
-    IntVec& bufferIdx, // may alias globalIndexMap
-    const ConversionPolicy& p)
-{
-    // TODO I think this overload is currently not used anywhere...
-    // TODO update docu on local_size() ( if we don't scatter we don't need it)
-    return gIdx2unique_idx( gIdx2gIdx(globalIndexMap, p), bufferIdx);
-}
 ///@endcond
 } // namespace dg

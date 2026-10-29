@@ -86,7 +86,6 @@ struct ArrayScalarTag : public SharedVectorTag {};
  *  @note \c thrust::host_vector and \c thrust::device_vector meet these requirements
  */
 struct ThrustVectorTag  : public ArrayScalarTag {};
-struct CuspVectorTag    : public ThrustVectorTag {}; //!< special tag for cusp arrays
 
 }//namespace dg
 

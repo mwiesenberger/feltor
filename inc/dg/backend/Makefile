@@ -36,10 +36,6 @@ all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 %_mpit.$(device).o: %_mpit.cpp
 	$(MPICC) $(OPT) $(INCLUDE) $(MPICFLAGS) -c $< -o $@ -g
 
-version: version.cpp
-	$(CC) $(CFLAGS) $(INCLUDE) $< -o $@
-	./$@
-
 %_t: $(CATCH).$(device).o %_t.$(device).o
 	$(CC) $(OPT) -o $@ $^ -lCatch2 $(SPARSELIB)
 
@@ -61,4 +57,4 @@ mpi-tests: $(CATCHMPI).$(device).o $(addsuffix .$(device).o,$(TARGETSMPI))
 .PHONY: clean
 
 clean:
-	rm -f *.o *_t *_mpit version tests mpi-tests
+	rm -f *.o *_t *_mpit tests mpi-tests

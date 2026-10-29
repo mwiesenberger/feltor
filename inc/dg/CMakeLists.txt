@@ -16,7 +16,6 @@ set(DG_HEADERS
   backend/blas1_dispatch_vector.h
   backend/blas1_omp.h
   backend/blas1_serial.h
-  backend/blas2_cusp.h
   backend/blas2_densematrix.h
   backend/blas2_dispatch_map.h
   backend/blas2_dispatch_mpi.h
@@ -67,7 +66,6 @@ set(DG_HEADERS
   backend/sparsematrix_gpu.cuh
   backend/sparsematrix.h
   backend/sparsematrix_omp.h
-  backend/tensor_traits_cusp.h
   backend/tensor_traits.h
   backend/tensor_traits_scalar.h
   backend/tensor_traits_std.h
