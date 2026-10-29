@@ -28,7 +28,7 @@ namespace detail
 // stream used by nccl (MW: unless it is another nccl function within ncclGroup
 // calls I guess?) If there is an error on a communicator it should be
 // destroyed using ncclCommAbort
-void ncclCommSynchronize(ncclComm_t comm)
+inline void ncclCommSynchronize(ncclComm_t comm)
 {
     // Wait untill all Kernels are submitted, or function returns
     ncclResult_t state;
@@ -43,14 +43,43 @@ void ncclCommSynchronize(ncclComm_t comm)
         throw dg::Error(dg::Message(_ping_)<<ncclGetErrorString(state));
 }
 
-// Similar to exblas/mpi_accumulate, this keeps a static map of comms we already created
+// The nccl communicator and stream that belong to an MPI communicator
+struct NcclHandle
+{
+    ncclComm_t comm;
+    cudaStream_t stream;
+};
+// Free the cached nccl communicator when the MPI communicator is freed
+inline int free_nccl_handle( MPI_Comm, int, void* attribute, void*)
+{
+    auto* handle = static_cast<NcclHandle*>( attribute);
+    ncclCommDestroy( handle->comm);
+    cudaStreamDestroy( handle->stream);
+    delete handle;
+    return MPI_SUCCESS;
+}
+
+// As in exblas/mpi_accumulate we cache the nccl communicator as an attribute
+// of comm: unlike a map keyed by the handle this is not fooled by a freed and
+// reused handle. The attribute is not copied by MPI_Comm_dup
+// (MPI_COMM_NULL_COPY_FN): a duplicate creates its own on first use
 inline void getNcclComm( MPI_Comm comm, ncclComm_t * ncclcomm, cudaStream_t * stream )
 {
-    static std::map<MPI_Comm, std::pair<ncclComm_t, cudaStream_t>> comms;
-    if( comms.count(comm) == 1 )
+    static int keyval = [](){
+        int key;
+        MPI_Comm_create_keyval( MPI_COMM_NULL_COPY_FN, free_nccl_handle,
+            &key, nullptr);
+        return key;
+    }();
+    // MPI_Comm_get_attr takes the address of a pointer (declared as void*
+    // although it is used as void**), into which it writes the stored pointer
+    NcclHandle* handle;
+    int found;
+    MPI_Comm_get_attr( comm, keyval, &handle, &found);
+    if( found)
     {
-        *ncclcomm = std::get<0>(comms[comm]);
-        *stream = std::get<1>(comms[comm]);
+        *ncclcomm = handle->comm;
+        *stream = handle->stream;
         return;
     }
     int rank, size;
@@ -72,7 +101,7 @@ inline void getNcclComm( MPI_Comm comm, ncclComm_t * ncclcomm, cudaStream_t * st
 
     cudaStreamCreate( stream);
 
-    comms[comm] = {*ncclcomm, *stream};
+    MPI_Comm_set_attr( comm, keyval, new NcclHandle{ *ncclcomm, *stream});
 }
 template<class value_type>
 inline ncclDataType_t getNcclDataType(){ assert( false && "Type not supported!\n" ); return ncclDataType_t{}; }
