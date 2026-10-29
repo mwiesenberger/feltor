@@ -191,7 +191,7 @@ struct LeastSquaresExtrapolation
     }
 
     private:
-    unsigned m_max, m_counter;
+    unsigned m_max = 0, m_counter = 0;
     std::vector<ContainerType0> m_x;
     std::vector<ContainerType1> m_y;
     dg::SquareMatrix<double> m_op, m_op_inv;
@@ -263,7 +263,7 @@ struct Extrapolation
      * @brief Check if time exists in current points
      *
      * @note The check is numerical and returns true if \f$|t - t_i| < 10^{-14}\f$
-     * for all i
+     * for any i
      * @note If extrapolate() is called on an exisiting time,
      * the corresponding vector is returned while update() will overwrite
      * the existing vector
@@ -371,8 +371,7 @@ struct Extrapolation
     */
     template<class ContainerType0>
     void extrapolate( ContainerType0& new_x) const{
-        value_type t = m_t[0] +1.;
-        extrapolate( t, new_x);
+        extrapolate( last_time() + 1., new_x);
     }
 
 
@@ -451,7 +450,7 @@ struct Extrapolation
     */
     template<class ContainerType0>
     void derive( ContainerType0& dot_x) const{
-        derive( m_t[0], dot_x);
+        derive( last_time(), dot_x);
     }
 
     /**
@@ -486,8 +485,7 @@ struct Extrapolation
     */
     template<class ContainerType0>
     void update( const ContainerType0& new_entry){
-        value_type t_new = m_t[0] + 1;
-        update( t_new, new_entry);
+        update( last_time() + 1., new_entry);
     }
 
     /**
@@ -507,7 +505,9 @@ struct Extrapolation
     }
 
     private:
-    unsigned m_max, m_counter;
+    // the most recently inserted time (0 if there is none)
+    value_type last_time() const{ return m_t.empty() ? value_type(0) : m_t[0];}
+    unsigned m_max = 0, m_counter = 0;
     std::vector<value_type> m_t;
     std::vector<ContainerType> m_x;
     //only allocated if least squares extrapolate is used

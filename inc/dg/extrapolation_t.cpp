@@ -120,6 +120,31 @@ TEST_CASE( "Extrapolation")
         CHECK( err < 1e-13);
         //! [LeastSquaresExtrapolation]
     }
+    SECTION( "Empty extrapolation")
+    {
+        // Default constructed and zero size objects do nothing
+        std::vector<double> x = {1,2,3}, zero( 3, 0.), y;
+        dg::Extrapolation<std::vector<double>> def, none( 0, x);
+        for( auto* ex : {&def, &none})
+        {
+            ex->update( x);
+            ex->update( 1., x);
+            CHECK( ex->get_max() == 0);
+            CHECK( not ex->exists( 1.));
+            y = x;
+            ex->extrapolate( y);
+            CHECK( y == zero);
+            y = x;
+            ex->derive( y);
+            CHECK( y == zero);
+        }
+        dg::LeastSquaresExtrapolation<std::vector<double>, std::vector<double>> ls;
+        ls.update( x, x);
+        CHECK( ls.get_max() == 0);
+        y = x;
+        ls.extrapolate( x, y);
+        CHECK( y == zero);
+    }
     SECTION( "Extrapolation")
     {
         //! [Extrapolation]
