@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <cassert>
+#ifdef _OPENMP
+#include <omp.h>
+#endif //_OPENMP
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h> //declare THRUST_DEVICE_SYSTEM
 #include "config.h"
@@ -28,8 +31,9 @@ namespace dg
  * @code
 #ifdef _OPENMP
     int provided, error;
-    error = MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-    assert( error == MPI_SUCCESS && "Threaded MPI lib required!\n");
+    error = MPI_Init_thread(argc, argv, MPI_THREAD_FUNNELED, &provided);
+    if( error != MPI_SUCCESS or provided < MPI_THREAD_FUNNELED)
+        MPI_Abort(MPI_COMM_WORLD, -1);
 #else
     MPI_Init(argc, argv);
 #endif
@@ -60,7 +64,12 @@ inline void mpi_init( int *argc, char **argv[])
 #ifdef _OPENMP
     int provided, error;
     error = MPI_Init_thread(argc, argv, MPI_THREAD_FUNNELED, &provided);
-    assert( error == MPI_SUCCESS && "Threaded MPI lib required!\n");
+    if( error != MPI_SUCCESS or provided < MPI_THREAD_FUNNELED)
+    {
+        std::cerr << "# Threaded MPI lib required (MPI_THREAD_FUNNELED)!"<<std::endl;
+        MPI_Abort(MPI_COMM_WORLD, -1);
+        exit(-1);
+    }
 #else
     MPI_Init(argc, argv);
 #endif

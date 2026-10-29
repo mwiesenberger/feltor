@@ -41,6 +41,10 @@
 
 //%%%%%%%%%%%%%%%try to check for cuda-aware MPI support or NCCL%%%%%%%%%%%%%%%%%%%%%%%%%%
 //TODO This should be tested somewhere
+#if defined(MPI_VERSION) && defined(OPEN_MPI) && OPEN_MPI
+// Open-MPI header defines MPIX_CUDA_AWARE_SUPPORT if compiled with cuda
+#include "mpi-ext.h"
+#endif
 namespace dg{
 #ifdef MPI_VERSION
 #if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA // cuda is involved
@@ -62,8 +66,6 @@ inline constexpr bool cuda_aware_mpi = false;
 //{;
 #if defined(OPEN_MPI) && OPEN_MPI
 //{;
-#include "mpi-ext.h"
-// Open-MPI header defines MPIX_CUDA_AWARE if compiled with cuda
 #if defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
 #pragma message( "CUDA-aware MPI support detected! Yay!")
 inline constexpr bool cuda_aware_mpi = true;
