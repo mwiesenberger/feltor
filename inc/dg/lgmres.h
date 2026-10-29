@@ -123,7 +123,7 @@ class LGMRES
      * the absolute error in units of \f$ \epsilon\f$ and \f$ W \f$ defines a square norm
      * @param A A matrix
      * @param x Contains an initial value on input and the solution on output.
-     * @param b The right hand side vector. x and b may be the same vector.
+     * @param b The right hand side vector. x and b may not be the same vector.
      * @param P The preconditioner to be used
      * @param W A diagonal matrix (a vector) that is used to define the scalar
      * product in which the orthogonalization in LGMRES is computed and that

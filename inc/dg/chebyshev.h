@@ -79,7 +79,7 @@ class ChebyshevIteration
      * The iteration stops when the maximum number of iterations is reached
      * @param A A symmetric, positive definit matrix
      * @param x Contains an initial value on input and the solution on output.
-     * @param b The right hand side vector. x and b may be the same vector.
+     * @param b The right hand side vector. x and b may not be the same vector.
      * @param min_ev an estimate of the minimum Eigenvalue
      * @param max_ev an estimate of the maximum Eigenvalue of \f$ A\f$ (must be larger than \c min_ev)
      * @param num_iter the number of iterations \c k (equals the number of times A is applied)
@@ -135,7 +135,7 @@ class ChebyshevIteration
      * The iteration stops when the maximum number of iterations is reached
      * @param A A symmetric, positive definit matrix
      * @param x Contains an initial value on input and the solution on output.
-     * @param b The right hand side vector. x and b may be the same vector.
+     * @param b The right hand side vector. x and b may not be the same vector.
      * @param P the Preconditioner (\f$ M^{-1}\f$ in the above notation
      * @param min_ev an estimate of the minimum Eigenvalue
      * @param max_ev an estimate of the maximum Eigenvalue of \f$ P A\f$ (must be larger than \c min_ev)
