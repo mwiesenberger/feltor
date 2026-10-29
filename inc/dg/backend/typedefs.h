@@ -38,14 +38,7 @@ using fDMatrix = EllSparseBlockMat<float, thrust::device_vector>; //!< Device Ma
 template<class real_type>
 using IHMatrix_t = dg::SparseMatrix<int, real_type, thrust::host_vector>;
 template<class real_type>
-#if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
-//Ell matrix can be almost 3x faster than csr for GPU
-//However, sometimes matrices contain outlier rows that do not fit in ell
 using IDMatrix_t = dg::SparseMatrix<int, real_type, thrust::device_vector>;
-#else
-// csr matrix can be much faster than ell for CPU (we have our own symv implementation!)
-using IDMatrix_t = dg::SparseMatrix<int, real_type, thrust::device_vector>;
-#endif
 using IHMatrix = IHMatrix_t<double>;
 using IDMatrix = IDMatrix_t<double>;
 

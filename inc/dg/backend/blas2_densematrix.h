@@ -23,10 +23,6 @@ inline void doSymv(
                             typename std::decay_t<Matrix>::container_type>,
                         get_tensor_category<Vector2>>::value,
                 "Dense Matrix and output Vector type must have same data layout");
-    static_assert( std::is_same<get_tensor_category<
-                            typename std::decay_t<Matrix>::container_type>,
-                        get_tensor_category<Vector2>>::value,
-                "Dense Matrix and output Vector type must have same data layout");
     const unsigned size = x.size();
     if( size != m.num_cols()) {
         throw Error( Message(_ping_)<<"x has the wrong size "<<x.size()<<" Number of columns is "<<m.num_cols());

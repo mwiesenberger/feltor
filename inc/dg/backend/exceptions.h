@@ -5,9 +5,11 @@
  */
 #pragma once
 
+#include <cstdlib> // exit
 #include <exception>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #define _ping_ __FILE__, __LINE__
 
@@ -110,11 +112,11 @@ class Error : public std::exception
         m+= "\n"+message.str();
     }
     /// @return file, line and the message given in the constructor as a string of char
-    virtual const char* what() const throw()
+    const char* what() const noexcept override
     {
         return m.c_str();
     }
-    virtual ~Error() throw(){}
+    virtual ~Error() noexcept {}
 };
 
 
@@ -147,7 +149,7 @@ struct Fail : public Error
      * @return eps
      */
     double epsilon() const { return eps;}
-    virtual ~Fail() throw(){}
+    virtual ~Fail() noexcept {}
   private:
     double eps;
 };

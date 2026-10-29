@@ -20,7 +20,6 @@ template<class ContainerType>
 struct DenseMatrix
 {
     using container_type = ContainerType;
-    DenseMatrix() = default;
     DenseMatrix( const std::vector<const ContainerType*>& columns) :
         m_matrix( columns), m_num_cols(columns.size()) {}
     DenseMatrix( const std::vector<const ContainerType*>& columns, unsigned num_cols) :
@@ -34,9 +33,8 @@ struct DenseMatrix
         return m_matrix[idx];
     }
     const std::vector<const ContainerType*>& get() const{ return m_matrix;}
-    // Should we delte copy and assignment ?
-
     private:
+    // Only a reference to the vector of pointers is stored
     const std::vector<const ContainerType*>& m_matrix;
     unsigned m_num_cols;
 };
@@ -60,7 +58,7 @@ struct TensorTraits<DenseMatrix<Container> >
     std::vector<Container> matrix( 10, x);
     std::vector<const Container*> column_ptrs = dg::asPointers(matrix);
     std::vector<value_type> coeffs( 10, 0.5);
-    dg::blas2::gemv( 1., dg::asDenseMatrix(matrix_ptrs), coeffs, 0.,  x);
+    dg::blas2::gemv( 1., dg::asDenseMatrix(column_ptrs), coeffs, 0.,  x);
  * @endcode
  * @note the implemented summation algorithm is a pairwise summation algorithm
  * optimized for small sized number of columns ( <= 64)
@@ -68,6 +66,9 @@ struct TensorTraits<DenseMatrix<Container> >
  * @return an opaque type that internally  adds a Tag that tells the compiler
  * that the \c std::vector is to be interpreted as a dense matrix and call the
  * correct implementation.
+ * @attention The returned object only holds a reference to \c in, so \c in
+ * must outlive it. Use the result directly in a \c dg::blas2 call instead of
+ * storing it
  * @copydoc hide_ContainerType
  * @ingroup densematrix
  */
@@ -97,7 +98,7 @@ auto asDenseMatrix( const std::vector<const ContainerType*>& in, unsigned size)
     std::vector<Container> matrix( 10, x);
     std::vector<const Container*> column_ptrs = dg::asPointers(matrix);
     std::vector<value_type> coeffs( 10, 0.5);
-    dg::blas2::gemv( 1., dg::asDenseMatrix(matrix_ptrs), coeffs, 0.,  x);
+    dg::blas2::gemv( 1., dg::asDenseMatrix(column_ptrs), coeffs, 0.,  x);
  * @endcode
  * @param in a collection of vectors that form the columns of the dense matrix
  * @return a vector of pointers with ptrs[i] = &in[i]

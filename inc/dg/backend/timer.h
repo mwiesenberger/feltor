@@ -2,6 +2,7 @@
 #define _DG_TIMER_
 
 ///@cond
+#include <chrono>
 #include "thrust/device_vector.h"
 //the <thrust/device_vector.h> header must be included for the THRUST_DEVICE_SYSTEM macros to work
 #if (THRUST_DEVICE_SYSTEM!=THRUST_DEVICE_SYSTEM_CUDA) //if we don't use a GPU
@@ -34,20 +35,19 @@ class Timer //OMP non-MPI
 }//namespace dg
 #else // MPI_VERSION not defined and THRUST == CPU
 
-#include <chrono>
 namespace dg{
 class Timer
 {
 public:
-    inline void tic(void) { m_start = std::chrono::system_clock::now(); }
-    inline void toc(void) { m_stop = std::chrono::system_clock::now();}
-    inline double diff(void) {
+    inline void tic(void) { m_start = std::chrono::steady_clock::now(); }
+    inline void toc(void) { m_stop = std::chrono::steady_clock::now();}
+    inline double diff(void) const {
         double difference = std::chrono::duration_cast<std::chrono::nanoseconds>(
             m_stop - m_start).count();
         return difference*1e-9;
     }
 private:
-    typename std::chrono::system_clock::time_point m_start, m_stop;
+    typename std::chrono::steady_clock::time_point m_start, m_stop;
 };
 }//namespace dg
 #endif//MPI_VERSION
@@ -81,22 +81,21 @@ namespace dg{
 class Timer// GPU non-MPI
 {
   public:
-    Timer(){
-        cudaEventCreate( &start);
-        cudaEventCreate( &stop);
+    void tic( cudaStream_t stream = 0){
+        cudaStreamSynchronize( stream);
+        m_start = std::chrono::steady_clock::now();
     }
-    void tic( cudaStream_t stream = 0){ cudaEventRecord( start, stream);}
     void toc( cudaStream_t stream = 0){
-        cudaEventRecord( stop, stream);
-        cudaEventSynchronize( stop);
+        cudaStreamSynchronize( stream);
+        m_stop = std::chrono::steady_clock::now();
     }
-    float diff()const{
-        float time;
-        cudaEventElapsedTime( &time, start, stop);
-        return time/1000.;
+    double diff()const{
+        double difference = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            m_stop - m_start).count();
+        return difference*1e-9;
     }
   private:
-    cudaEvent_t start, stop;
+    std::chrono::steady_clock::time_point m_start, m_stop;
 };
 } //namespace dg
 #endif //MPI_VERSION

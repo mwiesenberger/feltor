@@ -3,6 +3,7 @@
 
 #include <iomanip>
 #include <numeric>
+#include <thrust/host_vector.h>
 #include <thrust/sort.h>
 #include <thrust/gather.h>
 #include <thrust/sequence.h>
