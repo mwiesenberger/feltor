@@ -101,3 +101,45 @@ TEST_CASE( "Histogram")
             {0.5}, {0.5}), dg::Error);
     }
 }
+
+TEST_CASE( "Derivatives of functors")
+{
+    // Central differences have an error of O(h^2)
+    const double h = 1e-5, eps = 1e-7;
+    auto diff = [h]( auto f, double x){ return (f(x+h)-f(x-h))/2./h;};
+    SECTION( "Cauchy")
+    {
+        dg::Cauchy c( 0.1, -0.2, 1.3, 0.7, 2.);
+        double x = 0.4, y = 0.1;
+        double dx = diff( [&]( double t){ return c( t, y);}, x);
+        double dy = diff( [&]( double t){ return c( x, t);}, y);
+        double dxx = diff( [&]( double t){ return c.dx( t, y);}, x);
+        double dyy = diff( [&]( double t){ return c.dy( x, t);}, y);
+        double dxy = diff( [&]( double t){ return c.dx( x, t);}, y);
+        CHECK( fabs( c.dx( x, y) - dx) < eps*fabs( dx));
+        CHECK( fabs( c.dy( x, y) - dy) < eps*fabs( dy));
+        CHECK( fabs( c.dxx( x, y) - dxx) < eps*fabs( dxx));
+        CHECK( fabs( c.dyy( x, y) - dyy) < eps*fabs( dyy));
+        CHECK( fabs( c.dxy( x, y) - dxy) < eps*fabs( dxy));
+    }
+    SECTION( "PolynomialHeaviside")
+    {
+        // IPolynomialHeaviside' = PolynomialHeaviside and
+        // PolynomialHeaviside' = sign*DPolynomialHeaviside
+        int sign = GENERATE( +1, -1);
+        double xb = 0.3, a = 0.5;
+        dg::PolynomialHeaviside H( xb, a, sign);
+        dg::IPolynomialHeaviside IH( xb, a, sign);
+        dg::DPolynomialHeaviside DH( xb, a, sign);
+        INFO( "Sign "<<sign);
+        CHECK( fabs( H( xb) - 0.5) < 1e-15);
+        CHECK( H( xb - 1.1*a) == ( sign == 1 ? 0. : 1.));
+        CHECK( H( xb + 1.1*a) == ( sign == 1 ? 1. : 0.));
+        for( double x : { 0.0, 0.25, 0.5, 0.7})
+        {
+            INFO( "x "<<x);
+            CHECK( fabs( diff( IH, x) - H( x)) < eps);
+            CHECK( fabs( diff( H, x) - sign*DH( x)) < eps);
+        }
+    }
+}
