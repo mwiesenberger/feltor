@@ -103,23 +103,28 @@ inline void getNcclComm( MPI_Comm comm, ncclComm_t * ncclcomm, cudaStream_t * st
 
     MPI_Comm_set_attr( comm, keyval, new NcclHandle{ *ncclcomm, *stream});
 }
+// The nccl type corresponding to a C++ type (unsupported types do not compile)
 template<class value_type>
-inline ncclDataType_t getNcclDataType(){ assert( false && "Type not supported!\n" ); return ncclDataType_t{}; }
-template<> inline ncclDataType_t getNcclDataType<char>(){ return ncclChar;}
-template<> inline ncclDataType_t getNcclDataType<signed char>(){ return ncclChar;}
-template<> inline ncclDataType_t getNcclDataType<unsigned char>(){ return ncclUint8;}
-template<> inline ncclDataType_t getNcclDataType<int>(){ return ncclInt;}
-template<> inline ncclDataType_t getNcclDataType<unsigned int>(){ return ncclUint32;}
-template<> inline ncclDataType_t getNcclDataType<signed long int>(){ return ncclInt64;}
-template<> inline ncclDataType_t getNcclDataType<unsigned long int>(){ return ncclUint64;}
-template<> inline ncclDataType_t getNcclDataType<float>(){ return ncclFloat;}
-template<> inline ncclDataType_t getNcclDataType<double>(){ return ncclDouble;}
-
-// We need to separately catch the complex nature of the array though
-template<> inline ncclDataType_t getNcclDataType<std::complex<float>>(){ return ncclFloat;}
-template<> inline ncclDataType_t getNcclDataType<std::complex<double>>(){ return ncclDouble;}
-template<> inline ncclDataType_t getNcclDataType<thrust::complex<float>>(){ return ncclFloat;}
-template<> inline ncclDataType_t getNcclDataType<thrust::complex<double>>(){ return ncclDouble;}
+constexpr ncclDataType_t getNcclDataType()
+{
+    using T = value_type;
+    if constexpr( std::is_same_v<T, char>) return ncclChar;
+    else if constexpr( std::is_same_v<T, signed char>) return ncclChar;
+    else if constexpr( std::is_same_v<T, unsigned char>) return ncclUint8;
+    else if constexpr( std::is_same_v<T, int>) return ncclInt;
+    else if constexpr( std::is_same_v<T, unsigned>) return ncclUint32;
+    else if constexpr( std::is_same_v<T, long>) return ncclInt64;
+    else if constexpr( std::is_same_v<T, unsigned long>) return ncclUint64;
+    else if constexpr( std::is_same_v<T, float>) return ncclFloat;
+    else if constexpr( std::is_same_v<T, double>) return ncclDouble;
+    // We need to separately catch the complex nature of the array though
+    else if constexpr( std::is_same_v<T, std::complex<float>> or
+                       std::is_same_v<T, thrust::complex<float>>) return ncclFloat;
+    else if constexpr( std::is_same_v<T, std::complex<double>> or
+                       std::is_same_v<T, thrust::complex<double>>) return ncclDouble;
+    else
+        static_assert( detail::always_false_v<T>, "Type not supported by nccl!");
+}
 
 }// namespace detail
 }// namespace dg

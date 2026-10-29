@@ -3,27 +3,40 @@
 #include <cusparse.h>
 #include <exception>
 #include <complex>
+#include <type_traits>
 #include <thrust/complex.h>
+#include "predicate.h"
 
 namespace dg
 {
 namespace detail
 {
+// The cuda type corresponding to a C++ type (unsupported types do not compile)
 template<class value_type>
-inline cudaDataType_t getCudaDataType(){ assert( false && "CUDA Type not supported!\n" ); return CUDA_R_64F; }
+constexpr cudaDataType_t getCudaDataType()
+{
+    using T = value_type;
+    if constexpr( std::is_same_v<T, int>) return CUDA_R_32I;
+    else if constexpr( std::is_same_v<T, float>) return CUDA_R_32F;
+    else if constexpr( std::is_same_v<T, double>) return CUDA_R_64F;
+    else if constexpr( std::is_same_v<T, std::complex<float>> or
+                       std::is_same_v<T, thrust::complex<float>>) return CUDA_C_32F;
+    else if constexpr( std::is_same_v<T, std::complex<double>> or
+                       std::is_same_v<T, thrust::complex<double>>) return CUDA_C_64F;
+    else
+        static_assert( detail::always_false_v<T>, "Type not supported by cuda!");
+}
 
-template<> inline cudaDataType_t getCudaDataType<int>(){ return CUDA_R_32I;}
-template<> inline cudaDataType_t getCudaDataType<float>() { return CUDA_R_32F;}
-template<> inline cudaDataType_t getCudaDataType<double>(){ return CUDA_R_64F;}
-template<> inline cudaDataType_t getCudaDataType<std::complex<float>>(){ return CUDA_C_32F;}
-template<> inline cudaDataType_t getCudaDataType<std::complex<double>>(){ return CUDA_C_64F;}
-template<> inline cudaDataType_t getCudaDataType<thrust::complex<float>>(){ return CUDA_C_32F;}
-template<> inline cudaDataType_t getCudaDataType<thrust::complex<double>>(){ return CUDA_C_64F;}
-
+// The cusparse index type corresponding to a C++ type (unsupported types do not compile)
 template<class value_type>
-inline cusparseIndexType_t getCudaIndexType(){ assert( false && "CUDA Type not supported!\n" ); return CUSPARSE_INDEX_32I; }
-template<> inline cusparseIndexType_t getCudaIndexType<int>(){ return CUSPARSE_INDEX_32I;}
-template<> inline cusparseIndexType_t getCudaIndexType<signed long int>(){ return CUSPARSE_INDEX_64I;}
+constexpr cusparseIndexType_t getCudaIndexType()
+{
+    using T = value_type;
+    if constexpr( std::is_same_v<T, int>) return CUSPARSE_INDEX_32I;
+    else if constexpr( std::is_same_v<T, long>) return CUSPARSE_INDEX_64I;
+    else
+        static_assert( detail::always_false_v<T>, "Index type not supported by cusparse!");
+}
 
 
 struct CusparseError : public std::exception

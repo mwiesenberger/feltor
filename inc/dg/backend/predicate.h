@@ -9,6 +9,10 @@
 namespace dg{
 ///@cond
 namespace detail{
+// Use in static_assert of a template branch that must not be instantiated
+template<class T>
+inline constexpr bool always_false_v = false;
+
 template<template <typename> class Predicate, unsigned n, class Default, class... Ts>
 struct find_if_impl;
 
