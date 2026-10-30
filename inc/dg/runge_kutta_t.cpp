@@ -325,3 +325,19 @@ TEST_CASE( "Butcher tableaus")
         }
     }
 }
+
+TEST_CASE( "SinglestepTimeloop")
+{
+    // integrate ends exactly at t1 (no accumulated round-off)
+    double u0 = 1., u1 = 0., t = 0.;
+    std::function<void(double, const double&, double&, double&, double)> step =
+        []( double t0, const double& y0, double& t1, double& y1, double dt){
+            t1 = t0 + dt; y1 = y0;};
+    double dt = GENERATE( 0.1, 0.3); // divisable and not
+    dg::SinglestepTimeloop<double> loop( step, dt);
+    INFO( "dt "<<dt);
+    loop.integrate( t, u0, 1., u1, dg::to::exact);
+    CHECK( t == 1.);
+    CHECK( u1 == u0);
+}
+

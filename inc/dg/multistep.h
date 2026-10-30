@@ -743,6 +743,7 @@ void MultistepTimeloop<ContainerType>::do_integrate(
         unsigned N = (unsigned)round((t_end - t_begin)/m_dt);
         for( unsigned i=0; i<N; i++)
             m_step( t_begin, end);
+        t_begin = t_end; // remove the accumulated round-off
         return;
     }
     else

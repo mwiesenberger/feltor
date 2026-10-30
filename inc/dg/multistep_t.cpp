@@ -312,3 +312,15 @@ TEST_CASE( "Operator splitting")
         CHECK( err < 1e-3);
     }
 }
+
+TEST_CASE( "MultistepTimeloop")
+{
+    // integrate ends exactly at t1 (no accumulated round-off)
+    double u0 = 1., u1 = 0., t = 0.;
+    std::function<void(double&, double&)> step = []( double& t, double&){
+        t += 0.1;};
+    dg::MultistepTimeloop<double> loop( std::move( step), 0.1);
+    loop.integrate( t, u0, 1., u1, dg::to::exact);
+    CHECK( t == 1.);
+}
+

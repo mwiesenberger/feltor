@@ -2,28 +2,6 @@
 #include "pcg.h"
 
 namespace dg{
-///@cond
-namespace detail{
-template<class Implicit, class Solver>
-struct Adaptor
-{
-    Adaptor( Implicit& im, Solver& solver) : m_im(im), m_solver(solver){}
-    template<class ContainerType, class value_type>
-    void operator()( value_type t, const ContainerType& x, ContainerType& y)
-    {
-        m_im( t,x,y);
-    }
-    template<class ContainerType, class value_type>
-    void operator()( value_type alpha, value_type t, ContainerType& y, const ContainerType& yp)
-    {
-        m_solver.solve( alpha, m_im, t, y, yp);
-    }
-    private:
-    Implicit& m_im;
-    Solver& m_solver;
-};
-}
-///@endcond
 
 /*!@brief PCG Solver class for solving \f$ (y-\alpha\hat I(t,y)) = \rho\f$
  *
@@ -116,6 +94,7 @@ struct DefaultSolver
     }
     ///@brief Set or unset performance timings during iterations
     ///@param benchmark If true, additional output will be written to \c std::cout during solution
+    ///@note The default is \c true
     void set_benchmark( bool benchmark){ m_benchmark = benchmark;}
 
     void operator()( value_type alpha, value_type time, ContainerType& y, const
@@ -146,7 +125,7 @@ struct DefaultSolver
     std::function< unsigned ( const std::function<void( const
                 ContainerType&,ContainerType&)>&, ContainerType&,
             const ContainerType&)> m_solve;
-    unsigned m_max_iter;
+    unsigned m_max_iter = 0;
     bool m_benchmark = true;
 };
 

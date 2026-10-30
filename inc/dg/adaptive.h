@@ -685,6 +685,8 @@ void AdaptiveTimeloop<ContainerType>::do_integrate(
             throw dg::Error(dg::Message(_ping_)<<"Adaptive integrate failed to converge! dt = "<<std::scientific<<dt_current0);
         }
     }
+    if( dg::to::exact == mode)
+        t_current = t1; // remove round-off of the last step
 }
 
 template< class ContainerType>

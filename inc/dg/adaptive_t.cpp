@@ -57,7 +57,6 @@ TEST_CASE( "Adaptive")
 {
     INFO("Test correct implementation of adaptive methods "
         <<"at the example of the damped driven harmonic oscillator");
-    std::cout << std::scientific;
     //![doxygen]
     //... in main
     //set start and end time
