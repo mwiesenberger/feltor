@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <functional>
+#include <map>
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -241,5 +242,86 @@ TEST_CASE( "Runge Kutta")
         dg::DIRKStep<std::array<double,2>> dirk( name, u);
         CHECK( dirk.order() == b.order());
         CHECK( dirk.embedded_order() == b.embedded_order());
+    }
+}
+
+// Residuals of the 8 order conditions up to order 4 for the weights w:
+// sum w = 1, sum w c = 1/2, sum w c^2 = 1/3, sum w A c = 1/6,
+// sum w c^3 = 1/4, sum w c A c = 1/8, sum w A c^2 = 1/12, sum w A A c = 1/24
+static std::vector<double> order_conditions( const dg::ButcherTableau<double>& t,
+        bool embedded)
+{
+    unsigned s = t.num_stages();
+    std::vector<double> w(s), c(s), ac(s,0), ac2(s,0), aac(s,0);
+    for( unsigned i=0; i<s; i++)
+    {
+        w[i] = embedded ? t.bt(i) : t.b(i);
+        c[i] = t.c(i);
+    }
+    for( unsigned i=0; i<s; i++)
+        for( unsigned j=0; j<s; j++)
+        {
+            ac[i] += t.a(i,j)*c[j];
+            ac2[i] += t.a(i,j)*c[j]*c[j];
+        }
+    for( unsigned i=0; i<s; i++)
+        for( unsigned j=0; j<s; j++)
+            aac[i] += t.a(i,j)*ac[j];
+    std::vector<double> r = {-1., -1./2., -1./3., -1./6., -1./4., -1./8.,
+        -1./12., -1./24.};
+    for( unsigned i=0; i<s; i++)
+    {
+        r[0] += w[i];
+        r[1] += w[i]*c[i];
+        r[2] += w[i]*c[i]*c[i];
+        r[3] += w[i]*ac[i];
+        r[4] += w[i]*c[i]*c[i]*c[i];
+        r[5] += w[i]*c[i]*ac[i];
+        r[6] += w[i]*ac2[i];
+        r[7] += w[i]*aac[i];
+    }
+    return r;
+}
+
+TEST_CASE( "Butcher tableaus")
+{
+    // Check the order conditions up to order 4 of the method and its
+    // embedding as well as c_i = sum_j a_ij for all tableaus
+    for( const auto& pair : dg::create::str2id)
+    {
+        dg::ButcherTableau<double> t;
+        if( pair.first.find( "SSPRK") == 0)
+            t = dg::create::shuosher_tableau<double>( pair.second);
+        else
+            t = dg::create::tableau<double>( pair.second);
+        // Some published coefficients are given with fewer digits
+        const std::map<std::string, double> precision = {
+            {"Verner-9-5-6", 1e-12},
+            {"Cash-5-2-4", 1e-10}, {"Cash-5-3-4", 1e-10}, // 12 digits
+            {"SSPRK-5-3", 1e-9}, {"SSPRK-5-4", 1e-9} // 10 significant digits
+        };
+        double eps = precision.count( pair.first) ? precision.at( pair.first) : 1e-13;
+        INFO( "Tableau "<<pair.first);
+        unsigned s = t.num_stages();
+        for( unsigned i=0; i<s; i++)
+        {
+            double sum = 0;
+            for( unsigned j=0; j<s; j++)
+                sum += t.a(i,j);
+            CHECK( fabs( sum - t.c(i)) < eps);
+        }
+        // number of conditions for order 1, 2, 3, 4
+        std::array<unsigned, 5> num = {0, 1, 2, 4, 8};
+        for( bool embedded : {false, true})
+        {
+            unsigned order = embedded ? t.embedded_order() : t.order();
+            std::vector<double> r = order_conditions( t, embedded);
+            INFO( (embedded ? "Embedded " : "")<<"order "<<order);
+            for( unsigned k=0; k<num[std::min( order, 4u)]; k++)
+            {
+                INFO( "Condition "<<k);
+                CHECK( fabs( r[k]) < eps);
+            }
+        }
     }
 }
