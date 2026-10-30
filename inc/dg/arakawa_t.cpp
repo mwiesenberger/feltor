@@ -6,6 +6,7 @@
 #endif
 
 #include "arakawa.h"
+#include "advection.h"
 
 #include "catch2/catch_test_macros.hpp"
 
@@ -103,3 +104,40 @@ TEST_CASE( "Arakawa")
     // quantities are all conserved to 1e-15 for periodic bc
     // for dirichlet bc these are not better conserved than normal jacobian
 }
+
+// The velocity changes sign such that both upwind directions are used
+static double vx( double, double y) { return sin(y);}
+static double vy( double x, double) { return cos(x);}
+static double advection( double x, double y) {
+    // v grad left
+    return vx(x,y)*cos(x)*cos(y) - vy(x,y)*sin(x)*sin(y);
+}
+
+TEST_CASE( "Advection")
+{
+#ifdef WITH_MPI
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {1,1});
+#endif
+    unsigned n = 5, Nx = 32, Ny = 48;
+    const dg::x::CartesianGrid2d grid( 0, 2*M_PI, 0, 2*M_PI, n, Nx, Ny,
+        dg::PER, dg::PER
+#ifdef WITH_MPI
+        , comm
+#endif
+    );
+    dg::Advection<dg::x::aGeometry2d, dg::x::DMatrix, dg::x::DVec> adv( grid);
+    const dg::x::DVec f = dg::construct<dg::x::DVec>( dg::evaluate( left, grid));
+    const dg::x::DVec v_x = dg::construct<dg::x::DVec>( dg::evaluate( vx, grid));
+    const dg::x::DVec v_y = dg::construct<dg::x::DVec>( dg::evaluate( vy, grid));
+    const dg::x::DVec sol = dg::construct<dg::x::DVec>( dg::evaluate( advection, grid));
+    const dg::x::DVec w2d = dg::create::weights( grid);
+    const double nrm = dg::blas2::dot( sol, w2d, sol);
+    dg::x::DVec result( sol);
+    // result = 2 v grad f - sol = sol
+    adv.upwind( 2., v_x, v_y, f, -1., result);
+    dg::blas1::axpby( 1., sol, -1., result);
+    double err = dg::blas2::dot( result, w2d, result);
+    INFO( "Relative error "<<sqrt( err/nrm));
+    CHECK( err < 1e-12*nrm);
+}
+
