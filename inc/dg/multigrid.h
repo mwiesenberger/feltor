@@ -355,6 +355,8 @@ void multigrid_cycle(
  * @param gamma The shape of the multigrid cycle:
     typically 1 (V-cycle) or 2 (W-cycle)
  * @param mu The repetition of the multigrid cycle (1 is typically ok)
+ * @note With only one stage the cycle reduces to the application of
+ * \c inverse_ops_up[0] on the original grid
  * @attention This method is rather unreliable, it only converges if the
  * parameters are chosen correctly ( there need to be enough smooting steps
  * for instance, and a large jump  factor in the Elliptic class also seems
@@ -370,6 +372,17 @@ void full_multigrid(
     NestedGrids& nested_grids, unsigned gamma, unsigned mu)
 {
     NestedGrids& nested = nested_grids;
+    if( nested.stages() == 1)
+    {
+        // Without coarse grids the cycle reduces to the solve on the grid
+        try{
+            dg::apply( inverse_ops_up[0], b, x);
+        }catch( dg::Error& err){
+            err.append_line( dg::Message(_ping_)<<"ERROR on stage 0 of full multigrid");
+            throw;
+        }
+        return;
+    }
     // Like nested iterations, just uses multigrid-cycles instead of solves
     // compute residual r = b - A x
     dg::apply(ops[0], x, nested.r(0));

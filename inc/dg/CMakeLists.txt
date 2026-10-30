@@ -181,6 +181,7 @@ set(DG_TESTS
   functors_t.cpp
   helmholtz_t.cpp
   implicit_t.cpp
+  multigrid_t.cpp
   multistep_t.cpp
   nullstelle_t.cpp
   pcg_t.cpp

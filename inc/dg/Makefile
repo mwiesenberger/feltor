@@ -29,6 +29,7 @@ runge_kutta_t\
 adaptive_t\
 implicit_t\
 multistep_t\
+multigrid_t\
 arakawa_t\
 
 TARGETSMPI= mpi_arakawa_t\
