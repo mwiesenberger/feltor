@@ -674,7 +674,11 @@ void AdaptiveTimeloop<ContainerType>::do_integrate(
             e.append( dg::Message(_ping_) << "Error in AdaptiveTimeloop::integrate");
             throw;
         }
-        if( !std::isfinite(dt_current) || fabs(dt_current) < 1e-9*fabs(deltaT))
+        // A tiny timestep is only a failure if t1 is not yet reached
+        // (the last step to t1 may be arbitrarily small)
+        bool reached = (forward && t_current >= t1) || (!forward && t_current <= t1);
+        if( !std::isfinite(dt_current) ||
+            ( !reached && fabs(dt_current) < 1e-9*fabs(deltaT)))
         {
             value_type dt_current0 = dt_current;
             dt_current = 0.;

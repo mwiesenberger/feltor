@@ -191,3 +191,26 @@ TEST_CASE( "Adaptive")
         CHECK( err < 1e-5);
     }
 }
+
+TEST_CASE( "AdaptiveTimeloop")
+{
+    double u0 = 1., u1 = 0., t = 0.;
+    SECTION( "Tiny last step")
+    {
+        // A step function that keeps dt: the first step lands just before t1
+        dg::AdaptiveTimeloop<double> loop( []( double t0, const double& y0,
+            double& t1, double& y1, double&dt){ t1 = t0 + dt; y1 = y0;});
+        loop.set_dt( 1.-1e-12);
+        CHECK_NOTHROW( loop.integrate( t, u0, 1., u1, dg::to::exact));
+        CHECK( t == 1.);
+        CHECK( u1 == u0);
+    }
+    SECTION( "Failure to converge")
+    {
+        // A step function that rejects every step and reduces dt
+        dg::AdaptiveTimeloop<double> loop( []( double t0, const double& y0,
+            double& t1, double& y1, double&dt){ t1 = t0; y1 = y0; dt *= 1e-3;});
+        loop.set_dt( 0.1);
+        CHECK_THROWS_AS( loop.integrate( t, u0, 1., u1, dg::to::exact), dg::Error);
+    }
+}
