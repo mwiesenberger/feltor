@@ -57,7 +57,7 @@ class RefinedElliptic
     /**
      * @brief Change Chi
      *
-     * @param chi The new chi
+     * @param chi The new chi (on the fine grid)
      * @tparam ContainerTypes must be usable with \c Container in \ref dispatch
      */
     template<class ContainerType0>
@@ -68,6 +68,7 @@ class RefinedElliptic
         elliptic_.set_chi( chi);
     }
 
+    ///@brief The weights of the coarse grid (without the volume element of the geometry)
     const Container& weights()const {return weights_;}
     /**
      * @brief Returns the preconditioner to use in conjugate gradient
@@ -101,14 +102,12 @@ class RefinedElliptic
         dg::assign( dg::evaluate( dg::one, g_fine), temp2_);
         dg::assign( dg::create::weights( g_coarse), weights_);
         dg::assign( dg::evaluate( dg::one ,g_coarse), precond_);
-        vol_ = dg::tensor::volume( g_fine.metric());
 
     }
     IMatrix P_, Q_;
     Elliptic<Geometry, Matrix, Container> elliptic_;
     Container temp1_, temp2_;
     Container weights_, precond_;
-    Container vol_;
 };
 
 

@@ -115,7 +115,7 @@ struct Poisson
      * The same as a call to \c dg::create::dy( g, bcyrhs)
      * @return derivative
      */
-    const Matrix& dyrhs() {
+    const Matrix& dyrhs() const {
         return m_dyrhs;
     }
 

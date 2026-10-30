@@ -221,7 +221,7 @@ class Elliptic1d
     Container m_weights, m_precond;
     mutable ContainerTmp m_tempx; // could be complex
     Container m_sigma;
-    value_type m_jfactor;
+    value_type m_jfactor = 1.;
 };
 
 /**
@@ -581,8 +581,8 @@ class Elliptic2d
     mutable ContainerTmp m_tempx, m_tempy, m_temp;
     SparseTensor<Container> m_chi;
     Container m_sigma, m_vol;
-    value_type m_jfactor;
-    bool m_chi_weight_jump;
+    value_type m_jfactor = 1.;
+    bool m_chi_weight_jump = false;
 };
 
 ///@copydoc Elliptic2d
@@ -758,6 +758,11 @@ class Elliptic3d
         m_multiplyZ = !compute_in_2d;
     }
 
+    ///@copydoc Elliptic2d::operator()(const ContainerType0&,ContainerType1&)const
+    template<class ContainerType0, class ContainerType1>
+    void operator()( const ContainerType0& x, ContainerType1& y) const {
+        symv( 1, x, 0, y);
+    }
     ///@copydoc Elliptic2d::symv(const ContainerType0&,ContainerType1&)const
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y) const {
@@ -854,9 +859,9 @@ class Elliptic3d
     mutable ContainerTmp m_tempx, m_tempy, m_tempz, m_temp;
     SparseTensor<Container> m_chi;
     Container m_sigma, m_vol;
-    value_type m_jfactor;
+    value_type m_jfactor = 1.;
     bool m_multiplyZ = true, m_addJumpZ = false;
-    bool m_chi_weight_jump;
+    bool m_chi_weight_jump = false;
 };
 ///@cond
 template< class G, class M, class V, class V2>

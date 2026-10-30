@@ -639,8 +639,6 @@ struct MultigridCG2d
     std::vector<unsigned> solve( std::vector<MatrixType>& ops, ContainerType0&  x, const ContainerType1& b, value_type eps)
     {
         std::vector<value_type> v_eps( m_stages, eps);
-        for( unsigned u=m_stages-1; u>0; u--)
-            v_eps[u] = eps;
         return solve( ops, x, b, v_eps);
     }
     ///@copydoc solve()

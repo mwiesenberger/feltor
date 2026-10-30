@@ -73,8 +73,12 @@ struct GeneralHelmholtz
     void symv( const ContainerType0& x, ContainerType1& y)
     {
         if( m_alpha != 0)
+        {
             blas2::symv( m_matrix, x, y);
-        dg::blas1::pointwiseDot( 1., m_chi, x, -m_alpha, y);
+            dg::blas1::pointwiseDot( 1., m_chi, x, -m_alpha, y);
+        }
+        else // write-only in y
+            dg::blas1::pointwiseDot( m_chi, x, y);
 
     }
 
@@ -114,7 +118,7 @@ struct GeneralHelmholtz
      */
     const Container& chi() const{return m_chi;}
     private:
-    value_type m_alpha;
+    value_type m_alpha = 0;
     Matrix m_matrix;
     Container m_chi;
 };
@@ -260,7 +264,7 @@ struct Helmholtz2
     Elliptic2d<Geometry, Matrix, Container> m_laplaceM;
     Container temp1_, temp2_;
     Container chi_;
-    value_type alpha_;
+    value_type alpha_ = 0;
 };
 ///@cond
 template< class M, class V>
