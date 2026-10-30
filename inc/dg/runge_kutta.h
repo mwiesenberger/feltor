@@ -514,7 +514,7 @@ struct ARKStep
     }
     ///@copydoc ERKStep::embedded_order()
     unsigned embedded_order() const {
-        return m_rkE.order();
+        return m_rkE.embedded_order();
     }
     ///@copydoc ERKStep::num_stages()
     unsigned num_stages() const{
@@ -699,7 +699,7 @@ struct DIRKStep
     }
     ///@copydoc ERKStep::embedded_order()
     unsigned embedded_order() const {
-        return m_rkI.order();
+        return m_rkI.embedded_order();
     }
     ///@copydoc ERKStep::num_stages()
     unsigned num_stages() const{

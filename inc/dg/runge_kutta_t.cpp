@@ -146,6 +146,9 @@ TEST_CASE( "Runge Kutta")
         // The order is allowed to be larger than expected...
         // So that Feagin-17-8-10, Verner-9-5-6 and Tsitouras11-7-4-5 pass ...
         CHECK( (b.order()  - order)/double(b.order()) < 0.014);
+        dg::ERKStep<std::array<double,2>> erk( name, u);
+        CHECK( erk.order() == b.order());
+        CHECK( erk.embedded_order() == b.embedded_order());
     }
     SECTION( "Shu-Osher Methods")
     {
@@ -235,5 +238,8 @@ TEST_CASE( "Runge Kutta")
         INFO("Norm of error in "<<std::setw(24) <<name<<"\t"<<err[1]<<" order "
             <<order<<" expected "<<b.order());
         CHECK( fabs( (order  - b.order())/double(b.order())) < 0.012);
+        dg::DIRKStep<std::array<double,2>> dirk( name, u);
+        CHECK( dirk.order() == b.order());
+        CHECK( dirk.embedded_order() == b.embedded_order());
     }
 }

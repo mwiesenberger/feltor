@@ -227,6 +227,9 @@ TEST_CASE( "ARK methods")
             <<" order " <<order<<" expected "<<b.order());
         // Allow order to be larger
         CHECK( (b.order() - order)/double(b.order()) < 0.012);
+        dg::ARKStep< std::array<double,2> > imex( name, y0);
+        CHECK( imex.order() == b.order());
+        CHECK( imex.embedded_order() == b.embedded_order());
     }
 
     SECTION( "Adaptive semi-implicit ARK methods")
