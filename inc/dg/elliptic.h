@@ -800,7 +800,7 @@ class Elliptic3d
             {
                 dg::blas2::symv( jfactor, m_jumpX, x, 0., m_tempx);
                 dg::blas2::symv( jfactor, m_jumpY, x, 0., m_tempy);
-                if( m_addJumpZ)
+                if( m_addJumpZ && m_multiplyZ)
                 {
                     dg::blas2::symv( jfactor, m_jumpZ, x, 0., m_tempz);
                     dg::tensor::multiply3d(sigma, m_chi, m_tempx, m_tempy,
@@ -811,14 +811,14 @@ class Elliptic3d
                             0., m_tempx, m_tempy);
 
                 dg::blas1::axpbypgz(1., m_tempx, 1., m_tempy, 1., m_temp);
-                if( m_addJumpZ)
+                if( m_addJumpZ && m_multiplyZ)
                     dg::blas1::axpby( 1., m_tempz, 1., m_temp);
             }
             else
             {
                 dg::blas2::symv( jfactor, m_jumpX, x, 1., m_temp);
                 dg::blas2::symv( jfactor, m_jumpY, x, 1., m_temp);
-                if( m_addJumpZ)
+                if( m_addJumpZ && m_multiplyZ)
                     dg::blas2::symv( jfactor, m_jumpZ, x, 1., m_temp);
             }
         }

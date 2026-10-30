@@ -143,6 +143,26 @@ TEST_CASE( "Elliptic3d")
         dg::blas1::axpby( 1., ysol, -1./10., y);
         CHECK ( dg::blas2::dot( y, w3d, y)  < 1e-16*dg::blas2::dot( x, w3d, x));
     }
+    SECTION( "Compute in 2d")
+    {
+        // In 2d mode Elliptic3d is identical to Elliptic2d (also for nz > 1)
+        // f jumps at the cell boundary z = 0.5 such that the jump terms in z
+        // do not vanish
+        const dg::DVec f = dg::evaluate( []( double x, double y, double z){
+            return sin(2*M_PI*x)*sin(2*M_PI*y)*( z < 0.5 ? 1. : 0.);}, g3d);
+        bool jump_weighting = GENERATE( false, true);
+        INFO( "Jump weighting "<<jump_weighting);
+        dg::Elliptic3d<dg::CartesianGrid3d, dg::DMatrix, dg::DVec> elliptic3d(
+            g3d, dg::forward, 1., jump_weighting);
+        dg::Elliptic2d<dg::CartesianGrid3d, dg::DMatrix, dg::DVec> elliptic2d(
+            g3d, dg::forward, 1., jump_weighting);
+        elliptic3d.set_compute_in_2d( true);
+        dg::DVec y3d(f), y2d(f);
+        elliptic3d.symv( f, y3d);
+        elliptic2d.symv( f, y2d);
+        dg::blas1::axpby( 1., y2d, -1., y3d);
+        CHECK( dg::blas2::dot( y3d, w3d, y3d) < 1e-28*dg::blas2::dot( y2d, w3d, y2d));
+    }
 }
 
 TEST_CASE( "Boundary conditions and directions")
