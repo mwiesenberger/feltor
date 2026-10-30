@@ -197,6 +197,7 @@ struct Helmholtz2
         m_laplaceM.construct( g, bcx, bcy, dir, jfactor);
         dg::assign( dg::evaluate( dg::one, g), temp1_);
         dg::assign( dg::evaluate( dg::one, g), temp2_);
+        dg::assign( dg::evaluate( dg::one, g), chi_);
         alpha_ = alpha;
     }
     ///@copydoc Helmholtz2::Helmholtz2(const Geometry&,value_type,direction,value_type)
