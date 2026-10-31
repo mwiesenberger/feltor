@@ -39,6 +39,12 @@ namespace dg
  In a time dependent problem the value of \f$\alpha\f$ determines the
  numerical diffusion, i.e. for too low values numerical oscillations may appear.
  The \f$ \chi_{on/off} \f$ in the jump term serves to weight the jump term with \f$ \chi \f$. This can be switched either on or off with off being the default.
+ @attention Weighting the jump terms with \f$ \chi\f$ is an experimental
+ feature. In its current form (the jump term is multiplied pointwise with
+ \f$ \chi\f$ after the jump matrix is applied) the operator is no longer
+ self-adjoint in the weights if \f$ \chi\f$ is not constant. Solvers that
+ rely on self-adjointness (e.g. \c dg::PCG) lose their theoretical
+ convergence guarantees. The implementation may change in the future.
  Also note that a forward discretization has more diffusion than a centered discretization.
  */
 /*! @class hide_ContainerTmp
@@ -277,7 +283,7 @@ class Elliptic2d
      * @param dir Direction of the right first derivative in x and y
      *  (i.e. \c dg::forward, \c dg::backward or \c dg::centered),
      * @param jfactor (\f$ = \alpha \f$ ) scale jump terms (1 is a good value but in some cases 0.1 or 0.01 might be better)
-     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored
+     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored (experimental: breaks self-adjointness for non-constant Chi, see the class documentation)
      * @note The grid can be a 3d grid, then the 3rd row and column of \f$
      * \chi\f$ (and / or the metric) are ignored in the discretization, which
      * makes the 3rd dimension trivially parallel; the volume form will be the
@@ -299,7 +305,7 @@ class Elliptic2d
      * @param dir Direction of the right first derivative in x and y
      *  (i.e. \c dg::forward, \c dg::backward or \c dg::centered),
      * @param jfactor (\f$ = \alpha \f$ ) scale jump terms (1 is a good value but in some cases 0.1 or 0.01 might be better)
-     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored
+     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored (experimental: breaks self-adjointness for non-constant Chi, see the class documentation)
      * @note The grid can be a 3d grid, then the 3rd row and column of \f$
      * \chi\f$ (and / or the metric) are ignored in the discretization, which
      * makes the 3rd dimension trivially parallel; the volume form will be the
@@ -424,7 +430,7 @@ class Elliptic2d
     value_type get_jfactor() const {return m_jfactor;}
     /**
      * @brief Set the chi weighting of jump terms
-     * @param jump_weighting Switch for weighting the jump factor with chi.
+     * @param jump_weighting Switch for weighting the jump factor with chi (experimental: breaks self-adjointness for non-constant chi, see the class documentation)
      */
     void set_jump_weighting( bool jump_weighting) {m_chi_weight_jump = jump_weighting;}
     /**
@@ -646,7 +652,7 @@ class Elliptic3d
      *  (i.e. \c dg::forward, \c dg::backward or \c dg::centered),
      * the direction of the z derivative is \c dg::centered if \c nz = 1
      * @param jfactor (\f$ = \alpha \f$ ) scale jump terms (1 is a good value but in some cases 0.1 or 0.01 might be better)
-     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored
+     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored (experimental: breaks self-adjointness for non-constant Chi, see the class documentation)
      * @note chi is assumed the metric per default
      */
     Elliptic3d( const Geometry& g, direction dir = forward, value_type jfactor=1., bool chi_weight_jump = false):
@@ -664,7 +670,7 @@ class Elliptic3d
      *  (i.e. \c dg::forward, \c dg::backward or \c dg::centered),
      * the direction of the z derivative is always \c dg::centered
      * @param jfactor (\f$ = \alpha \f$ ) scale jump terms (1 is a good value but in some cases 0.1 or 0.01 might be better)
-     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored
+     * @param chi_weight_jump If true, the Jump terms are multiplied with the Chi matrix, else it is ignored (experimental: breaks self-adjointness for non-constant Chi, see the class documentation)
      * @note chi is the metric tensor multiplied by the volume element per default
      */
     Elliptic3d( const Geometry& g, bc bcx, bc bcy, bc bcz, direction dir = forward, value_type jfactor = 1., bool chi_weight_jump = false)
