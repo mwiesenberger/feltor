@@ -39,7 +39,8 @@ struct WallFieldlineDistance : public aCylindricalFunctor<WallFieldlineDistance>
      * @param eps the accuracy of the fieldline integrator
      * @param type either "phi" then the distance is computed in the angle coordinate
      * or "s" then the distance is computed in the s parameter
-     * @param predicate only integrate points where predicate is true
+     * @param predicate only integrate points where predicate is true; elsewhere
+     * the distance is \c maxPhi for "phi" and \c 1e6*maxPhi for "s"
      */
     WallFieldlineDistance(
         const dg::geo::CylindricalVectorLvl0& vec,
@@ -86,11 +87,11 @@ struct WallFieldlineDistance : public aCylindricalFunctor<WallFieldlineDistance>
                 // if not possible the distance is large
                 //std::cerr << e.what();
                 phi1 = sign*m_deltaPhi;
-                coordsP[2] = 1e6*phi1;
+                coordsP[2] = 1e6*m_deltaPhi;
             }
         }
         else
-            coordsP[2] = 1e6*phi1;
+            coordsP[2] = 1e6*m_deltaPhi;
         if( m_type == "phi")
             return sign*phi1;
         return coordsP[2];
@@ -110,7 +111,7 @@ struct WallFieldlineDistance : public aCylindricalFunctor<WallFieldlineDistance>
  * The following differential equation is integrated
  * \f[ \frac{ d R}{d \varphi} = b^R / b^\varphi \\
  *     \frac{ d Z}{d \varphi} = b^Z / b^\varphi \\
- *     \frac{ d s}{s \varphi} = 1   / b^\varphi
+ *     \frac{ d s}{d \varphi} = 1   / b^\varphi
  * \f]
  * for initial conditions \f$ (R,Z,0)\f$ until either a maximum angle is reached or until \f$ (R,Z) \f$ leaves the given domain. In the latter case a bisection algorithm is used to find the exact angle \f$\varphi_l\f$ of leave.
  *
@@ -136,7 +137,7 @@ struct WallFieldlineCoordinate : public aCylindricalFunctor<WallFieldlineCoordin
         ) :
         m_pred(predicate),
         m_domain( domain), m_cyl_field(vec),
-        m_deltaPhi( maxPhi), m_eps( eps), m_type(type)
+        m_deltaPhi( fabs(maxPhi)), m_eps( eps), m_type(type)
     {
         if( m_type != "phi" && m_type != "s")
             throw std::runtime_error( "Distance type "+m_type+" not recognized!\n");

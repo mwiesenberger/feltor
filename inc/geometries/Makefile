@@ -18,6 +18,7 @@ TARGETS=modified_t\
 magnetic_field_t\
 solovev_t\
 polynomial_t\
+sheath_t\
 ds_t\
 ds_guenter_t\
 

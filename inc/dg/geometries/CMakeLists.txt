@@ -50,6 +50,7 @@ set(GEOMETRIES_TESTS
   ../../geometries/magnetic_field_t.cpp
   ../../geometries/modified_t.cpp
   ../../geometries/polynomial_t.cpp
+  ../../geometries/sheath_t.cpp
   ../../geometries/solovev_t.cpp
 )
 # Manually set (all programs with WITH_MPI)
