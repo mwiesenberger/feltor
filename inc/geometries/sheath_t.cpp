@@ -111,3 +111,14 @@ TEST_CASE( "Sheath region")
         CHECK( sheath( 4.45, 0.6) == 0); // in the wall
     }
 }
+
+TEST_CASE( "Wall direction")
+{
+    // B^R = -2 Z R_0/R, B^Z = 2 (R-R_0) R_0/R
+    dg::geo::WallDirection dir( dg::geo::createCircularField( 3, 10, 1, 1),
+            dg::Grid2d( 2, 4, -1, 1, 1, 1, 1));
+    CHECK( dir( 3.9, -0.1) == +1); // right wall, B^R > 0
+    CHECK( dir( 3.9, +0.1) == -1); // right wall, B^R < 0
+    CHECK( dir( 3.1, +0.9) == +1); // upper wall, B^Z > 0
+    CHECK( dir( 2.9, +0.9) == -1); // upper wall, B^Z < 0
+}

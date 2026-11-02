@@ -5,6 +5,10 @@
 #include "dg/algorithm.h"
 
 #include "solovev.h"
+#include "guenter.h"
+#include "polynomial.h"
+#include "taylor.h"
+#include "toroidal.h"
 #include "magnetic_field.h"
 #include "catch2/catch_all.hpp"
 
@@ -35,6 +39,20 @@ const std::string geometry_params_Xpoint = R"asdf({
     "triangularity": 0.3,
     "elongation": 1.44
 })asdf";
+
+// 4th order central differences
+static double diffR( const dg::geo::CylindricalFunctor& f, double R, double Z, double h)
+{
+    return (-f(R+2*h,Z)+8*f(R+h,Z)-8*f(R-h,Z)+f(R-2*h,Z))/(12*h);
+}
+static double diffZ( const dg::geo::CylindricalFunctor& f, double R, double Z, double h)
+{
+    return (-f(R,Z+2*h)+8*f(R,Z+h)-8*f(R,Z-h)+f(R,Z-2*h))/(12*h);
+}
+static auto within( double value)
+{
+    return Catch::Matchers::WithinAbs( value, 1e-6*(fabs(value) + 1e-5));
+}
 
 TEST_CASE("Magnetic field")
 {
@@ -153,14 +171,7 @@ TEST_CASE("Magnetic field")
             REQUIRE( mag.ipolR()(R,Z) != 0);
             REQUIRE( mag.ipolZ()(R,Z) != 0);
         }
-        // 4th order central differences
         const double h = 1e-3;
-        auto dR = [h]( const dg::geo::CylindricalFunctor& f, double r, double z){
-            return (-f(r+2*h,z)+8*f(r+h,z)-8*f(r-h,z)+f(r-2*h,z))/(12*h);
-        };
-        auto dZ = [h]( const dg::geo::CylindricalFunctor& f, double r, double z){
-            return (-f(r,z+2*h)+8*f(r,z+h)-8*f(r,z-h)+f(r,z-2*h))/(12*h);
-        };
         dg::geo::CylindricalFunctor bR = dg::geo::ToroidalBHatR(mag);
         dg::geo::CylindricalFunctor bZ = dg::geo::ToroidalBHatZ(mag);
         dg::geo::CylindricalFunctor Rb = [&bR]( double r, double z){ return r*bR(r,z);};
@@ -170,9 +181,9 @@ TEST_CASE("Magnetic field")
         };
         const double eps = 1e-6;
         CHECK_THAT( torgradLnB(R,Z), Catch::Matchers::WithinRel(
-                bR(R,Z)*dR( lnB, R, Z) + bZ(R,Z)*dZ( lnB, R, Z), eps));
+                bR(R,Z)*diffR( lnB, R, Z, h) + bZ(R,Z)*diffZ( lnB, R, Z, h), eps));
         CHECK_THAT( tordiv(R,Z), Catch::Matchers::WithinRel(
-                dR( Rb, R, Z)/R + dZ( bZ, R, Z), eps));
+                diffR( Rb, R, Z, h)/R + diffZ( bZ, R, Z, h), eps));
     }
 
     SECTION( "BR BZ")
@@ -244,5 +255,189 @@ TEST_CASE("Critical points")
         CHECK( dg::geo::findCriticalPoint( create_critical( 1,4,1), R, Z) == 1);
         CHECK( fabs( R-1) < 1e-9);
         CHECK( fabs( Z-2) < 1e-14);
+    }
+}
+
+// Compare all functors of a magnetic field with finite differences of the
+// functor they are derived from
+static void check_field( const dg::geo::TokamakMagneticField& mag, double R, double Z, double h)
+{
+    using namespace dg::geo;
+    auto dR = [&]( const CylindricalFunctor& f){ return diffR( f, R, Z, h);};
+    auto dZ = [&]( const CylindricalFunctor& f){ return diffZ( f, R, Z, h);};
+    // divergence of vector v^R, v^Z (v^phi does not contribute)
+    auto div = [&]( const CylindricalFunctor& vR, const CylindricalFunctor& vZ){
+        CylindricalFunctor Rv = [&vR]( double r, double z){ return r*vR(r,z);};
+        return dR( Rv)/R + dZ( vZ);
+    };
+    SECTION( "Flux function and current")
+    {
+        CHECK_THAT( mag.psipR()(R,Z), within( dR( mag.psip())));
+        CHECK_THAT( mag.psipZ()(R,Z), within( dZ( mag.psip())));
+        CHECK_THAT( mag.psipRR()(R,Z), within( dR( mag.psipR())));
+        CHECK_THAT( mag.psipRZ()(R,Z), within( dZ( mag.psipR())));
+        CHECK_THAT( mag.psipZZ()(R,Z), within( dZ( mag.psipZ())));
+        CHECK_THAT( mag.ipolR()(R,Z), within( dR( mag.ipol())));
+        CHECK_THAT( mag.ipolZ()(R,Z), within( dZ( mag.ipol())));
+    }
+    CylindricalFunctor bR = BHatR(mag), bZ = BHatZ(mag), bP = BHatP(mag);
+    SECTION( "Field strength and unit vector")
+    {
+        CHECK_THAT( BR(mag)(R,Z), within( dR( Bmodule(mag))));
+        CHECK_THAT( BZ(mag)(R,Z), within( dZ( Bmodule(mag))));
+        CHECK_THAT( ToroidalBR(mag)(R,Z), within( dR( Btor(mag))));
+        CHECK_THAT( ToroidalBZ(mag)(R,Z), within( dZ( Btor(mag))));
+        CHECK_THAT( BHatRR(mag)(R,Z), within( dR( bR)));
+        CHECK_THAT( BHatRZ(mag)(R,Z), within( dZ( bR)));
+        CHECK_THAT( BHatZR(mag)(R,Z), within( dR( bZ)));
+        CHECK_THAT( BHatZZ(mag)(R,Z), within( dZ( bZ)));
+        CHECK_THAT( BHatPR(mag)(R,Z), within( dR( bP)));
+        CHECK_THAT( BHatPZ(mag)(R,Z), within( dZ( bP)));
+        CHECK_THAT( Divb(mag)(R,Z), within( div( bR, bZ)));
+        CHECK_THAT( GradLnB(mag)(R,Z), within( bR(R,Z)*dR( LnB(mag)) + bZ(R,Z)*dZ( LnB(mag))));
+        CylindricalFunctor vR = [&]( double r, double z){ return bR(r,z)/bP(r,z);};
+        CylindricalFunctor vZ = [&]( double r, double z){ return bZ(r,z)/bP(r,z);};
+        CHECK_THAT( DivVVP(mag)(R,Z), within( div( vR, vZ)));
+    }
+    SECTION( "True curvature")
+    {
+        // K_kappa = curl(b) / B with (R,Z,phi) right handed and the covariant
+        // components b_R = b^R, b_Z = b^Z and b_phi = R^2 b^phi
+        CylindricalFunctor bcov = [&bP]( double r, double z){ return r*r*bP(r,z);};
+        const double invB = InvB(mag)(R,Z);
+        CHECK_THAT( TrueCurvatureKappaR(mag)(R,Z), within( invB*dZ( bcov)/R));
+        CHECK_THAT( TrueCurvatureKappaZ(mag)(R,Z), within( -invB*dR( bcov)/R));
+        CHECK_THAT( TrueCurvatureKappaP(mag)(R,Z), within( invB*( dR( bZ) - dZ( bR))/R));
+        // K_gradB = b x grad(B) / B^2
+        const double gradR = dR( Bmodule(mag)), gradZ = dZ( Bmodule(mag));
+        CHECK_THAT( TrueCurvatureNablaBR(mag)(R,Z), within( -R*bP(R,Z)*gradZ*invB*invB));
+        CHECK_THAT( TrueCurvatureNablaBZ(mag)(R,Z), within( +R*bP(R,Z)*gradR*invB*invB));
+        CHECK_THAT( TrueCurvatureNablaBP(mag)(R,Z), within(
+            (bR(R,Z)*gradZ - bZ(R,Z)*gradR)*invB*invB/R));
+        CHECK_THAT( TrueDivCurvatureKappa(mag)(R,Z), within(
+            div( TrueCurvatureKappaR(mag), TrueCurvatureKappaZ(mag))));
+        CHECK_THAT( TrueDivCurvatureNablaB(mag)(R,Z), within(
+            div( TrueCurvatureNablaBR(mag), TrueCurvatureNablaBZ(mag))));
+    }
+    SECTION( "Approximate curvature")
+    {
+        const int sign = GENERATE( +1, -1);
+        CHECK_THAT( DivCurvatureKappa(mag,sign)(R,Z), within(
+            div( CurvatureKappaR(mag,sign), CurvatureKappaZ(mag,sign))));
+        CHECK_THAT( DivCurvatureNablaB(mag,sign)(R,Z), within(
+            div( CurvatureNablaBR(mag,sign), CurvatureNablaBZ(mag,sign))));
+        CHECK_THAT( ToroidalDivCurvatureKappa(mag)(R,Z), within(
+            div( ToroidalCurvatureKappaR(mag), ToroidalCurvatureKappaZ(mag))));
+    }
+}
+
+TEST_CASE("Magnetic field functors against finite differences")
+{
+    SECTION( "Solovev")
+    {
+        dg::file::WrappedJsonValue js( dg::file::string2Json( geometry_params_Xpoint),
+                dg::file::error::is_silent);
+        js.asJson()["A"] = 1.;
+        dg::geo::solovev::Parameters gp(js);
+        check_field( dg::geo::createSolovevField(gp), 0.615, -0.0525, 1e-3);
+    }
+    SECTION( "Polynomial")
+    {
+        dg::file::WrappedJsonValue js( dg::file::string2Json( R"asdf({
+            "PP": -1.5, "PI": 2, "R_0": 4, "M": 4, "N": 4,
+            "c": [ 1.0, -0.5,  0.3,  0.2,
+                  -0.7,  0.4,  0.6, -0.1,
+                   0.8,  0.9, -0.3,  0.5,
+                  -0.2,  0.7,  0.1, -0.4]
+        })asdf"), dg::file::error::is_silent);
+        dg::geo::polynomial::Parameters gp(js);
+        check_field( dg::geo::createPolynomialField(gp), 4.3, 0.4, 1e-3);
+    }
+    SECTION( "Taylor")
+    {
+        dg::file::WrappedJsonValue js( dg::file::string2Json( R"asdf({
+            "R_0": 10,
+            "c": [ -0.7300045298646179, -0.01375227986725135, -1.0439347550614769,
+                0.06520440516061859, -0.07558868410862499, -0.1662447459753335,
+                0.2339447574961647, -0.10634060987436072, -0.19534895033887673,
+                0.01853354908939652, 3.437303119751972, 4.901682740453054]
+        })asdf"), dg::file::error::is_silent);
+        dg::geo::solovev::Parameters gp(js);
+        check_field( dg::geo::createTaylorField(gp), 11.5, -1.0, 1e-3);
+    }
+    SECTION( "Guenter")
+    {
+        check_field( dg::geo::createGuenterField( 10, 20), 10.3, 0.4, 1e-3);
+    }
+    SECTION( "Circular")
+    {
+        check_field( dg::geo::createCircularField( 10, 20, 1.2, 0.8), 10.3, 0.4, 1e-3);
+    }
+}
+
+TEST_CASE("Periodify")
+{
+    // Mirror (3.5,0.3) at R=4 or shift (2.5,0.3) by the box length
+    auto mag = dg::geo::createCircularField( 3, 10, 1, 1);
+    const double R = 4.5, Z = 0.3;
+    const double psi = 1 - 0.25 - 0.09;
+    SECTION( "NEU")
+    {
+        auto per = dg::geo::periodify( mag, 2, 4, -1, 1, dg::NEU, dg::NEU);
+        CHECK( fabs( per.psip()(R,Z) - psi) < 1e-14);
+        CHECK( fabs( per.ipol()(R,Z) - 10) < 1e-14);
+        CHECK_THAT( per.psipR()(R,Z), within( diffR( per.psip(), R, Z, 1e-3)));
+        CHECK_THAT( per.psipZ()(R,Z), within( diffZ( per.psip(), R, Z, 1e-3)));
+        CHECK_THAT( per.psipRR()(R,Z), within( diffR( per.psipR(), R, Z, 1e-3)));
+    }
+    SECTION( "DIR")
+    {
+        auto per = dg::geo::periodify( mag, 2, 4, -1, 1, dg::DIR, dg::NEU);
+        CHECK( fabs( per.psip()(R,Z) + psi) < 1e-14);
+        CHECK_THAT( per.psipR()(R,Z), within( diffR( per.psip(), R, Z, 1e-3)));
+        CHECK_THAT( per.psipRR()(R,Z), within( diffR( per.psipR(), R, Z, 1e-3)));
+    }
+    SECTION( "PER")
+    {
+        auto per = dg::geo::periodify( mag, 2, 4, -1, 1, dg::PER, dg::PER);
+        CHECK( fabs( per.psip()(R,Z) - psi) < 1e-14);
+        CHECK_THAT( per.psipR()(R,Z), within( diffR( per.psip(), R, Z, 1e-3)));
+    }
+}
+
+TEST_CASE("Alignment and projection tensors")
+{
+    dg::file::WrappedJsonValue js( dg::file::string2Json( geometry_params_Xpoint),
+            dg::file::error::is_silent);
+    js.asJson()["A"] = 1.;
+    dg::geo::solovev::Parameters gp(js);
+    dg::geo::TokamakMagneticField mag = dg::geo::createSolovevField(gp);
+    dg::CylindricalGrid3d grid( gp.R_0-gp.a, gp.R_0+gp.a, -gp.a, gp.a, 0, 2.*M_PI,
+            3, 10, 10, 4);
+    auto bhat = dg::geo::createBHat( mag);
+    std::array<dg::HVec,3> b, bcov, result;
+    dg::pushForward( bhat.x(), bhat.y(), bhat.z(), b[0], b[1], b[2], grid);
+    bcov = result = b;
+    dg::tensor::inv_multiply3d( grid.metric(), b[0], b[1], b[2], bcov[0], bcov[1], bcov[2]);
+    SECTION( "Alignment tensor leaves b unchanged")
+    {
+        auto chi = dg::geo::createAlignmentTensor( bhat, grid);
+        dg::tensor::multiply3d( chi, bcov[0], bcov[1], bcov[2], result[0], result[1], result[2]);
+        for( unsigned u=0; u<3; u++)
+        {
+            dg::blas1::axpby( 1., b[u], -1., result[u]);
+            INFO( "Component "<<u);
+            CHECK( sqrt( dg::blas1::dot( result[u], result[u])) < 1e-12);
+        }
+    }
+    SECTION( "Projection tensor removes b")
+    {
+        auto h = dg::geo::createProjectionTensor( bhat, grid);
+        dg::tensor::multiply3d( h, bcov[0], bcov[1], bcov[2], result[0], result[1], result[2]);
+        for( unsigned u=0; u<3; u++)
+        {
+            INFO( "Component "<<u);
+            CHECK( sqrt( dg::blas1::dot( result[u], result[u])) < 1e-12);
+        }
     }
 }

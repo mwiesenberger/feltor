@@ -45,6 +45,7 @@ set(GEOMETRIES_HEADERS
 # Some can be compiled for MPI
 # find ../../geometries -name "*t.cpp" | sort
 set(GEOMETRIES_TESTS
+  ../../geometries/adaption_t.cpp
   ../../geometries/ds_t.cpp
   ../../geometries/ds_guenter_t.cpp
   ../../geometries/magnetic_field_t.cpp
