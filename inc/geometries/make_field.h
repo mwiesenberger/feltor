@@ -272,11 +272,11 @@ inline void createModifiedField(
                     mod_psip = mod::createPsip(
                             mod::everywhere, mod0_psip, psi1, alpha1, sign1);
                     CylindricalFunctor wall0 = mod::DampingRegion(
-                        mod::everywhere, mag.psip(), psi0, alpha0, sign0);
+                        mod::everywhere, mag.psip(), psi0, alpha0, -sign0);
                     CylindricalFunctor transition0 = mod::MagneticTransition(
                         mod::everywhere, mag.psip(), psi0, alpha0, sign0);
                     CylindricalFunctor wall1 = mod::DampingRegion(
-                        mod::everywhere, mag.psip(), psi1, alpha1, sign1);
+                        mod::everywhere, mag.psip(), psi1, alpha1, -sign1);
                     CylindricalFunctor transition1 = mod::MagneticTransition(
                         mod::everywhere, mag.psip(), psi1, alpha1, sign1);
                     wall = mod::SetUnion( wall0, wall1);

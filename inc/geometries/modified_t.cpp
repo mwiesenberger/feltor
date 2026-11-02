@@ -66,9 +66,101 @@ const std::string geometry_params_2Xpoint = R"asdf({
 
 })asdf";
 
+const std::string geometry_params_circular = R"asdf({
+    "equilibrium" : "circular",
+    "I_0" : 10,
+    "R_0" : 3,
+    "a" : 1,
+    "b" : 1
+})asdf";
+
 // const std::array<double,2> xpoint = {431.552779491927, -433.176887075315};
 
 //@ ----------------------------------------------------------
+
+static dg::file::WrappedJsonValue solovev_params( const std::string& params, double PP)
+{
+    dg::file::WrappedJsonValue js( dg::file::string2Json( params),
+            dg::file::error::is_silent);
+    js.asJson()["PP"] = PP;
+    return js;
+}
+
+// The wall must be 1 where the modified flux function is constant and 0 where
+// it is not modified
+static void check_wall( const dg::file::WrappedJsonValue& js,
+    const std::string& modifier, double R0, double R1, double Z0, double Z1)
+{
+    dg::file::WrappedJsonValue jsmod( dg::file::string2Json( modifier),
+            dg::file::error::is_silent);
+    dg::geo::CylindricalFunctor wall, transition;
+    dg::geo::TokamakMagneticField mod = dg::geo::createModifiedField( js, jsmod,
+            wall, transition);
+    dg::geo::TokamakMagneticField mag = dg::geo::createMagneticField( js);
+    dg::Grid2d grid( R0, R1, Z0, Z1, 1, 100, 100);
+    const dg::HVec chi = dg::evaluate( wall, grid);
+    const dg::HVec modR = dg::evaluate( mod.psipR(), grid);
+    const dg::HVec modZ = dg::evaluate( mod.psipZ(), grid);
+    const dg::HVec magR = dg::evaluate( mag.psipR(), grid);
+    const dg::HVec magZ = dg::evaluate( mag.psipZ(), grid);
+    unsigned in_wall = 0, outside = 0, in_wall_wrong = 0, outside_wrong = 0;
+    for( unsigned i=0; i<chi.size(); i++)
+    {
+        if( chi[i] == 1)
+        {
+            in_wall++;
+            if( modR[i] != 0 || modZ[i] != 0)
+                in_wall_wrong++;
+        }
+        else if( chi[i] == 0)
+        {
+            outside++;
+            if( modR[i] != magR[i] || modZ[i] != magZ[i])
+                outside_wrong++;
+        }
+    }
+    INFO( modifier);
+    CHECK( in_wall > 0);
+    CHECK( outside > 0);
+    CHECK( in_wall_wrong == 0);
+    CHECK( outside_wrong == 0);
+}
+
+TEST_CASE( "Wall region of modified field")
+{
+    const dg::file::WrappedJsonValue circular( dg::file::string2Json(
+            geometry_params_circular), dg::file::error::is_silent);
+    const double PP = GENERATE( +1., -1.);
+    INFO( "PP "<<PP);
+    const auto Xpoint  = solovev_params( geometry_params_Xpoint, PP);
+    const auto Xpoint2 = solovev_params( geometry_params_2Xpoint, PP);
+    SECTION( "heaviside")
+    {
+        check_wall( Xpoint, R"({"type":"heaviside","boundary":1.1,"alpha":0.2})",
+                300, 800, -500, 500);
+        check_wall( circular, R"({"type":"heaviside","boundary":0.8,"alpha":0.1})",
+                2, 4, -1, 1);
+    }
+    SECTION( "sol_pfr")
+    {
+        const std::string mod = R"({"type":"sol_pfr","boundary":[1.1,0.97],"alpha":[0.1,0.1]})";
+        check_wall( Xpoint, mod, 300, 800, -500, 500);
+        check_wall( Xpoint2, mod, 300, 800, -500, 500);
+    }
+    SECTION( "sol_pfr without X-point")
+    {
+        // the boundaries are values of psi here
+        check_wall( circular,
+            R"({"type":"sol_pfr","boundary":[0.8,0.2],"alpha":[0.05,0.05]})",
+            2, 4, -1, 1);
+    }
+    SECTION( "sol_pfr_2X")
+    {
+        check_wall( Xpoint2, R"({"type":"sol_pfr_2X",
+            "boundary":[1.1,0.998,1.02,0.97],"alpha":[0.1,0.1,0.05,0.05]})",
+            300, 800, -500, 500);
+    }
+}
 
 TEST_CASE( "Modified flux function")
 {
