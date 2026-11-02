@@ -308,7 +308,7 @@ inline CylindricalFunctorsLvl1 createIpol( solovev::Parameters gp)
 inline dg::geo::TokamakMagneticField createTaylorField( dg::geo::solovev::Parameters gp)
 {
     MagneticFieldParameters params = { gp.a, gp.elongation, gp.triangularity,
-            equilibrium::solovev, modifier::none, str2description.at( gp.description)};
+            equilibrium::taylor, modifier::none, str2description.at( gp.description)};
     return TokamakMagneticField( gp.R_0, dg::geo::taylor::createPsip(gp), dg::geo::taylor::createIpol(gp), params);
 }
 } //namespace geo

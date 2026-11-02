@@ -74,6 +74,42 @@ const std::string geometry_params_circular = R"asdf({
     "b" : 1
 })asdf";
 
+const std::string geometry_params_taylor = R"asdf({
+    "c" :[-0.730004529864617913443309878090712685057289011596696572774289301646,
+    -0.013752279867251353918502943858642437963550235876487492144645446786828705,
+    -1.043934755061476893780514356717827737689350282272451493765507415754555292,
+    0.0652044051606185896009860257256201123783699931775930983650947832207138720,
+    -0.075588684108624986707612696927980524120446412329125959454845935222288227,
+    -0.166244745975333508158120968358969752878367824897146548390838214529077855,
+    0.2339447574961647090247023551091674910845416152319523071184183514964211299,
+    -0.106340609874360718259386870009150862837873566733690651435539105985033601,
+    -0.195348950338876734547335892506041028973952380901869144068532010742858264,
+    0.0185335490893965223839308241407808534672715395435233413969584688870300260,
+    3.4373031197519723201231633783929522278128352814841152895441705480656431803,
+    4.9016827404530536864875893866884491045861716739824591650253786527604617409],
+    "R_0"                : 547.891714877869,
+    "inverseaspectratio" : 0.41071428571428575,
+    "elongation"         : 1.75,
+    "triangularity"      : 0.25,
+    "equilibrium"  : "taylor",
+    "description" : "standardX"
+})asdf";
+const std::string geometry_params_polynomial = R"asdf({
+    "PP": 1,
+    "PI": 1,
+    "c" :[  1,2,3,4],
+    "R_0"                : 4,
+    "M" : 2,
+    "N" : 2,
+    "equilibrium"  : "polynomial",
+    "description" : "standardX"
+})asdf";
+const std::string geometry_params_guenter = R"asdf({
+    "equilibrium" : "guenter",
+    "I_0" : 10,
+    "R_0" : 3
+})asdf";
+
 // const std::array<double,2> xpoint = {431.552779491927, -433.176887075315};
 
 //@ ----------------------------------------------------------
@@ -124,6 +160,49 @@ static void check_wall( const dg::file::WrappedJsonValue& js,
     CHECK( outside > 0);
     CHECK( in_wall_wrong == 0);
     CHECK( outside_wrong == 0);
+}
+
+TEST_CASE( "Equilibrium of magnetic field")
+{
+    auto get_equilibrium = []( const std::string& params){
+        dg::file::WrappedJsonValue js( dg::file::string2Json( params),
+                dg::file::error::is_silent);
+        return dg::geo::createMagneticField( js).params().getEquilibrium();
+    };
+    using dg::geo::equilibrium;
+    CHECK( get_equilibrium( geometry_params_Xpoint) == equilibrium::solovev);
+    CHECK( get_equilibrium( geometry_params_taylor) == equilibrium::taylor);
+    CHECK( get_equilibrium( geometry_params_polynomial) == equilibrium::polynomial);
+    CHECK( get_equilibrium( geometry_params_guenter) == equilibrium::guenter);
+    CHECK( get_equilibrium( geometry_params_toroidal) == equilibrium::toroidal);
+    CHECK( get_equilibrium( geometry_params_circular) == equilibrium::circular);
+}
+
+// Without modification the magnetic field must stay the same
+TEST_CASE( "Modifier none keeps the magnetic field")
+{
+    const std::string params = GENERATE( geometry_params_Xpoint,
+            geometry_params_taylor, geometry_params_circular);
+    dg::file::WrappedJsonValue js( dg::file::string2Json( params),
+            dg::file::error::is_silent);
+    dg::file::WrappedJsonValue jsmod( dg::file::string2Json(
+            R"({"type":"none"})"), dg::file::error::is_silent);
+    dg::geo::CylindricalFunctor wall, transition;
+    dg::geo::TokamakMagneticField mod = dg::geo::createModifiedField( js, jsmod,
+            wall, transition);
+    dg::geo::TokamakMagneticField mag = dg::geo::createMagneticField( js);
+    const double R = 1.15*mag.R0(), Z = 0.1*mag.R0();
+    INFO( params);
+    CHECK( mod.params().getEquilibrium() == mag.params().getEquilibrium());
+    CHECK( mod.psip()(R,Z) == mag.psip()(R,Z));
+    CHECK( mod.psipR()(R,Z) == mag.psipR()(R,Z));
+    CHECK( mod.psipZ()(R,Z) == mag.psipZ()(R,Z));
+    CHECK( mod.psipRR()(R,Z) == mag.psipRR()(R,Z));
+    CHECK( mod.psipRZ()(R,Z) == mag.psipRZ()(R,Z));
+    CHECK( mod.psipZZ()(R,Z) == mag.psipZZ()(R,Z));
+    CHECK( mod.ipol()(R,Z) == mag.ipol()(R,Z));
+    CHECK( mod.ipolR()(R,Z) == mag.ipolR()(R,Z));
+    CHECK( mod.ipolZ()(R,Z) == mag.ipolZ()(R,Z));
 }
 
 TEST_CASE( "Wall region of modified field")
