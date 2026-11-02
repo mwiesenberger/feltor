@@ -63,11 +63,12 @@ struct PsipR: public aCylindricalFunctor<PsipR>
 {
     ///@copydoc Psip::Psip()
     PsipR( const Parameters& gp ): m_R0(gp.R_0),  m_pp(gp.pp){
-        std::vector<double>  beta ( (gp.M-1)*gp.N);
-        for( unsigned i=0; i<gp.M-1; i++)
+        const unsigned M = gp.M > 1 ? gp.M-1 : 0; // the derivative of a constant vanishes
+        std::vector<double>  beta ( M*gp.N);
+        for( unsigned i=0; i<M; i++)
             for( unsigned j=0; j<gp.N; j++)
                 beta[i*gp.N+j] = (double)(i+1)*gp.c[ ( i+1)*gp.N +j];
-        m_horner = std::make_shared<Horner2d>( beta, gp.M-1, gp.N);
+        m_horner = std::make_shared<Horner2d>( beta, M, gp.N);
     }
     double do_compute(double R, double Z) const
     {
@@ -81,11 +82,12 @@ struct PsipRR: public aCylindricalFunctor<PsipRR>
 {
     ///@copydoc Psip::Psip()
     PsipRR( const Parameters& gp ): m_R0(gp.R_0),  m_pp(gp.pp){
-        std::vector<double>  beta ( (gp.M-2)*gp.N);
-        for( unsigned i=0; i<gp.M-2; i++)
+        const unsigned M = gp.M > 2 ? gp.M-2 : 0;
+        std::vector<double>  beta ( M*gp.N);
+        for( unsigned i=0; i<M; i++)
             for( unsigned j=0; j<gp.N; j++)
                 beta[i*gp.N+j] = (double)((i+2)*(i+1))*gp.c[ (i+2)*gp.N +j];
-        m_horner = std::make_shared<Horner2d>( beta, gp.M-2, gp.N);
+        m_horner = std::make_shared<Horner2d>( beta, M, gp.N);
     }
     double do_compute(double R, double Z) const
     {
@@ -99,11 +101,12 @@ struct PsipZ: public aCylindricalFunctor<PsipZ>
 {
     ///@copydoc Psip::Psip()
     PsipZ( const Parameters& gp ): m_R0(gp.R_0),  m_pp(gp.pp){
-        std::vector<double>  beta ( gp.M*(gp.N-1));
+        const unsigned N = gp.N > 1 ? gp.N-1 : 0;
+        std::vector<double>  beta ( gp.M*N);
         for( unsigned i=0; i<gp.M; i++)
-            for( unsigned j=0; j<gp.N-1; j++)
-                beta[i*(gp.N-1)+j] = (double)(j+1)*gp.c[ i*gp.N +j+1];
-        m_horner = std::make_shared<Horner2d>( beta, gp.M, gp.N-1);
+            for( unsigned j=0; j<N; j++)
+                beta[i*N+j] = (double)(j+1)*gp.c[ i*gp.N +j+1];
+        m_horner = std::make_shared<Horner2d>( beta, gp.M, N);
     }
     double do_compute(double R, double Z) const
     {
@@ -117,11 +120,12 @@ struct PsipZZ: public aCylindricalFunctor<PsipZZ>
 {
     ///@copydoc Psip::Psip()
     PsipZZ( const Parameters& gp ): m_R0(gp.R_0),  m_pp(gp.pp){
-        std::vector<double>  beta ( gp.M*(gp.N-2));
+        const unsigned N = gp.N > 2 ? gp.N-2 : 0;
+        std::vector<double>  beta ( gp.M*N);
         for( unsigned i=0; i<gp.M; i++)
-            for( unsigned j=0; j<gp.N-2; j++)
-                beta[i*(gp.N-2)+j] = (double)((j+2)*(j+1))*gp.c[ i*gp.N +j+2];
-        m_horner = std::make_shared<Horner2d>( beta, gp.M, gp.N-2);
+            for( unsigned j=0; j<N; j++)
+                beta[i*N+j] = (double)((j+2)*(j+1))*gp.c[ i*gp.N +j+2];
+        m_horner = std::make_shared<Horner2d>( beta, gp.M, N);
     }
     double do_compute(double R, double Z) const
     {
@@ -135,11 +139,12 @@ struct PsipRZ: public aCylindricalFunctor<PsipRZ>
 {
     ///@copydoc Psip::Psip()
     PsipRZ( const Parameters& gp ): m_R0(gp.R_0),  m_pp(gp.pp){
-        std::vector<double>  beta ( (gp.M-1)*(gp.N-1));
-        for( unsigned i=0; i<gp.M-1; i++)
-            for( unsigned j=0; j<gp.N-1; j++)
-                beta[i*(gp.N-1)+j] = (double)((j+1)*(i+1))*gp.c[ (i+1)*gp.N +j+1];
-        m_horner = std::make_shared<Horner2d>( beta, gp.M-1, gp.N-1);
+        const unsigned M = gp.M > 1 ? gp.M-1 : 0, N = gp.N > 1 ? gp.N-1 : 0;
+        std::vector<double>  beta ( M*N);
+        for( unsigned i=0; i<M; i++)
+            for( unsigned j=0; j<N; j++)
+                beta[i*N+j] = (double)((j+1)*(i+1))*gp.c[ (i+1)*gp.N +j+1];
+        m_horner = std::make_shared<Horner2d>( beta, M, N);
     }
     double do_compute(double R, double Z) const
     {

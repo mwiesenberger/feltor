@@ -85,3 +85,28 @@ TEST_CASE("Polynomial")
         CHECK( error < 1e-12);
     }
 }
+
+TEST_CASE("Polynomial with few coefficients")
+{
+    // Expected values at R = 2, Z = 3 with R_0 = 4 and PP = 1
+    struct Expected{ std::string c; unsigned M, N; double f, fR, fZ, fRR, fRZ, fZZ;};
+    auto e = GENERATE(
+        Expected{ "[3]",     1, 1, 12,    0,   0,   0,   0, 0  },
+        Expected{ "[1,2]",   1, 2, 10,    0,   2,   0,   0, 0  },
+        Expected{ "[1,2]",   2, 1,  8,    2,   0,   0,   0, 0  },
+        Expected{ "[1,2,3]", 1, 3, 16.75, 0, 6.5,   0,   0, 1.5},
+        Expected{ "[1,2,3]", 3, 1, 11,    5,   0, 1.5,   0, 0  });
+    INFO( "M "<<e.M<<" N "<<e.N);
+    dg::file::WrappedJsonValue js( dg::file::string2Json( R"({"R_0": 4, "c": )"+e.c+"}"),
+            dg::file::error::is_silent);
+    js.asJson()["M"] = e.M;
+    js.asJson()["N"] = e.N;
+    dg::geo::polynomial::Parameters gp(js);
+    dg::geo::TokamakMagneticField mag = dg::geo::createPolynomialField(gp);
+    CHECK( mag.psip()(2.,3.) == e.f);
+    CHECK( mag.psipR()(2.,3.) == e.fR);
+    CHECK( mag.psipZ()(2.,3.) == e.fZ);
+    CHECK( mag.psipRR()(2.,3.) == e.fRR);
+    CHECK( mag.psipRZ()(2.,3.) == e.fRZ);
+    CHECK( mag.psipZZ()(2.,3.) == e.fZZ);
+}
