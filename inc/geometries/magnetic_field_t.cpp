@@ -8,7 +8,7 @@
 #include "magnetic_field.h"
 #include "catch2/catch_all.hpp"
 
-// We correct PI so that B(R_O, 0) = 1 exactly
+// We correct PI so that B(R_O, 0) = 1 exactly for A = 0
 const std::string geometry_params_Xpoint = R"asdf({
     "A": 0,
     "R_0": 0.545,
@@ -40,20 +40,30 @@ TEST_CASE("Magnetic field")
 {
     dg::file::WrappedJsonValue js( dg::file::error::is_warning);
     js.asJson() = dg::file::string2Json( geometry_params_Xpoint);
+    // A != 0 makes the current I depend on psi
+    double A = GENERATE( 0., 1.);
+    js.asJson()["A"] = A;
 
     dg::geo::solovev::Parameters gp(js);
     int sign = GENERATE( +1, -1);
     gp.pi = sign*gp.pi;
+    INFO( "A "<<A<<" sign "<<sign);
 
     dg::geo::TokamakMagneticField mag = dg::geo::createSolovevField(gp);
 
     double R_O = gp.R_0;
     double Z_O = 0.;
     dg::geo::findOpoint( mag.get_psip(), R_O, Z_O);
+    // The poloidal field vanishes at the O-point
+    const double B_O = gp.R_0/R_O*fabs( mag.ipol()( R_O, Z_O));
     SECTION( "O-point")
     {
-        CHECK( fabs(R_O - 0.567965) < 1e-6);
+        CHECK( fabs(R_O - ( A == 0 ? 0.567965 : 0.569601)) < 1e-6);
         CHECK( fabs(Z_O ) < 1e-6);
+        CHECK( fabs( mag.psipR()( R_O, Z_O)) < 1e-12);
+        CHECK( fabs( mag.psipZ()( R_O, Z_O)) < 1e-12);
+        if( A == 0)
+            CHECK( fabs( B_O - 1) < 1e-12);
     }
 
     SECTION( "Toroidal field")
@@ -64,11 +74,11 @@ TEST_CASE("Magnetic field")
         dg::geo::InvB invB(mag);
         dg::geo::InvBtor invBtor(mag);
         dg::geo::LnB lnB(mag);
-        CHECK ( fabs( bmod( R_O, 0) - 1 ) < 1e-12);
-        CHECK ( fabs( btor( R_O, 0) - sign ) < 1e-12);
-        CHECK ( fabs( invB( R_O, 0) - 1 ) < 1e-12);
-        CHECK ( fabs( invBtor( R_O, 0) - sign ) < 1e-12);
-        CHECK ( fabs( lnB(  R_O, 0) ) < 1e-12);
+        CHECK ( fabs( bmod( R_O, 0) - B_O ) < 1e-12);
+        CHECK ( fabs( btor( R_O, 0) - sign*B_O ) < 1e-12);
+        CHECK ( fabs( invB( R_O, 0) - 1./B_O ) < 1e-12);
+        CHECK ( fabs( invBtor( R_O, 0) - sign/B_O ) < 1e-12);
+        CHECK ( fabs( lnB(  R_O, 0) - log( B_O) ) < 1e-12);
 
         double R = R_O + 0.2, Z = -0.1;
         CHECK( fabs( 1./bmod(R,Z) - invB(R,Z)) < 1e-12);
@@ -138,6 +148,31 @@ TEST_CASE("Magnetic field")
         dg::geo::BFieldP Bphi(mag);
         CHECK ( fabs( tordiv(R,Z) - ( divvvp(R,Z)/R - BR(R,Z)/Bphi(R,Z)/R/R )) < 1e-12);
 
+        if( A != 0)
+        {
+            REQUIRE( mag.ipolR()(R,Z) != 0);
+            REQUIRE( mag.ipolZ()(R,Z) != 0);
+        }
+        // 4th order central differences
+        const double h = 1e-3;
+        auto dR = [h]( const dg::geo::CylindricalFunctor& f, double r, double z){
+            return (-f(r+2*h,z)+8*f(r+h,z)-8*f(r-h,z)+f(r-2*h,z))/(12*h);
+        };
+        auto dZ = [h]( const dg::geo::CylindricalFunctor& f, double r, double z){
+            return (-f(r,z+2*h)+8*f(r,z+h)-8*f(r,z-h)+f(r,z-2*h))/(12*h);
+        };
+        dg::geo::CylindricalFunctor bR = dg::geo::ToroidalBHatR(mag);
+        dg::geo::CylindricalFunctor bZ = dg::geo::ToroidalBHatZ(mag);
+        dg::geo::CylindricalFunctor Rb = [&bR]( double r, double z){ return r*bR(r,z);};
+        dg::geo::Btor btor(mag);
+        dg::geo::CylindricalFunctor lnB = [&btor]( double r, double z){
+            return log( fabs( btor(r,z)));
+        };
+        const double eps = 1e-6;
+        CHECK_THAT( torgradLnB(R,Z), Catch::Matchers::WithinRel(
+                bR(R,Z)*dR( lnB, R, Z) + bZ(R,Z)*dZ( lnB, R, Z), eps));
+        CHECK_THAT( tordiv(R,Z), Catch::Matchers::WithinRel(
+                dR( Rb, R, Z)/R + dZ( bZ, R, Z), eps));
     }
 
     SECTION( "BR BZ")
