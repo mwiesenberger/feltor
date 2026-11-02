@@ -180,7 +180,12 @@ inline dg::geo::CylindricalFunctorsLvl1 createIpol( const Parameters& gp)
   \f]
   with \f$ \bar R := \frac{ R}{R_0} \f$ and \f$\bar Z := \frac{Z}{R_0}\f$
  *
- * Based on \c dg::geo::polynomial::Psip(gp) and  \c dg::Constant(gp.pi)
+ * Based on \c dg::geo::polynomial::Psip(gp) and  \c dg::geo::Constant(gp.pi)
+ * @attention All copies of the flux function and of each of its derivatives
+ * share the result of the last call to save computations. They are therefore
+ * not thread-safe and must not be evaluated inside a parallel region, for
+ * example in \c dg::blas1::evaluate with an OpenMP vector (\c dg::evaluate and
+ * \c dg::pullback are serial)
  * @param gp Polynomial parameters
  * @return A magnetic field object
  * @ingroup polynomial

@@ -110,7 +110,10 @@ struct Parameters
      <tt> R_X = R_0-1.1*triangularity*a</tt>
      <tt> Z_X = -1.1*elongation*a</tt>
     *
-    * @return \c true if Psip has an Xpoint, \c false else
+    * @note These coefficients break the up-down symmetry. An up-down symmetric
+    * field can have two X-points (description "doubleX") and this function
+    * still returns \c false
+    * @return \c true if any of these coefficients is not zero, \c false else
     */
     bool hasXpoint( ) const{
         bool Xpoint = false;

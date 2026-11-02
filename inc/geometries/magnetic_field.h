@@ -358,7 +358,7 @@ struct LnB : public aCylindricalFunctor<LnB>
  * @brief \f$  \frac{\partial |B| }{ \partial R}  \f$
  *
  \f$  \frac{\partial \hat{B} }{ \partial \hat{R}} =
-      -\frac{1}{\hat B \hat R}
+      -\frac{\hat B}{\hat R}
       +  \frac{\hat I \left(\frac{\partial\hat I}{\partial\hat R} \right)
       + \left(\frac{\partial \hat{\psi}_p }{ \partial \hat{Z}} \right)\left(\frac{\partial^2  \hat{\psi}_p }{ \partial \hat{R} \partial\hat{Z}}\right)
       + \left( \frac{\partial \hat{\psi}_p }{ \partial \hat{R}}\right)\left( \frac{\partial^2  \hat{\psi}_p }{ \partial \hat{R}^2}\right)}
@@ -400,7 +400,7 @@ struct BZ: public aCylindricalFunctor<BZ>
 };
 
 /**
- * @brief \f$  \frac{\partial B_{\hat \varphi }{ \partial R}  \f$
+ * @brief \f$  \frac{\partial B_{\hat \varphi} }{ \partial R}  \f$
  *
  \f$  \frac{\partial B_{\hat \varphi} }{ \partial R} =
       \frac{R_0 }{R} \frac{\partial I}{\partial R}-\frac{R_0 I}{R^2} \f$
@@ -417,7 +417,7 @@ struct ToroidalBR: public aCylindricalFunctor<ToroidalBR>
 };
 
 /**
- * @brief \f$  \frac{\partial B_{\hat \varphi }{ \partial Z}  \f$
+ * @brief \f$  \frac{\partial B_{\hat \varphi} }{ \partial Z}  \f$
  *
  \f$  \frac{\partial B_{\hat \varphi} }{ \partial Z} =
       \frac{R_0 }{R} \frac{\partial I}{\partial Z} \f$
@@ -587,7 +587,7 @@ struct TrueCurvatureNablaBZ: public aCylindricalFunctor<TrueCurvatureNablaBZ>
 
 ///@brief True \f$ \mathcal{K}^{\varphi}_{\nabla B} \f$
 ///
-/// \f$ \mathcal{K}^\varphi_{\nabla B} =\frac{1}{ B^3R^2}\left( \frac{\partial\psi}{\partial Z} \frac{\partial B}{\partial Z} + \frac{\partial \psi}{\partial R}\frac{\partial B}{\partial R} \right) \f$
+/// \f$ \mathcal{K}^\varphi_{\nabla B} =\frac{R_0}{ B^3R^2}\left( \frac{\partial\psi}{\partial Z} \frac{\partial B}{\partial Z} + \frac{\partial \psi}{\partial R}\frac{\partial B}{\partial R} \right) \f$
 struct TrueCurvatureNablaBP: public aCylindricalFunctor<TrueCurvatureNablaBP>
 {
     TrueCurvatureNablaBP(const TokamakMagneticField& mag): m_mag(mag), m_invB(mag),m_bR(mag), m_bZ(mag) { }
@@ -760,7 +760,7 @@ struct ToroidalDivCurvatureKappa: public aCylindricalFunctor<ToroidalDivCurvatur
 /**
  * @brief \f$  \nabla_\parallel \ln{(B)} \f$
  *
- *    \f$  \hat{\nabla}_\parallel \ln{(\hat{B})} = \frac{1}{\hat{R}\hat{B}^2 } \left[ \hat{B}, \hat{\psi}_p\right]_{\hat{R}\hat{Z}} \f$
+ *    \f$  \hat{\nabla}_\parallel \ln{(\hat{B})} = \frac{\hat{R}_0}{\hat{R}\hat{B}^2 } \left[ \hat{B}, \hat{\psi}_p\right]_{\hat{R}\hat{Z}} \f$
  */
 struct GradLnB: public aCylindricalFunctor<GradLnB>
 {
@@ -1215,7 +1215,7 @@ struct Hoo : public dg::geo::aCylindricalFunctor<Hoo>
     dg::geo::TokamakMagneticField m_mag;
 };
 
-///@brief Determine if poloidal field points towards or away from the nearest wall
+///@brief Determine if poloidal field points towards (+1) or away (-1) from the nearest wall
 ///
 ///@attention Does not account for toroidal field direction
 struct WallDirection : public dg::geo::aCylindricalFunctor<WallDirection>

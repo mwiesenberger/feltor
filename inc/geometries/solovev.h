@@ -48,7 +48,7 @@ namespace solovev
       c_7 \left[-(15 \bar{R}^6  \ln{(\bar{R}   )})+75 \bar{R}^4  \bar{Z}^2+180 \bar{R}^4
        \bar{Z}^2 \ln{(\bar{R}   )}-140 \bar{R}^2  \bar{Z}^4-120 \bar{R}^2  \bar{Z}^4
       \ln{(\bar{R}   )}+8  \bar{Z}^6 \right] +
-      c_8  \bar{Z}+c_9 \bar{R}^2  \bar{Z}+(\bar{R}^4 )/8 +
+      c_8  \bar{Z}+c_9 \bar{R}^2  \bar{Z} +
       c_{10} \left[ \bar{Z}^3-3 \bar{R}^2  \bar{Z} \ln{(\bar{R}   )}\right]+
       c_{11} \left[3 \bar{R}^4  \bar{Z}-4 \bar{R}^2  \bar{Z}^3\right]      +
       c_{12} \left[-(45 \bar{R}^4  \bar{Z})+60 \bar{R}^4  \bar{Z} \ln{(\bar{R}   )}-
@@ -120,7 +120,7 @@ struct Psip: public aCylindricalFunctor<Psip>
  * \f[ \frac{\partial  \hat{\psi}_p }{ \partial \hat{R}} =
       P_\psi \Bigg\{ 2 c_2 \bar{R} +(\bar{R}^3 )/2+2 c_9 \bar{R}  \bar{Z}
       +c_4 (4 \bar{R}^3 -8 \bar{R}  \bar{Z}^2)+c_{11}
-      (12  \bar{R}^3  \bar{Z}-8 \bar{R}  \bar{Z}^3
+      (12  \bar{R}^3  \bar{Z}-8 \bar{R}  \bar{Z}^3)
       +c_6 (6 \bar{R}^5 -48 \bar{R}^3  \bar{Z}^2+16 \bar{R}  \bar{Z}^4)+c_3 (-\bar{R} -2 \bar{R}  \ln{(\bar{R}   )})+
       A ((\bar{R} )/2-(\bar{R}^3 )/2+\bar{R}  \ln{(\bar{R}   )})
       +c_{10} (-3 \bar{R}  \bar{Z}-6 \bar{R}  \bar{Z} \ln{(\bar{R}   )})+c_5 (3 \bar{R}^3 -30 \bar{R}
@@ -457,6 +457,11 @@ inline dg::geo::CylindricalFunctorsLvl1 createIpol( const Parameters& gp, const 
  * @brief Create a Solovev Magnetic field
  *
  * Based on \c dg::geo::solovev::Psip(gp) and \c dg::geo::solovev::Ipol(gp)
+ * @attention All copies of the flux function and of each of its derivatives
+ * share the result of the last call to save computations. They are therefore
+ * not thread-safe and must not be evaluated inside a parallel region, for
+ * example in \c dg::blas1::evaluate with an OpenMP vector (\c dg::evaluate and
+ * \c dg::pullback are serial)
  * @param gp Solovev parameters
  * @return A magnetic field object
  * @ingroup solovev

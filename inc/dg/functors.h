@@ -1968,6 +1968,9 @@ struct Horner1d
  * @brief \f$ f(x,y) = \sum_{i=0}^{M-1} \sum_{j=0}^{N-1} c_{iN+j} x^i y^j  \f$
  *
  * Evaluated using [Horner's method](https://en.wikipedia.org/wiki/Horner%27s_method)
+ * @attention The class remembers intermediate results of the last call and is
+ * therefore not thread-safe, the same object must not be evaluated in a
+ * parallel region
  */
 struct Horner2d
 {

@@ -318,6 +318,7 @@ inline CylindricalFunctorsLvl1 createIpol( solovev::Parameters gp, const Cylindr
  * @brief Create a Taylor Magnetic field
 
  * Based on \c dg::geo::taylor::Psip(gp) and \c dg::geo::taylor::Ipol(gp)
+ * @note The parameters \c A, \c PP and \c PI are not used by this field
  * @param gp Solovev parameters
  * @return A magnetic field object
  * @ingroup taylor

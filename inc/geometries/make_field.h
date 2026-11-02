@@ -416,8 +416,15 @@ or with additional modification in the private flux region "sol_pfr"
 }
 @endcode
 
+ * @note The values of "boundary" and "alpha" are given in \f$ \rho_p\f$ for
+ * the descriptions that have an O-point near \f$ R_0\f$: "standardO" (only for
+ * "heaviside"), "standardX" and "doubleX". For all others (and "standardO"
+ * with "sol_pfr") they are values of \f$ \psi_p\f$ and additionally the sign
+ * is read from the "sign" field (forwarded to \c dg::IPolynomialHeaviside):
+ * a number for "heaviside" (default -1) and two numbers for "sol_pfr" (default
+ * -1 and +1, where -1 keeps \f$ \psi_p\f$ below and +1 above the boundary)
  * @param wall (out) On output contains the region where the wall is applied, the functor returns 1 where the wall is, 0 where there it is not and 0<f<1 in the transition region
- * @param transition (out) On output contains the region where the transition of Psip to a constant value occurs, the functor returns 0<f<=1 for when there is a transition and 0 else
+ * @param transition (out) On output contains the region where the transition of Psip to a constant value occurs, the functor returns f>0 when there is a transition and 0 else (it is \c dg::DPolynomialHeaviside of \f$ \psi_p\f$, whose maximum depends on the width in \f$ \psi_p\f$ and can be larger than 1)
  * @return The modified magnetic field object
  */
 inline TokamakMagneticField createModifiedField(

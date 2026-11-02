@@ -124,6 +124,7 @@ struct Constant: public aCylindricalFunctor<Constant>
  \end{cases}
  \f$
  @note the 1 is inclusive i.e. if Z == Z_X the functor always returns 1
+ @note With \c sign=-1 the function is mirrored at \c Z_X (1 if \c Z<=Z_X and 0 else)
  */
 struct ZCutter : public aCylindricalFunctor<ZCutter>
 {
@@ -395,7 +396,7 @@ struct CylindricalSymmTensorLvl1
         p_[3] = divChiX;
         p_[4] = divChiY;
     }
-    ///xy component \f$ \chi^{xx}\f$
+    ///xx component \f$ \chi^{xx}\f$
     const CylindricalFunctor& xx()const{return p_[0];}
     ///xy component \f$ \chi^{xy}\f$
     const CylindricalFunctor& xy()const{return p_[1];}
@@ -463,7 +464,7 @@ struct CylindricalVectorLvl1
         m_div = div;
         m_divvvz = divvvz;
     }
-    ///type conversion: Lvl2 can also be used as Lvl1
+    ///type conversion: Lvl1 can also be used as Lvl0
     operator CylindricalVectorLvl0 ()const {return f0;}
     /// x-component of the vector
     const CylindricalFunctor& x()const{return f0.x();}
