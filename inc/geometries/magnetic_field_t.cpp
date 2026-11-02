@@ -187,3 +187,62 @@ TEST_CASE("Magnetic field")
         CHECK( fabs(bZ( R_O, Z_O) - sign*torbZ( R_O, Z_O)) < 1e-12);
     }
 }
+
+// f = a (R-1)^p + b (Z-2)^2 with an extremum or saddle point at (1,2)
+static dg::geo::CylindricalFunctorsLvl2 create_critical( double a, int p, double b)
+{
+    return dg::geo::CylindricalFunctorsLvl2(
+        [=]( double R, double Z){ return a*pow(R-1,p) + b*(Z-2)*(Z-2);},
+        [=]( double R, double  ){ return a*p*pow(R-1,p-1);},
+        [=]( double  , double Z){ return 2*b*(Z-2);},
+        [=]( double R, double  ){ return a*p*(p-1)*pow(R-1,p-2);},
+        []( double, double){ return 0.;},
+        [=]( double, double){ return 2*b;});
+}
+
+TEST_CASE("Critical points")
+{
+    double R = 1.5, Z = 2.5;
+    SECTION( "Local minimum")
+    {
+        CHECK( dg::geo::findCriticalPoint( create_critical( 1,2,1), R, Z) == 1);
+        CHECK( fabs( R-1) < 1e-14);
+        CHECK( fabs( Z-2) < 1e-14);
+        CHECK( dg::geo::findOpoint( create_critical( 1,2,1), R, Z) == 1);
+        CHECK_THROWS_AS( dg::geo::findXpoint( create_critical( 1,2,1), R, Z), dg::Error);
+    }
+    SECTION( "Local maximum")
+    {
+        CHECK( dg::geo::findCriticalPoint( create_critical( -1,2,-1), R, Z) == 2);
+        CHECK( fabs( R-1) < 1e-14);
+        CHECK( fabs( Z-2) < 1e-14);
+        CHECK( dg::geo::findOpoint( create_critical( -1,2,-1), R, Z) == 2);
+    }
+    SECTION( "Saddle point")
+    {
+        CHECK( dg::geo::findCriticalPoint( create_critical( 1,2,-1), R, Z) == 3);
+        CHECK( fabs( R-1) < 1e-14);
+        CHECK( fabs( Z-2) < 1e-14);
+        CHECK_NOTHROW( dg::geo::findXpoint( create_critical( 1,2,-1), R, Z));
+        CHECK_THROWS_AS( dg::geo::findOpoint( create_critical( 1,2,-1), R, Z), dg::Error);
+    }
+    SECTION( "No critical point")
+    {
+        // Hessian vanishes everywhere; input stays unchanged
+        dg::geo::CylindricalFunctorsLvl2 constant( dg::geo::Constant(1),
+                dg::geo::Constant(0), dg::geo::Constant(0), dg::geo::Constant(0),
+                dg::geo::Constant(0), dg::geo::Constant(0));
+        CHECK( dg::geo::findCriticalPoint( constant, R, Z) == 0);
+        CHECK( R == 1.5);
+        CHECK( Z == 2.5);
+    }
+    SECTION( "Convergence at a degenerate critical point")
+    {
+        // The Hessian vanishes at the critical point so Newton only converges
+        // linearly with factor 2/3. The error is then 2 times the last step,
+        // which must be below 1e-10 and not only below 1e-7
+        CHECK( dg::geo::findCriticalPoint( create_critical( 1,4,1), R, Z) == 1);
+        CHECK( fabs( R-1) < 1e-9);
+        CHECK( fabs( Z-2) < 1e-14);
+    }
+}

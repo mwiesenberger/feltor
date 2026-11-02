@@ -295,14 +295,16 @@ inline int findCriticalPoint( const CylindricalFunctorsLvl2& psi, double& RC, do
         D0 =  (psipZZ*psipRR - psipRZ*psipRZ);
     }
     double Dinv = 1./D0;
+    X_OLD = X; // such that eps is the size of the first step
     while( (eps < eps_old || eps > 1e-7) && eps > 1e-10 && counter < 100)
     {
         //newton iteration
         XN[0] = X[0] - Dinv*(psipZZ*psipR - psipRZ*psipZ);
         XN[1] = X[1] - Dinv*(-psipRZ*psipR + psipRR*psipZ);
         XN.swap(X);
+        eps_old = eps;
         eps = sqrt( (X[0]-X_OLD[0])*(X[0]-X_OLD[0]) + (X[1]-X_OLD[1])*(X[1]-X_OLD[1]));
-        X_OLD = X; eps_old= eps;
+        X_OLD = X;
         psipRZ = psi.dfxy()(X[0], X[1]);
         psipRR = psi.dfxx()(X[0], X[1]), psipZZ = psi.dfyy()(X[0],X[1]);
         psipR  = psi.dfx()(X[0], X[1]), psipZ = psi.dfy()(X[0], X[1]);
