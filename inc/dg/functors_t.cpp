@@ -125,7 +125,7 @@ TEST_CASE( "Derivatives of functors")
     SECTION( "PolynomialHeaviside")
     {
         // IPolynomialHeaviside' = PolynomialHeaviside and
-        // PolynomialHeaviside' = sign*DPolynomialHeaviside
+        // PolynomialHeaviside' = DPolynomialHeaviside
         int sign = GENERATE( +1, -1);
         double xb = 0.3, a = 0.5;
         dg::PolynomialHeaviside H( xb, a, sign);
@@ -135,11 +135,16 @@ TEST_CASE( "Derivatives of functors")
         CHECK( fabs( H( xb) - 0.5) < 1e-15);
         CHECK( H( xb - 1.1*a) == ( sign == 1 ? 0. : 1.));
         CHECK( H( xb + 1.1*a) == ( sign == 1 ? 1. : 0.));
+        // The integration constant: IH is xb on the damped side and x on the other
+        CHECK( fabs( IH( xb - 1.1*a) - ( sign == 1 ? xb : xb - 1.1*a)) < 1e-15);
+        CHECK( fabs( IH( xb + 1.1*a) - ( sign == 1 ? xb + 1.1*a : xb)) < 1e-15);
+        CHECK( DH( xb - 1.1*a) == 0.);
+        CHECK( DH( xb + 1.1*a) == 0.);
         for( double x : { 0.0, 0.25, 0.5, 0.7})
         {
             INFO( "x "<<x);
             CHECK( fabs( diff( IH, x) - H( x)) < eps);
-            CHECK( fabs( diff( H, x) - sign*DH( x)) < eps);
+            CHECK( fabs( diff( H, x) - DH( x)) < eps);
         }
     }
 }

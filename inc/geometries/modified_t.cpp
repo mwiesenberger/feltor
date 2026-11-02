@@ -70,6 +70,57 @@ const std::string geometry_params_2Xpoint = R"asdf({
 
 //@ ----------------------------------------------------------
 
+TEST_CASE( "Modified flux function")
+{
+    dg::file::WrappedJsonValue js( dg::file::error::is_warning);
+    js.asJson() = dg::file::string2Json( geometry_params_Xpoint);
+    dg::geo::TokamakMagneticField mag = dg::geo::createMagneticField( js);
+    // 4th order central differences
+    const double h = 0.1;
+    auto dR = [h]( const dg::geo::CylindricalFunctor& f, double R, double Z){
+        return (-f(R+2*h,Z)+8*f(R+h,Z)-8*f(R-h,Z)+f(R-2*h,Z))/(12*h);
+    };
+    auto dZ = [h]( const dg::geo::CylindricalFunctor& f, double R, double Z){
+        return (-f(R,Z+2*h)+8*f(R,Z+h)-8*f(R,Z-h)+f(R,Z-2*h))/(12*h);
+    };
+    const double R = 650, Z = -100;
+    const double psip = mag.psip()(R,Z);
+    const double alpha = 0.2*fabs(psip), psi0 = psip + 0.3*alpha;
+    const double sign = GENERATE( +1., -1.);
+    INFO( "sign "<<sign);
+
+    SECTION( "Derivatives in transition region")
+    {
+        auto mod = dg::geo::mod::createPsip( dg::geo::mod::everywhere,
+                mag.get_psip(), psi0, alpha, sign);
+        CHECK( mod.f()(R,Z) != psip); // is modified
+        const double eps = 1e-6;
+        CHECK_THAT( mod.dfx()(R,Z),  Catch::Matchers::WithinRel( dR( mod.f(),   R, Z), eps));
+        CHECK_THAT( mod.dfy()(R,Z),  Catch::Matchers::WithinRel( dZ( mod.f(),   R, Z), eps));
+        CHECK_THAT( mod.dfxx()(R,Z), Catch::Matchers::WithinRel( dR( mod.dfx(), R, Z), eps));
+        CHECK_THAT( mod.dfxy()(R,Z), Catch::Matchers::WithinRel( dZ( mod.dfx(), R, Z), eps));
+        CHECK_THAT( mod.dfxy()(R,Z), Catch::Matchers::WithinRel( dR( mod.dfy(), R, Z), eps));
+        CHECK_THAT( mod.dfyy()(R,Z), Catch::Matchers::WithinRel( dZ( mod.dfy(), R, Z), eps));
+    }
+    SECTION( "Magnetic transition is non-negative for both signs")
+    {
+        dg::geo::mod::MagneticTransition transition( dg::geo::mod::everywhere,
+                mag.psip(), psi0, alpha, sign);
+        CHECK( transition(R,Z) > 0);
+    }
+    SECTION( "Predicate is false")
+    {
+        auto mod = dg::geo::mod::createPsip( dg::geo::mod::nowhere,
+                mag.get_psip(), psi0, alpha, sign);
+        CHECK( mod.f()(R,Z) == psip);
+        CHECK( mod.dfx()(R,Z) == mag.psipR()(R,Z));
+        CHECK( mod.dfy()(R,Z) == mag.psipZ()(R,Z));
+        CHECK( mod.dfxx()(R,Z) == mag.psipRR()(R,Z));
+        CHECK( mod.dfxy()(R,Z) == mag.psipRZ()(R,Z));
+        CHECK( mod.dfyy()(R,Z) == mag.psipZZ()(R,Z));
+    }
+}
+
 TEST_CASE( "Modified")
 {
     SECTION( "Predicate modifier functions")

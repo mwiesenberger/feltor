@@ -1440,8 +1440,11 @@ struct IPolynomialHeaviside {
      The derivative of PolynomialHeaviside approximates delta(x)
 
      This function is 2 times continuously differentiable, is symmetric around \c xb
-     and has a width \c a on both sides of \c x0.
+     and has a width \c a on both sides of \c xb.
      The integral over this function yields 1.
+     @note The formula is for \c sign=+1. For \c sign=-1 the function is multiplied by -1
+     (and its integral yields -1) such that it is the derivative of
+     \c PolynomialHeaviside with the same \c sign in both cases
  */
 struct DPolynomialHeaviside {
     /**
@@ -1449,21 +1452,21 @@ struct DPolynomialHeaviside {
      *
      * @param xb boundary value
      * @param a transition width ( must be !=0)
-     *
-     * [unnamed-parameter] either +1 (original) or -1 (the function is mirrored at \c x=x0)
-     * (since this function is symmetric this parameter is ignored, it's there to be
-     * consistent with PolynomialHeaviside)
+     * @param sign either +1 (original) or -1 (the derivative of the mirrored
+     * \c PolynomialHeaviside, which is the negative of the original)
      */
-    DPolynomialHeaviside(double xb, double a, int = +1) :
-        x0(xb), a(a){
+    DPolynomialHeaviside(double xb, double a, int sign = +1) :
+        x0(xb), a(a), m_s(sign){
             assert( a!=0 && "DPolynomialHeaviside width must not be zero");
     }
     DG_DEVICE
     double operator() (double x)const
     {
         if ( (x < x0-a) || (x > x0+a)) return 0;
-        return (35.*(a+x-x0)*(a+x-x0)*(a+x-x0)*(a-x+x0)*(a-x+x0)*(a-x+x0))
+        double result = (35.*(a+x-x0)*(a+x-x0)*(a+x-x0)*(a-x+x0)*(a-x+x0)*(a-x+x0))
             /(32.*a*a*a * a*a*a*a);
+        if( m_s == -1) return -result;
+        return result;
     }
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
@@ -1471,6 +1474,7 @@ struct DPolynomialHeaviside {
     double operator()( double x, double, double)const{ return this->operator()(x);}
     private:
     double x0, a;
+    int m_s;
 };
 
 /**

@@ -207,8 +207,9 @@ struct DampingRegion : public aCylindricalFunctor<DampingRegion>
 };
 struct MagneticTransition : public aCylindricalFunctor<MagneticTransition>
 {
-    MagneticTransition( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, double psi0, double alpha, double sign = -1) :
-        m_dpoly( psi0, alpha, sign), m_psip(psip), m_pred(predicate)
+    // The transition is a non-negative mask, independent of the sign of the Heaviside
+    MagneticTransition( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, double psi0, double alpha, double = -1) :
+        m_dpoly( psi0, alpha, +1), m_psip(psip), m_pred(predicate)
     { }
     double do_compute(double R, double Z) const
     {
