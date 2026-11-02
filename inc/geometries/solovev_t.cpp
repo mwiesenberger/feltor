@@ -42,6 +42,77 @@ const std::string geometry_params_Xpoint = R"asdf({
     "description" : "standardX"
 })asdf";
 
+const std::string geometry_params_taylor = R"asdf({
+    "c" :[-0.730004529864617913443309878090712685057289011596696572774289301646,
+    -0.013752279867251353918502943858642437963550235876487492144645446786828705,
+    -1.043934755061476893780514356717827737689350282272451493765507415754555292,
+    0.0652044051606185896009860257256201123783699931775930983650947832207138720,
+    -0.075588684108624986707612696927980524120446412329125959454845935222288227,
+    -0.166244745975333508158120968358969752878367824897146548390838214529077855,
+    0.2339447574961647090247023551091674910845416152319523071184183514964211299,
+    -0.106340609874360718259386870009150862837873566733690651435539105985033601,
+    -0.195348950338876734547335892506041028973952380901869144068532010742858264,
+    0.0185335490893965223839308241407808534672715395435233413969584688870300260,
+    3.4373031197519723201231633783929522278128352814841152895441705480656431803,
+    4.9016827404530536864875893866884491045861716739824591650253786527604617409],
+    "inverseaspectratio" : 0.41071428571428575,
+    "elongation"         : 1.75,
+    "triangularity"      : 0.25,
+    "equilibrium"  : "taylor",
+    "description" : "standardX"
+})asdf";
+
+TEST_CASE("Taylor")
+{
+    dg::file::WrappedJsonValue js( dg::file::error::is_silent);
+    js.asJson() = dg::file::string2Json( geometry_params_taylor);
+    const double R_0 = GENERATE( 1., 10., 547.891714877869);
+    js.asJson()["R_0"] = R_0;
+    dg::geo::solovev::Parameters gp(js);
+    dg::geo::TokamakMagneticField mag = dg::geo::createTaylorField(gp);
+    const double R = 1.15*R_0, Z = -0.1*R_0, h = 1e-3*R_0;
+    const double lambda = gp.c[11]/R_0;
+    INFO( "R_0 "<<R_0);
+
+    // 4th order central differences
+    auto dR = [h]( const dg::geo::CylindricalFunctor& f, double r, double z){
+        return (-f(r+2*h,z)+8*f(r+h,z)-8*f(r-h,z)+f(r-2*h,z))/(12*h);
+    };
+    auto dZ = [h]( const dg::geo::CylindricalFunctor& f, double r, double z){
+        return (-f(r,z+2*h)+8*f(r,z+h)-8*f(r,z-h)+f(r,z-2*h))/(12*h);
+    };
+    const double eps = 1e-6;
+    SECTION( "Derivatives")
+    {
+        CHECK_THAT( mag.psipR()(R,Z),  Catch::Matchers::WithinRel( dR( mag.psip(),  R, Z), eps));
+        CHECK_THAT( mag.psipZ()(R,Z),  Catch::Matchers::WithinRel( dZ( mag.psip(),  R, Z), eps));
+        CHECK_THAT( mag.psipRR()(R,Z), Catch::Matchers::WithinRel( dR( mag.psipR(), R, Z), eps));
+        CHECK_THAT( mag.psipRZ()(R,Z), Catch::Matchers::WithinRel( dZ( mag.psipR(), R, Z), eps));
+        CHECK_THAT( mag.psipZZ()(R,Z), Catch::Matchers::WithinRel( dZ( mag.psipZ(), R, Z), eps));
+        CHECK_THAT( mag.ipolR()(R,Z),  Catch::Matchers::WithinRel( dR( mag.ipol(),  R, Z), eps));
+        CHECK_THAT( mag.ipolZ()(R,Z),  Catch::Matchers::WithinRel( dZ( mag.ipol(),  R, Z), eps));
+    }
+    SECTION( "Grad-Shafranov")
+    {
+        double gs = mag.psipRR()(R,Z) - mag.psipR()(R,Z)/R + mag.psipZZ()(R,Z);
+        CHECK_THAT( gs, Catch::Matchers::WithinRel( -lambda*lambda*mag.psip()(R,Z), eps));
+    }
+    SECTION( "Force free")
+    {
+        // Curl in (R,Z,phi) with covariant B_R = B^R, B_Z = B^Z, B_phi = R^2 B^phi
+        dg::geo::CylindricalFunctor BR = dg::geo::BFieldR(mag);
+        dg::geo::CylindricalFunctor BZ = dg::geo::BFieldZ(mag);
+        dg::geo::BFieldP BP(mag);
+        dg::geo::CylindricalFunctor Bphi = [&BP]( double r, double z){
+            return r*r*BP(r,z);
+        };
+        CHECK_THAT( dZ( Bphi, R, Z)/R, Catch::Matchers::WithinRel( lambda*BR(R,Z), eps));
+        CHECK_THAT( -dR( Bphi, R, Z)/R, Catch::Matchers::WithinRel( lambda*BZ(R,Z), eps));
+        CHECK_THAT( (dR( BZ, R, Z) - dZ( BR, R, Z))/R,
+                Catch::Matchers::WithinRel( lambda*BP(R,Z), eps));
+    }
+}
+
 TEST_CASE("Solovev")
 {
     dg::file::WrappedJsonValue js( dg::file::error::is_warning);

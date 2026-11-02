@@ -237,51 +237,53 @@ struct PsipRZ: public aCylindricalFunctor<PsipRZ>
 };
 
 /**
- * @brief \f[\hat{I} = c_{12}\psi\f]
+ * @brief \f[I = c_{12}\psi_p/R_0\f]
  *
-   \f[\hat{I}= \sqrt{-2 A \hat{\psi}_p / \hat{R}_0 +1}\f]
+ * With this current the field is force free
+ * \f[ \nabla\times\vec B = \frac{c_{12}}{R_0} \vec B\f]
+ * since \f$ \psi_p\f$ fulfills \f$ R\partial_R (\partial_R\psi_p/R) + \partial_Z^2\psi_p = -(c_{12}/R_0)^2\psi_p\f$
  */
 struct Ipol: public aCylindricalFunctor<Ipol>
 {
     ///@copydoc Psip::Psip()
-    Ipol(  solovev::Parameters gp ): c12_(gp.c[11]), psip_(gp) { }
+    Ipol(  solovev::Parameters gp ): c12_(gp.c[11]), R0_(gp.R_0), psip_(gp) { }
     double do_compute(double R, double Z) const
     {
-        return c12_*psip_(R,Z);
+        return c12_*psip_(R,Z)/R0_;
 
     }
   private:
-    double c12_;
+    double c12_, R0_;
     Psip psip_;
 };
 /**
- * @brief \f[\hat I_R\f]
+ * @brief \f[\partial_R I = c_{12}\partial_R\psi_p/R_0\f]
  */
 struct IpolR: public aCylindricalFunctor<IpolR>
 {
     ///@copydoc Psip::Psip()
-    IpolR(  solovev::Parameters gp ): c12_(gp.c[11]), psipR_(gp) { }
+    IpolR(  solovev::Parameters gp ): c12_(gp.c[11]), R0_(gp.R_0), psipR_(gp) { }
     double do_compute(double R, double Z) const
     {
-        return c12_*psipR_(R,Z);
+        return c12_*psipR_(R,Z)/R0_;
     }
   private:
-    double c12_;
+    double c12_, R0_;
     PsipR psipR_;
 };
 /**
- * @brief \f[\hat I_Z\f]
+ * @brief \f[\partial_Z I = c_{12}\partial_Z\psi_p/R_0\f]
  */
 struct IpolZ: public aCylindricalFunctor<IpolZ>
 {
     ///@copydoc Psip::Psip()
-    IpolZ(  solovev::Parameters gp ): c12_(gp.c[11]), psipZ_(gp) { }
+    IpolZ(  solovev::Parameters gp ): c12_(gp.c[11]), R0_(gp.R_0), psipZ_(gp) { }
     double do_compute(double R, double Z) const
     {
-        return c12_*psipZ_(R,Z);
+        return c12_*psipZ_(R,Z)/R0_;
     }
   private:
-    double c12_;
+    double c12_, R0_;
     PsipZ psipZ_;
 };
 
