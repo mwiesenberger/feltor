@@ -62,6 +62,43 @@ const std::string geometry_params_taylor = R"asdf({
     "description" : "standardX"
 })asdf";
 
+TEST_CASE("Solovev description")
+{
+    // All parameters but "description"
+    const std::string params = R"asdf({
+        "A" : 0.0, "PP": 1, "PI": 1,
+        "c" :[ 1,2,3,4,5,6,7,8,9,10,11,12],
+        "R_0" : 10,
+        "inverseaspectratio" : 0.25,
+        "elongation" : 1,
+        "triangularity" : 0
+    })asdf";
+    const dg::file::error mode = GENERATE( dg::file::error::is_silent,
+            dg::file::error::is_warning, dg::file::error::is_throw);
+    dg::file::WrappedJsonValue js( dg::file::string2Json( params), mode);
+    SECTION( "Non-zero up-down asymmetric coefficients")
+    {
+        CHECK( dg::geo::solovev::Parameters(js).description == "standardX");
+    }
+    SECTION( "Up-down symmetric")
+    {
+        for( unsigned i=7; i<12; i++)
+            js.asJson()["c"][i] = 0;
+        CHECK( dg::geo::solovev::Parameters(js).description == "standardO");
+    }
+    SECTION( "Toroidal")
+    {
+        js.asJson()["PP"] = 0;
+        CHECK( dg::geo::solovev::Parameters(js).description == "none");
+    }
+    SECTION( "Given description is taken")
+    {
+        js.asJson()["PP"] = 0;
+        js.asJson()["description"] = "doubleX";
+        CHECK( dg::geo::solovev::Parameters(js).description == "doubleX");
+    }
+}
+
 TEST_CASE("Taylor")
 {
     dg::file::WrappedJsonValue js( dg::file::error::is_silent);

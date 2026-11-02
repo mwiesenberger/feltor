@@ -58,6 +58,10 @@ struct Parameters
      * @note the \c dg::geo::taylor field is chosen by setting "taylor" in the equilibrium field
      * @param js valid Json object (see code above to see the valid key : value pairs)
      * @note the default values in brackets are taken if the variables are not found in the input file
+     * @note If "description" is not found it is derived, independently of the
+     * error mode of \c js: "none" if \c isToroidal(), "standardO" if not
+     * \c hasXpoint() and "standardX" else. An up-down symmetric field with two
+     * X-points must therefore set "doubleX" explicitly.
      */
     Parameters( const dg::file::WrappedJsonValue& js) {
         A   = js.get("A", 0).asDouble();
@@ -71,17 +75,14 @@ struct Parameters
         a        = R_0* js.get( "inverseaspectratio", 0.).asDouble();
         elongation=     js.get( "elongation", 1.).asDouble();
         triangularity=  js.get( "triangularity", 0.).asDouble();
-        try{
-            description = js.get( "description", "standardX").asString();
-        } catch ( std::exception& err)
-        {
-            if( isToroidal())
-                description = "none";
-            else if( !hasXpoint())
-                description = "standardO";
-            else
-                description = "standardX";
-        }
+        if( js.isMember( "description"))
+            description = js["description"].asString();
+        else if( isToroidal())
+            description = "none";
+        else if( !hasXpoint())
+            description = "standardO";
+        else
+            description = "standardX";
     }
     /**
      * @brief Put values into a json string
