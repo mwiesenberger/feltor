@@ -436,7 +436,7 @@ struct SOLRegion
      * @param Z Cylindrical Z coordinate
      * @return true in SOL region, else false
      */
-    bool operator()( double R, double Z)
+    bool operator()( double R, double Z) const
     {
         return m_wall(R,Z) != 1 and not m_closed(R,Z);
     }

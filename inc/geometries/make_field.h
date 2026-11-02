@@ -1,3 +1,5 @@
+#pragma once
+
 #include "magnetic_field.h"
 #include "solovev.h"
 #include "guenter.h"

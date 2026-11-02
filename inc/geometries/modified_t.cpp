@@ -392,6 +392,20 @@ TEST_CASE( "Modified")
             CHECK(     open( 700,  360)); // SOL
         }
     }
+    SECTION( "SOL region")
+    {
+        dg::file::WrappedJsonValue js( dg::file::error::is_warning);
+        js.asJson() = dg::file::string2Json( geometry_params_Xpoint);
+        dg::geo::TokamakMagneticField mag = dg::geo::createMagneticField( js);
+        const dg::geo::mod::SOLRegion sol( mag, dg::geo::Constant(0));
+        CHECK( not sol( 550, 0)); // O-point
+        CHECK( not sol( 450, -400)); // above X-point
+        CHECK( sol( 350, -360)); // SOL
+        CHECK( sol( 426, -460)); // PFR
+        const dg::geo::mod::SOLRegion wall( mag, dg::geo::Constant(1));
+        CHECK( not wall( 350, -360));
+        CHECK( not wall( 550, 0));
+    }
     SECTION("ClosedFieldline region 2 X-point")
     {
         dg::file::WrappedJsonValue js( dg::file::error::is_warning);
