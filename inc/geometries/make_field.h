@@ -440,6 +440,12 @@ inline TokamakMagneticField createModifiedField(
             return TokamakMagneticField( gp.R_0,mod_psip,
                 solovev::createIpol( gp, mod_psip), mod_params);
         }
+        case equilibrium::taylor:
+        {
+            solovev::Parameters gp( gs);
+            return TokamakMagneticField( gp.R_0, mod_psip,
+                taylor::createIpol( gp, mod_psip), mod_params);
+        }
         default:
         {
             return TokamakMagneticField( mag.R0(), mod_psip,

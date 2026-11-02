@@ -245,8 +245,13 @@ struct PsipRZ: public aCylindricalFunctor<PsipRZ>
  */
 struct Ipol: public aCylindricalFunctor<Ipol>
 {
-    ///@copydoc Psip::Psip()
-    Ipol(  solovev::Parameters gp ): c12_(gp.c[11]), R0_(gp.R_0), psip_(gp) { }
+    /**
+     * @brief Construct from given geometric parameters
+     *
+     * @param gp geometric parameters (for R_0 and c)
+     * @param psip the flux function to use
+     */
+    Ipol(  solovev::Parameters gp, const std::function<double(double,double)>& psip ): c12_(gp.c[11]), R0_(gp.R_0), psip_(psip) { }
     double do_compute(double R, double Z) const
     {
         return c12_*psip_(R,Z)/R0_;
@@ -254,46 +259,56 @@ struct Ipol: public aCylindricalFunctor<Ipol>
     }
   private:
     double c12_, R0_;
-    Psip psip_;
+    std::function<double(double,double)> psip_;
 };
 /**
  * @brief \f[\partial_R I = c_{12}\partial_R\psi_p/R_0\f]
  */
 struct IpolR: public aCylindricalFunctor<IpolR>
 {
-    ///@copydoc Psip::Psip()
-    IpolR(  solovev::Parameters gp ): c12_(gp.c[11]), R0_(gp.R_0), psipR_(gp) { }
+    /**
+     * @brief Construct from given geometric parameters
+     *
+     * @param gp geometric parameters (for R_0 and c)
+     * @param psipR the R-derivative of the flux function to use
+     */
+    IpolR(  solovev::Parameters gp, const std::function<double(double,double)>& psipR ): c12_(gp.c[11]), R0_(gp.R_0), psipR_(psipR) { }
     double do_compute(double R, double Z) const
     {
         return c12_*psipR_(R,Z)/R0_;
     }
   private:
     double c12_, R0_;
-    PsipR psipR_;
+    std::function<double(double,double)> psipR_;
 };
 /**
  * @brief \f[\partial_Z I = c_{12}\partial_Z\psi_p/R_0\f]
  */
 struct IpolZ: public aCylindricalFunctor<IpolZ>
 {
-    ///@copydoc Psip::Psip()
-    IpolZ(  solovev::Parameters gp ): c12_(gp.c[11]), R0_(gp.R_0), psipZ_(gp) { }
+    /**
+     * @brief Construct from given geometric parameters
+     *
+     * @param gp geometric parameters (for R_0 and c)
+     * @param psipZ the Z-derivative of the flux function to use
+     */
+    IpolZ(  solovev::Parameters gp, const std::function<double(double,double)>& psipZ ): c12_(gp.c[11]), R0_(gp.R_0), psipZ_(psipZ) { }
     double do_compute(double R, double Z) const
     {
         return c12_*psipZ_(R,Z)/R0_;
     }
   private:
     double c12_, R0_;
-    PsipZ psipZ_;
+    std::function<double(double,double)> psipZ_;
 };
 
 inline CylindricalFunctorsLvl2 createPsip( solovev::Parameters gp)
 {
     return CylindricalFunctorsLvl2( Psip(gp), PsipR(gp), PsipZ(gp),PsipRR(gp), PsipRZ(gp), PsipZZ(gp));
 }
-inline CylindricalFunctorsLvl1 createIpol( solovev::Parameters gp)
+inline CylindricalFunctorsLvl1 createIpol( solovev::Parameters gp, const CylindricalFunctorsLvl1& psip)
 {
-    return CylindricalFunctorsLvl1( Ipol(gp), IpolR(gp), IpolZ(gp));
+    return CylindricalFunctorsLvl1( Ipol(gp, psip.f()), IpolR(gp, psip.dfx()), IpolZ(gp, psip.dfy()));
 }
 
 ///@}
@@ -311,7 +326,8 @@ inline dg::geo::TokamakMagneticField createTaylorField( dg::geo::solovev::Parame
 {
     MagneticFieldParameters params = { gp.a, gp.elongation, gp.triangularity,
             equilibrium::taylor, modifier::none, str2description.at( gp.description)};
-    return TokamakMagneticField( gp.R_0, dg::geo::taylor::createPsip(gp), dg::geo::taylor::createIpol(gp), params);
+    auto psip = taylor::createPsip(gp);
+    return TokamakMagneticField( gp.R_0, psip, taylor::createIpol(gp, psip), params);
 }
 } //namespace geo
 

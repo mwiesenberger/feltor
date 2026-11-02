@@ -122,8 +122,8 @@ static dg::file::WrappedJsonValue solovev_params( const std::string& params, dou
     return js;
 }
 
-// The wall must be 1 where the modified flux function is constant and 0 where
-// it is not modified
+// The wall must be 1 where the modified flux function and the current are
+// constant and 0 where they are not modified
 static void check_wall( const dg::file::WrappedJsonValue& js,
     const std::string& modifier, double R0, double R1, double Z0, double Z1)
 {
@@ -139,19 +139,29 @@ static void check_wall( const dg::file::WrappedJsonValue& js,
     const dg::HVec modZ = dg::evaluate( mod.psipZ(), grid);
     const dg::HVec magR = dg::evaluate( mag.psipR(), grid);
     const dg::HVec magZ = dg::evaluate( mag.psipZ(), grid);
+    const dg::HVec modIR = dg::evaluate( mod.ipolR(), grid);
+    const dg::HVec modIZ = dg::evaluate( mod.ipolZ(), grid);
+    const dg::HVec magIR = dg::evaluate( mag.ipolR(), grid);
+    const dg::HVec magIZ = dg::evaluate( mag.ipolZ(), grid);
+    // At the edge of the transition the wall rounds to exactly 1 or 0 before the
+    // derivatives do
+    const double eps = 1e-14;
     unsigned in_wall = 0, outside = 0, in_wall_wrong = 0, outside_wrong = 0;
     for( unsigned i=0; i<chi.size(); i++)
     {
         if( chi[i] == 1)
         {
             in_wall++;
-            if( modR[i] != 0 || modZ[i] != 0)
+            if( fabs( modR[i]) > eps || fabs( modZ[i]) > eps
+                    || fabs( modIR[i]) > eps || fabs( modIZ[i]) > eps)
                 in_wall_wrong++;
         }
         else if( chi[i] == 0)
         {
             outside++;
-            if( modR[i] != magR[i] || modZ[i] != magZ[i])
+            if( fabs( modR[i] - magR[i]) > eps || fabs( modZ[i] - magZ[i]) > eps
+                    || fabs( modIR[i] - magIR[i]) > eps
+                    || fabs( modIZ[i] - magIZ[i]) > eps)
                 outside_wrong++;
         }
     }
@@ -213,9 +223,13 @@ TEST_CASE( "Wall region of modified field")
     INFO( "PP "<<PP);
     const auto Xpoint  = solovev_params( geometry_params_Xpoint, PP);
     const auto Xpoint2 = solovev_params( geometry_params_2Xpoint, PP);
+    const dg::file::WrappedJsonValue taylor( dg::file::string2Json(
+            geometry_params_taylor), dg::file::error::is_silent);
     SECTION( "heaviside")
     {
         check_wall( Xpoint, R"({"type":"heaviside","boundary":1.1,"alpha":0.2})",
+                300, 800, -500, 500);
+        check_wall( taylor, R"({"type":"heaviside","boundary":1.1,"alpha":0.2})",
                 300, 800, -500, 500);
         check_wall( circular, R"({"type":"heaviside","boundary":0.8,"alpha":0.1})",
                 2, 4, -1, 1);
@@ -225,6 +239,7 @@ TEST_CASE( "Wall region of modified field")
         const std::string mod = R"({"type":"sol_pfr","boundary":[1.1,0.97],"alpha":[0.1,0.1]})";
         check_wall( Xpoint, mod, 300, 800, -500, 500);
         check_wall( Xpoint2, mod, 300, 800, -500, 500);
+        check_wall( taylor, mod, 300, 800, -500, 500);
     }
     SECTION( "sol_pfr without X-point")
     {
