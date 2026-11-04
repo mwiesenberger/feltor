@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "dg/algorithm.h"
+#include "hector.h"
 #include "ribeiro.h"
 #include "catch2/catch_all.hpp"
 
@@ -69,4 +70,30 @@ TEST_CASE( "Ribeiro")
     CHECK_THAT( generator.height(), Catch::Matchers::WithinRel( 2.*M_PI, 1e-14));
     check_metric( generator, 0.3*generator.width(), 1.1);
     check_boundaries( generator, psi, psi_0, psi_1);
+}
+
+TEST_CASE( "Hector")
+{
+    const double sign = GENERATE( +1., -1.);
+    const bool outward = GENERATE( true, false);
+    INFO( "sign "<<sign<<" outward "<<outward);
+    const auto psi = circular_psi( sign);
+    const double psi_0 = sign*(outward ? 0.75 : 0.25);
+    const double psi_1 = sign*(outward ? 0.25 : 0.75);
+    const dg::geo::Hector<> generator( psi, psi_0, psi_1, 10.1, 0., 7, 2, 10, 1e-8);
+    SECTION( "The conformal map of a ring has the width log(r_1/r_0)")
+    {
+        const dg::geo::aGenerator2d& base = generator;
+        CHECK( generator.isConformal());
+        CHECK( base.isOrthogonal());
+        CHECK_THAT( base.width(), Catch::Matchers::WithinRel( log(3.)/2., 1e-6));
+        check_metric( base, 0.3*base.width(), 1.1);
+        check_boundaries( base, psi, psi_0, psi_1);
+        thrust::host_vector<double> zeta1d{ 0.3*base.width()}, eta1d{ 1.1};
+        thrust::host_vector<double> x, y, zetaX, zetaY, etaX, etaY;
+        base.generate( zeta1d, eta1d, x, y, zetaX, zetaY, etaX, etaY);
+        // Cauchy-Riemann
+        CHECK_THAT( zetaX[0]*zetaX[0], Catch::Matchers::WithinRel( etaY[0]*etaY[0], 1e-6));
+        CHECK_THAT( zetaY[0]*zetaY[0], Catch::Matchers::WithinRel( etaX[0]*etaX[0], 1e-6));
+    }
 }

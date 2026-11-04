@@ -176,7 +176,7 @@ void construct_grid(
         dg::blas1::axpby( 1., eta, -1., eta_old, eta_diff);
         dg::blas1::pointwiseDot( zeta_diff, zeta_diff, zeta_diff);
         dg::blas1::pointwiseDot( 1., eta_diff, eta_diff, 1., zeta_diff);
-        eps = sqrt( dg::blas1::dot( zeta_diff, zeta_diff)/sizeU/sizeV);
+        eps = sqrt( dg::blas1::dot( zeta_diff, 1.)/sizeU/sizeV);
         //std::cout << "Effective Absolute diff error is "<<eps<<" with "<<N<<" steps\n";
         N*=2;
     }
@@ -385,7 +385,7 @@ struct Hector : public aGenerator2d
         if(verbose) std::cout <<" iter "<<number<<" error "<<eps<<"\n";
         while( (eps < eps_old||eps > 1e-7) && eps > eps_u)
         {
-            eps = eps_old;
+            eps_old = eps;
             m_g2d.multiplyCellNumbers(2,2);
             if(verbose) std::cout << "Nx "<<m_g2d.Nx()<<" Ny "<<m_g2d.Ny()<<std::flush;
             dg::Elliptic2d<dg::geo::CurvilinearGrid2d, Matrix, container> ellipticD( m_g2d, dg::DIR, dg::PER, dg::centered);
@@ -429,7 +429,7 @@ struct Hector : public aGenerator2d
         unsigned number = invert_old.solve( ellipticD_old, u_old, lapu, ellipticD_old.precond(), ellipticD_old.weights(), eps_u);
         while( (eps < eps_old||eps > 1e-7) && eps > eps_u)
         {
-            eps = eps_old;
+            eps_old = eps;
             m_g2d.multiplyCellNumbers(2,2);
             if(verbose) std::cout << "Nx "<<m_g2d.Nx()<<" Ny "<<m_g2d.Ny()<<std::flush;
             dg::Elliptic2d<dg::geo::CurvilinearGrid2d, Matrix, container> ellipticD( m_g2d, dg::DIR, dg::PER, dg::centered);
