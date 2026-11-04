@@ -81,12 +81,12 @@ struct FluxSurfaceIntegral
     const container m_w2d;
 };
 
-//This method for computing volumes is tested against flux-aligned grids in e.g. flux_t.cu
 /**
  * @brief Flux volume integral of the form
- \f$ \int dR dZ f(R,Z) \Theta(\psi_p(R,Z)-\psi_0) g(R,Z) \f$
+ \f$ \int dR dZ f(R,Z) \Theta(\psi_0-\psi_p(R,Z)) g(R,Z) \f$
 
- where \c Theta is the Heaviside function
+ where \c Theta is the Heaviside function, i.e. the integral goes over the
+ region with \f$ \psi_p \leq \psi_0\f$
  * @ingroup misc_geo
  */
 template<class container>
@@ -126,7 +126,7 @@ struct FluxVolumeIntegral
      * @brief Calculate the Flux Volume Integral
      *
      * @param psip0 the actual psi value of the flux surface
-     * @return Int_0^psip0 (f,g)
+     * @return the integral of f*g over the region with psip <= psip0
      */
     double operator()(double psip0)
     {
@@ -136,7 +136,6 @@ struct FluxVolumeIntegral
         return dg::blas1::dot( m_heavi, m_w2d);
     }
     private:
-    double m_eps;
     container m_f, m_g, m_heavi, m_psi;
     const container m_w2d;
 };
@@ -159,7 +158,7 @@ struct FluxSurfaceAverage
      * @param mag contains psip, psipR and psipZ
      * @param f the function to take the average over (until \c set_container() is called)
      * @param weights Weight function \c H (can be used to cut away parts of the domain e.g. below the X-point and/or contain a volume form without dg weights)
-     * @param width_factor can be used to tune the width of the numerical delta function (\c width = \c h*GradPsi*width_factor)
+     * @param width_factor can be used to tune the width of the numerical delta function (\c width = \c 0.5*h*GradPsi*width_factor)
      */
     FluxSurfaceAverage( const dg::Grid2d& g2d, const TokamakMagneticField& mag, const container& f, container weights, double width_factor = 1.) :
     m_avg( g2d,mag, width_factor), m_area( g2d, mag, width_factor)
@@ -171,7 +170,7 @@ struct FluxSurfaceAverage
         m_area.set_right( weights);
     }
 
-    double get_deltapsi() const{return m_avg.get_deltapsi;}
+    double get_deltapsi() const{return m_avg.get_deltapsi();}
 
     /**
      * @brief Reset the function to average
@@ -214,7 +213,7 @@ struct SafetyFactorAverage
      * @brief Construct from a field and a grid
      * @param g2d 2d grid
      * @param mag contains psip, psipR and psipZ and Ipol
-     * @param width_factor can be used to tune the width of the numerical delta function (\c width = \c h*GradPsi*width_factor)
+     * @param width_factor can be used to tune the width of the numerical delta function (\c width = \c 0.5*h*GradPsi*width_factor)
      */
     SafetyFactorAverage(const dg::Grid2d& g2d, const TokamakMagneticField& mag, double width_factor = 1.) :
         m_fsi( g2d, mag, width_factor)

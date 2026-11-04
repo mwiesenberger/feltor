@@ -15,6 +15,7 @@ CATCHMPI=../../tests/catch-tests-mpi
 CPPFILES=$(wildcard *.cpp)
 
 TARGETS=adaption_t\
+average_t\
 modified_t\
 magnetic_field_t\
 solovev_t\
