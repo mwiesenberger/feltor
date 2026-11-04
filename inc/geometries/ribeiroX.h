@@ -127,7 +127,6 @@ struct FpsiX
 
             eps = fabs((x0 - x0_old)/x0);
             if( std::isnan(eps)) { std::cerr << "Attention!!\n"; eps = eps_old -1e-15; x0 = x0_old;} //near X-point integration can go wrong
-            std::cout << "X = "<<-x0<<" rel. error "<<eps<<" with "<<P<<" polynomials\n";
         }
         return -x0_old;
 
@@ -247,7 +246,6 @@ struct XFieldFinv
  *
  * @attention algorithm might be flawed since f(psi) might make a jump at separatrix
  * @ingroup generators_geo
- * @tparam Psi All the template parameters must model aBinaryOperator i.e. the bracket operator() must be callable with two arguments and return a double.
  */
 struct RibeiroX : public aGeneratorX2d
 {

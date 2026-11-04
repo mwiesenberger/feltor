@@ -30,11 +30,11 @@ struct RealCurvilinearProductGridX3d : public dg::aRealGeometryX3d<real_type>
      * @param Ny number of cells in y
      * @param Nz  number of cells z
      * @param bcx boundary condition in x
-     * @param bcy boundary condition in y
+     * @param bcy boundary condition in y (may not be periodic)
      * @param bcz boundary condition in z
      */
     RealCurvilinearProductGridX3d( const aRealGeneratorX2d<real_type>& generator,
-        real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny, unsigned Nz, bc bcx=dg::DIR, bc bcy=dg::PER, bc bcz=dg::PER):
+        real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny, unsigned Nz, bc bcx=dg::DIR, bc bcy=dg::NEU, bc bcz=dg::PER):
         dg::aRealGeometryX3d<real_type>( generator.zeta0(fx), generator.zeta1(fx), generator.eta0(fy), generator.eta1(fy), 0., 2.*M_PI, fx,fy,n, Nx, Ny, Nz, bcx, bcy, bcz)
     {
         map_.resize(3);
@@ -100,16 +100,16 @@ struct RealCurvilinearGridX2d : public dg::aRealGeometryX2d<real_type>
 {
     /*!@brief Constructor
 
-     * @param generator must generate an orthogonal grid
+     * @param generator must generate a grid
      * @param fx a rational number indicating partition of the x - direction
      * @param fy a rational number indicating partition of the y - direction
      * @param n number of polynomial coefficients
      * @param Nx number of cells in first coordinate
      * @param Ny number of cells in second coordinate
      * @param bcx boundary condition in first coordinate
-     * @param bcy boundary condition in second coordinate
+     * @param bcy boundary condition in second coordinate (may not be periodic)
      */
-    RealCurvilinearGridX2d( const aRealGeneratorX2d<real_type>& generator, real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny, dg::bc bcx=dg::DIR, bc bcy=dg::PER):
+    RealCurvilinearGridX2d( const aRealGeneratorX2d<real_type>& generator, real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny, dg::bc bcx=dg::DIR, bc bcy=dg::NEU):
         dg::aRealGeometryX2d<real_type>( generator.zeta0(fx), generator.zeta1(fx), generator.eta0(fy), generator.eta1(fy),fx,fy, n, Nx, Ny, bcx, bcy), handle_(generator)
     {
         construct(fx,fy, n,Nx,Ny);
@@ -120,7 +120,7 @@ struct RealCurvilinearGridX2d : public dg::aRealGeometryX2d<real_type>
     private:
     void construct( real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny)
     {
-        RealCurvilinearProductGridX3d<real_type> g( *handle_,fx,fy,n,Nx,Ny,1,this->bcx());
+        RealCurvilinearProductGridX3d<real_type> g( *handle_,fx,fy,n,Nx,Ny,1,this->bcx(), this->bcy());
         map_=g.map();
         jac_=g.jacobian();
         metric_=g.metric();

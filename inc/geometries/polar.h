@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include "generator.h"
 
 namespace dg {

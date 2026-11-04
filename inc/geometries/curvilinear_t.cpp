@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "dg/algorithm.h"
+#include "curvilinearX.h"
 #include "flux.h"
 #include "hector.h"
 #include "ribeiro.h"
@@ -185,4 +186,25 @@ TEST_CASE( "SeparatrixOrthogonalAdaptor")
         CHECK_THROWS_AS( generator.generate( three, eta1d, x, y, zetaX, zetaY, etaX, etaY),
                 dg::Error);
     }
+}
+
+TEST_CASE( "X-point grids with default boundary conditions")
+{
+    dg::file::WrappedJsonValue js( dg::file::string2Json( geometry_params_Xpoint),
+            dg::file::error::is_silent);
+    const dg::geo::solovev::Parameters gp( js);
+    const dg::geo::TokamakMagneticField mag = dg::geo::createSolovevField( gp);
+    const auto psi = mag.get_psip();
+    double R_X = gp.R_0-1.1*gp.triangularity*gp.a, Z_X = -1.1*gp.elongation*gp.a;
+    double R_O = gp.R_0, Z_O = 0.;
+    dg::geo::findOpoint( psi, R_O, Z_O);
+    const auto chi = dg::geo::make_Xconst_monitor( psi, R_X, Z_X);
+    const dg::geo::SeparatrixOrthogonal generator( psi, chi, 0.3*psi.f()( R_O, Z_O),
+            R_X, Z_X, R_O, Z_O, 1);
+    const dg::geo::CurvilinearGridX2d grid2d( generator, 0.25, 1./22., 3, 4, 22);
+    CHECK( grid2d.bcx() == dg::DIR);
+    CHECK( grid2d.bcy() == dg::NEU);
+    const dg::geo::CurvilinearProductGridX3d grid3d( generator, 0.25, 1./22., 3, 4, 22, 2);
+    CHECK( grid3d.bcy() == dg::NEU);
+    CHECK( grid3d.bcz() == dg::PER);
 }

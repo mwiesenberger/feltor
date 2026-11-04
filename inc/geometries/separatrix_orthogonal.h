@@ -183,8 +183,7 @@ struct SimpleOrthogonalX : public aGeneratorX2d
  * This is the algorithm described in:
  * "M. Wiesenberger, M. Held, L. Einkemmer, A. Kendl Streamline integration as a method for structured grid generation in X-point geometry Journal of Computational Physics 373, 370-384 (2018)"
  * @note The resulting coordinate transformation for \f$ \zeta\f$ will by linear in \f$ \psi\f$
- * @attention Assumes that the separatrix is given by \f$ \psi = 0\f$. If this
- * is not the case, then use the \c normalize_solovev_t program to change the parameters.
+ * @attention Assumes that the separatrix is given by \f$ \psi = 0\f$.
  * Further, it is assumed that closed flux surfaces inside of the separatrix exist.
  * @ingroup generators_geo
  */

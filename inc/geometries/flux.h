@@ -158,7 +158,9 @@ struct Fpsi
  * i.e. is obtained from a magnetic field where the \f$ B^\varphi\f$ component is scaled
  * by the safety factor \f$ q(\psi_p)\f$, which can here be understood as the normalisation constant
  * that makes the poloidal \f$ \eta\f$ coordinate go from 0 to \f$2\pi\f$.
- * Symmetry flux coordinates fulfill the condition \f$\sqrt{g} = \frac{R}{I}\f$.
+ * Symmetry flux coordinates fulfill the condition that the Jacobian
+ * determinant of the map \f$ (\zeta,\eta) \to (R,Z)\f$ is
+ * \f$ \frac{q R}{I f_0}\f$ up to a sign.
  *
  * When an "equalarc" adaption is chosen then the integration is changed to
  * \f{align}{

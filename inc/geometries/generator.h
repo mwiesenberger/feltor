@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thrust/host_vector.h>
+
 namespace dg
 {
 namespace geo

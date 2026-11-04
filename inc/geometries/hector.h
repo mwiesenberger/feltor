@@ -119,8 +119,6 @@ void compute_zev(
             odeint.integrate_steps( v_vec[i-1], temp, v_vec[i], end, steps);
             eta[i] = end[1];
         }
-        temp = end;
-        odeint.integrate_steps( v_vec[v_vec.size()-1], begin, 2.*M_PI, end, steps);
         dg::blas1::axpby( 1., eta, -1., eta_old, eta_diff);
         eps =  dg::fast_l2norm( eta_diff)/dg::fast_l2norm( eta);
         //std::cout << "rel. error is "<<eps<<" with "<<steps<<" steps\n";
