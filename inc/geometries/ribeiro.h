@@ -166,7 +166,8 @@ struct Fpsi
     bool m_verbose;
 };
 
-//This struct computes -2pi/f with a fixed number of steps for all psi
+//This struct computes 1/|f| with a fixed number of steps for all psi
+//(f has the sign of the radial derivative of psi)
 struct FieldFinv
 {
     FieldFinv( const CylindricalFunctorsLvl1& psi, double x0, double y0, unsigned N_steps, int mode):
@@ -184,7 +185,7 @@ struct FieldFinv
             odeint.construct( dg::RungeKutta<Vec>( "Feagin-17-8-10",
                     begin), fieldRZYTequalarc_);
         odeint.integrate_steps(  0., begin, 2*M_PI, end, N_steps);
-        fpsiM = end[2]/2./M_PI;
+        fpsiM = fabs(end[2])/2./M_PI;
         //std::cout <<"fpsiMinverse is "<<fpsiM[0]<<" "<<-1./fpsi_(psi[0])<<" "<<eps<<"\n";
     }
     private:
@@ -201,7 +202,9 @@ struct FieldFinv
 /**
  * @brief A two-dimensional grid based on "almost-conformal" coordinates by %Ribeiro and Scott 2010
  *
- * The radial coordinate is given by \f$ \zeta = -\int_{\psi_0}^{\psi} f(\psi') d\psi'\f$
+ * The radial coordinate is given by \f$ \zeta = \left|\int_{\psi_0}^{\psi} f(\psi') d\psi'\right|\f$
+ * i.e. it grows from 0 at \f$\psi_0\f$ to its maximum at \f$\psi_1\f$ for both
+ * \f$\psi_1 > \psi_0\f$ and \f$\psi_1 < \psi_0\f$
  *
  * The poloidal coordinate lines are given by
  * \f{align}{
@@ -285,11 +288,13 @@ struct Ribeiro : public aGenerator2d
             double R0, Z0;
             if(mode_==0)dg::geo::detail::compute_rzy( fpsi, fieldRZYRYZYribeiro, psi_x[i], eta1d, ry, zy, yr, yz, xr, xz, R0, Z0, fx_[i], f_p[i], m_verbose);
             if(mode_==1)dg::geo::detail::compute_rzy( fpsi, fieldRZYRYZYequalarc, psi_x[i], eta1d, ry, zy, yr, yz, xr, xz, R0, Z0, fx_[i], f_p[i], m_verbose);
+            // xr, xz is f grad psi, while zeta grows from psi_0 to psi_1
+            const double sign = (psi1_-psi0_)*fx_[i] > 0 ? +1. : -1.;
             for( unsigned j=0; j<Ny; j++)
             {
                 x[j*Nx+i]  = ry[j], y[j*Nx+i]  = zy[j];
                 etaX[j*Nx+i] = yr[j], etaY[j*Nx+i] = yz[j];
-                zetaX[j*Nx+i] = xr[j], zetaY[j*Nx+i] = xz[j];
+                zetaX[j*Nx+i] = sign*xr[j], zetaY[j*Nx+i] = sign*xz[j];
             }
         }
     }

@@ -47,6 +47,7 @@ set(GEOMETRIES_HEADERS
 set(GEOMETRIES_TESTS
   ../../geometries/adaption_t.cpp
   ../../geometries/average_t.cpp
+  ../../geometries/curvilinear_t.cpp
   ../../geometries/ds_t.cpp
   ../../geometries/ds_guenter_t.cpp
   ../../geometries/fieldaligned_t.cpp

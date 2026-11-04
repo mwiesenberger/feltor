@@ -16,6 +16,7 @@ CPPFILES=$(wildcard *.cpp)
 
 TARGETS=adaption_t\
 average_t\
+curvilinear_t\
 modified_t\
 magnetic_field_t\
 solovev_t\
