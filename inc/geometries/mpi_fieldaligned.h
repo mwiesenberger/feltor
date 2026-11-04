@@ -805,7 +805,7 @@ MPI_Vector<container> Fieldaligned<G,M, MPI_Vector<container> >::evaluate( Binar
             dg::blas1::axpby( 1., plus2d[i0], 0., result[i0]);
             dg::blas1::axpby( 1., minus2d[revi0], 1., result[i0]);
         }
-        dg::blas1::axpby( -1., init2d, 1., result[0]);
+        dg::blas1::axpby( -unary(0.), init2d, 1., result[0]);
         for(unsigned i0=0; i0<m_Nz; i0++)
         {
             int idx = ((int)i0 + m_coords2*m_Nz -(int)p0 + globalNz)%globalNz; //shift index
@@ -917,7 +917,7 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
             dg::blas1::axpby( 1., plus2d[i0], 0., result[i0]);
             dg::blas1::axpby( 1., minus2d[revi0], 1., result[i0]);
         }
-        dg::blas1::axpby( -1., init2d, 1., result[0]);
+        dg::blas1::axpby( -unary(0.), init2d, 1., result[0]);
         for( unsigned i0=0; i0<grid.local().Nz(); i0++)
         {
             int idx = ((int)i0 +coords2*grid.local().Nz()-(int)p0 + Nz)%Nz;

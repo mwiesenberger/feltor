@@ -108,6 +108,61 @@ TEST_CASE( "Fieldaligned boundary in z")
     }
 }
 
+TEST_CASE( "Fieldaligned evaluate")
+{
+    // In a toroidal field the plus and minus transformations just shift planes
+    // so all that remains is the modulation
+#ifdef WITH_MPI
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {1,1,0}, {false,false,true});
+#endif
+    const unsigned Nz = 4;
+    const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
+        3, 8, 8, Nz, dg::NEU, dg::NEU, dg::PER
+#ifdef WITH_MPI
+    , comm
+#endif
+    );
+    const dg::geo::TokamakMagneticField mag = dg::geo::createToroidalField( R_0);
+    auto bhat = dg::geo::createBHat(mag);
+    dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
+        fa( bhat, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 1, 1, -1, "dg", false);
+    const double hz = g3d.hz();
+    const unsigned p0 = 1;
+    auto binary = [=]( double R, double Z){ return exp(R-R_0)*(1+Z*Z);};
+    // The value at 0 is not 1
+    auto unary = [=]( double phi){ return 2.*exp( -phi*phi);};
+    const dg::x::DVec vol = dg::create::volume( g3d);
+    auto error = [&]( const dg::x::DVec& value, const dg::x::DVec& expected){
+        dg::x::DVec diff( value);
+        dg::blas1::axpby( 1., expected, -1., diff);
+        return sqrt( dg::blas2::dot( diff, vol, diff));
+    };
+    SECTION( "One round")
+    {
+        const dg::x::DVec expected = dg::evaluate( [=]( double R, double Z, double phi){
+            int idx = ((int)floor(phi/hz) - (int)p0 + Nz)%Nz;
+            if( idx == 0)
+                return binary(R,Z)*unary(0);
+            return binary(R,Z)*( unary( idx*hz) + unary( -(int)(Nz-idx)*hz));
+        }, g3d);
+        CHECK( error( fa.evaluate( binary, unary, p0, 1), expected) < 1e-12);
+        const dg::x::DVec free = dg::construct<dg::x::DVec>(
+            dg::geo::fieldaligned_evaluate( g3d, bhat, binary, unary, p0, 1));
+        CHECK( error( free, expected) < 1e-12);
+    }
+    SECTION( "No rounds")
+    {
+        const dg::x::DVec expected = dg::evaluate( [=]( double R, double Z, double phi){
+            int idx = (int)floor(phi/hz) - (int)p0;
+            return binary(R,Z)*unary( idx*hz);
+        }, g3d);
+        CHECK( error( fa.evaluate( binary, unary, p0, 0), expected) < 1e-12);
+        const dg::x::DVec free = dg::construct<dg::x::DVec>(
+            dg::geo::fieldaligned_evaluate( g3d, bhat, binary, unary, p0, 0));
+        CHECK( error( free, expected) < 1e-12);
+    }
+}
+
 #ifndef WITH_MPI // these functions do not exist in the MPI version
 TEST_CASE( "Fieldaligned coarse grid functions")
 {

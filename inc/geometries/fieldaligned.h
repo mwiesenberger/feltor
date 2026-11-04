@@ -1244,7 +1244,7 @@ container Fieldaligned<G, I,container>::evaluate( BinaryOp binary,
             dg::blas1::axpby( 1., plus2d[i0], 0., result[i0]);
             dg::blas1::axpby( 1., minus2d[revi0], 1., result[i0]);
         }
-        dg::blas1::axpby( -1., init2d, 1., result[0]);
+        dg::blas1::axpby( -unary(0.), init2d, 1., result[0]);
         for(unsigned i0=0; i0<m_Nz; i0++)
         {
             int idx = ((int)i0 -(int)p0 + m_Nz)%m_Nz; //shift index
@@ -1380,7 +1380,7 @@ thrust::host_vector<double> fieldaligned_evaluate(
             dg::blas1::axpby( 1., plus2d[i0], 0., result[i0]);
             dg::blas1::axpby( 1., minus2d[revi0], 1., result[i0]);
         }
-        dg::blas1::axpby( -1., init2d, 1., result[0]);
+        dg::blas1::axpby( -unary(0.), init2d, 1., result[0]);
         for(unsigned i0=0; i0<Nz; i0++)
         {
             int idx = ((int)i0 -(int)p0 + Nz)%Nz; //shift index
