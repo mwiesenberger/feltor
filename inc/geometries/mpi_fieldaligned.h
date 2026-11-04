@@ -788,7 +788,7 @@ MPI_Vector<container> Fieldaligned<G,M, MPI_Vector<container> >::evaluate( Binar
     {
         for( unsigned i0=0; i0<m_Nz; i0++)
         {
-            int idx = (int)(i0+m_coords2*m_Nz)  - (int)p0;
+            int idx = (int)(i0+m_g->start()[0]) - (int)p0; // start is in C-order
             if(idx>=0)
                 result[i0] = plus2d[idx];
             else
@@ -808,7 +808,7 @@ MPI_Vector<container> Fieldaligned<G,M, MPI_Vector<container> >::evaluate( Binar
         dg::blas1::axpby( -unary(0.), init2d, 1., result[0]);
         for(unsigned i0=0; i0<m_Nz; i0++)
         {
-            int idx = ((int)i0 + m_coords2*m_Nz -(int)p0 + globalNz)%globalNz; //shift index
+            int idx = ((int)(i0 + m_g->start()[0]) -(int)p0 + (int)globalNz)%globalNz; //shift index
             thrust::copy( result[idx].data().begin(), result[idx].data().end(),
                     vec3d.data().begin() + i0*m_perp_size);
         }
@@ -893,14 +893,12 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
             dg::blas1::axpby( 1., tempP, 1., plus2d[i0]);
         }
     //now we have the plus and the minus filaments
-    int dims[3], periods[3], coords[3];
-    mpi_cart_get( grid.communicator(), 3, dims, periods, coords);
-    unsigned coords2 = coords[2];
+    const unsigned start2 = grid.start()[0]; // global index of first local plane (C-order)
     if( rounds == 0) //there is a limiter
     {
         for( unsigned i0=0; i0<grid.local().Nz(); i0++)
         {
-            int idx = (int)(i0+coords2*grid.local().Nz()) - (int)p0;
+            int idx = (int)(i0+start2) - (int)p0;
             if(idx>=0)
                 result[i0] = plus2d[idx];
             else
@@ -920,7 +918,7 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
         dg::blas1::axpby( -unary(0.), init2d, 1., result[0]);
         for( unsigned i0=0; i0<grid.local().Nz(); i0++)
         {
-            int idx = ((int)i0 +coords2*grid.local().Nz()-(int)p0 + Nz)%Nz;
+            int idx = ((int)(i0+start2)-(int)p0 + (int)Nz)%Nz;
             //shift index
             thrust::copy( result[idx].data().begin(), result[idx].data().end(),
                     vec3d.data().begin() + i0*g2d->local().size());

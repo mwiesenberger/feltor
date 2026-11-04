@@ -118,7 +118,9 @@ TEST_CASE( "Fieldaligned evaluate")
 #ifdef WITH_MPI
     MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {1,1,0}, {false,false,true});
 #endif
-    const unsigned Nz = 4;
+    // With MPI the number of planes is not necessarily divisible by the number of ranks
+    const unsigned Nz = GENERATE( 4u, 5u, 7u);
+    INFO( "Nz "<<Nz);
     const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
         3, 8, 8, Nz, dg::NEU, dg::NEU, dg::PER
 #ifdef WITH_MPI
