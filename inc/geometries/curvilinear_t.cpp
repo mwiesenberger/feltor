@@ -454,8 +454,7 @@ TEST_CASE( "SeparatrixOrthogonal")
             CHECK_THAT( etaX[4],  Catch::Matchers::WithinRel( -yZeta/det, eps));
             CHECK_THAT( etaY[4],  Catch::Matchers::WithinRel( +xZeta/det, eps));
             // zeta is linear in psi and zero on the separatrix
-            const double eps_psi = mode == 0 ? 2e-3 : 1e-6;
-            CHECK_THAT( psi.f()(x[4],y[4]), Catch::Matchers::WithinAbs( psi_0*zeta/zeta0, eps_psi));
+            CHECK_THAT( psi.f()(x[4],y[4]), Catch::Matchers::WithinAbs( psi_0*zeta/zeta0, 1e-6));
         }
     }
     SECTION( "Refined grid covers the same area")

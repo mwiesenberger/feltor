@@ -445,6 +445,8 @@ struct SeparatriX
             thrust::host_vector<double>& z ) const
     {
         ///////////////////////////find y coordinate line//////////////
+        // The segments from the points close to the X-point need many steps but
+        // must also be part of the refinement
         std::array<double, 2> begin{ {0,0} }, end(begin), temp(begin);
         thrust::host_vector<double> r_old(y_vec.size(), 0), r_diff( r_old);
         thrust::host_vector<double> z_old(y_vec.size(), 0), z_diff( z_old);
@@ -466,7 +468,7 @@ struct SeparatriX
             {
                 begin[0] = R_i[3], begin[1] = Z_i[3];
                 odeint.integrate_steps( -y_i[3], begin, y_vec[nodeX0-1], end,
-                        N_steps_);
+                        N_steps_*steps);
                 r[nodeX0-1] = end[0], z[nodeX0-1] = end[1];
             }
             for( int i=nodeX0-2; i>=0; i--)
@@ -477,7 +479,7 @@ struct SeparatriX
             }
             ////////////////middle region///////////////////////////
             begin[0] = R_i[0], begin[1] = Z_i[0];
-            odeint.integrate_steps( y_i[0], begin, y_vec[nodeX0], end, N_steps_);
+            odeint.integrate_steps( y_i[0], begin, y_vec[nodeX0], end, N_steps_*steps);
             r[nodeX0] = end[0], z[nodeX0] = end[1];
             for( unsigned i=nodeX0+1; i<nodeX1; i++)
             {
@@ -487,7 +489,7 @@ struct SeparatriX
             }
             temp = end;
             odeint.integrate_steps( y_vec[nodeX1-1], temp, 2.*M_PI-y_i[1], end,
-                    N_steps_);
+                    N_steps_*steps);
             //eps = sqrt( (end[0]-R_i[1])*(end[0]-R_i[1]) +
             //        (end[1]-Z_i[1])*(end[1]-Z_i[1]));
             //std::cout << "abs. error is "<<eps<<" with "<<steps<<" steps\n";
@@ -497,7 +499,7 @@ struct SeparatriX
             {
                 begin[0] = R_i[2], begin[1] = Z_i[2];
                 odeint.integrate_steps( 2.*M_PI+y_i[2], begin, y_vec[nodeX1],
-                        end, N_steps_);
+                        end, N_steps_*steps);
                 r[nodeX1] = end[0], z[nodeX1] = end[1];
             }
             for( unsigned i=nodeX1+1; i<y_vec.size(); i++)
