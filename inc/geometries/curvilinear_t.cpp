@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "dg/algorithm.h"
+#include "flux.h"
 #include "hector.h"
 #include "ribeiro.h"
 #include "separatrix_orthogonal.h"
@@ -97,6 +98,29 @@ TEST_CASE( "Hector")
         // Cauchy-Riemann
         CHECK_THAT( zetaX[0]*zetaX[0], Catch::Matchers::WithinRel( etaY[0]*etaY[0], 1e-6));
         CHECK_THAT( zetaY[0]*zetaY[0], Catch::Matchers::WithinRel( etaX[0]*etaX[0], 1e-6));
+    }
+}
+
+TEST_CASE( "Flux surface with psi = 0")
+{
+    // The surface r = 1 has psi = 0 and lies in the middle of the domain
+    const double psi_0 = 0.5, psi_1 = -0.5;
+    const auto psi = circular_psi( 1.);
+    const dg::geo::CylindricalFunctorsLvl1 ipol( dg::geo::Constant(20),
+            dg::geo::Constant(0), dg::geo::Constant(0));
+    SECTION( "FluxGenerator")
+    {
+        const int mode = GENERATE( 0, 1);
+        INFO( "mode "<<mode);
+        const dg::geo::FluxGenerator generator( psi, ipol, psi_0, psi_1, 10.1, 0., mode);
+        check_metric( generator, 0.5*generator.width(), 1.1);
+    }
+    SECTION( "RibeiroFluxGenerator")
+    {
+        const int mode = GENERATE( 0, 1);
+        INFO( "mode "<<mode);
+        const dg::geo::RibeiroFluxGenerator generator( psi, psi_0, psi_1, 10.1, 0., mode);
+        check_metric( generator, 0.5*generator.width(), 1.1);
     }
 }
 

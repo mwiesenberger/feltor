@@ -37,6 +37,7 @@ struct Fpsi
         X_init = x0, Y_init = y0;
         while( fabs( psip.dfx()(X_init, Y_init)) <= 1e-10 && fabs( psip.dfy()( X_init, Y_init)) <= 1e-10)
             X_init +=  1.;
+        m_psi_scale = fabs( psip.f()(X_init, Y_init));
     }
     //finds the starting points for the integration in y direction
     void find_initial( double psi, double& R_0, double& Z_0)
@@ -102,8 +103,8 @@ struct Fpsi
     }
     double f_prime( double psi)
     {
-        //compute fprime
-        double deltaPsi = fabs(psi)/100.;
+        //compute fprime; the floor avoids a vanishing step at psi = 0
+        double deltaPsi = std::max( fabs(psi)/100., 1e-5*m_psi_scale);
         double fofpsi[4];
         fofpsi[1] = operator()(psi-deltaPsi);
         fofpsi[2] = operator()(psi+deltaPsi);
@@ -132,6 +133,7 @@ struct Fpsi
     private:
     int m_opoint;
     double m_ovalue;
+    double m_psi_scale;
     double X_init, Y_init;
     CylindricalFunctorsLvl1 psip_;
     dg::geo::flux::FieldRZYT fieldRZYT_;
