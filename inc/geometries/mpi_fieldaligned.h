@@ -518,15 +518,20 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     dg::assign( dg::evaluate(dg::zero, *grid_transform), m_left);
     m_ghostM = m_ghostP = m_right = m_left;
     /// %%%%%%%%%%%%%%%%%%%%%%SETUP MPI in Z%%%%%%%%%%%%%%%%%%%%%%%%//
-    int source, dest;
+    // The planes wrap around (as in the shared memory version) even if the
+    // communicator is not periodic in z, because the limiter is not necessarily
+    // 1 everywhere; so we cannot use mpi_cart_shift, which returns MPI_PROC_NULL
+    int dest;
     dg::detail::MsgChunk chunk { 0, (int)m_perp_size};
 
-    dg::mpi_cart_shift( grid.comm(2), 0, +1, &source, &dest);
+    int coordP = (m_coords2 + 1)%m_sizeZ;
+    MPI_Cart_rank( grid.comm(2), &coordP, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgP =
         {{ dest, thrust::host_vector<dg::detail::MsgChunk>( 1, chunk)}};
     m_from_plus = dg::detail::MPIContiguousGather( recvMsgP, grid.comm(2));
 
-    dg::mpi_cart_shift( grid.comm(2), 0, -1, &source, &dest);
+    int coordM = (m_coords2 + m_sizeZ - 1)%m_sizeZ;
+    MPI_Cart_rank( grid.comm(2), &coordM, &dest);
     std::map<int, thrust::host_vector<dg::detail::MsgChunk>> recvMsgM =
         {{ dest, thrust::host_vector<dg::detail::MsgChunk>( 1, chunk)}};
     m_from_minus = dg::detail::MPIContiguousGather( recvMsgM, grid.comm(2));

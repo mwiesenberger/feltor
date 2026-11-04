@@ -48,6 +48,7 @@ set(GEOMETRIES_TESTS
   ../../geometries/adaption_t.cpp
   ../../geometries/ds_t.cpp
   ../../geometries/ds_guenter_t.cpp
+  ../../geometries/ds_straight_t.cpp
   ../../geometries/magnetic_field_t.cpp
   ../../geometries/modified_t.cpp
   ../../geometries/polynomial_t.cpp
@@ -58,6 +59,7 @@ set(GEOMETRIES_TESTS
 set(GEOMETRIES_MPI_TESTS
   ../../geometries/ds_t.cpp
   ../../geometries/ds_guenter_t.cpp
+  ../../geometries/ds_straight_t.cpp
 )
 
 # find ../../geometries -name "*b.cpp" | sort
