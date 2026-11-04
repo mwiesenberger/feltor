@@ -152,7 +152,7 @@ struct RealCurvilinearProductMPIGrid3d : public dg::aRealProductMPIGeometry3d<re
                 *m_handle,
                 {global().nx(), global().Nx(), global().bcx()},
                 {global().ny(), global().Ny(), global().bcy()},
-                {global().x0(), global().x1(), global().nz(), global().Nz(), global().bcz()});
+                {global().z0(), global().z1(), global().nz(), global().Nz(), global().bcz()});
     }
     //These are necessary to help compiler find inherited names
     using dg::aRealMPIGeometry3d<real_type>::global;

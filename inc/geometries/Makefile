@@ -27,6 +27,7 @@ ds_guenter_t\
 fieldaligned_t\
 
 TARGETSMPI=\
+mpi_curvilinear_mpit\
 mpi_ds_t\
 mpi_ds_guenter_t\
 mpi_fieldaligned_t
@@ -43,11 +44,17 @@ all: tests mpi-tests
 %_t.$(device).o: %_t.cpp
 	$(CC) $(OPT) $(CFLAGS) -c $< -o $@ -g $(INCLUDE)
 
+%_mpit.$(device).o: %_mpit.cpp %.h
+	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
+
 mpi_%_t.$(device).o: %_t.cpp
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 
 %_t: $(CATCH).$(device).o %_t.$(device).o
 	$(CC) $(OPT) -o $@ $^ -lCatch2 $(SPARSELIB) $(JSONLIB)
+
+%_mpit: $(CATCHMPI).$(device).o %_mpit.$(device).o
+	$(MPICC) $(OPT) -o $@ $^ -lCatch2 $(SPARSELIB) $(JSONLIB)
 
 mpi_%_t: $(CATCHMPI).$(device).o mpi_%_t.$(device).o
 	$(MPICC) $(OPT) -o $@ $^ -lCatch2 $(SPARSELIB) $(JSONLIB)

@@ -62,6 +62,7 @@ set(GEOMETRIES_MPI_TESTS
   ../../geometries/ds_t.cpp
   ../../geometries/ds_guenter_t.cpp
   ../../geometries/fieldaligned_t.cpp
+  ../../geometries/mpi_curvilinear_mpit.cpp
 )
 
 # find ../../geometries -name "*b.cpp" | sort
