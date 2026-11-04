@@ -7,6 +7,7 @@
 #include "dg/algorithm.h"
 #include "ds.h"
 #include "guenter.h"
+#include "toroidal.h"
 #include "magnetic_field.h"
 #include "testfunctors.h"
 #include "ds_generator.h"
@@ -239,4 +240,30 @@ guenter flux surfaces. Fieldlines do not cross boundaries.");
         INFO("    "<<name<<":" <<" "<<sqrt(norm/sol));
         CHECK( sqrt(norm/sol) < 1e-5);
     }
+}
+
+TEST_CASE( "DSP generator")
+{
+    const dg::geo::TokamakMagneticField mag = GENERATE(
+        dg::geo::createGuenterField( R_0, I_0),
+        dg::geo::createCircularField( R_0, I_0, 1, 1));
+    // The generator follows the fieldlines from a cylindrical grid
+    const dg::geo::DSPGenerator generator( mag, R_0-0.5, R_0+0.5, -0.5, 0.5, 0.2);
+    const dg::geo::aRealGenerator2d<double>& base = generator;
+    CHECK( base.width() == 1);
+    CHECK( base.height() == 1);
+    CHECK( not base.isOrthogonal());
+    const double h = 1e-3, zeta = 0.4, eta = 0.3;
+    thrust::host_vector<double> zeta1d{ zeta-h, zeta, zeta+h}, eta1d{ eta-h, eta, eta+h};
+    thrust::host_vector<double> x(9), y(9), zetaX(9), zetaY(9), etaX(9), etaY(9);
+    base.generate( zeta1d, eta1d, x, y, zetaX, zetaY, etaX, etaY);
+    // Inverse Jacobian of finite differences of the mapped points
+    const double xZeta = (x[5]-x[3])/2./h, xEta = (x[7]-x[1])/2./h;
+    const double yZeta = (y[5]-y[3])/2./h, yEta = (y[7]-y[1])/2./h;
+    const double det = xZeta*yEta - xEta*yZeta;
+    const double eps = 1e-6;
+    CHECK_THAT( zetaX[4], Catch::Matchers::WithinAbs( +yEta/det, eps));
+    CHECK_THAT( zetaY[4], Catch::Matchers::WithinAbs( -xEta/det, eps));
+    CHECK_THAT( etaX[4],  Catch::Matchers::WithinAbs( -yZeta/det, eps));
+    CHECK_THAT( etaY[4],  Catch::Matchers::WithinAbs( +xZeta/det, eps));
 }

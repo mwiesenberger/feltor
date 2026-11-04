@@ -77,6 +77,62 @@ TEST_CASE( "Fieldaligned boundary in z")
                                  : func( R,Z,phi) - hz*left;
             }, g3d)) < eps);
     }
+    SECTION( "Boundary values from 2d vectors")
+    {
+        auto left2d = [=]( double R, double Z){ return 1. + R + Z;};
+        auto right2d = [=]( double R, double Z){ return 2. + R*Z;};
+        dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
+            fa( bhat, g3d, dg::NEU, dg::NEU, dg::geo::FullLimiter(), 1e-8, 1, 1, -1, "dg", false);
+        const dg::x::DVec left = dg::evaluate( left2d, *g3d.perp_grid());
+        const dg::x::DVec right = dg::evaluate( right2d, *g3d.perp_grid());
+        fa.set_boundaries( dg::DIR, left, right);
+        fa( dg::geo::einsPlus, fun, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi + hz < 2.*M_PI)
+                return func( R, Z, phi+hz);
+            return 2.*right2d(R,Z) - func( R,Z,phi);
+            }, g3d)) < eps);
+        fa( dg::geo::einsMinus, fun, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi - hz > 0)
+                return func( R, Z, phi-hz);
+            return 2.*left2d(R,Z) - func( R,Z,phi);
+            }, g3d)) < eps);
+    }
+    SECTION( "Boundary values from a 3d vector")
+    {
+        const double scal_left = 0.5, scal_right = 3.;
+        dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
+            fa( bhat, g3d, dg::NEU, dg::NEU, dg::geo::FullLimiter(), 1e-8, 1, 1, -1, "dg", false);
+        fa.set_boundaries( dg::DIR, fun, scal_left, scal_right);
+        fa( dg::geo::einsPlus, fun, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi + hz < 2.*M_PI)
+                return func( R, Z, phi+hz);
+            return (2.*scal_right - 1.)*func( R,Z,phi);
+            }, g3d)) < eps);
+        fa( dg::geo::einsMinus, fun, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi - hz > 0)
+                return func( R, Z, phi-hz);
+            return (2.*scal_left - 1.)*func( R,Z,phi);
+            }, g3d)) < eps);
+    }
+    SECTION( "Limiter that is not 1 everywhere")
+    {
+        // Ghost values only where the limiter is 1, periodic elsewhere
+        auto limiter = [=]( double R, double){ return R > R_0 ? 1. : 0.;};
+        const double right = 2.;
+        dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
+            fa( bhat, g3d, dg::NEU, dg::NEU, limiter, 1e-8, 1, 1, -1, "dg", false);
+        fa.set_boundaries( dg::DIR, 0., right);
+        fa( dg::geo::einsPlus, fun, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi + hz < 2.*M_PI || limiter(R,Z) == 0)
+                return func( R, Z, phi+hz);
+            return 2.*right - func( R,Z,phi);
+            }, g3d)) < eps);
+    }
     SECTION( "Ghost values do not depend on the interpolation method")
     {
         const std::string method = GENERATE( "dg", "linear", "cubic",
@@ -109,6 +165,42 @@ TEST_CASE( "Fieldaligned boundary in z")
                                  : func( R,Z,phi) - hz*left;
             }, g3d)) < eps);
     }
+}
+
+TEST_CASE( "Fieldaligned distance to boundary")
+{
+    // In the field v = (0,c,1) fieldlines are straight with dZ/dphi = c
+#ifdef WITH_MPI
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0,0}, {false,false,true});
+#endif
+    const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
+        3, 8, 8, 4, dg::NEU, dg::NEU, dg::PER
+#ifdef WITH_MPI
+    , comm
+#endif
+    );
+    const double c = 0.5, delta = g3d.hz();
+    dg::geo::CylindricalVectorLvl1 vec( dg::geo::Constant(0), dg::geo::Constant(c),
+        dg::geo::Constant(1), dg::geo::Constant(0), dg::geo::Constant(0));
+    dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
+        fa( vec, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-10, 1, 1, -1, "dg", false);
+    auto outP = [=]( double Z){ return Z + c*delta > a;};
+    auto outM = [=]( double Z){ return Z - c*delta < -a;};
+    const dg::x::DVec vol = dg::create::volume( g3d);
+    auto error = [&]( const dg::x::DVec& value, auto expected){
+        dg::x::DVec diff = dg::evaluate( [=]( double, double Z, double){
+            return expected(Z);}, g3d);
+        dg::blas1::axpby( 1., value, -1., diff);
+        return sqrt( dg::blas2::dot( diff, vol, diff));
+    };
+    REQUIRE( c*delta < a); // no point leaves in both directions
+    CHECK( error( fa.hbp(), [=]( double Z){ return outP(Z) ? (a-Z)/c : delta;}) < 1e-6);
+    CHECK( error( fa.hbm(), [=]( double Z){ return outM(Z) ? (Z+a)/c : delta;}) < 1e-6);
+    CHECK( error( fa.bbp(), [=]( double Z){ return outP(Z) ? 1. : 0.;}) == 0);
+    CHECK( error( fa.bbm(), [=]( double Z){ return outM(Z) ? 1. : 0.;}) == 0);
+    CHECK( error( fa.bbo(), [=]( double){ return 0.;}) == 0);
+    CHECK( error( fa.bphi(), [=]( double){ return 1.;}) == 0);
+    CHECK( fa.deltaPhi() == delta);
 }
 
 TEST_CASE( "Fieldaligned evaluate")
