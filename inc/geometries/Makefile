@@ -22,12 +22,12 @@ polynomial_t\
 sheath_t\
 ds_t\
 ds_guenter_t\
-ds_straight_t\
+fieldaligned_t\
 
 TARGETSMPI=\
 mpi_ds_t\
 mpi_ds_guenter_t\
-mpi_ds_straight_t
+mpi_fieldaligned_t
 
 #all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 all: tests mpi-tests
