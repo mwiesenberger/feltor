@@ -83,8 +83,9 @@ TEST_CASE( "Fieldaligned boundary in z")
         auto right2d = [=]( double R, double Z){ return 2. + R*Z;};
         dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
             fa( bhat, g3d, dg::NEU, dg::NEU, dg::geo::FullLimiter(), 1e-8, 1, 1, -1, "dg", false);
-        const dg::x::DVec left = dg::evaluate( left2d, *g3d.perp_grid());
-        const dg::x::DVec right = dg::evaluate( right2d, *g3d.perp_grid());
+        const dg::ClonePtr<dg::x::aGeometry2d> perp_ptr = g3d.perp_grid();
+        const dg::x::DVec left = dg::evaluate( left2d, *perp_ptr);
+        const dg::x::DVec right = dg::evaluate( right2d, *perp_ptr);
         fa.set_boundaries( dg::DIR, left, right);
         fa( dg::geo::einsPlus, fun, result);
         CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
@@ -310,10 +311,11 @@ TEST_CASE( "Fieldaligned coarse grid functions")
     }
     SECTION( "Integrate between planes")
     {
-        const dg::DVec in = dg::evaluate( perp, *coarse.perp_grid());
+        const dg::ClonePtr<dg::aGeometry2d> perp_ptr = coarse.perp_grid();
+        const dg::DVec in = dg::evaluate( perp, *perp_ptr);
         dg::DVec out( in);
         fa.integrate_between_coarse_grid( coarse, in, out);
-        const dg::DVec vol = dg::create::volume( *coarse.perp_grid());
+        const dg::DVec vol = dg::create::volume( *perp_ptr);
         dg::blas1::axpby( 1., in, -1., out);
         const double error = sqrt( dg::blas2::dot( out, vol, out)/dg::blas2::dot(
                 in, vol, in));

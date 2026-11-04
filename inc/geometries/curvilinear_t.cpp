@@ -283,7 +283,7 @@ TEST_CASE( "Curvilinear grids")
         dg::geo::CurvilinearProductGrid3d grid( generator, 3, 8, 32, 4);
         const dg::HVec vol = dg::create::volume( grid);
         CHECK_THAT( dg::blas1::dot( vol, 1.), Catch::Matchers::WithinRel( exact, 1e-8));
-        const auto perp = grid.perp_grid();
+        const dg::ClonePtr<dg::aGeometry2d> perp = grid.perp_grid();
         const dg::HVec area = dg::create::volume( *perp);
         CHECK_THAT( dg::blas1::dot( area, 1.), Catch::Matchers::WithinRel( M_PI*0.5, 1e-8));
         // Changing the number of planes does not change the volume
