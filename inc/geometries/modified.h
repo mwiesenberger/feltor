@@ -368,8 +368,6 @@ struct ClosedFieldlineRegion
             double psipO = mag.psip()( RO, ZO);
             m_psipO_pos = psipO > 0;
             double RX1 = 0., ZX1 = 0., RX2 = 0., ZX2 = 0.;
-            description desc = mag.params().getDescription();
-            dg::geo::findOpoint( mag.get_psip(), RO, ZO);
             if ( desc == description::standardX or desc == description::doubleX)
             {
                 // Find first X-point

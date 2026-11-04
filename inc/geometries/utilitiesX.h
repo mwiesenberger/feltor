@@ -593,7 +593,6 @@ struct InitialX
         xpointer_(psi, xX, yX, 1e-4), m_verbose( verbose)
     {
         //constructor finds four points around X-point and integrates them a bit away from it
-        dg::geo::FieldRZtau fieldRZtau_(psi);
         using Vec = std::array<double,2>;
         dg::SinglestepTimeloop<Vec> odeint( dg::RungeKutta<Vec>(
                     "Fehlberg-6-4-5", Vec{0.,0.}), fieldRZtau_);
