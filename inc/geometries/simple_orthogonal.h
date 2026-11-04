@@ -243,7 +243,7 @@ void construct_rz( Nemov nemov,
     unsigned sizeX = x_vec.size(), sizeY = r_init.size();
     unsigned size2d = x_vec.size()*r_init.size();
     r.resize(size2d), z.resize(size2d), h.resize(size2d);
-    double x0=x_0, x1 = x_vec[0];
+    double x0=x_0, x1=x_0;
     thrust::host_vector<double> r_new(r_init), r_old(r_init), r_diff(r_init);
     thrust::host_vector<double> z_new(z_init), z_old(z_init), z_diff(z_init);
     thrust::host_vector<double> h_new(h_init); //, h_old(h_init), h_diff(h_init);
