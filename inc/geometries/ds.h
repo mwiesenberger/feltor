@@ -235,6 +235,8 @@ void assign_bc_along_field_2nd( const FieldAligned& fa, const container& fm,
  * @param fpg result (can alias fp)
  * @param bound either dg::NEU or dg::DIR (rest not implemented yet)
  * @param boundary_value first value is for incoming fieldlines, second one for outgoing
+ * @note For dg::NEU a line is not determined by two slopes, so points where the
+ * fieldline leaves the domain in both directions keep their values \c fm and \c fp
  * @ingroup fieldaligned
  * @copydoc hide_ds_along_field
  */
@@ -269,8 +271,8 @@ void assign_bc_along_field_1st( const FieldAligned& fa, const container& fm,
             double plus=0, minus=0, bothP=0, bothM = 0;
             plus  = fm + (fbp-fm)/(hbp+hm)*(hp+hm) ;
             minus = fp - (hp+hm)*(fp-fbm)/(hp+hbm);
-            bothM = fbp + (fbp-fbm)/(hbp+hbm)*(hp+hbm);
-            bothP = fbp - (fbp-fbm)/(hbp+hbm)*(hbp+hm);
+            bothM = fbp - (fbp-fbm)/(hbp+hbm)*(hbp+hm);
+            bothP = fbm + (fbp-fbm)/(hbp+hbm)*(hbm+hp);
             fmg = (1.-bbo-bbm)*fm + bbm*minus + bbo*bothM;
             fpg = (1.-bbo-bbp)*fp + bbp*plus  + bbo*bothP;
         }, fm, fp, fmg, fpg, fa.hbm(), fa.hbp(), fa.bbm(),
