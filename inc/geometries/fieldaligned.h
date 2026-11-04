@@ -1107,6 +1107,7 @@ void Fieldaligned<G, I, container>::eMinus( enum whichMatrix which,
     unsigned i0=0;
     if( m_bcz != dg::PER)
     {
+        dg::split( f, m_split_in, *m_g);
         if( m_bcz == dg::DIR || m_bcz == dg::DIR_NEU)
             dg::blas1::axpby( 2., m_left,  -1., m_split_in[i0], m_ghostM);
         if( m_bcz == dg::NEU || m_bcz == dg::NEU_DIR)

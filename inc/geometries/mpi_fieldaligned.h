@@ -639,6 +639,7 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
     unsigned i0=m_Nz-1;
     if( m_bcz != dg::PER && m_g->local().z1() == m_g->global().z1())
     {
+        dg::split( f, m_split_in, *m_g);
         if( m_bcz == dg::DIR || m_bcz == dg::NEU_DIR)
             dg::blas1::axpby( 2, m_right, -1., m_split_in[i0], m_ghostP);
         if( m_bcz == dg::NEU || m_bcz == dg::DIR_NEU)
@@ -697,6 +698,7 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
     unsigned i0=0;
     if( m_bcz != dg::PER && m_g->local().z0() == m_g->global().z0())
     {
+        dg::split( f, m_split_in, *m_g);
         if( m_bcz == dg::DIR || m_bcz == dg::DIR_NEU)
             dg::blas1::axpby( 2., m_left,  -1., m_split_in[i0], m_ghostM);
         if( m_bcz == dg::NEU || m_bcz == dg::NEU_DIR)

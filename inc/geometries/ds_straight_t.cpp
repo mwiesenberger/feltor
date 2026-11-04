@@ -74,6 +74,38 @@ TEST_CASE( "Fieldaligned boundary in z")
                                  : func( R,Z,phi) - hz*left;
             }, g3d)) < eps);
     }
+    SECTION( "Ghost values do not depend on the interpolation method")
+    {
+        const std::string method = GENERATE( "dg", "linear", "cubic",
+            "linear-nearest", "cubic-nearest", "dg-linear", "linear-linear");
+        const auto bc = GENERATE( dg::DIR, dg::NEU);
+        INFO( "method "<<method<<" bc "<<dg::bc2str(bc));
+        const double left = 1., right = 2.;
+        dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>
+            fa( bhat, g3d, dg::NEU, dg::NEU, dg::geo::FullLimiter(), 1e-8, 3, 3, -1, method, false);
+        fa.set_boundaries( bc, left, right);
+        fa( dg::geo::einsPlus, fun, result);
+        // The interpolation in the other planes is not exact
+        const dg::x::DVec last = dg::evaluate( [=]( double, double, double phi){
+            return phi + hz < 2.*M_PI ? 0. : 1.;}, g3d);
+        dg::blas1::pointwiseDot( last, result, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi + hz < 2.*M_PI)
+                return 0.;
+            return bc == dg::DIR ? 2.*right - func( R,Z,phi)
+                                 : func( R,Z,phi) + hz*right;
+            }, g3d)) < eps);
+        fa( dg::geo::einsMinus, fun, result);
+        const dg::x::DVec first = dg::evaluate( [=]( double, double, double phi){
+            return phi - hz > 0 ? 0. : 1.;}, g3d);
+        dg::blas1::pointwiseDot( first, result, result);
+        CHECK( error( dg::evaluate( [=]( double R, double Z, double phi){
+            if( phi - hz > 0)
+                return 0.;
+            return bc == dg::DIR ? 2.*left - func( R,Z,phi)
+                                 : func( R,Z,phi) - hz*left;
+            }, g3d)) < eps);
+    }
 }
 
 // Provides what the assign_bc functions need from Fieldaligned for a single point
