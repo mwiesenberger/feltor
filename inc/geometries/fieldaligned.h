@@ -500,6 +500,7 @@ struct Fieldaligned
     *
     * @return the input interpolated onto the grid given in the constructor
     * @note the interpolation weights are taken in the phi distance not the s-distance, which makes the interpolation linear in phi
+    * @note This function does not exist in the MPI version of this class
     */
     container interpolate_from_coarse_grid( const ProductGeometry& grid_coarse, const container& coarse) const;
     /**
@@ -510,6 +511,7 @@ struct Fieldaligned
     * the input grid.
     * @param coarse the 2d input vector
     * @param out the integral (2d vector, may alias coarse)
+    * @note This function does not exist in the MPI version of this class
     */
     void integrate_between_coarse_grid( const ProductGeometry& grid_coarse, const container& coarse, container& out ) const;
 
@@ -861,7 +863,6 @@ template<class G, class I, class container>
 container Fieldaligned<G, I,container>::interpolate_from_coarse_grid(
         const G& grid, const container& in) const
 {
-    // TODO: This function is missing a test
     //I think we need grid as input to split input vector and we need to interpret
     //the grid nodes as node centered not cell-centered!
     //idea: apply I+/I- cphi - 1 times in each direction and then apply interpolation formula
@@ -869,17 +870,51 @@ container Fieldaligned<G, I,container>::interpolate_from_coarse_grid(
     unsigned Nz_coarse = grid.Nz(), Nz = m_g->Nz();
     unsigned cphi = Nz / Nz_coarse;
 
+    const dg::ClonePtr<aGeometry2d> g2d = m_g->perp_grid();
+    typename detail::Container2EllSparseBlockMat<container>::type bx, by, inv_bx, inv_by;
+    if( apply_backproject)
+    {
+        bx = dg::create::fast_transform( 0,
+            dg::create::detail::square_backproject( g2d->grid(0)),
+            *g2d);
+        by = dg::create::fast_transform( 1,
+            dg::create::detail::square_backproject( g2d->grid(1)),
+            *g2d);
+    }
+    if( apply_inv_backproject)
+    {
+        inv_bx = dg::create::fast_transform( 0,
+            dg::invert(dg::create::detail::square_backproject( g2d->grid(0))),
+            *g2d);
+        inv_by = dg::create::fast_transform( 1,
+            dg::invert(dg::create::detail::square_backproject( g2d->grid(1))),
+            *g2d);
+    }
+    container temp0 = dg::evaluate( dg::zero, *g2d), temp1( temp0);
+    // Every application of the matrix starts and ends in dG space
+    auto transform = [&]( const I& matrix, const dg::View<container>& x,
+            dg::View<container>& y)
+    {
+        dg::blas1::copy( x, temp0);
+        if( apply_backproject)
+        {
+            dg::blas2::symv( bx, temp0, temp1);
+            dg::blas2::symv( by, temp1, temp0);
+        }
+        dg::blas2::symv( matrix, temp0, temp1);
+        if( apply_inv_backproject)
+        {
+            dg::blas2::symv( inv_bx, temp1, temp0);
+            dg::blas2::symv( inv_by, temp0, temp1);
+        }
+        dg::blas1::copy( temp1, y);
+    };
+
     container out = dg::evaluate( dg::zero, *m_g);
     container helper = dg::evaluate( dg::zero, *m_g);
     dg::split( helper, m_split_out, *m_g);
     std::vector<dg::View< container>> out_split = dg::split( out, *m_g);
     std::vector<dg::View< const container>> in_split = dg::split( in, grid);
-    if( apply_backproject)
-    {
-        dg::blas2::symv( m_bx, in, m_temp0);
-        dg::blas2::symv( m_by, m_temp0, m_temp1);
-        in_split = dg::split( (const container&)m_temp1, grid);
-    }
     for ( int i=0; i<(int)Nz_coarse; i++)
     {
         //1. copy input vector to appropriate place in output
@@ -893,9 +928,9 @@ container Fieldaligned<G, I,container>::interpolate_from_coarse_grid(
         for( int j=1; j<(int)cphi; j++)
         {
             //!!! The value of f at the plus plane is I^- of the current plane
-            dg::blas2::symv( m_minus, out_split[i*cphi+j-1], out_split[i*cphi+j]);
+            transform( m_minus, out_split[i*cphi+j-1], out_split[i*cphi+j]);
             //!!! The value of f at the minus plane is I^+ of the current plane
-            dg::blas2::symv( m_plus, m_split_out[(i*cphi+cphi+1-j)%Nz], m_split_out[i*cphi+cphi-j]);
+            transform( m_plus, m_split_out[(i*cphi+cphi+1-j)%Nz], m_split_out[i*cphi+cphi-j]);
         }
     }
     //3. Now add up with appropriate weights
@@ -906,41 +941,37 @@ container Fieldaligned<G, I,container>::interpolate_from_coarse_grid(
             double beta = (double)j/(double)cphi;
             dg::blas1::axpby( alpha, out_split[i*cphi+j], beta, m_split_out[i*cphi+j], out_split[i*cphi+j]);
         }
-    if( apply_inv_backproject)
-    {
-        dg::blas2::symv( m_inv_bx, out, m_temp0);
-        dg::blas2::symv( m_inv_by, m_temp0, out);
-    }
     return out;
 }
 template<class G, class I, class container>
 void Fieldaligned<G, I,container>::integrate_between_coarse_grid( const G& grid, const container& in, container& out) const
 {
-    // TODO: This function is missing a test
     assert( m_g->Nz() % grid.Nz() == 0);
     unsigned Nz_coarse = grid.Nz(), Nz = m_g->Nz();
     unsigned cphi = Nz / Nz_coarse;
 
     out = in;
     container helperP( in), helperM(in), tempP(in), tempM(in);
+    // The input is a 2d vector
+    const dg::ClonePtr<aGeometry2d> g2d = m_g->perp_grid();
     typename detail::Container2EllSparseBlockMat<container>::type bx, by, inv_bx, inv_by;
     if( apply_backproject)
     {
         bx = dg::create::fast_transform( 0,
-            dg::create::detail::square_backproject( grid.grid(0)),
-            grid);
+            dg::create::detail::square_backproject( g2d->grid(0)),
+            *g2d);
         by = dg::create::fast_transform( 1,
-            dg::create::detail::square_backproject( grid.grid(1)),
-            grid);
+            dg::create::detail::square_backproject( g2d->grid(1)),
+            *g2d);
     }
     if( apply_inv_backproject)
     {
         inv_bx = dg::create::fast_transform( 0,
-            dg::invert(dg::create::detail::square_backproject( grid.grid(0))),
-            grid);
+            dg::invert(dg::create::detail::square_backproject( g2d->grid(0))),
+            *g2d);
         inv_by = dg::create::fast_transform( 1,
-            dg::invert(dg::create::detail::square_backproject( grid.grid(1))),
-            grid);
+            dg::invert(dg::create::detail::square_backproject( g2d->grid(1))),
+            *g2d);
     }
 
     //1. Apply plus and minus T and sum up

@@ -108,6 +108,74 @@ TEST_CASE( "Fieldaligned boundary in z")
     }
 }
 
+#ifndef WITH_MPI // these functions do not exist in the MPI version
+TEST_CASE( "Fieldaligned coarse grid functions")
+{
+    // In a toroidal field the plus and minus transformations just shift planes
+    const unsigned n = 3, Nx = 16, Ny = 16;
+    const dg::CylindricalGrid3d fine( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
+        n, Nx, Ny, 8, dg::NEU, dg::NEU, dg::PER);
+    const dg::CylindricalGrid3d coarse( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
+        n, Nx, Ny, 4, dg::NEU, dg::NEU, dg::PER);
+    const std::string method = GENERATE( "dg", "linear", "cubic", "linear-nearest",
+        "cubic-nearest", "dg-nearest", "dg-linear", "linear-linear");
+    INFO( "method "<<method);
+    const dg::geo::TokamakMagneticField mag = dg::geo::createToroidalField( R_0);
+    dg::geo::Fieldaligned<dg::aProductGeometry3d,dg::IDMatrix,dg::DVec> fa(
+        dg::geo::createBHat(mag), fine, dg::NEU, dg::NEU, dg::geo::NoLimiter(),
+        1e-8, 3, 3, -1, method, false);
+    // Interpolation in the perpendicular plane is exact only for dg
+    const double eps = method == "dg" ? 1e-13 : 1e-2;
+    auto perp = [=]( double R, double Z){ return exp(R-R_0)*(1+Z*Z);};
+    SECTION( "Interpolate is linear in phi")
+    {
+        // Plane i of the coarse grid is plane 2i of the fine grid (planes are
+        // matched by index) and plane 2i+1 is the average of its neighbors
+        const double hc = coarse.hz(), hf = fine.hz();
+        auto modulate = [=]( double phi){ return 1. + cos(phi);};
+        const dg::DVec in = dg::evaluate( [=]( double R, double Z, double phi){
+            return perp(R,Z)*modulate(phi);}, coarse);
+        dg::DVec out = fa.interpolate_from_coarse_grid( coarse, in);
+        const dg::DVec expected = dg::evaluate( [=]( double R, double Z, double phi){
+            unsigned k = floor( phi/hf);
+            double left = (k/2 + 0.5)*hc;
+            double alpha = (k%2)/2.;
+            return perp(R,Z)*( (1.-alpha)*modulate(left) + alpha*modulate(left+hc));
+        }, fine);
+        const dg::DVec vol = dg::create::volume( fine);
+        dg::blas1::axpby( 1., expected, -1., out);
+        const double error = sqrt( dg::blas2::dot( out, vol, out)/dg::blas2::dot(
+                expected, vol, expected));
+        INFO( "Relative error "<<error);
+        CHECK( error < eps);
+    }
+    SECTION( "Interpolate a constant")
+    {
+        const dg::DVec in = dg::evaluate( dg::one, coarse);
+        dg::DVec out = fa.interpolate_from_coarse_grid( coarse, in);
+        dg::blas1::axpby( 1., 1., -1., out);
+        CHECK( dg::blas1::dot( out, out) < 1e-20);
+    }
+    SECTION( "Integrate between planes")
+    {
+        const dg::DVec in = dg::evaluate( perp, *coarse.perp_grid());
+        dg::DVec out( in);
+        fa.integrate_between_coarse_grid( coarse, in, out);
+        const dg::DVec vol = dg::create::volume( *coarse.perp_grid());
+        dg::blas1::axpby( 1., in, -1., out);
+        const double error = sqrt( dg::blas2::dot( out, vol, out)/dg::blas2::dot(
+                in, vol, in));
+        INFO( "Relative error "<<error);
+        CHECK( error < eps);
+        // out may alias in
+        dg::DVec alias( in), result( in);
+        fa.integrate_between_coarse_grid( coarse, in, result);
+        fa.integrate_between_coarse_grid( coarse, alias, alias);
+        CHECK( alias == result);
+    }
+}
+#endif // WITH_MPI
+
 // Provides what the assign_bc functions need from Fieldaligned for a single point
 struct SinglePoint
 {
