@@ -491,7 +491,8 @@ struct DS
         std::array<double,2> boundary_value = {0,0}) const{
         m_fa(einsPlus,  f, m_tempP);
         m_fa(einsMinus, f, m_tempM);
-        assign_bc_along_field_2nd( m_fa, m_tempM, f, m_tempP, m_tempM, m_tempP,
+        m_fa(zeroForw,  f, m_tempO);
+        assign_bc_along_field_2nd( m_fa, m_tempM, m_tempO, m_tempP, m_tempM, m_tempP,
                 bound, boundary_value);
         ds_centered( m_fa, alpha, m_tempM, m_tempP, beta, g);
 
@@ -670,7 +671,7 @@ struct DS
         m_fa(zeroForw,  f, m_tempO);
         assign_bc_along_field_2nd( m_fa, m_tempM, m_tempO, m_tempP, m_tempM, m_tempP,
                 bound, boundary_value);
-        dssd_centered( m_fa, alpha, m_tempM, f, m_tempP, beta, g);
+        dssd_centered( m_fa, alpha, m_tempM, m_tempO, m_tempP, beta, g);
     }
 
     /// The volume form with dG weights

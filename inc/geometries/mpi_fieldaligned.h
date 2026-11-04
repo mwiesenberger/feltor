@@ -197,15 +197,15 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         ////////////////////////////////////////////////////////////////
         std::string inter_m, project_m, fine_m;
         detail::parse_method( interpolation_method, inter_m, project_m, fine_m);
-        // For project method "const" we round up to the nearest multiple of n
+        // For projection methods other than dg we round up to the nearest multiple of n
         if( project_m != "dg" && fine_m == "dg")
         {
             unsigned rx = mx % grid_transform->nx(), ry = my % grid_transform->ny();
             if( 0 != rx || 0 != ry)
             {
-                if(rank==0)std::cerr << "#Warning: for projection method \"const\" mx and my must be multiples of nx and ny! Rounding up for you ...\n";
-                mx = mx + grid_transform->nx() - rx;
-                my = my + grid_transform->ny() - ry;
+                if(rank==0)std::cerr << "#Warning: for projection method \""<<project_m<<"\" mx and my must be multiples of nx and ny! Rounding up for you ...\n";
+                if( 0 != rx) mx = mx + grid_transform->nx() - rx;
+                if( 0 != ry) my = my + grid_transform->ny() - ry;
             }
         }
         if( benchmark && rank==0)

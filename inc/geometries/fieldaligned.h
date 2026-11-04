@@ -604,17 +604,17 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
 
     std::string inter_m, project_m, fine_m;
     detail::parse_method( interpolation_method, inter_m, project_m, fine_m);
-    // For project method "const" we round up to the nearest multiple of n
+    // For projection methods other than dg we round up to the nearest multiple of n
     if( project_m != "dg" && fine_m == "dg")
     {
         unsigned rx = mx % grid.nx(), ry = my % grid.ny();
         if( 0 != rx || 0 != ry)
         {
-            std::cerr << "#Warning: for projection method \"const\" mx and my "
+            std::cerr << "#Warning: for projection method \""<<project_m<<"\" mx and my "
             <<mx<<" "<<my<<" must be multiples of nx and ny "
             <<grid.nx()<<" "<<grid.ny()<<" ! Rounding up for you ...\n";
-            mx = mx + grid.nx() - rx;
-            my = my + grid.ny() - ry;
+            if( 0 != rx) mx = mx + grid.nx() - rx;
+            if( 0 != ry) my = my + grid.ny() - ry;
         }
     }
     if( benchmark)

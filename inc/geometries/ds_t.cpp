@@ -183,6 +183,57 @@ TEST_CASE("Fieldaligned")
     CHECK( sqrt(norm/sol) < 0.0711);
 }
 
+// The member functions are documented to do the same as the freestanding ones
+TEST_CASE( "DS boundary conditions along fieldline")
+{
+#ifdef WITH_MPI
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0,0}, {false,false,true});
+#endif
+    const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
+        3, 8, 8, 4, dg::NEU, dg::NEU, dg::PER
+#ifdef WITH_MPI
+    , comm
+#endif
+    );
+    const dg::geo::TokamakMagneticField mag = dg::geo::createCircularField( R_0, I_0);
+    const std::string method = GENERATE( "dg", "linear-nearest");
+    const dg::bc bound = GENERATE( dg::DIR, dg::NEU);
+    INFO( "method "<<method<<" bound "<<dg::bc2str(bound));
+    using FA = dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>;
+    FA fa( dg::geo::createBHat(mag), g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 3, 3, -1, method, false);
+    dg::geo::DS<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec> ds( fa);
+    const dg::x::DVec fun = dg::evaluate( []( double R, double Z, double phi){
+        return exp(R-R_0)*(1+Z*Z)*(1+sin(phi));}, g3d);
+    const std::array<double,2> value{1.,2.};
+    dg::x::DVec fm( fun), fo( fun), fp( fun), member( fun), free( fun);
+    fa( dg::geo::einsMinus, fun, fm);
+    fa( dg::geo::zeroForw, fun, fo);
+    fa( dg::geo::einsPlus, fun, fp);
+    dg::geo::assign_bc_along_field_2nd( fa, fm, fo, fp, fm, fp, bound, value);
+    auto difference = [&](){
+        dg::blas1::axpby( 1., member, -1., free);
+        return dg::blas1::dot( free, free);
+    };
+    SECTION( "centered")
+    {
+        ds.centered_bc_along_field( 1., fun, 0., member, bound, value);
+        dg::geo::ds_centered( fa, 1., fm, fp, 0., free);
+        CHECK( difference() == 0);
+    }
+    SECTION( "dss")
+    {
+        ds.dss_bc_along_field( 1., fun, 0., member, bound, value);
+        dg::geo::dss_centered( fa, 1., fm, fo, fp, 0., free);
+        CHECK( difference() == 0);
+    }
+    SECTION( "dssd")
+    {
+        ds.dssd_bc_along_field( 1., fun, 0., member, bound, value);
+        dg::geo::dssd_centered( fa, 1., fm, fo, fp, 0., free);
+        CHECK( difference() == 0);
+    }
+}
+
 // Provides what the assign_bc functions need from Fieldaligned for a single point
 struct SinglePoint
 {
