@@ -363,7 +363,8 @@ struct SeparatrixOrthogonalAdaptor : public aGenerator2d
     ///@copydoc SeparatrixOrthogonal::SeparatrixOrthogonal
     ///@param fx fraction of points in the scrape-off layer.
     ///fx must evenly divide the number of grid points Nx and determines \f$ \psi_1 = -\frac{f_x}{1-f_x}\psi_0\f$
-    ///Its purpose is to guarantee that the separatrix falls on a cell boundary
+    ///Its purpose is to guarantee that the separatrix falls on a cell boundary.
+    ///If fx is 0 the grid ends on the separatrix.
     SeparatrixOrthogonalAdaptor( const CylindricalFunctorsLvl2& psi, const CylindricalSymmTensorLvl1& chi, double psi_0, //psi_0 must be the closed surface, 0 the separatrix
             double xX, double yX, double x0, double y0, int firstline, bool verbose = false, double fx = 0 ):
             m_fx(fx),
@@ -390,8 +391,8 @@ struct SeparatrixOrthogonalAdaptor : public aGenerator2d
          // zeta1d is given between [0; zeta1-zeta0] and must be transformed to [zeta0; zeta1]
          for( unsigned i=0; i<zeta1d.size(); i++)
              zeta1d_trafo[i] += zeta0;
-         if( !dg::is_divisable( (double)zeta1d.size(), 1./m_fx ))
-             throw dg::Error( dg::Message(_ping_) << "Size of zeta1d "<<zeta1d.size()<<"is not divisable by fx "<<m_fx);
+         if( m_fx != 0 && !dg::is_divisable( (double)zeta1d.size(), 1./m_fx ))
+             throw dg::Error( dg::Message(_ping_) << "Size of zeta1d "<<zeta1d.size()<<" is not divisable by fx "<<m_fx);
          m_sep.generate( zeta1d_trafo, eta1d, 0, eta1d.size(), x, y, zetaX, zetaY, etaX, etaY);
     }
     double m_fx;

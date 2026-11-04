@@ -3,6 +3,8 @@
 #include "dg/algorithm.h"
 #include "hector.h"
 #include "ribeiro.h"
+#include "separatrix_orthogonal.h"
+#include "solovev.h"
 #include "catch2/catch_all.hpp"
 
 // Flux function sign*(1-r^2) with r^2 = (R-10)^2+Z^2
@@ -95,5 +97,68 @@ TEST_CASE( "Hector")
         // Cauchy-Riemann
         CHECK_THAT( zetaX[0]*zetaX[0], Catch::Matchers::WithinRel( etaY[0]*etaY[0], 1e-6));
         CHECK_THAT( zetaY[0]*zetaY[0], Catch::Matchers::WithinRel( etaX[0]*etaX[0], 1e-6));
+    }
+}
+
+const std::string geometry_params_Xpoint = R"asdf({
+    "A" : 0.0,
+    "PP": 1,
+    "PI": 1,
+    "c" :[  0.07350114445500399706283007092406934834526,
+           -0.08662417436317227513877947632069712210813,
+           -0.1463931543401102620740934776490506239925,
+           -0.07631237100536276213126232216649739043965,
+            0.09031790113794227394476271394334515457567,
+           -0.09157541239018724584036670247895160625891,
+           -0.003892282979837564486424586266476650443202,
+            0.04271891225076417603805495295590637082745,
+            0.2275545646002791311716859154040182853650,
+           -0.1304724136017769544849838714185080700328,
+           -0.03006974108476955225335835678782676287818,
+            0.004212671892103931178531621087067962015783 ],
+    "R_0"                : 547.891714877869,
+    "inverseaspectratio" : 0.41071428571428575,
+    "elongation"         : 1.75,
+    "triangularity"      : 0.47,
+    "equilibrium"  : "solovev",
+    "description" : "standardX"
+})asdf";
+
+TEST_CASE( "SeparatrixOrthogonalAdaptor")
+{
+    dg::file::WrappedJsonValue js( dg::file::string2Json( geometry_params_Xpoint),
+            dg::file::error::is_silent);
+    const dg::geo::solovev::Parameters gp( js);
+    const dg::geo::TokamakMagneticField mag = dg::geo::createSolovevField( gp);
+    const auto psi = mag.get_psip();
+    double R_X = gp.R_0-1.1*gp.triangularity*gp.a, Z_X = -1.1*gp.elongation*gp.a;
+    double R_O = gp.R_0, Z_O = 0.;
+    dg::geo::findOpoint( psi, R_O, Z_O);
+    const auto chi = dg::geo::make_Xconst_monitor( psi, R_X, Z_X);
+    const double psi_0 = 0.3*psi.f()( R_O, Z_O);
+    const unsigned mode = 1;
+    SECTION( "The default ends on the separatrix")
+    {
+        const dg::geo::SeparatrixOrthogonalAdaptor generator( psi, chi, psi_0, R_X,
+                Z_X, R_O, Z_O, mode);
+        CHECK_THAT( generator.height(), Catch::Matchers::WithinRel( 2.*M_PI, 1e-14));
+        check_metric( generator, 0.3*generator.width(), 1.1);
+        check_boundaries( generator, psi, psi_0, 0.);
+    }
+    SECTION( "A fraction of the points in the scrape-off layer")
+    {
+        const double fx = 0.25;
+        const dg::geo::SeparatrixOrthogonalAdaptor generator( psi, chi, psi_0, R_X,
+                Z_X, R_O, Z_O, mode, false, fx);
+        const double w = generator.width();
+        thrust::host_vector<double> eta1d{ 1.1}, x, y, zetaX, zetaY, etaX, etaY;
+        // The separatrix is at 3/4 w, psi is linear in zeta
+        generator.generate( {0.25*w, 0.5*w, 0.75*w, w}, eta1d, x, y, zetaX, zetaY, etaX, etaY);
+        const double psi_1 = -fx/(1.-fx)*psi_0;
+        CHECK_THAT( psi.f()( x[2], y[2]), Catch::Matchers::WithinAbs( 0., 1e-4));
+        CHECK_THAT( psi.f()( x[3], y[3]), Catch::Matchers::WithinAbs( psi_1, 1e-4));
+        thrust::host_vector<double> three{ 0.25*w, 0.5*w, 0.75*w};
+        CHECK_THROWS_AS( generator.generate( three, eta1d, x, y, zetaX, zetaY, etaX, etaY),
+                dg::Error);
     }
 }
