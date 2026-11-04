@@ -64,35 +64,9 @@ namespace geo{
 ///@cond
 namespace detail
 {
-struct DSCentered
-{
-    DSCentered( double alpha, double beta) : m_alpha(alpha), m_beta(beta){}
-    DG_DEVICE
-    void operator()( double& dsf, double fm, double fo, double fp, double hm,
-            double hp)
-    {
-        dsf = m_alpha*(
-            fm*( 1./(hp+hm) - 1./hm) +
-            fo*( 1./hm - 1./hp) +
-            fp*( 1./hp - 1./(hp+hm))
-            ) + m_beta*dsf;
-    };
-
-    private:
-    double m_alpha, m_beta;
-};
 struct DSSCentered
 {
     DSSCentered( double alpha, double beta, double delta) : m_alpha(alpha), m_beta(beta), m_delta(delta){}
-    DG_DEVICE
-    void operator()( double& dssf, double fm, double fo, double fp, double hm,
-            double hp)
-    {
-        dssf = m_alpha*(
-                    2.*fm/(hp+hm)/hm - 2.*fo/hp/hm + 2.*fp/(hp+hm)/hp
-               ) + m_beta*dssf;
-    };
-
     DG_DEVICE
     void operator()( double& dssf, double fm, double fo, double fp,
         double bPm, double bP0, double bPp)
@@ -427,7 +401,7 @@ struct DS
     /**
     * @brief forward derivative \f$ g = \alpha \vec v \cdot \nabla f + \beta g\f$
     *
-    * forward derivative \f$ g_i = \alpha \frac{1}{h_z^+}(f_{i+1} - f_{i}) + \beta g_i\f$
+    * forward derivative \f$ g_i = \alpha \frac{v^\varphi}{\Delta\varphi}(f_{i+1} - f_{i}) + \beta g_i\f$
     * @copydoc hide_ds_parameters4
     */
     void forward( double alpha, const container& f, double beta, container& g)const{
@@ -438,7 +412,7 @@ struct DS
     /**
     * @brief 2nd order forward derivative \f$ g = \alpha \vec v \cdot \nabla f + \beta g\f$
     *
-    * forward derivative \f$ g_i = \alpha \frac{1}{2h_z^+}(-f_{i+2} + 4f_{i+1} - 3f_{i}) + \beta g_i\f$
+    * forward derivative \f$ g_i = \alpha \frac{v^\varphi}{2\Delta\varphi}(-f_{i+2} + 4f_{i+1} - 3f_{i}) + \beta g_i\f$
     * @copydoc hide_ds_parameters4
     */
     void forward2( double alpha, const container& f, double beta, container& g)const{
@@ -450,7 +424,7 @@ struct DS
     /**
     * @brief backward derivative \f$ g = \alpha \vec v \cdot \nabla f + \beta g\f$
     *
-    * backward derivative \f$ g_i = \alpha \frac{1}{h_z^-}(f_{i} - f_{i-1}) + \beta g_i \f$
+    * backward derivative \f$ g_i = \alpha \frac{v^\varphi}{\Delta\varphi}(f_{i} - f_{i-1}) + \beta g_i \f$
     * @copydoc hide_ds_parameters4
     */
     void backward( double alpha, const container& f, double beta, container& g)const{
@@ -461,7 +435,7 @@ struct DS
     /**
     * @brief 2nd order backward derivative \f$ g = \alpha \vec v \cdot \nabla f + \beta g\f$
     *
-    * backward derivative \f$ g_i = \alpha \frac{1}{2h_z^-}(3f_{i} - 4f_{i-1} + f_{i-2}) + \beta g_i \f$
+    * backward derivative \f$ g_i = \alpha \frac{v^\varphi}{2\Delta\varphi}(3f_{i} - 4f_{i-1} + f_{i-2}) + \beta g_i \f$
     * @copydoc hide_ds_parameters4
     */
     void backward2( double alpha, const container& f, double beta, container& g)const{
@@ -473,11 +447,7 @@ struct DS
     /**
     * @brief centered derivative \f$ g = \alpha \vec v \cdot \nabla f + \beta g\f$
     *
-    * The centered derivative is constructed by fitting a polynomial through
-    * the plus point the minus point and the center point and evaluating its
-    * derivative at the center point. For the exact resulting formula consult
-    * the <a href="https://www.overleaf.com/read/jjvstccqzcjv" target="_blank">parallel derivative</a>
-    * writeup
+    * centered derivative \f$ g_i = \alpha \frac{v^\varphi}{2\Delta\varphi}(f_{i+1} - f_{i-1}) + \beta g_i\f$
     * @copydoc hide_ds_parameters4
     */
     void centered( double alpha, const container& f, double beta, container& g)const{
@@ -485,7 +455,7 @@ struct DS
         m_fa(einsMinus, f, m_tempM);
         ds_centered( m_fa, alpha, m_tempM, m_tempP, beta, g);
     }
-    /// Same as \c dg::geo::ds_centered after \c dg::geo::ds_assign_bc_along_field_2nd
+    /// Same as \c dg::geo::ds_centered after \c dg::geo::assign_bc_along_field_2nd
     void centered_bc_along_field(
         double alpha, const container& f, double beta, container& g, dg::bc bound,
         std::array<double,2> boundary_value = {0,0}) const{
@@ -643,7 +613,7 @@ struct DS
         m_fa(zeroForw,  f, m_tempO);
         dss_centered( m_fa, alpha, m_tempM, m_tempO, m_tempP, beta, g);
     }
-    /// Same as \c dg::geo::dss_centered after \c dg::geo::ds_assign_bc_along_field_2nd
+    /// Same as \c dg::geo::dss_centered after \c dg::geo::assign_bc_along_field_2nd
     void dss_bc_along_field(
         double alpha, const container& f, double beta, container& g, dg::bc bound,
         std::array<double,2> boundary_value = {0,0}) const{
@@ -662,7 +632,7 @@ struct DS
         m_fa(zeroForw,  f, m_tempO);
         dssd_centered( m_fa, alpha, m_tempM, m_tempO, m_tempP, beta, g);
     }
-    /// Same as \c dg::geo::dssd_centered after \c dg::geo::ds_assign_bc_along_field_2nd
+    /// Same as \c dg::geo::dssd_centered after \c dg::geo::assign_bc_along_field_2nd
     void dssd_bc_along_field( double alpha, const
             container& f, double beta, container& g, dg::bc bound,
             std::array<double,2> boundary_value = {0,0}) const{

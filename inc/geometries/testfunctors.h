@@ -17,7 +17,7 @@ namespace geo
 ///@{
 /////////////Test functors for DS////////////////////////
 
-//exp(R-R_0)exp(Z)cos^2 (phi)
+//exp((R-R_0)/a)exp(Z/a)cos^2 (kphi*phi)
 struct TestFunctionPsi2
 {
     TestFunctionPsi2( const TokamakMagneticField& c, double a, double kphi = 1):R_0(c.R0()), a(a), kphi(kphi), c_(c){}
@@ -56,7 +56,7 @@ struct TestFunctionPsi2
     TokamakMagneticField c_;
 };
 
-// (cos(M_PI*(R-R_0))+1)*(cos(M_PI*Z/2.)+1)*sin(phi);
+// (cos(M_PI*(R-R_0))+1)*(cos(M_PI*Z)+1)*sin(phi);
 struct TestFunctionDirNeu{
     TestFunctionDirNeu( const TokamakMagneticField& c){
         R_0 = c.R0();

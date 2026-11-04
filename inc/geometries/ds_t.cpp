@@ -128,12 +128,12 @@ TEST_CASE("Fieldaligned")
     dg::x::DVec aligned = dg::geo::fieldaligned_evaluate( g3d, bhat, init0, modulate, 10, 2);
     ds.ds( dg::centered, aligned, derivative);
     double norm = dg::blas2::dot(vol3d, derivative);
-    INFO( "# Norm Centered Derivative "<<sqrt( norm)<<" (compare with that of ds_mpit)");
+    INFO( "# Norm Centered Derivative "<<sqrt( norm));
     CHECK( norm < 0.099);
     aligned = dsFA.evaluate( init0, modulate, 10, 2);
     ds.ds( dg::centered, aligned, derivative);
     norm = dg::blas2::dot(vol3d, derivative);
-    INFO( "# Norm Centered Derivative "<<sqrt( norm)<<" (compare with that of ds_mpit)");
+    INFO( "# Norm Centered Derivative "<<sqrt( norm));
     CHECK( norm < 0.099);
     ///##########################################################///
     INFO( "STAGGERED GRID DERIVATIVE");

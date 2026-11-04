@@ -279,6 +279,7 @@ void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_typ
      * |"linear"             |    "linear"   | "dg"      |
      * |"cubic"              |    "cubic"    | "dg"      |
      * |"nearest"            |    "nearest"  | "dg"      |
+     * |"dg-nearest"         | "dg"          | "nearest" |
      * |"linear-nearest" (##)   | "linear"      | "nearest" |
      * |"cubic-nearest"      | "cubic"       | "nearest" |
      * |"nearest-nearest"    | "nearest"     | "nearest" |
@@ -291,6 +292,10 @@ void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_typ
      * The table yields one parameter passed to \c create::interpolation
      * (from the given grid to the fine grid) and one parameter
      * to \c create::projection (from the fine grid to the given grid)
+     *
+     * Additionally, each method can be given with "-equi" after the
+     * interpolation part (e.g. "linear-equi" or "linear-equi-nearest"), then the
+     * fine grid has equidistant points instead of the points of the given grid
      *
      * @param benchmark If true write construction timings to std::cout
     */
@@ -423,6 +428,9 @@ struct Fieldaligned
     * @brief Apply the interpolation to three-dimensional vectors
     *
     * computes \f$  y = 1^\pm \otimes \mathcal T x\f$
+    * @attention The transposed interpolations are the transpose of the plus and
+    * minus interpolation only for the method "dg". For all other methods the
+    * back projections around the interpolation matrix are not transposed.
     * @param which specify what interpolation should be applied
     * @param in input
     * @param out output may not equal input
@@ -430,12 +438,12 @@ struct Fieldaligned
     void operator()(enum whichMatrix which, const container& in, container& out) const;
 
     double deltaPhi() const{return m_deltaPhi;}
-    ///@brief Distance between the planes and the boundary \f$ (s_{k}-s_{b}^-) \f$
+    ///@brief Angular distance between the planes and the boundary in the minus direction, \c deltaPhi() if the boundary is not reached
     ///@return three-dimensional vector
     const container& hbm()const {
         return m_hbm;
     }
-    ///@brief Distance between the planes \f$ (s_b^+-s_{k}) \f$
+    ///@brief Angular distance between the planes and the boundary in the plus direction, \c deltaPhi() if the boundary is not reached
     ///@return three-dimensional vector
     const container& hbp()const {
         return m_hbp;
@@ -575,7 +583,6 @@ struct Fieldaligned
     mutable std::vector<dg::View<const container>> m_split_in;
     mutable std::vector<dg::View< container>> m_split_out;
     dg::ClonePtr<ProductGeometry> m_g;
-    dg::InverseKroneckerTriDiagonal2d<container> m_inv_linear;
     double m_deltaPhi;
     std::string m_interpolation_method;
 

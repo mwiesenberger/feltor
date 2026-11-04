@@ -168,7 +168,7 @@ TEST_CASE("Staggered")
     double volumeM = dg::blas1::dot( 1., dsFAST.sqrtGm());
     double volumeP = dg::blas1::dot( 1., dsFAST.sqrtGp());
     INFO( "volume_error    minus: "<<fabs(volumeM-volume)/volume);
-    INFO( "volume_error    minus: "<<fabs(volumeP-volume)/volume);
+    INFO( "volume_error     plus: "<<fabs(volumeP-volume)/volume);
     CHECK( fabs( volumeM - volume)/volume < 1e-12);
     CHECK( fabs( volumeP - volume)/volume < 1e-12);
 }

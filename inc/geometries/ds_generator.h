@@ -1,6 +1,7 @@
 #pragma once
 
-#include "dg/functors.h"
+#include "dg/algorithm.h"
+#include "generator.h"
 #include "magnetic_field.h"
 
 /*!@file
