@@ -231,7 +231,8 @@ class UniversalLanczos
     {
         tridiag( f, std::forward<MatrixType>(A), b, weights, eps,
                 nrmb_correction, error_norm, res_fac, q);
-        if( "residual" == error_norm)
+        // m_yH is only up to date if the universal criterion just converged
+        if( !m_yH_is_current && m_bnorm != 0)
             m_yH = f( m_TH);
         //Compute x = |b|_M V f(T) e1
         normMbVy(std::forward<MatrixType>(A), m_TH, m_yH, x, b,
@@ -346,6 +347,7 @@ class UniversalLanczos
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif //MPI
+        m_yH_is_current = false;
         m_bnorm = nrm( weights, b);
         if( m_verbose)
         {
@@ -365,7 +367,9 @@ class UniversalLanczos
             set_iter(1);
             return m_TH;
         }
-        double residual = 1e300;
+        // Not a number the convergence test can accept, whatever the size of b
+        const double no_residual = std::numeric_limits<double>::infinity();
+        double residual = no_residual;
         dg::blas1::axpby(1./m_bnorm, b, 0.0, m_v); //m_v[1] = x/||x||
         double betaip = 0.;
         double alphai = 0.; // For Hermitian matrices all dot products in CG are real
@@ -394,6 +398,7 @@ class UniversalLanczos
             m_TH.P[i] = betaip;  // +1 diagonal
 
             double xnorm = 0.;
+            bool yH_is_current = false;
             if( "residual" == error_norm)
             {
                 residual = compute_residual_error( m_TH, i)*m_bnorm;
@@ -436,10 +441,11 @@ class UniversalLanczos
                     residual = compute_universal_error( m_TH, i, q, f,
                             m_yH)*m_bnorm;
                     xnorm = dg::fast_l2norm( m_yH)*m_bnorm;
+                    yH_is_current = true;
                 }
                 else
                 {
-                    residual = 1e10;
+                    residual = no_residual;
                     xnorm = m_bnorm;
                 }
             }
@@ -447,6 +453,7 @@ class UniversalLanczos
                 DG_RANK0 std::cout << "# ||r||_W = " << residual << "\tat i = " << i << "\n";
             if (res_fac*residual< eps*(xnorm + nrmb_correction) )
             {
+                m_yH_is_current = yH_is_current;
                 set_iter(i+1);
                 break;
             }
@@ -522,6 +529,7 @@ class UniversalLanczos
     ContainerType  m_v, m_vp, m_vm;
     dg::TriDiagonal<thrust::host_vector<double>> m_TH;
     HVec m_yH;
+    bool m_yH_is_current = false; // m_yH = f(m_TH) for the current m_TH
     unsigned m_iter, m_max_iter;
     bool m_verbose = false;
     double m_bnorm = 0.;

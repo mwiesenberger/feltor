@@ -47,3 +47,20 @@ TEST_CASE( "MatrixSqrt")
     //std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol))<<std::endl;
     CHECK( res < 1e-4);
 }
+
+TEST_CASE( "MatrixSqrt of a constant")
+{
+    // Sqrt( 1-Laplace ) 1 = 1, Lanczos breaks down in its first iteration
+    dg::CartesianGrid2d grid2d( 0, lx, 0, ly, 3, 16, 16, dg::PER, dg::PER);
+    const Container w2d = dg::create::weights( grid2d);
+    const Container one = dg::evaluate( dg::one, grid2d);
+    Container x(one), error(one);
+    dg::Helmholtz< dg::CartesianGrid2d, Matrix, Container > gamma0inv(
+          -1, {grid2d, dg::PER, dg::PER, dg::centered, 1.0});
+    int exp = GENERATE( +1, -1);
+    dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, exp, w2d, 1e-7);
+    sqrtsolve.set_benchmark(false);
+    dg::apply( sqrtsolve, one, x);
+    dg::blas1::axpby( 1., one, -1., x, error);
+    CHECK( sqrt( dg::blas2::dot( w2d, error)) < 1e-10);
+}

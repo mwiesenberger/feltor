@@ -33,7 +33,7 @@ auto make_FuncEigen_Te1( UnaryOp f)
         using value_type = typename std::decay_t<decltype(T)>::value_type;
         unsigned iter = T.O.size();
         thrust::host_vector<value_type> evals = T.O, plus  = T.P;
-        thrust::host_vector<value_type> work (2*iter-2);
+        thrust::host_vector<value_type> work ( iter > 1 ? 2*iter-2 : 1);
         dg::SquareMatrix<value_type> EHt(iter);
         //Compute Eigendecomposition
         lapack::stev('V', evals, plus, EHt.data(), work);

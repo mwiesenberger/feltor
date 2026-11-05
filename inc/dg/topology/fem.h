@@ -78,7 +78,9 @@ struct TriDiagonal
                     const value_type* P,
                     const value_type* x, value_type* y)
             {
-                if(i==0)
+                if( size == 1)
+                    y[i] = O[i]*x[i];
+                else if(i==0)
                     y[i] = O[i]*x[i] + P[i]*x[i+1];
                 else if ( i == size -1 )
                     y[i] = M[i]*x[i-1] + O[i] * x[i];
