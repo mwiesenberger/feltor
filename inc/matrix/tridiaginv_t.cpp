@@ -60,6 +60,19 @@ TEST_CASE( "tridiaginv")
         for( unsigned u=0; u<size*size; u++)
             CHECK( Tinv_error.data()[u] <1e-6); // The accuracy of the analytical solution is not better...
     }
+    SECTION( "Size 1")
+    {
+        // P[0] and M[0] lie outside the matrix and must be ignored
+        dg::TriDiagonal<thrust::host_vector<double>> T1(1);
+        T1.O[0] = 4., T1.P[0] = 2., T1.M[0] = 3.;
+        dg::mat::TridiagInvDF<double>( 1)( T1, Tinv);
+        CHECK( Tinv(0,0) == 0.25);
+        dg::mat::TridiagInvD<double>( 1)( T1, Tinv);
+        CHECK( Tinv(0,0) == 0.25);
+        dg::mat::TridiagInvHMGTI<double>( 1)( T1, Tinv);
+        CHECK( Tinv(0,0) == 0.25);
+        CHECK( dg::mat::invert( T1)(0,0) == 0.25);
+    }
     SECTION( "invert")
     {
         auto Tinv = dg::mat::invert(T);

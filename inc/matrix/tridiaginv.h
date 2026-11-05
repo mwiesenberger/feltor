@@ -301,7 +301,7 @@ class TridiagInvHMGTI
         Tinv.resize(ss);
         if( ss == 1)
         {
-            Tinv(0,0) = 1./b[0];
+            Tinv(0,0) = 1./a[0];
             return;
         }
         //fill alphas
@@ -370,7 +370,7 @@ class TridiagInvHMGTI
         else return -1;
     }
     thrust::host_vector<real_type> m_alphas, m_betas;
-    unsigned m_size;
+    unsigned m_size = 0;
 };
 
 
@@ -488,7 +488,7 @@ class TridiagInvDF
         }
 //         m_theta[0] = 0.0;
         //Diagonal entries
-        helper = a[0] + b[0]* m_theta[1];
+        helper = m_size == 1 ? a[0] : a[0] + b[0]* m_theta[1];
         if (helper==0) throw dg::Error( dg::Message(_ping_)<< "Failure: No inverse exists\n");
         else Tinv(0,0) = 1.0/helper;
 
@@ -522,7 +522,7 @@ class TridiagInvDF
     }
   private:
     thrust::host_vector<real_type> m_phi, m_theta;
-    unsigned m_size;
+    unsigned m_size = 0;
 };
 
 /**
@@ -615,25 +615,17 @@ class TridiagInvD
             const ContainerType2& c, dg::SquareMatrix<real_type>& Tinv)
     {
         Tinv.resize( m_size);
-        unsigned is=0;
-        for( unsigned i = 0; i<m_size+1; i++)
+        if( m_size == 0)
+            return;
+        m_theta[0] = 1.;
+        m_phi[m_size]  = 1.;
+        m_theta[1] = a[0];
+        m_phi[m_size-1]  = a[m_size-1];
+        for( unsigned i = 2; i<m_size+1; i++)
         {
-            is = m_size - i;
-            if (i==0)
-            {
-                m_theta[0] = 1.;
-                m_phi[is]  = 1.;
-            }
-            else if (i==1)
-            {
-                m_theta[1] = a[0];
-                m_phi[is]  = a[is];
-            }
-            else
-            {
-                m_theta[i] = a[i-1] * m_theta[i-1] - b[i-2] * c[i-1]  * m_theta[i-2];
-                m_phi[is]  = a[is]  * m_phi[is+1]  - b[is]  * c[is+1] * m_phi[is+2];
-            }
+            unsigned is = m_size - i;
+            m_theta[i] = a[i-1] * m_theta[i-1] - b[i-2] * c[i-1]  * m_theta[i-2];
+            m_phi[is]  = a[is]  * m_phi[is+1]  - b[is]  * c[is+1] * m_phi[is+2];
         }
 
         //Compute inverse tridiagonal matrix elements
@@ -671,7 +663,7 @@ class TridiagInvD
         else return -1;
     }
     thrust::host_vector<real_type> m_phi, m_theta;
-    unsigned m_size;
+    unsigned m_size = 0;
 };
 
 /**
