@@ -93,7 +93,7 @@ struct SqrtCauchyInt
      * functions via \c jacobi_cn(k,u ) = JacobiCN_(u,k^2), ... and the complete
      * elliptic integral of the first kind via
      * \c comp_ellint_1(k) = EllipticK(k^2)
-     * @param exp If +1 then the sqrt is computed else the inverse sqrt
+     * @param exp if < 0 then the inverse sqrt is computed, else the sqrt
      */
     template<class MatrixType0, class MatrixType1, class ContainerType0,
         class ContainerType1>
@@ -126,7 +126,7 @@ struct SqrtCauchyInt
 
             dg::blas1::axpby(fac, m_temp, 1.0, m_helper3); // m_helper3 += fac  (w^2 + A )^(-1) c d x
         }
-        if( exp > 0)
+        if( exp >= 0)
             dg::blas2::symv(A, m_helper3, x);
         else
             dg::blas1::copy( m_helper3, x);

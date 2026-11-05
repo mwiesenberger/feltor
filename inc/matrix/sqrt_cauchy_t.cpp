@@ -21,8 +21,8 @@ static dg::mat::DirectSqrtCauchy<Container> make_direct( int exp)
 
 TEST_CASE( "DirectSqrtCauchy")
 {
-    // x = d^{exp/2} b
-    int exp = GENERATE( +1, -1);
+    // x = d^{-1/2} b if exp < 0, else d^{1/2} b
+    int exp = GENERATE( +1, 0, -1);
     INFO( "exp "<<exp);
     Container b( diag.size(), 1.), x( b);
     dg::mat::DirectSqrtCauchy<Container> direct;
@@ -43,6 +43,6 @@ TEST_CASE( "DirectSqrtCauchy")
     for( unsigned u=0; u<diag.size(); u++)
     {
         INFO( "d "<<diag[u]);
-        CHECK( fabs( x[u] - pow( diag[u], exp/2.)) < 1e-10);
+        CHECK( fabs( x[u] - pow( diag[u], exp < 0 ? -0.5 : 0.5)) < 1e-10);
     }
 }

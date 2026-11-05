@@ -73,7 +73,7 @@ auto make_FuncEigen_Te1( UnaryOp f)
  *  auto make_SqrtCauchy_Te1( -1, EVs, 40);
  * @endcode
  *
- * @param exp exponent if +1 compute \f$ \sqrt(T)\f$, if -1 compute \f$ 1/\sqrt(T)\f$
+ * @param exp exponent if < 0 compute \f$ 1/\sqrt{T}\f$, else \f$ \sqrt{T}\f$
  * @param EVs {minimum Eigenvalue of A, maximum Eigenvalue of A}
  * @param stepsCauchy iterations of cauchy integral
  * @return an operator to use in \c UniversalLanczos solve method
@@ -113,7 +113,7 @@ auto make_SqrtCauchy_Te1( int exp, std::array<value_type,2> EVs, unsigned stepsC
  * @endcode
  * This function uses an Eigen decomposition for small sizes of  T and a
  * SqrtCauchyInt solve for larger sizes to optimize execution times
- * @param exp exponent if +1 compute \f$ \sqrt{T}\f$, if -1 compute \f$ 1/\sqrt{T}\f$
+ * @param exp exponent if < 0 compute \f$ 1/\sqrt{T}\f$, else \f$ \sqrt{T}\f$
  * @param EVs {minimum Eigenvalue of A, maximum Eigenvalue of A}
  * @param stepsCauchy iterations of cauchy integral
  * @return an operator to use in \c UniversalLanczos solve method
@@ -143,7 +143,7 @@ auto make_SqrtCauchyEigen_Te1( int exp, std::array<value_type,2> EVs, unsigned s
 
 /**
  * @brief Create a functor that computes \f$ \sqrt{T^{\pm 1}} \vec e_1\f$ using ODE solve
- * @param exp exponent if +1 compute \f$ \sqrt{T}\f$, if -1 compute \f$ 1/\sqrt{T}\f$
+ * @param exp exponent if < 0 compute \f$ 1/\sqrt{T}\f$, else \f$ \sqrt{T}\f$
  * @param tableau Tableau of time integrator
  * @param rtol relative tolerance of time integrator
  * @param atol absolute tolerance of time integrator
@@ -175,7 +175,7 @@ auto make_SqrtODE_Te1( int exp, std::string tableau, value_type rtol,
 
 /**
  * @brief Create a functor that computes \f$ T^{\pm 1} \vec e_1\f$ directly
- * @param exp exponent if +1 compute \f$ Te_1\f$, if -1 compute \f$ T^{-1} e_1\f$
+ * @param exp exponent if < 0 compute \f$ T^{-1} e_1\f$, else \f$ Te_1\f$
  * @return an operator to use in \c UniversalLanczos solve method
  * @sa \c UniversalLanczos
  */
