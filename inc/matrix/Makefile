@@ -18,6 +18,7 @@ TARGETS=functors_t\
 lanczos_t\
 matrixsqrt_t\
 mcg_t\
+sqrt_cauchy_t\
 sqrt_ode_t\
 tridiaginv_t\
 exp_runge_kutta_t\

@@ -34,6 +34,7 @@ set(MATRIX_TESTS
   ../../matrix/matrixsqrt_t.cpp
   ../../matrix/mcg_t.cpp
   ../../matrix/optimise_t.cpp
+  ../../matrix/sqrt_cauchy_t.cpp
   ../../matrix/sqrt_ode_t.cpp
   ../../matrix/tridiaginv_t.cpp
 )

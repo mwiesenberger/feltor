@@ -57,3 +57,36 @@ TEST_CASE( "InvSqrtODE")
         CHECK( fabs( y1[u] - 1./sqrt( diag[u])) < 1e-8);
     }
 }
+
+TEST_CASE( "InvSqrtODE factories")
+{
+    // The factories return by value; the result must survive the move into
+    // make_directODESolve
+    Container y0( diag.size(), 1.), y1( y0);
+    unsigned number = 0;
+    SECTION( "make_inv_sqrtodeCG")
+    {
+        auto sqrtinv = dg::mat::make_directODESolve(
+                dg::mat::make_inv_sqrtodeCG( diagonal, 1., diag, 1e-12),
+                std::string("Dormand-Prince-7-4-5"), 1e-10, 1e-12, number);
+        sqrtinv( y0, y1);
+    }
+    SECTION( "make_inv_sqrtodeTri")
+    {
+        dg::TriDiagonal<Container> T( diag.size());
+        for( unsigned u=0; u<diag.size(); u++)
+        {
+            T.M[u] = T.P[u] = 0.;
+            T.O[u] = diag[u];
+        }
+        auto sqrtinv = dg::mat::make_directODESolve(
+                dg::mat::make_inv_sqrtodeTri( T, diag),
+                std::string("Dormand-Prince-7-4-5"), 1e-10, 1e-12, number);
+        sqrtinv( y0, y1);
+    }
+    for( unsigned u=0; u<diag.size(); u++)
+    {
+        INFO( "d "<<diag[u]);
+        CHECK( fabs( y1[u] - 1./sqrt( diag[u])) < 1e-8);
+    }
+}

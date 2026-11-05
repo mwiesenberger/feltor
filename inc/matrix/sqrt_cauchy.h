@@ -160,8 +160,8 @@ struct DirectSqrtCauchy
      *  auto EVs = dg::mat::compute_extreme_EV( T);
      * @endcode
      * @param A The matrix (stored by reference)
-     * @param weights
-     * @param epsCG
+     * @param weights the weights for the PCG solves
+     * @param epsCG accuracy of the PCG solves
      * @param iterCauchy maximum number of %Cauchy iterations
      * @param EVs {minimum Eigenvalue of A, maximum Eigenvalue of A}
      * @param exp if < 0 then the inverse sqrt is computed, else the sqrt
@@ -175,17 +175,13 @@ struct DirectSqrtCauchy
             std::array<value_type,2> EVs, int exp)
     {
         m_pcg.construct( weights, 10000);
-        Container m_temp = weights;
+        m_weights = weights;
+        m_eps = epsCG;
         m_iterCauchy = iterCauchy;
         m_cauchysqrtint.construct(weights);
         m_EVs = EVs;
         m_A = [&]( const Container& x, Container& y){
             dg::blas2::symv( A, x, y);
-        };
-        m_op = m_cauchysqrtint.make_denominator(A);
-        m_wAinv = [&, eps = epsCG, w = weights]
-            ( const Container& x, Container& y){
-                m_pcg.solve( m_op, y, x, 1., w, eps);
         };
         m_exp = exp;
     }
@@ -205,12 +201,20 @@ struct DirectSqrtCauchy
      */
     unsigned operator()(const Container& b, Container& x)
     {
-        m_cauchysqrtint(m_A, m_wAinv, b, x, m_EVs, m_iterCauchy, m_exp);
+        // The operators refer to members, so they are made here and not
+        // stored (a copy or move of *this would leave them dangling)
+        auto op = m_cauchysqrtint.make_denominator(m_A);
+        auto wAinv = [&]( const Container& y, Container& z){
+            m_pcg.solve( op, z, y, 1., m_weights, m_eps);
+        };
+        m_cauchysqrtint(m_A, wAinv, b, x, m_EVs, m_iterCauchy, m_exp);
         return m_iterCauchy;
     }
   private:
     unsigned m_iterCauchy;
-    std::function<void ( const Container&, Container&)> m_A, m_wAinv, m_op;
+    std::function<void ( const Container&, Container&)> m_A;
+    Container m_weights;
+    value_type m_eps;
     dg::PCG<Container> m_pcg;
     dg::mat::SqrtCauchyInt<Container> m_cauchysqrtint;
     std::array<value_type,2> m_EVs;

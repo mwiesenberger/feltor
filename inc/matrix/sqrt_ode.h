@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include "dg/algorithm.h"
 #include "tridiaginv.h"
 
@@ -95,13 +96,25 @@ struct InvSqrtODE
         *this = InvSqrtODE( std::forward<Params>( ps)...);
     }
 
-    const value_type& time() const{ return m_time;}
+    /**
+     * @brief The current time of the ODE
+     *
+     * @note Copies of this object share the time, so the reference remains
+     * valid as long as one of them exists
+     * @return time
+     */
+    const value_type& time() const{ return *m_time;}
 
+    /**
+     * @brief The operator \f$ tI + (1-t)A\f$ at the current \c time()
+     *
+     * @return operator (holds a copy of A and shares the time with \c *this)
+     */
     auto make_operator() const{
-        return [&t = m_time, &A = m_A](  const Container& x, Container& y)
+        return [t = m_time, A = m_A](  const Container& x, Container& y)
         {
             dg::blas2::symv(A, x, y);
-            dg::blas1::axpby( t, x, (1.-t), y);
+            dg::blas1::axpby( *t, x, (1.-*t), y);
         };
     }
     template<class MatrixType>
@@ -119,7 +132,7 @@ struct InvSqrtODE
      */
     void operator()(value_type t, const Container& y, Container& yp)
     {
-        m_time = t;
+        *m_time = t;
         dg::blas2::symv(m_A, y, m_helper);
         dg::blas1::axpby(0.5, y, -0.5, m_helper);
 
@@ -130,7 +143,8 @@ struct InvSqrtODE
   private:
     Container m_helper;
     std::function<void(const Container&, Container&)> m_A, m_Ainv;
-    value_type m_time = 0;
+    // shared such that operators that use the time survive copies of *this
+    std::shared_ptr<value_type> m_time = std::make_shared<value_type>(0);
     dg::Extrapolation<Container> m_yp_ex;
 };
 
