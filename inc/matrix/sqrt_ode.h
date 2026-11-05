@@ -92,7 +92,7 @@ struct InvSqrtODE
     void construct( Params&& ...ps)
     {
         //construct and swap
-        *this = SqrtODE( std::forward<Params>( ps)...);
+        *this = InvSqrtODE( std::forward<Params>( ps)...);
     }
 
     const value_type& time() const{ return m_time;}
@@ -130,7 +130,7 @@ struct InvSqrtODE
   private:
     Container m_helper;
     std::function<void(const Container&, Container&)> m_A, m_Ainv;
-    value_type m_time;
+    value_type m_time = 0;
     dg::Extrapolation<Container> m_yp_ex;
 };
 
@@ -202,6 +202,8 @@ auto make_expode( MatrixType& A)
  * @ingroup matrixfunctionapproximation
  *
  * @note Solution of ODE: \f$ y(1) = I_0(A) y(0)\f$ for initial condition \f$ z(0) = (y(0),0)^T \f$
+ * At \f$ t=0\f$ the term \f$ t^{-1}z_1\f$ is replaced by its limit
+ * \f$ \dot z_1(0) = A^2 z_0/2\f$ (which assumes \f$ z_1(0) = 0\f$)
  */
 template<class MatrixType>
 auto make_besselI0ode( MatrixType& A)
@@ -210,8 +212,11 @@ auto make_besselI0ode( MatrixType& A)
     {
         dg::blas2::symv(m_A, z[0], zp[0]);
         dg::blas2::symv(m_A, zp[0], zp[1]);
-        dg::blas1::axpby(-1./t, z[1], 1.0, zp[1]);
-        dg::blas1::copy(z[0],zp[0]);
+        if( t == 0)
+            dg::blas1::scal( zp[1], 0.5);
+        else
+            dg::blas1::axpby(-1./t, z[1], 1.0, zp[1]);
+        dg::blas1::copy(z[1],zp[0]);
 
     };
 }
