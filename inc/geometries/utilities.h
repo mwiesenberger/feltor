@@ -542,7 +542,7 @@ void compute_rzy(Fpsi fpsi, FieldRZYRYZY fieldRZYRYZY,
     using Vec = std::array<double,4>;
     dg::SinglestepTimeloop<Vec> odeint( dg::RungeKutta<Vec>( "Feagin-17-8-10",
                 begin), fieldRZYRYZY);
-    while( eps < eps_old)
+    while( (eps < eps_old || eps > 1e-7) && steps < 1e6)
     {
         //begin is left const
         eps_old = eps, r_old = r, z_old = z, yr_old = yr, yz_old = yz, xr_old = xr, xz_old = xz;
