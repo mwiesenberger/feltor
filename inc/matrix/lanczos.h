@@ -508,7 +508,7 @@ class UniversalLanczos
         for( unsigned u=1; u<=q; u++)
         {
             THtilde.M[ iter+u] = u==1 ? TH.P[iter] :
-                TH.O[iter+1-u];
+                TH.M[iter+1-u];
             THtilde.O[ iter+u] = TH.O[ iter-u];
             THtilde.P[ iter+u] = TH.M[ iter-u];
         }

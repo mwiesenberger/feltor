@@ -136,6 +136,21 @@ TEST_CASE( "Lanczos solve")
         lanczos.solve( x, expT, diagonal, b, w2d, 1e-8, 1., "compute_extreme_EV");
         CHECK( rel_error( apply_func( smooth, b)) < 1e-8);
     }
+    SECTION( "Universal error with q = 2 is symmetric")
+    {
+        // The ODE solve of sqrt(T) needs the extended T to be symmetric
+        const Container wide = dg::evaluate( []( double x, double){
+                return 1. + 4000.*x*x/lx/lx;}, grid);
+        auto diagonal = make_diagonal( wide);
+        unsigned number = 0;
+        auto sqrtT = dg::mat::make_SqrtODE_Te1( +1,
+                std::string("Dormand-Prince-7-4-5"), 1e-8, 1e-10, number);
+        lanczos.solve( x, sqrtT, diagonal, b, w2d, 1e-6, 1., "universal", 1., 2);
+        Container solution(b);
+        dg::blas1::evaluate( solution, dg::equals(), []( double dd, double vv){
+                return sqrt(dd)*vv;}, wide, b);
+        CHECK( rel_error( solution) < 1e-5);
+    }
     SECTION( "Function that vanishes on the spectrum")
     {
         // exp(-1000 t) underflows to 0 for all Eigenvalues in [1,3]
