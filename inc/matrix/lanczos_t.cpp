@@ -136,6 +136,14 @@ TEST_CASE( "Lanczos solve")
         lanczos.solve( x, expT, diagonal, b, w2d, 1e-8, 1., "compute_extreme_EV");
         CHECK( rel_error( apply_func( smooth, b)) < 1e-8);
     }
+    SECTION( "Function that vanishes on the spectrum")
+    {
+        // exp(-1000 t) underflows to 0 for all Eigenvalues in [1,3]
+        auto zero = dg::mat::make_FuncEigen_Te1( []( double t){ return exp(-1000.*t);});
+        auto diagonal = make_diagonal( smooth);
+        lanczos.solve( x, zero, diagonal, b, w2d, 1e-8);
+        CHECK( sqrt( dg::blas2::dot( w2d, x)) == 0);
+    }
     SECTION( "Large right hand side")
     {
         // Must not stop before the first check of the universal error

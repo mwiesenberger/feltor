@@ -309,7 +309,7 @@ class UniversalLanczos
                 less_iter = i+1;
         dg::blas1::axpby( y[0]*bnorm, m_v, 1., x); //Compute b= |b| V y
 
-        for ( unsigned i=0; i<less_iter-1; i++)
+        for ( unsigned i=0; i+1<less_iter; i++) // less_iter may be 0
         {
             dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
             dg::blas1::axpbypgz(
