@@ -146,6 +146,7 @@ class MCG
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif //MPI
+        set_iter( m_max_iter); // a previous call may have shrunk m_TH
         value_type nrmzr_old = dg::blas2::dot( b, weights, b);
         value_type nrmb = sqrt(nrmzr_old);
         m_bnorm = nrmb;
@@ -308,7 +309,7 @@ class MCGFuncEigen
         m_delta.resize(iter,1.);
         m_beta.resize(iter-1);
         m_EHt.resize(iter);
-        m_e1H.resize(iter, 0.);
+        m_e1H.assign(iter, 0.); // overwritten by the previous call
         m_e1H[0] = 1.;
         m_yH.resize(iter);
         m_work.resize( 2*iter-2);

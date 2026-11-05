@@ -32,6 +32,7 @@ set(MATRIX_TESTS
   ../../matrix/functors_t.cpp
   ../../matrix/lanczos_t.cpp
   ../../matrix/matrixsqrt_t.cpp
+  ../../matrix/mcg_t.cpp
   ../../matrix/optimise_t.cpp
   ../../matrix/tridiaginv_t.cpp
 )
