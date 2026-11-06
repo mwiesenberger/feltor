@@ -102,3 +102,51 @@ TEST_CASE( "Exp Runge Kutta")
     else
         CHECK( (b.order()  - order)/double(b.order()) < 0.014);
 }
+
+TEST_CASE( "Exp Runge Kutta error estimate")
+{
+    // delta = u1 - tilde u1 (embedded solution) for Hochbruck-3-3-4
+    auto mat = MatrixFunction();
+    double t1 = 0;
+    SECTION( "Zero nonlinearity")
+    {
+        // Both solutions are exp( dt A) u0
+        auto zero = []( double, double, double& yp){ yp = 0.;};
+        dg::mat::ExponentialERKStep<double> rk( "Hochbruck-3-3-4", 1.);
+        double u0 = 1., u1 = 7., delta = 3.;
+        rk.step( std::tie( zero, mat), 0., u0, t1, u1, 0.1, delta);
+        CHECK( u1 == exp( matrix*0.1));
+        CHECK( delta == 0);
+    }
+    SECTION( "Independent of the initial content of u1")
+    {
+        double u0 = 0.5, u1 = u0, delta = 0., u1b = 7., deltab = 0.;
+        dg::mat::ExponentialERKStep<double> rk( "Hochbruck-3-3-4", u0);
+        rk.step( std::tie( rhs_nonlinear, mat), 0., u0, t1, u1, 0.1, delta);
+        dg::mat::ExponentialERKStep<double> rkb( "Hochbruck-3-3-4", u0);
+        rkb.step( std::tie( rhs_nonlinear, mat), 0., u0, t1, u1b, 0.1, deltab);
+        CHECK( u1 == u1b);
+        CHECK( delta == deltab);
+        CHECK( delta != 0);
+    }
+    SECTION( "Order of the embedding in exponential Rosenbrock use")
+    {
+        // f(y) = -y + y^2 with the matrix J = f'(u0), the Jacobian at u0, and
+        // g(y) = f(y) - J y; the local error of the order 3 embedding and thus
+        // delta is O(dt^4)
+        double u0 = 0.3, J = -1. + 2.*u0;
+        auto matJ = [&J]( auto f, double x, double& y){ y = f(J)*x;};
+        auto g = [&J]( double, double y, double& yp){ yp = -y + y*y - J*y;};
+        std::array<double,2> deltas;
+        std::array<double,2> dts = {0.1, 0.05};
+        for( unsigned k=0; k<2; k++)
+        {
+            dg::mat::ExponentialERKStep<double> rk( "Hochbruck-3-3-4", u0);
+            double u1 = u0;
+            rk.step( std::tie( g, matJ), 0., u0, t1, u1, dts[k], deltas[k]);
+        }
+        double order = log( deltas[0]/deltas[1])/log( 2.);
+        INFO( "delta "<<deltas[0]<<" "<<deltas[1]<<" order "<<order);
+        CHECK( fabs( order - 4.) < 0.1);
+    }
+}

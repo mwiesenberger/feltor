@@ -221,8 +221,9 @@ struct ExponentialERKStep
         std::get<1>(ode)( [dt](value_type x){
                     return (exp( dt*x));}, u0, m_u);
         //std::cout <<" exp ( dt A) u0 = "<< m_u<<"\n";
+        // the embedded solution also starts from exp( dt A) u0
         if( compute_delta)
-            dg::blas1::copy( u1, delta);
+            dg::blas1::copy( m_u, delta);
         for( unsigned i=0; i<s; i++)
         {
             //std::cout << "b(i) "<<i<<"\n";
