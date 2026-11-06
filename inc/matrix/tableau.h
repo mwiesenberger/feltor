@@ -37,7 +37,9 @@ struct FunctionalButcherTableau{
      * @param s number of stages
      * @param order (global) order of the resulting method
      * @param a pointer to s*s real functions interpreted as a_{ij}=a[i*s+j]
-     * @param b pointer to s real functions interpreted as b_j=b[j]
+     *  (pass an empty \c function_type for a coefficient that is zero, which
+     *  saves a matrix function application)
+     * @param b pointer to s real functions interpreted as b_j=b[j] (empty if zero)
      * @param c pointer to s real numbers interpreted as c_i=c[i]
      * @note This constructor initializes the embedded coefficients bt=b
      * which makes the embedded method equal to the actual method
@@ -51,8 +53,10 @@ struct FunctionalButcherTableau{
      * @param embedded_order (global) order of the embedded method (corresponding to \c bt)
      * @param order (global) order of the method (corresponding to \c b)
      * @param a pointer to s*s real functions interpreted as a_{ij}=a[i*s+j]
-     * @param b pointer to s real functions interpreted as b_j=b[j]
-     * @param bt pointer to s real functions interpreted as bt_j=bt[j]
+     *  (pass an empty \c function_type for a coefficient that is zero, which
+     *  saves a matrix function application)
+     * @param b pointer to s real functions interpreted as b_j=b[j] (empty if zero)
+     * @param bt pointer to s real functions interpreted as bt_j=bt[j] (empty if zero)
      * @param c pointer to s real numbers interpreted as c_i=c[i]
      */
     FunctionalButcherTableau(unsigned s, unsigned embedded_order, unsigned order,
@@ -64,7 +68,8 @@ struct FunctionalButcherTableau{
     * @param i row number 0<=i<s, i>=s results in undefined behaviour
     * @param j col number 0<=j<s, j>=s results in undefined behaviour
     * @return a_ij
-    * @note The returned function is either strictly positive or zero everywhere, so a test <tt> a(i,j)(0) == 0 </tt> is valid
+    * @note A coefficient that is zero is represented by an empty function, so
+    * the test <tt> if( a(i,j)) </tt> is valid (do not evaluate an empty function)
     */
     function_type a( unsigned i, unsigned j) const {
         return m_a(i,j);
@@ -81,7 +86,8 @@ struct FunctionalButcherTableau{
     * @brief Read the b_j coefficients
     * @param j col number 0<=j<s, j>=s results in undefined behaviour
     * @return b_j
-    * @note The returned function is either strictly positive or zero everywhere, so a test <tt> b(j)(0) == 0 </tt> is valid
+    * @note A coefficient that is zero is represented by an empty function, so
+    * the test <tt> if( b(j)) </tt> is valid (do not evaluate an empty function)
     */
     function_type b( unsigned j) const {
         return m_b[j];
@@ -90,7 +96,8 @@ struct FunctionalButcherTableau{
     * @brief Read the embedded bt_j coefficients
     * @param j col number 0<=j<s, j>=s results in undefined behaviour
     * @return bt_j
-    * @note The returned function is either strictly positive or zero everywhere, so a test <tt> bt(j)(0) == 0 </tt> is valid
+    * @note A coefficient that is zero is represented by an empty function, so
+    * the test <tt> if( bt(j)) </tt> is valid (do not evaluate an empty function)
     */
     function_type bt( unsigned j) const {
         return m_bt[j];
@@ -146,8 +153,8 @@ namespace func_tableau{
 template<class real_type>
 FunctionalButcherTableau<real_type> explicit_euler_1_1( )
 {
-    auto zero = [&](real_type){return 0;};
     using function_type = std::function<real_type(real_type)>;
+    function_type zero; // empty function represents a zero coefficient
     function_type a[1] = {zero};
     function_type b[1] = {[&](real_type x){return dg::mat::phi1(x);}};
     real_type c[1] = {0.};
@@ -156,8 +163,8 @@ FunctionalButcherTableau<real_type> explicit_euler_1_1( )
 template<class real_type>
 FunctionalButcherTableau<real_type> midpoint_2_2()
 {
-    auto zero = [&](real_type){return 0;};
     using function_type = std::function<real_type(real_type)>;
+    function_type zero; // empty function represents a zero coefficient
     function_type a[4] = {  zero, zero,
         [&](real_type x){return 0.5*dg::mat::phi1(x/2.);},
                        zero};
@@ -169,8 +176,8 @@ FunctionalButcherTableau<real_type> midpoint_2_2()
 template<class real_type>
 FunctionalButcherTableau<real_type> classic_4_4()
 {
-    auto zero = [&](real_type){return 0;};
     using function_type = std::function<real_type(real_type)>;
+    function_type zero; // empty function represents a zero coefficient
     function_type a[16] = {
         zero,zero,zero,zero,
         [&](real_type x){return 0.5*dg::mat::phi1(x/2.);}, zero,zero,zero,
@@ -189,8 +196,8 @@ FunctionalButcherTableau<real_type> classic_4_4()
 template<class real_type>
 FunctionalButcherTableau<real_type> hochbruck_3_3_4()
 {
-    auto zero = [&](real_type){return 0;};
     using function_type = std::function<real_type(real_type)>;
+    function_type zero; // empty function represents a zero coefficient
     function_type a[9] = {
         zero,zero,zero,
         [&](real_type x){return 0.5*dg::mat::phi1(x/2.);}, zero,zero,

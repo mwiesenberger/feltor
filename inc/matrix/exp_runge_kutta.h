@@ -206,7 +206,7 @@ struct ExponentialERKStep
             for( unsigned j=0; j<i; j++)
             {
                 //std::cout << "a(i j) "<<i<<" "<<j<<"\n";
-                if ( m_rk.a(i,j)(0) != 0)
+                if ( m_rk.a(i,j)) // skip coefficients that are zero
                 {
                     std::get<1>(ode)([&](value_type x){ return
                             m_rk.a(i,j)(dt*x);}, m_k[j], m_tmp);
@@ -226,14 +226,14 @@ struct ExponentialERKStep
         for( unsigned i=0; i<s; i++)
         {
             //std::cout << "b(i) "<<i<<"\n";
-            if( m_rk.b(i)(0) != 0)
+            if( m_rk.b(i))
             {
                 std::get<1>(ode)([&](value_type x){ return
                             m_rk.b(i)(dt*x);}, m_k[i], m_tmp);
                 //std::cout << "b_i ( h A) (k) = "<<m_tmp<<"\n";
                 dg::blas1::axpby( dt, m_tmp, 1., m_u);
             }
-            if( compute_delta && m_rk.bt(i)(0) != 0)
+            if( compute_delta && m_rk.bt(i))
             {
                 std::get<1>(ode)([&](value_type x){ return
                             m_rk.bt(i)(dt*x);}, m_k[i], m_tmp);
