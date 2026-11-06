@@ -1,4 +1,6 @@
 #include <iostream>
+#include <thrust/complex.h>
+#include <complex>
 #include "functors.h"
 
 #include "catch2/catch_all.hpp"
@@ -56,4 +58,26 @@ TEST_CASE( "Gyrolag functions")
     CHECK ( (dgyro2( 1.) - 0.113724) < 1e-6);
 
 
+}
+
+TEST_CASE( "Complex Gyrolag functions")
+{
+    // On the real axis the complex functions equal the real ones
+    double a = 0.5, x = 1.3;
+    for( unsigned n : {0u, 1u, 2u, 3u, 4u, 7u})
+    {
+        INFO( "n "<<n);
+        double ref = dg::mat::GyrolagK<double>( n, a)( x);
+        double dref = dg::mat::DGyrolagK<double>( n, a)( x);
+        thrust::complex<double> t = dg::mat::GyrolagK<thrust::complex<double>>( n, a)( x);
+        std::complex<double> s = dg::mat::GyrolagK<std::complex<double>>( n, a)( x);
+        CHECK( fabs( t.real() - ref) < 1e-15);
+        CHECK( t.imag() == 0);
+        CHECK( fabs( s.real() - ref) < 1e-15);
+        CHECK( s.imag() == 0);
+        thrust::complex<double> dt = dg::mat::DGyrolagK<thrust::complex<double>>( n, a)( x);
+        std::complex<double> ds = dg::mat::DGyrolagK<std::complex<double>>( n, a)( x);
+        CHECK( fabs( dt.real() - dref) < 1e-15);
+        CHECK( fabs( ds.real() - dref) < 1e-15);
+    }
 }

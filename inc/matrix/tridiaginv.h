@@ -79,7 +79,7 @@ void stev(
     if constexpr ( std::is_same_v<value_type, double>)
         dstev_( &job, &N, D_ptr, E_ptr, Z_ptr, &ldz, work_ptr, &info);
     else if constexpr ( std::is_same_v<value_type, float>)
-        sstev_( &job, &N, D_ptr, E_ptr, Z_ptr, ldz, work_ptr, &info);
+        sstev_( &job, &N, D_ptr, E_ptr, Z_ptr, &ldz, work_ptr, &info);
     if( info != 0)
     {
         throw dg::Error( dg::Message(_ping_) << "stev failed with error code "<<info<<"\n");
@@ -128,7 +128,7 @@ void sygv(
     if constexpr ( std::is_same_v<value_type, double>)
         dsygv_( &itype, &jobz, &uplo, &N, A_ptr, &lda, B_ptr, &ldb, W_ptr, work_ptr, &work_size, &info);
     else if constexpr ( std::is_same_v<value_type, float>)
-        ssygv_( &itype, &jobz, &uplo, &N, A_ptr, &lda, B_ptr, &ldb, W_ptr, work_ptr, &work.size, &info);
+        ssygv_( &itype, &jobz, &uplo, &N, A_ptr, &lda, B_ptr, &ldb, W_ptr, work_ptr, &work_size, &info);
     if( info != 0)
     {
         throw dg::Error( dg::Message(_ping_) << "sygv failed with error code "<<info<<"\n");
@@ -621,12 +621,21 @@ class TridiagInvD
         m_phi[m_size]  = 1.;
         m_theta[1] = a[0];
         m_phi[m_size-1]  = a[m_size-1];
+        // GCC 13 may report a false -Warray-bounds here if the size of a, b,
+        // c is known at compile time and equal to 1 (the loop is then empty)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
         for( unsigned i = 2; i<m_size+1; i++)
         {
             unsigned is = m_size - i;
             m_theta[i] = a[i-1] * m_theta[i-1] - b[i-2] * c[i-1]  * m_theta[i-2];
             m_phi[is]  = a[is]  * m_phi[is+1]  - b[is]  * c[is+1] * m_phi[is+2];
         }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
         //Compute inverse tridiagonal matrix elements
         for( unsigned i=0; i<m_size; i++) //row index

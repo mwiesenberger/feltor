@@ -174,7 +174,7 @@ struct GyrolagK
             return 0.5*(x*m_a)*(x*m_a)*exp( -x*m_a);
         if( m_n == 3)
             return (x*m_a)*(x*m_a)*(x*m_a)*exp( -x*m_a)/6.0;
-        return pow(x*m_a,m_n)/fact[m_n]*exp(-x*m_a);
+        return pow(x*m_a,m_n)/T(fact[m_n])*exp(-x*m_a);
     }
     DG_DEVICE
     T operator()(T x, T y) const { return this->operator()(x*y); }

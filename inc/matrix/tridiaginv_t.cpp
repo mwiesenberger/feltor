@@ -83,8 +83,10 @@ TEST_CASE( "tridiaginv")
     }
 }
 
-TEST_CASE( "Lapack")
+TEMPLATE_TEST_CASE( "Lapack", "", double, float)
 {
+    using real = TestType;
+    const double tol = std::is_same_v<real, double> ? 1e-14 : 1e-6;
     // Mathematica: Eigensystem[N[ToeplitzMatrix[PadRight[{2,-1}, 5]],16]]
     std::vector<double> lambda = {3.732050807568877, 3.000000000000000, 2.000000000000000, 1.000000000000000, 0.2679491924311227};
     // Eigenvectors are analytical only up to a scalar!!
@@ -96,7 +98,7 @@ TEST_CASE( "Lapack")
     -0.2886751345948129, -0.5000000000000000, -0.5773502691896258, -0.5000000000000000, -0.2886751345948129};
 
 
-    dg::TriDiagonal<thrust::host_vector<double>> T(5);
+    dg::TriDiagonal<thrust::host_vector<real>> T(5);
     for( unsigned u=0; u<5; u++)
     {
         T.O[u] = 2;
@@ -104,38 +106,69 @@ TEST_CASE( "Lapack")
     }
     SECTION( "stev N")
     {
-        dg::TriDiagonal<std::vector<double>> TT(T);
+        dg::TriDiagonal<std::vector<real>> TT(T);
         dg::mat::lapack::stev( 'N', TT.O, TT.P, TT.M, TT.M);
         for( unsigned u=0; u<5; u++)
         {
             INFO( "Eigenvalue "<<u<<" "<<TT.O[u]);
-            CHECK( fabs( TT.O[u] - lambda[4-u] ) < 1e-14);
+            CHECK( fabs( TT.O[u] - lambda[4-u] ) < tol);
         }
     }
     SECTION( "stev V")
     {
-        dg::TriDiagonal<std::vector<double>> TT(T);
-        dg::SquareMatrix<double> evs( 5);
+        dg::TriDiagonal<std::vector<real>> TT(T);
+        dg::SquareMatrix<real> evs( 5);
         dg::SquareMatrix<double> sol( evecs.begin(), evecs.end());
-        std::vector<double> work ( 2*5-2);
+        std::vector<real> work ( 2*5-2);
         // In LAPACK_COL_MAJOR the eigenvectors become the rows of evs!
         dg::mat::lapack::stev( 'V', TT.O, TT.P, evs.data(), work);
         for( unsigned u=0; u<5; u++)
         {
             INFO( "Eigenvalue "<<u<<" "<<TT.O[u]);
-            CHECK( fabs( TT.O[u] - lambda[4-u] ) < 1e-14);
+            CHECK( fabs( TT.O[u] - lambda[4-u] ) < tol);
         }
         for( unsigned u=0; u<5; u++)
+        {
+            // An Eigenvector is determined only up to a scalar factor
+            // c = <evs_u, sol_u> / <sol_u, sol_u>; stev normalises them
+            double dot = 0, norm = 0, norm_evs = 0;
+            for( unsigned k=0; k<5; k++)
+            {
+                dot  += evs(u,k)*sol(4-u,k);
+                norm += sol(4-u,k)*sol(4-u,k);
+                norm_evs += evs(u,k)*evs(u,k);
+            }
+            double c = dot/norm;
+            INFO( "Eigenvector "<<u<<" factor "<<c);
+            CHECK( fabs( sqrt( norm_evs) - 1.) < tol);
             for( unsigned k=0; k<5; k++)
             {
                 INFO( "Eigenevector "<<u<<" "<<k<<" "<<evs(u,k));
-                CHECK ( fabs( evs(u,k) - sol( 4-u,k)) < 1e-14);
+                CHECK ( fabs( evs(u,k) - c*sol( 4-u,k)) < tol);
             }
+        }
     }
     SECTION( "Compute extreme EV")
     {
         auto EVs = dg::mat::compute_extreme_EV( T);
-        CHECK( fabs(EVs[0] - lambda[4]) < 1e-14);
-        CHECK( fabs(EVs[1] - lambda[0]) < 1e-14);
+        CHECK( fabs(EVs[0] - lambda[4]) < tol);
+        CHECK( fabs(EVs[1] - lambda[0]) < tol);
+    }
+    SECTION( "sygv")
+    {
+        // A x = lambda B x with B = 2 I has Eigenvalues lambda/2
+        std::vector<real> A( 25, 0), B( 25, 0), W( 5), work( 3*5-1);
+        for( unsigned u=0; u<5; u++)
+        {
+            A[u*5+u] = 2, B[u*5+u] = 2;
+            if( u < 4)
+                A[u*5+u+1] = A[(u+1)*5+u] = -1;
+        }
+        dg::mat::lapack::sygv( 1, 'N', 'U', 5, A, 5, B, 5, W, work);
+        for( unsigned u=0; u<5; u++)
+        {
+            INFO( "Eigenvalue "<<u<<" "<<W[u]);
+            CHECK( fabs( W[u] - lambda[4-u]/2. ) < tol);
+        }
     }
 }
