@@ -64,3 +64,41 @@ TEST_CASE( "MatrixSqrt of a constant")
     dg::blas1::axpby( 1., one, -1., x, error);
     CHECK( sqrt( dg::blas2::dot( w2d, error)) < 1e-10);
 }
+
+TEST_CASE( "MatrixFunction")
+{
+    // x = f_outer( f_inner( d)) b for the multiplication with d in [1,3]
+    dg::CartesianGrid2d grid2d( 0, lx, 0, ly, 3, 16, 16, dg::PER, dg::PER);
+    const Container w2d = dg::create::weights( grid2d);
+    const Container d = dg::evaluate( []( double x, double y){
+            return 2. + sin(x)*cos(y);}, grid2d);
+    const Container b = dg::evaluate( []( double x, double y){
+            return 1.5 + cos(x+0.5)*sin(2.*y);}, grid2d);
+    auto diagonal = [&d]( const auto& y, auto& z){ dg::blas1::pointwiseDot( d, y, z);};
+    Container x(b), solution(b), error(b);
+    auto rel_error = [&]()
+    {
+        dg::blas1::axpby( 1., solution, -1., x, error);
+        return sqrt( dg::blas2::dot( w2d, error)/dg::blas2::dot( w2d, solution));
+    };
+    SECTION( "Identity f_inner")
+    {
+        dg::mat::MatrixFunction<Container> func( diagonal, w2d, 1e-10);
+        func.set_benchmark( false);
+        func( []( double t){ return exp(-t);}, b, x);
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return exp(-dd)*vv;}, d, b);
+        CHECK( rel_error() < 1e-9);
+        CHECK( func.get_iter() > 1);
+    }
+    SECTION( "f_inner")
+    {
+        dg::mat::MatrixFunction<Container> func( diagonal, w2d, 1e-10, 1., 500,
+                []( double t){ return 2.*t;});
+        func.set_benchmark( false);
+        func( []( double t){ return exp(-t);}, b, x);
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return exp(-2.*dd)*vv;}, d, b);
+        CHECK( rel_error() < 1e-9);
+    }
+}

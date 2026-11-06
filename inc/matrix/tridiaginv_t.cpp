@@ -60,6 +60,33 @@ TEST_CASE( "tridiaginv")
         for( unsigned u=0; u<size*size; u++)
             CHECK( fabs( Tinv_error.data()[u]) <1e-6); // The accuracy of the analytical solution is not better...
     }
+    SECTION( "compute_Tinv_y and compute_Tinv_m1")
+    {
+        // x = (aT + dI)^{-1} y solves (aT + dI) x = y
+        thrust::host_vector<double> y = {1., -2., 0.5, 3., -1.}, x, Tx(size);
+        double alpha = 0.7, delta = 0.3;
+        dg::mat::compute_Tinv_y( T, x, y, alpha, delta);
+        REQUIRE( x.size() == size);
+        T( x, Tx);
+        for( unsigned u=0; u<size; u++)
+        {
+            INFO( "Row "<<u);
+            CHECK( fabs( alpha*Tx[u] + delta*x[u] - y[u]) < 1e-14);
+        }
+        // (T_m^{-1})_{m1} is the last element of T_m^{-1} e_1 for the
+        // leading m x m block T_m of T
+        for( unsigned m=1; m<=size; m++)
+        {
+            dg::TriDiagonal<thrust::host_vector<double>> Tm( m);
+            for( unsigned u=0; u<m; u++)
+                Tm.M[u] = T.M[u], Tm.O[u] = T.O[u], Tm.P[u] = T.P[u];
+            thrust::host_vector<double> e1( m, 0.), z;
+            e1[0] = 1.;
+            dg::mat::compute_Tinv_y( Tm, z, e1);
+            INFO( "m "<<m);
+            CHECK( fabs( dg::mat::compute_Tinv_m1( T, m) - z[m-1]) < 1e-14*fabs(z[m-1]));
+        }
+    }
     SECTION( "Size 1")
     {
         // P[0] and M[0] lie outside the matrix and must be ignored

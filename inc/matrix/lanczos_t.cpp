@@ -150,6 +150,37 @@ TEST_CASE( "Lanczos solve")
                 double vv){ return sqrt(dd)*vv;}, wide, b);
         CHECK( rel_error( solution) < 1e-5);
     }
+    SECTION( "Te1 functors")
+    {
+        // The Eigenvalues of smooth lie in [1,3]
+        auto diagonal = make_diagonal( smooth);
+        std::array<double,2> EVs = {1., 3.};
+        int exp = GENERATE( +1, -1);
+        INFO( "exp "<<exp);
+        if( exp > 0)
+            dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                    double vv){ return sqrt(dd)*vv;}, smooth, b);
+        else
+            dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                    double vv){ return vv/sqrt(dd);}, smooth, b);
+        lanczos.solve( x, dg::mat::make_SqrtCauchy_Te1( exp, EVs, 40), diagonal,
+                b, w2d, 1e-10, 1., "universal", 1., 2);
+        CHECK( rel_error( solution) < 1e-9);
+        lanczos.solve( x, dg::mat::make_SqrtCauchyEigen_Te1( exp, EVs, 40),
+                diagonal, b, w2d, 1e-10, 1., "universal", 1., 2);
+        CHECK( rel_error( solution) < 1e-9);
+        unsigned number = 0;
+        lanczos.solve( x, dg::mat::make_SqrtODE_Te1( exp,
+                std::string("Dormand-Prince-7-4-5"), 1e-10, 1e-12, number),
+                diagonal, b, w2d, 1e-10, 1., "universal", 1., 2);
+        CHECK( rel_error( solution) < 1e-8);
+        // T^{-1} e_1
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return vv/dd;}, smooth, b);
+        lanczos.solve( x, dg::mat::make_Linear_Te1( -1), diagonal, b, w2d,
+                1e-10, 1., "universal", 1., 2);
+        CHECK( rel_error( solution) < 1e-9);
+    }
     SECTION( "Function that vanishes on the spectrum")
     {
         // exp(-1000 t) underflows to 0 for all Eigenvalues in [1,3]
