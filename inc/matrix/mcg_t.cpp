@@ -19,8 +19,8 @@ TEST_CASE( "MCGFuncEigen")
     auto diagonal = [&d]( const auto& y, auto& z){ dg::blas1::pointwiseDot( d, y, z);};
     auto func = []( double t){ return exp(-t);};
     Container solution(b), x(b), error(b);
-    dg::blas1::evaluate( solution, dg::equals(), [&func]( double dd, double vv){
-            return func(dd)*vv;}, d, b);
+    dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+            double vv){ return exp(-dd)*vv;}, d, b);
     auto rel_error = [&]( const Container& sol, const Container& y)
     {
         dg::blas1::axpby( 1., sol, -1., y, error);

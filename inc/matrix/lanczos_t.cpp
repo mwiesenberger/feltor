@@ -90,13 +90,8 @@ TEST_CASE( "Lanczos solve")
             return 2. + sin(x)*cos(y);}, grid);
     const Container b = dg::evaluate( []( double x, double y){
             return 1.5 + cos(x+0.5)*sin(2.*y);}, grid);
-    auto apply_func = [&]( const Container& d, const Container& v)
-    {
-        Container result(v);
-        dg::blas1::evaluate( result, dg::equals(), [&func]( double dd, double vv){
-                return func(dd)*vv;}, d, v);
-        return result;
-    };
+    // exp(-d) v
+    Container solution( b);
     dg::mat::UniversalLanczos<Container> lanczos( w2d, 500);
     SECTION( "Breakdown in the first iteration, first call")
     {
@@ -122,7 +117,9 @@ TEST_CASE( "Lanczos solve")
         unsigned iter = lanczos.solve( x, expT, diagonal, b, w2d, 1e-12,
                 1., "universal", 1., 1);
         CHECK( iter == 3);
-        CHECK( rel_error( apply_func( steps, b)) < 1e-10);
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return exp(-dd)*vv;}, steps, b);
+        CHECK( rel_error( solution) < 1e-10);
     }
     SECTION( "Size one T with a function that uses T.P")
     {
@@ -134,7 +131,9 @@ TEST_CASE( "Lanczos solve")
     {
         auto diagonal = make_diagonal( smooth);
         lanczos.solve( x, expT, diagonal, b, w2d, 1e-8, 1., "compute_extreme_EV");
-        CHECK( rel_error( apply_func( smooth, b)) < 1e-8);
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return exp(-dd)*vv;}, smooth, b);
+        CHECK( rel_error( solution) < 1e-8);
     }
     SECTION( "Universal error with q = 2 is symmetric")
     {
@@ -146,9 +145,8 @@ TEST_CASE( "Lanczos solve")
         auto sqrtT = dg::mat::make_SqrtODE_Te1( +1,
                 std::string("Dormand-Prince-7-4-5"), 1e-8, 1e-10, number);
         lanczos.solve( x, sqrtT, diagonal, b, w2d, 1e-6, 1., "universal", 1., 2);
-        Container solution(b);
-        dg::blas1::evaluate( solution, dg::equals(), []( double dd, double vv){
-                return sqrt(dd)*vv;}, wide, b);
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return sqrt(dd)*vv;}, wide, b);
         CHECK( rel_error( solution) < 1e-5);
     }
     SECTION( "Function that vanishes on the spectrum")
@@ -167,6 +165,8 @@ TEST_CASE( "Lanczos solve")
         auto diagonal = make_diagonal( smooth);
         unsigned iter = lanczos.solve( x, expT, diagonal, large, w2d, 1e-8);
         CHECK( iter > 1);
-        CHECK( rel_error( apply_func( smooth, large)) < 1e-7);
+        dg::blas1::evaluate( solution, dg::equals(), []DG_DEVICE( double dd,
+                double vv){ return exp(-dd)*vv;}, smooth, large);
+        CHECK( rel_error( solution) < 1e-7);
     }
 }
