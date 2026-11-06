@@ -18,6 +18,7 @@ TARGETS=functors_t\
 lanczos_t\
 matrixsqrt_t\
 mcg_t\
+optimise_t\
 sqrt_cauchy_t\
 sqrt_ode_t\
 tridiaginv_t\

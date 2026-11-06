@@ -7,8 +7,8 @@
 #include "catch2/catch_all.hpp"
 
 
-double rho_ana( double x, double y)  { return sin(x)*sin(y);}
-double sol_ana( double x, double y)  { return sqrt(3) * (sin(x)*sin(y));}
+static double rho_ana( double x, double y)  { return sin(x)*sin(y);}
+static double sol_ana( double x, double y)  { return sqrt(3) * (sin(x)*sin(y));}
 
 const double lx = 2.*M_PI;
 const double ly = 2.*M_PI;

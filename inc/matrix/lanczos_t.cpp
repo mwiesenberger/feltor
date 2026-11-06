@@ -31,8 +31,8 @@ TEST_CASE( "Lanczos")
         auto T = lanczos.tridiag( ell, rnd, w2d);
         auto extremeEVs = dg::mat::compute_extreme_EV( T);
         // Eigenvalues computed with pyfeltor and scipy
-        CHECK( extremeEVs[0] - 0.5000000674740441 < 1e-3);
-        CHECK( 895.3216230750616 - extremeEVs[1] < 1e-3*895);
+        CHECK( fabs( extremeEVs[0] - 0.5000000674740441) < 1e-3);
+        CHECK( fabs( 895.3216230750616 - extremeEVs[1]) < 1e-3*895);
     }
     SECTION( "NEU")
     {
@@ -42,8 +42,8 @@ TEST_CASE( "Lanczos")
         auto T = lanczos.tridiag( ell, rnd, w2d);
         auto extremeEVs = dg::mat::compute_extreme_EV( T);
 
-        CHECK( extremeEVs[0] - 0.0 < 1e-10*897);
-        CHECK( 897.6777549436483 - extremeEVs[1] < 1e-3*897);
+        CHECK( fabs( extremeEVs[0]) < 1e-10*897);
+        CHECK( fabs( 897.6777549436483 - extremeEVs[1]) < 1e-3*897);
     }
     SECTION( "PER")
     {
@@ -53,13 +53,13 @@ TEST_CASE( "Lanczos")
         auto T = lanczos.tridiag( ell, rnd, w2d );
         auto extremeEVs = dg::mat::compute_extreme_EV( T);
 
-        CHECK( extremeEVs[0] - 0.0 < 1e-10*897);
-        CHECK( 896.6482950890147 - extremeEVs[1] < 1e-3*897);
+        CHECK( fabs( extremeEVs[0]) < 1e-10*897);
+        CHECK( fabs( 896.6482950890147 - extremeEVs[1]) < 1e-3*897);
 
         auto Tmax = lanczos.tridiag( ell, rnd, w2d, 1e-4, 1, "compute_max_EV" );
         extremeEVs = dg::mat::compute_extreme_EV( Tmax);
 
-        CHECK( 896.6482950890147 - extremeEVs[1] < 1e-3*897);
+        CHECK( fabs( 896.6482950890147 - extremeEVs[1]) < 1e-3*897);
         // the max EV needs fewer iterations!
         CHECK( Tmax.size() < T.size());
     }

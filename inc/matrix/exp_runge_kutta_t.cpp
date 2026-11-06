@@ -7,7 +7,7 @@
 // integrate Dot y = -100 y +sin(t)
 const double matrix = -1;
 
-void rhs( double t, double, double& yp)
+static void rhs( double t, double, double& yp)
 {
     //yp = 0.;
     yp = sin(t);
@@ -21,7 +21,7 @@ struct MatrixFunction
     }
 };
 
-double solution( double t, double y0){
+static double solution( double t, double y0){
     return y0*exp(matrix*t) + (exp(matrix*t) - matrix*sin(t) -cos(t))/(1.+matrix*matrix);
     //return y0*exp(matrix*t);
 }

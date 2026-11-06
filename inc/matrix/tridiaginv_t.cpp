@@ -40,7 +40,7 @@ TEST_CASE( "tridiaginv")
         Tinv_error = Tinv_sol - Tinv;
         INFO( "Difference between Tinv and solution "<<Tinv_error);
         for( unsigned u=0; u<size*size; u++)
-            CHECK( Tinv_error.data()[u] <1e-6); // The accuracy of the analytical solution is not better...
+            CHECK( fabs( Tinv_error.data()[u]) <1e-6); // The accuracy of the analytical solution is not better...
     }
     SECTION( "TridiagInvD")
     {
@@ -49,7 +49,7 @@ TEST_CASE( "tridiaginv")
         Tinv_error = Tinv_sol - Tinv;
         INFO( "Difference between Tinv and solution "<<Tinv_error);
         for( unsigned u=0; u<size*size; u++)
-            CHECK( Tinv_error.data()[u] <1e-6); // The accuracy of the analytical solution is not better...
+            CHECK( fabs( Tinv_error.data()[u]) <1e-6); // The accuracy of the analytical solution is not better...
     }
     SECTION( "TridiagInvHMGTI")
     {
@@ -58,7 +58,7 @@ TEST_CASE( "tridiaginv")
         Tinv_error = Tinv_sol - Tinv;
         INFO( "Difference between Tinv and solution "<<Tinv_error);
         for( unsigned u=0; u<size*size; u++)
-            CHECK( Tinv_error.data()[u] <1e-6); // The accuracy of the analytical solution is not better...
+            CHECK( fabs( Tinv_error.data()[u]) <1e-6); // The accuracy of the analytical solution is not better...
     }
     SECTION( "Size 1")
     {
@@ -79,7 +79,7 @@ TEST_CASE( "tridiaginv")
         Tinv_error = Tinv_sol - Tinv;
         INFO( "Difference between Tinv and solution "<<Tinv_error);
         for( unsigned u=0; u<size*size; u++)
-            CHECK( Tinv_error.data()[u] <1e-6); // The accuracy of the analytical solution is not better...
+            CHECK( fabs( Tinv_error.data()[u]) <1e-6); // The accuracy of the analytical solution is not better...
     }
 }
 

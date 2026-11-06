@@ -44,17 +44,17 @@ TEST_CASE( "Gyrolag functions")
 {
     double a = 0.5;
 
+    // (ax)^n/n! exp(-ax) at x = 1
     dg::mat::GyrolagK gyro0( 0, a), gyro1( 1, a), gyro2( 2, a);
-    CHECK ( (gyro0( 1.) - exp(-0.5)) < 1e-12);
-    CHECK ( (gyro1( 1.) - 2.*exp(-0.5)) < 1e-12);
-    CHECK ( (gyro2( 1.) - 2.*exp(-0.5)) < 1e-12);
+    CHECK ( fabs(gyro0( 1.) - exp(-0.5)) < 1e-15);
+    CHECK ( fabs(gyro1( 1.) - 0.5*exp(-0.5)) < 1e-15);
+    CHECK ( fabs(gyro2( 1.) - 0.125*exp(-0.5)) < 1e-15);
 
+    // Derivative a ( K_{n-1} - K_n) at x = 1
     dg::mat::DGyrolagK dgyro0( 0, a), dgyro1( 1, a), dgyro2( 2, a);
-    CHECK ( (dgyro0( 1.) - (-0.303265)) < 1e-6);
-    CHECK ( (dgyro1( 1.) - 0.151633) < 1e-6);
-    CHECK ( (dgyro2( 1.) - 0.113724) < 1e-6);
-
-
+    CHECK ( fabs(dgyro0( 1.) - (-0.5*exp(-0.5))) < 1e-15);
+    CHECK ( fabs(dgyro1( 1.) - 0.25*exp(-0.5)) < 1e-15);
+    CHECK ( fabs(dgyro2( 1.) - 0.1875*exp(-0.5)) < 1e-15);
 }
 
 TEST_CASE( "Complex Gyrolag functions")
