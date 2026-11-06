@@ -87,7 +87,7 @@ struct ProductMatrixFunction
                 "universal", 1.0, 2);
         compute_vlcl( op, diag, std::forward<MatrixType>(A), T, x, b,
                     m_lanczos.get_bnorm());
-        return T.num_rows;
+        return T.size();
      * @endcode
      * @note The stopping criterion used on the Lanczos iteration is the
      * universal one applied to \f$ f(1, x) \f$
@@ -129,8 +129,8 @@ struct ProductMatrixFunction
                     m_lanczos.get_bnorm());
         t.toc();
         if( m_benchmark)
-            DG_RANK0 std::cout << "# `"<<m_message<<"` solve with {"<<T.num_rows<<"} iterations took "<<t.diff()<<"s\n";
-        return T.num_rows;
+            DG_RANK0 std::cout << "# `"<<m_message<<"` solve with {"<<T.size()<<"} iterations took "<<t.diff()<<"s\n";
+        return T.size();
     }
 
     /**
@@ -146,7 +146,7 @@ struct ProductMatrixFunction
                 "universal", 1.0, 2);
         compute_vlcl_adjoint( op, std::forward<MatrixType>(A), diag, T, x, b,
                 weights, m_lanczos.get_bnorm());
-        return T.num_rows;
+        return T.size();
      * @endcode
      * @note \f$ f(A, \vec d)\f$ is the adjoint operation to \f$ f( \vec d, A)\f$
      *  since both \f$ \vec d\f$ and \f$ A\f$ are self-adjoint.
@@ -195,8 +195,8 @@ struct ProductMatrixFunction
 
         t.toc();
         if( m_benchmark)
-            DG_RANK0 std::cout << "# `"<<m_message<<"` solve with {"<<T.num_rows<<"} iterations took "<<t.diff()<<"s\n";
-        return T.num_rows;
+            DG_RANK0 std::cout << "# `"<<m_message<<"` solve with {"<<T.size()<<"} iterations took "<<t.diff()<<"s\n";
+        return T.size();
     }
 
     /**
@@ -248,7 +248,7 @@ struct ProductMatrixFunction
         }
         unsigned iter = T.O.size();
         thrust::host_vector<value_type> evals = T.O, plus  = T.P;
-        thrust::host_vector<value_type> work (2*iter-2);
+        thrust::host_vector<value_type> work ( iter > 1 ? 2*iter-2 : 1);
         dg::SquareMatrix<value_type> EHt(iter);
         //Compute Eigendecomposition
         lapack::stev('V', evals, plus, EHt.data(), work);
@@ -325,7 +325,7 @@ struct ProductMatrixFunction
         }
         unsigned iter = T.O.size();
         thrust::host_vector<value_type> evals = T.O, plus  = T.P;
-        thrust::host_vector<value_type> work (2*iter-2);
+        thrust::host_vector<value_type> work ( iter > 1 ? 2*iter-2 : 1);
         dg::SquareMatrix<value_type> EHt(iter);
         //Compute Eigendecomposition
         lapack::stev('V', evals, plus, EHt.data(), work);

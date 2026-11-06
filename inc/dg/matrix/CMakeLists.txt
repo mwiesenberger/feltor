@@ -31,6 +31,7 @@ set(MATRIX_TESTS
   ../../matrix/exp_runge_kutta_t.cpp
   ../../matrix/functors_t.cpp
   ../../matrix/lanczos_t.cpp
+  ../../matrix/matrixprod_t.cpp
   ../../matrix/matrixsqrt_t.cpp
   ../../matrix/mcg_t.cpp
   ../../matrix/optimise_t.cpp

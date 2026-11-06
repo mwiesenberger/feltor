@@ -16,6 +16,7 @@ CUFILES=$(wildcard *.cu)
 
 TARGETS=functors_t\
 lanczos_t\
+matrixprod_t\
 matrixsqrt_t\
 mcg_t\
 optimise_t\
