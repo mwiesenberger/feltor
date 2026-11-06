@@ -150,3 +150,35 @@ TEST_CASE( "Exp Runge Kutta error estimate")
         CHECK( fabs( order - 4.) < 0.1);
     }
 }
+
+TEST_CASE( "Functional Butcher tableau")
+{
+    // Identifiers and names give the same tableau
+    std::vector<dg::mat::func_tableau_identifier> ids = {
+        dg::mat::EXPLICIT_EULER_1_1, dg::mat::MIDPOINT_2_2,
+        dg::mat::CLASSIC_4_4, dg::mat::HOCHBRUCK_3_3_4};
+    for( auto id : ids)
+    {
+        std::string name = dg::mat::create::func_tableau2str( id);
+        INFO( "Tableau "<<name);
+        CHECK( dg::mat::create::str2func_tableau( name) == id);
+        dg::mat::FunctionalButcherTableau<double> byid =
+            dg::mat::ConvertsToFunctionalButcherTableau<double>( id);
+        dg::mat::FunctionalButcherTableau<double> byname =
+            dg::mat::ConvertsToFunctionalButcherTableau<double>( name);
+        CHECK( byid.num_stages() == byname.num_stages());
+        CHECK( byid.order() == byname.order());
+        CHECK( byid.c( byid.num_stages()-1) == byname.c( byname.num_stages()-1));
+        // all predefined methods are explicit
+        CHECK( !byid.isImplicit());
+    }
+    // A tableau with a coefficient on the diagonal is implicit
+    std::function<double(double)> zero, one = []( double){ return 1.;};
+    std::function<double(double)> a[1] = {one}, b[1] = {one};
+    double c[1] = {0.};
+    dg::mat::FunctionalButcherTableau<double> implicit( 1, 1, a, b, c);
+    CHECK( implicit.isImplicit());
+    std::function<double(double)> a0[1] = {zero};
+    dg::mat::FunctionalButcherTableau<double> explicit_( 1, 1, a0, b, c);
+    CHECK( !explicit_.isImplicit());
+}

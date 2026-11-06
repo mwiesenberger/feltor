@@ -118,11 +118,11 @@ struct FunctionalButcherTableau{
     bool isEmbedded()const{
         return m_embedded;
     }
-    /// True if an element on or above the diagonal in a is non-zero
+    /// True if an element on or above the diagonal in a is non-zero (not an empty function)
     bool isImplicit()const{
         for( unsigned i=0; i<m_s; i++)
             for( unsigned j=i; j<m_s; j++)
-                if( a(i,j) != 0)
+                if( a(i,j))
                     return true;
         return false;
     }
@@ -336,9 +336,9 @@ struct ConvertsToFunctionalButcherTableau
     /*! @brief Create FunctionalButcherTableau from \c dg::mat::func_tableau_identifier
     *
     * The use of this constructor might be a bit awkward because you'll have to write all caps.
-    * @param id the identifier, for example \c dg::mat::RUNGE_KUTTA_4_4
+    * @param id the identifier, for example \c dg::mat::CLASSIC_4_4
     */
-    ConvertsToFunctionalButcherTableau( enum tableau_identifier id):m_t( create::func_tableau<real_type>(id)){}
+    ConvertsToFunctionalButcherTableau( enum func_tableau_identifier id):m_t( create::func_tableau<real_type>(id)){}
     /*! @brief Create FunctionalButcherTableau from its name (very useful)
     *
     *  @note In some of the links in the Description below you might want to use the search function of your browser to find the indicated method
