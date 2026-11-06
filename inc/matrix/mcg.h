@@ -83,7 +83,7 @@ class MCG
      * @brief Compute x = R y
      * @param A A self-adjoint, positive definit matrix
      * @param T T non-symmetric tridiagonal Matrix from MCG tridiagonalization
-     * @param y (host) vector with v.size() = iter. Must have size of \c T.num_rows.
+     * @param y (host) vector with v.size() = iter. Must have size of \c T.size().
      *  Typically \f$ T^{(-1)} e_1 \f$ or \f$ f(T^{(-1)}) e_1 \f$
      * @param x Contains the matrix approximation \f$x = Ry \f$ (output)
      * @param b The right hand side vector.
@@ -276,10 +276,10 @@ class MCGFuncEigen
     /**
      * @brief Compute \f$x \approx f(A)*b \f$ via M-CG method and Eigen decomposition
      *
-     * @param b input vector
      * @param x output vector
      * @param f the matrix function (e.g. dg::SQRT<double> or dg::EXP<double>)
      * @param A self-adjoint and semi-positive definit matrix
+     * @param b input vector
      * @param weights weights
      * @param eps relative accuracy of M-CG method
      * @param nrmb_correction the absolute error \c C in units of \c eps to be

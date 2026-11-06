@@ -71,7 +71,7 @@ auto make_FuncEigen_Te1( UnaryOp f)
  *      dg::create::uniform_real_distribution( 0, 1, grid));
  *  auto T = lanczos.tridiag( A, rnd, A.weights());
  *  auto EVs = dg::mat::compute_extreme_EV( T);
- *  auto make_SqrtCauchy_Te1( -1, EVs, 40);
+ *  auto func = dg::mat::make_SqrtCauchy_Te1( -1, EVs, 40);
  * @endcode
  *
  * @param exp exponent if < 0 compute \f$ 1/\sqrt{T}\f$, else \f$ \sqrt{T}\f$
@@ -111,7 +111,7 @@ auto make_SqrtCauchy_Te1( int exp, std::array<value_type,2> EVs, unsigned stepsC
  *      dg::create::uniform_real_distribution( 0, 1, grid));
  *  auto T = lanczos.tridiag( A, rnd, A.weights());
  *  auto EVs = dg::mat::compute_extreme_EV( T);
- *  auto make_SqrtCauchyEigen_Te1( -1, EVs, 40);
+ *  auto func = dg::mat::make_SqrtCauchyEigen_Te1( -1, EVs, 40);
  * @endcode
  * This function uses an Eigen decomposition for small sizes of  T and a
  * SqrtCauchyInt solve for larger sizes to optimize execution times

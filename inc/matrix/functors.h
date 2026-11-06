@@ -26,7 +26,7 @@ struct BESSELI0
 };
 
 /**
- * @brief \f$ f(x) = J_n (x)\f$ with \f$J_n\f$ the n-th order modified Bessel function
+ * @brief \f$ f(x) = J_n (x)\f$ with \f$J_n\f$ the n-th order Bessel function of the first kind
  *
  * @tparam T value type
  */
@@ -64,6 +64,10 @@ struct LaguerreL
 
 /**
  * @brief \f$ f(x) = \Gamma_0 (x) := I_0 (x) exp(x) \f$ with \f$I_0\f$ the zeroth order modified Bessel function
+ *
+ * @note Note the sign: this is \f$ I_0(x) e^{+x}\f$. The gyro-average
+ * operator \f$ \Gamma_0(b) = I_0(b) e^{-b}\f$ of gyrofluid models is obtained
+ * by evaluating at \f$ -b\f$, since \f$ I_0\f$ is even
  *
  * @tparam T value type
  */

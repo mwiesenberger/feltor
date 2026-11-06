@@ -26,11 +26,11 @@ namespace mat{
  * @param error_norm Either "residual" or "universal" or
  * "compute_extreme_EV" or "compute_max_EV". In the latter two cases the
  * iteration terminates if the extreme ( = maximum and minimum) /maximum
- * Eigenvalue(s) of the tridiagonal matrix converge i.e. \f$ | \lambda_{\max,
- * i} - \lambda_{\max, i-1}|< \epsilon \lambda_{\max,i}\f$ (analogous for
- * minimum). In the Eigenvalue cases \c nrmb_correction, \c res_fac and \c q are ignored.
- * In the Eigenvalue case the algorithm trows if breakdown occurs.
- * The error conditions is checked every iteration for the first 10 iterations
+ * Eigenvalue(s) of the tridiagonal matrix converge, see the "compute_extreme_EV"
+ * note of \c UniversalLanczos; this condition is checked every 10th iteration.
+ * In the Eigenvalue cases \c nrmb_correction, \c res_fac and \c q are ignored.
+ * In the Eigenvalue case the algorithm throws if breakdown occurs.
+ * The "universal" error is checked every iteration for the first 10 iterations
  * and then only every 10th iteration.
  * @param res_fac factor \f$ \tau\f$ in the "universal" and "resisdual" \c
  * error_norm that is multiplied to the norm of the residual. Used to account
@@ -110,7 +110,7 @@ with
 * (by the condition number \f$\kappa\f$ of the matrix!). This is because all Eigenvalues that are found
 * by \f$ T\f$ lie within the spectrum of \f$A\f$, i.e.
 * \f[
-* \lambda^A_\min < \lambda^T_\min < \lambda^T_\max < \lambda^T_\max
+* \lambda^A_\min < \lambda^T_\min < \lambda^T_\max < \lambda^A_\max
 * \\
 * \frac{\lambda^A_\max - \lambda^T_\max }{\lambda^A_\max}  <  1
 * \\
@@ -198,7 +198,7 @@ class UniversalLanczos
     double get_bnorm() const{return m_bnorm;}
 
     ///@brief Get the number of iterations in the last call to \c tridiag or \c solve
-    /// (same as T.num_rows)
+    /// (same as T.size())
     ///@return the number of iterations in the last call to \c tridiag or \c solve
     unsigned get_iter() const {return m_iter;}
 
@@ -259,8 +259,8 @@ class UniversalLanczos
      * @note The Eigenvalues of \f$ T\f$ are called the **Rayleigh-Ritz values**
      * @copydoc hide_lanczos_params_doc
      *
-     * @return returns the tridiagonal matrix T. Note that \f$ T = (MV)^T A V \f$.
-     *  The number of iterations is given by \c T.num_rows
+     * @return returns the tridiagonal matrix T. Note that \f$ T = (WV)^T A V \f$.
+     *  The number of iterations is given by \c T.size()
       */
     template< class MatrixType, class ContainerType0, class ContainerType1>
     const dg::TriDiagonal<thrust::host_vector<double>>& tridiag( MatrixType&& A, const ContainerType0& b,
@@ -283,7 +283,7 @@ class UniversalLanczos
      * @param A A self-adjoint positive definit matrix
      * @param T Tridiagonal matrix
      * @param y a (host) vector e.g y= T e_1 or y= f(T) e_1, must have size of
-     *  \c T.num_rows
+     *  \c T.size()
      * @param x The result vector (output)
      * @param b Contains the initial value of lanczos method
      * @param bnorm the norm of b in weights, \c get_bnorm()
@@ -331,8 +331,8 @@ class UniversalLanczos
      * @param f Unary function (ignored if \c error_norm is not "universal")
      * @copydoc hide_lanczos_params_doc
      *
-     * @return returns the tridiagonal matrix T. Note that \f$ T = (MV)^T A V \f$.
-     *  The number of iterations is given by \c T.num_rows
+     * @return returns the tridiagonal matrix T. Note that \f$ T = (WV)^T A V \f$.
+     *  The number of iterations is given by \c T.size()
       */
     template < class UnaryOp, class MatrixType,
              class ContainerType1, class ContainerType2>

@@ -66,7 +66,7 @@ set( MATRIX_BENCHMARKS_WITH_FILE
 # Create DG matrix library target
 
 add_library(dg_matrix INTERFACE)
-set_property(TARGET dg_geometries PROPERTY EXPORT_NAME geometries)
+set_property(TARGET dg_matrix PROPERTY EXPORT_NAME matrix)
 add_library(feltor::dg::matrix ALIAS dg_matrix)
 target_sources( dg_matrix INTERFACE
     FILE_SET dg_matrix_headers TYPE HEADERS

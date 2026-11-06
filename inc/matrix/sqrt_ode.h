@@ -15,11 +15,11 @@ namespace mat {
  *
  * The intended use is to integrate Matrix equations
  * @code{.cpp}
- * dg::Helmholtz<Geometry, Matrix, Container> A( g, alpha, dg::centered);
- * auto sqrt_ode = dg::mat::make_sqrtode( A, 1., A.weights(), eps);
+ * dg::Helmholtz<Geometry, Matrix, Container> A( alpha, {g, dg::centered});
+ * auto inv_sqrt_ode = dg::mat::make_inv_sqrtodeCG( A, A.precond(), A.weights(), eps);
  * unsigned number = 0;
- * auto sqrtA = dg::mat::make_directODESolve( sqrt_ode, "Dormand-Prince-7-4-5",1e-5, 1e-7, number);
- * dg::apply ( sqrtA , x , b);
+ * auto inv_sqrtA = dg::mat::make_directODESolve( inv_sqrt_ode, "Dormand-Prince-7-4-5",1e-5, 1e-7, number);
+ * dg::apply ( inv_sqrtA , x , b); // b = A^{-1/2} x
  * @endcode
  * The call \f$ b = f(x) \f$ corresponds to integrating \f$ \dot y = F(y)\f$ with \f$ y(0 ) = x\f$ to \f$ b = y(1)\f$
  * @param ode The differential equation to integrate (forwarded to \c dg::Adaptive<dg::ERKStep>)
@@ -32,7 +32,7 @@ namespace mat {
  * @param t1 Change end time to \c t1
  * @return %Operator that integrates the ode from t0 to t1
  *
- * @sa \c dg::make_sqrtode \c dg::make_expode, \c dg::make_besselI0ode
+ * @sa \c dg::mat::make_inv_sqrtodeCG, \c dg::mat::make_expode, \c dg::mat::make_besselI0ode
  * @ingroup matrixfunctionapproximation
  */
 template<class value_type, class ExplicitRHS>

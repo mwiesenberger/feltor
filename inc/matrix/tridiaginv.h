@@ -145,15 +145,17 @@ void sygv(
 ///@{
 
 /**
- * @brief Computes the value of \f$ (T^{-1})_{m1} = \langle \vec e_m, T^{-1}\vec e_1\rangle\f$ via a Thomas algorithm
+ * @brief Computes the value of \f$ (T_m^{-1})_{m1} = \langle \vec e_m, T_m^{-1}\vec e_1\rangle\f$ via a Thomas algorithm
+ *
+ * where \f$ T_m\f$ is the leading \f$ m\times m\f$ block of \c T
  *
  * @note This is extremely fast (timings can bearly be measured;
  *  for size = 100 <1e-6s)
  * @tparam value_type real type
  * @param T The tridiagonal matrix
- * @param size the parameter \c m
+ * @param size the parameter \c m (at most the size of \c T)
  *
- * @return \f$ (T^{-1})_{1m}\f$
+ * @return \f$ (T_m^{-1})_{m1}\f$
  */
 template<class value_type>
 value_type compute_Tinv_m1( const dg::TriDiagonal<thrust::host_vector<value_type>>
@@ -222,7 +224,7 @@ class TridiagInvHMGTI
 {
   public:
     using value_type = real_type; //!< value type of the ContainerType class
-    ///@brief Allocate nothing, Call \c construct method before usage
+    ///@brief Allocate nothing, call \c resize before usage
     TridiagInvHMGTI(){}
     /**
      * @brief Construct from vector
@@ -387,7 +389,7 @@ class TridiagInvDF
 {
   public:
     using value_type = real_type; //!< value type of the ContainerType class
-    ///@brief Allocate nothing, Call \c construct method before usage
+    ///@brief Allocate nothing, call \c resize before usage
     TridiagInvDF(){}
     /**
      * @brief Construct from vector
@@ -539,7 +541,7 @@ class TridiagInvD
 {
   public:
     using value_type = real_type; //!< value type of the ContainerType class
-    ///@brief Allocate nothing, Call \c construct method before usage
+    ///@brief Allocate nothing, call \c resize before usage
     TridiagInvD(){}
     /**
      * @brief Construct from vector
