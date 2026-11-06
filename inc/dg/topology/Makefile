@@ -29,6 +29,7 @@ multiply_t\
 operator_t\
 operator_tensor_t\
 projection_t\
+random_t\
 refined_grid_t\
 stencil_t\
 tensor_t\
@@ -43,6 +44,7 @@ mpi_grid_mpit\
 filter_mpit\
 stencil_mpit\
 interpolation_mpit\
+random_mpit\
 mpi_projection_t\
 
 #all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)

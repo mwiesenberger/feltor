@@ -16,6 +16,7 @@
 #include "topology/projectionX.h"
 #include "topology/geometry.h"
 #include "topology/stencil.h"
+#include "topology/random.h"
 #include "blas.h"
 #include "helmholtz.h"
 #include "pcg.h"

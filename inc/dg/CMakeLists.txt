@@ -133,6 +133,7 @@ set(DG_HEADERS
   topology/projection.h
   topology/projectionX.h
   topology/prolongation.h
+  topology/random.h
   topology/refined_grid.h
   topology/refined_gridX.h
   topology/split_and_join.h
@@ -204,6 +205,7 @@ set(DG_TESTS
   topology/operator_t.cpp
   topology/operator_tensor_t.cpp
   topology/projection_t.cpp
+  topology/random_t.cpp
   topology/refined_grid_t.cpp
   topology/refined_gridX_t.cpp
   topology/stencil_t.cpp
@@ -224,6 +226,7 @@ set(DG_MPI_TESTS
   topology/filter_mpit.cpp
   topology/interpolation_mpit.cpp
   topology/mpi_grid_mpit.cpp
+  topology/random_mpit.cpp
   topology/stencil_mpit.cpp
 )
 
