@@ -85,63 +85,86 @@ struct GAMMA0
 };
 
 
+///@cond
+namespace detail
+{
+// phi_k(x) = sum_{j>=0} x^j/(j+k)!, relative error below 1e-15 for all x
+// (measured against quadruple precision for 1e-10 <= |x| <= 30)
+// For small |x| the recursion phi_{k+1}(x) = ( phi_k(x) - 1/k!)/x cancels
+// (phi_k(x) is close to 1/k!), so there we sum the series, which has no
+// cancellation. For large |x| the series needs many terms while the
+// recursion, started from phi_1 = expm1(x)/x, does not cancel. The switch at
+// |x| = 2 and the 24 terms are chosen empirically.
+// See e.g. M. Hochbruck and A. Ostermann, Exponential integrators,
+// Acta Numerica 19 (2010) for the series and the recursion
+template<class T>
+T phi_k( unsigned k, T x)
+{
+    T fact = 1; // k!
+    for( unsigned j=2; j<=k; j++)
+        fact *= j;
+    if( fabs( x) < 2)
+    {
+        // Horner scheme of the series; the first neglected term is below
+        // 2^25/25! relative to the first
+        T sum = 1;
+        for( unsigned j=24; j>0; j--)
+            sum = T(1) + x*sum/T(k+j);
+        return sum/fact;
+    }
+    // phi_{m+1}(x) = ( phi_m(x) - 1/m!)/x
+    T phi = expm1( x)/x, factm = 1;
+    for( unsigned m=1; m<k; m++)
+    {
+        phi = ( phi - T(1)/factm)/x;
+        factm *= m+1;
+    }
+    return phi;
+}
+}//namespace detail
+///@endcond
+
 /**
  * @brief \f$ f(x) = (\exp(x) - 1)/x\f$
  *
- * Accurate evaluation close to and at 0
+ * Accurate evaluation close to and at 0 (relative error below \f$10^{-15}\f$)
  * @tparam T value type
  */
 template<class T>
 T phi1( T x){
-    if ( fabs( x) < 1e-16 )
-        return 1.;
-    if ( fabs(x) < 1)
-        return expm1( x)/x;
-    return (exp( x) - 1)/x;
+    return detail::phi_k( 1, x);
 }
 
 /**
  * @brief \f$ f(x) = (\exp(x) - x - 1)/x^2\f$
  *
- * Accurate evaluation close to and at 0
+ * Accurate evaluation close to and at 0 (relative error below \f$10^{-15}\f$)
  * @tparam T value type
  */
 template<class T>
 T phi2( T x){
-    if ( fabs( x) < 1e-16 )
-        return 1./2;
-    if ( fabs(x) < 1e-2)
-        return 1./2.+x*(1./6.+x*(1./24. + x/120.));
-    return ((exp( x) - 1)/x - 1)/x;
+    return detail::phi_k( 2, x);
 }
 
 /**
  * @brief \f$ f(x) = (\exp(x) - x^2/2 -x- 1)/x^3\f$
  *
- * Accurate evaluation close to and at 0
+ * Accurate evaluation close to and at 0 (relative error below \f$10^{-15}\f$)
  * @tparam T value type
  */
 template<class T>
 T phi3( T x){
-    if ( fabs( x) < 1e-16 )
-        return 1./6.;
-    if ( fabs(x) < 1e-2)
-        return 1./6. + x*(1./24.+x*(1./120. +x/720.));
-    return (((exp( x) - 1)/x - 1)/x-1./2.)/x;
+    return detail::phi_k( 3, x);
 }
 /**
  * @brief \f$ f(x) = (\exp(x) - x^3/6 - x^2/2 -x- 1)/x^4\f$
  *
- * Accurate evaluation close to and at 0
+ * Accurate evaluation close to and at 0 (relative error below \f$10^{-15}\f$)
  * @tparam T value type
  */
 template<class T>
 T phi4( T x){
-    if ( fabs( x) < 1e-16 )
-        return 1./24.;
-    if ( fabs(x) < 1e-2)
-        return 1./24. + x*(1./120.+x*(1./720. + x/5040));
-    return ((((exp( x) - 1)/x - 1)/x-1./2.)/x-1./6.)/x;
+    return detail::phi_k( 4, x);
 }
 
 /**

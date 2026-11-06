@@ -7,40 +7,37 @@
 
 TEST_CASE( "phi functions")
 {
-    // Test correct evaluation of dividied differences formulas
-
+    // phi_k(x) = sum_j x^j/(j+k)! is accurate everywhere, in particular close
+    // to 0 and around |x| = 2, where the evaluation switches from the series
+    // to the recursion (reference values in quadruple precision)
     std::vector<double> limits = {1,0.5,1./6.,1./24.};
-    std::vector<double> evals_small = {5e-11,1.66666666e-11,4.16666666e-12,8.3333333e-13};
-    std::vector<double> evals_half = {5.0000166667e-6,1.6666708333e-6,4.1666750000e-7,8.33334722224206e-8};
-    std::vector<double> evals_third = {0.0005001667083416681,0.0001667083416680558,0.00004167500138908733,8.334722420659725e-6};
-    std::vector<double> evals_one = {0.7182818284590452,0.2182818284590452,0.05161516179237857,0.009948495125711902};
-    std::vector<double> evals_ten = {2201.546579480672,219.6546579480672,21.79879912814005,2.138213246147338};
+    std::vector<double> xs = {-10., -2.01, -1.99, -0.0101, 1e-10, 1e-5, 1e-3,
+        0.0099, 0.5, 1., 1.99, 2.01, 10.};
+    std::vector<std::array<double,4>> refs = {
+        {9.99954600070237515e-02, 9.00004539992976248e-02, 4.09999546000702375e-02, 1.25666712066596429e-02}, // -10
+        {4.30851405637410496e-01, 2.83158504658004758e-01, 1.07881340966166798e-01, 2.92464306967661067e-02}, // -2.01
+        {4.33821394248480475e-01, 2.84511862186693230e-01, 1.08285496388596367e-01, 2.93372714965177385e-02}, // -1.99
+        {9.94966958824029571e-01, 4.98320908511923673e-01, 1.66246681987755142e-01, 4.15826414763885509e-02}, // -0.0101
+        {1.00000000005000000e+00, 5.00000000016666667e-01, 1.66666666670833333e-01, 4.16666666675000000e-02}, // 1e-10
+        {1.00000500001666671e+00, 5.00001666670833342e-01, 1.66667083334166668e-01, 4.16667500001388891e-02}, // 1e-05
+        {1.00050016670834167e+00, 5.00166708341668056e-01, 1.66708341668055754e-01, 4.16750013890873264e-02}, // 0.001
+        {1.00496637550930694e+00, 5.01654091849185504e-01, 1.67079984766212472e-01, 4.17493029844248149e-02}, // 0.0099
+        {1.29744254140025629e+00, 5.94885082800512587e-01, 1.89770165601025175e-01, 4.62069978687170162e-02}, // 0.5
+        {1.71828182845904524e+00, 7.18281828459045235e-01, 2.18281828459045235e-01, 5.16151617923785687e-02}, // 1
+        {3.17363505643696808e+00, 1.09227892283264728e+00, 2.97627599413390594e-01, 6.58095139430773509e-02}, // 1.99
+        {3.21558076981054397e+00, 1.10227898995549463e+00, 2.99641288535071986e-01, 6.61565282927389720e-02}, // 2.01
+        {2.20254657948067165e+03, 2.20154657948067165e+02, 2.19654657948067165e+01, 2.17987991281400499e+00}}; // 10
 
     std::vector<std::function<double(double)>> funcs = {dg::mat::phi1<double>, dg::mat::phi2<double>, dg::mat::phi3<double>, dg::mat::phi4<double>};
     unsigned u = GENERATE( 0, 1, 2, 3);
     INFO( "Phi"<<u+1);
     INFO( "Ana "<<limits[u] << "\nNum "<<funcs[u](0));
     CHECK( limits[u] == funcs[u](0));
-
-    INFO( "Ana "<<evals_small[u] << "\nNum "<<funcs[u](1e-10)-funcs[u](0));
-    INFO( "Relative Error " <<(evals_small[u] +funcs[u](0) -funcs[u](1e-10))/evals_small[u]);
-    CHECK( (evals_small[u] +funcs[u](0) -funcs[u](1e-10))/evals_small[u] < 1e-15);
-
-    INFO( "Ana "<<evals_half[u] << "\nNum "<<funcs[u](1e-5)-funcs[u](0));
-    INFO( "Relative Error " <<(evals_half[u] +funcs[u](0) -funcs[u](1e-5))/evals_half[u]);
-    CHECK( fabs(evals_half[u] +funcs[u](0) -funcs[u](1e-5))/evals_half[u] < 1e-15);
-
-    INFO( "Ana "<<evals_third[u] << "\nNum "<<funcs[u](1e-3)-funcs[u](0));
-    INFO( "Relative Error " <<(evals_third[u] +funcs[u](0) -funcs[u](1e-3))/evals_third[u]);
-    CHECK( fabs(evals_third[u] +funcs[u](0) -funcs[u](1e-3))/evals_third[u] < 1e-11);
-
-    INFO( "Ana "<<evals_one[u] << "\nNum "<<funcs[u](1.0)-funcs[u](0));
-    INFO( "Relative Error " <<(evals_one[u] +funcs[u](0) -funcs[u](1.0))/evals_one[u]);
-    CHECK( fabs(evals_one[u] +funcs[u](0) -funcs[u](1.0))/evals_one[u] < 1e-13);
-
-    INFO( "Ana "<<evals_ten[u] << "\nNum "<<funcs[u](10)-funcs[u](0));
-    INFO( "Relative Error " <<(evals_ten[u] +funcs[u](0) -funcs[u](10))/evals_ten[u]);
-    CHECK( fabs(evals_ten[u] +funcs[u](0) -funcs[u](10))/evals_ten[u] < 1e-15 );
+    for( unsigned i=0; i<xs.size(); i++)
+    {
+        INFO( "x "<<xs[i]<<" Num "<<funcs[u](xs[i])<<" Ana "<<refs[i][u]);
+        CHECK( fabs( funcs[u](xs[i]) - refs[i][u]) < 2e-15*refs[i][u]);
+    }
 }
 
 TEST_CASE( "Gyrolag functions")
