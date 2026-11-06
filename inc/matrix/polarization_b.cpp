@@ -223,7 +223,7 @@ int main()
         t.tic();
         unsigned numberCG = 0;
         //auto func = dg::mat::make_FuncEigen_Te1([](double x){return sqrt(x);});
-        dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, +1, w2d,
+        dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, +1, grid2d,
                 eps_gamma);
 
         dg::apply( sqrtsolve, rho_FF, temp);

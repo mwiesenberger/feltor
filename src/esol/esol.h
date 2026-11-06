@@ -210,7 +210,7 @@ Esol< Geometry, IM, M,  container>::Esol( const Geometry& grid, const Parameters
         m_multi_g1dag.push_back( {-0.5*p.tau[1], {m_multigrid.grid(u), p.bc_N_x, p.bc_y, dg::centered, p.jfactor}});
     }
     //m_sqrtsolve.construct( m_multi_g0[0], grid, m_chi,  p.eps_cauchy, p.maxiter_sqrt, p.maxiter_cauchy,  p.eps_gamma0);
-    m_sqrt.construct( m_multi_g0[0], +1, m_volume, p.eps_gamma0, 1., p.maxiter_sqrt, p.maxiter_cauchy);
+    m_sqrt.construct( m_multi_g0[0], +1, m_multigrid.grid(0), p.eps_gamma0, 1., p.maxiter_sqrt, p.maxiter_cauchy);
 
     if(p.bgproftype == "tanh"){
            m_prof = dg::evaluate( dg::TanhProfX(p.lx*p.xfac_p, p.ln,-1.0, p.bgprofamp,p.profamp), grid);

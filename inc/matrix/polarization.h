@@ -108,8 +108,7 @@ class PolCharge
             m_multi_gamma[0].construct( m_alpha, dg::Elliptic<Geometry,
                 Matrix, Container>{g, bcx, bcy, dir, jfactor});
 
-            m_inv_sqrt.construct( m_multi_gamma[0], -1,
-                    m_multi_gamma[0].weights(), m_eps_gamma[0]);
+            m_inv_sqrt.construct( m_multi_gamma[0], -1, g, m_eps_gamma[0]);
         }
         if (m_mode == "ffO4")
         {

@@ -179,7 +179,7 @@ Poet< Geometry, M,  container>::Poet( const Geometry& grid, const Parameters& p 
         m_multi_g0.push_back( {-p.tau[1], {m_multigrid.grid(u), dg::centered, p.jfactor}});
         m_multi_g1.push_back( {-0.5*p.tau[1], {m_multigrid.grid(u), dg::centered, p.jfactor}});     
     }
-    m_sqrt.construct( m_multi_g0[0], +1, m_volume, p.eps_gamma0, p.maxiter_sqrt, p.maxiter_cauchy);
+    m_sqrt.construct( m_multi_g0[0], +1, m_multigrid.grid(0), p.eps_gamma0, 1., p.maxiter_sqrt, p.maxiter_cauchy);
 }
 
 template< class G,  class M, class container>

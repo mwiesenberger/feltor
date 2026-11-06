@@ -35,7 +35,7 @@ TEST_CASE( "MatrixSqrt")
 
     dg::Helmholtz< dg::CartesianGrid2d, Matrix, Container > gamma0inv(
           -1, {grid2d, bcx, bcy, dg::centered, 1.0});
-    dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, +1, w2d,
+    dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, +1, grid2d,
             eps_gamma);
     sqrtsolve.set_benchmark(false);
 
@@ -58,7 +58,7 @@ TEST_CASE( "MatrixSqrt of a constant")
     dg::Helmholtz< dg::CartesianGrid2d, Matrix, Container > gamma0inv(
           -1, {grid2d, dg::PER, dg::PER, dg::centered, 1.0});
     int exp = GENERATE( +1, -1);
-    dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, exp, w2d, 1e-7);
+    dg::mat::MatrixSqrt<Container> sqrtsolve( gamma0inv, exp, grid2d, 1e-7);
     sqrtsolve.set_benchmark(false);
     dg::apply( sqrtsolve, one, x);
     dg::blas1::axpby( 1., one, -1., x, error);

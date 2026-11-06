@@ -32,32 +32,38 @@ struct MatrixSqrt
      * @brief Construct from matrix
      *
      * @tparam MatrixType
+     * @tparam Geometry A geometry (shared memory or MPI) for which
+     *  \c dg::create::volume exists
      * @param A self-adjoint matrix; is stored by reference
      * @param exp exponent, if < 0 then 1/sqrt(A) is computed, else sqrt(A)
-     * @param weights the weights in which A is self-adjoint
+     * @param g the grid on which \c A is defined. \c A must be self-adjoint
+     *  in the weights \c dg::create::volume(g). The start vector of the
+     *  Lanczos estimate of the extreme Eigenvalues is
+     *  \c dg::create::uniform_real_distribution(0,1,g), so the result does
+     *  not depend on the parallelization
      * @param eps_rel relative accuracy of solution
      * @param nrmb_correction absolute accuracy in units of \c eps_rel
      * @param max_iter Maximum number of iterations in Lanczos tridiagonalization
      * @param cauchy_steps number of cells in the Cauchy integral
      */
-    template<class MatrixType>
+    template<class MatrixType, class Geometry>
     MatrixSqrt(  MatrixType& A, int exp,
-            const ContainerType& weights, value_type eps_rel,
+            const Geometry& g, value_type eps_rel,
             value_type nrmb_correction  = 1.,
             unsigned max_iter = 500, unsigned cauchy_steps = 40
-            ) : m_weights(weights),
+            ) : m_weights( dg::construct<ContainerType>( dg::create::volume(g))),
     m_exp(exp), m_cauchy( cauchy_steps), m_eps(eps_rel),
         m_abs(nrmb_correction)
     {
         m_A = [&]( const ContainerType& x, ContainerType& y){
             return dg::apply( A, x, y);
         };
-        m_lanczos.construct( weights, max_iter);
+        m_lanczos.construct( m_weights, max_iter);
 
-        dg::mat::UniversalLanczos<ContainerType> eigen( weights, 2000);
-        ContainerType rnd = weights;
-        dg::blas1::transform( rnd, rnd, dg::RandomNumbers<double>(0,1));
-        auto T = eigen.tridiag( A, rnd, weights);
+        dg::mat::UniversalLanczos<ContainerType> eigen( m_weights, 2000);
+        const ContainerType rnd = dg::construct<ContainerType>(
+            dg::create::uniform_real_distribution( 0, 1, g));
+        auto T = eigen.tridiag( A, rnd, m_weights);
         m_EVs = dg::mat::compute_extreme_EV( T);
     }
     ///@copydoc hide_construct
