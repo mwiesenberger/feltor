@@ -20,6 +20,7 @@ matrixprod_t\
 matrixsqrt_t\
 mcg_t\
 optimise_t\
+outer_t\
 sqrt_cauchy_t\
 sqrt_ode_t\
 tridiaginv_t\

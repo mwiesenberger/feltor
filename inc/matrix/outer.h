@@ -104,7 +104,7 @@ struct LaplaceDecomposition
         // Eigenvalues are sorted in ascending order
         // now convert to device vectors
         m_VY.resize( Ny);
-        for( unsigned i=0; i<Nx; i++)
+        for( unsigned i=0; i<Ny; i++)
         {
             dg::HVec temp(Ny);
             for( unsigned u=0; u<Ny; u++)
