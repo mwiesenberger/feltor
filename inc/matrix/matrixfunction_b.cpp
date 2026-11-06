@@ -55,7 +55,8 @@ int main()
     //dg::Helmholtz<dg::CartesianGrid2d, Matrix, Container> A( alpha, {g, dg::centered});
     dg::Elliptic<dg::CartesianGrid2d, Matrix, Container> A( {g, dg::centered, 1.0});
     dg::mat::UniversalLanczos<Container> lanczos( A.weights(), 2000);
-    const Container rnd = dg::evaluate( dg::RandomNumbers<double>(0,1), g);
+    const Container rnd = dg::construct<Container>(
+            dg::create::uniform_real_distribution( 0, 1, g));
     auto T = lanczos.tridiag( A, rnd, A.weights());
     auto extremeEVs = dg::mat::compute_extreme_EV( T);
 

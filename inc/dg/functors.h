@@ -286,7 +286,16 @@ struct MinMod
     }
 };
 
-/// <tt>std::uniform_real_distribution<T></tt> as a functor to evaluate on our grids
+/**
+ * @brief DEPRECATED <tt>thrust::uniform_real_distribution<T></tt> as a functor
+ * to evaluate on our grids
+ *
+ * @attention The functor holds the state of its random engine. Parallel
+ * kernels (OpenMP, GPU, MPI) copy it for every thread or process, so the
+ * resulting vector depends on the parallelization.
+ * @deprecated Use \c dg::create::uniform_real_distribution, whose result is
+ * the same for any parallelization
+ */
 template<class T>
 struct UniformRealDistribution
 {
@@ -297,14 +306,14 @@ struct UniformRealDistribution
     template< class ...Ts>
 DG_DEVICE T operator()( Ts... )
     {
-        return m_dist(m_rng); //what happens on GPU? Does every thread get the same?
+        return m_dist(m_rng);
     }
     private:
     thrust::minstd_rand m_rng;
     thrust::uniform_real_distribution<T> m_dist;
 };
 
-/// Makes it easier to find (people search for "Random" if they want random numbers)
+/// DEPRECATED, see \c dg::UniformRealDistribution and use \c dg::create::uniform_real_distribution
 template<class T>
 using RandomNumbers = UniformRealDistribution<T>;
 

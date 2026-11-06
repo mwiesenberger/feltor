@@ -613,8 +613,8 @@ struct CauchyMatrixProduct
         dg::mat::UniversalLanczos<ComplexContainer> lanczos( ops[0].weights(), 2000);
         if( m_verbose)
             lanczos.set_verbose(true);
-        auto rnd = ops[0].weights();
-        dg::blas1::transform( rnd, rnd, dg::RandomNumbers<double>(0.0,1.0));
+        const auto rnd = dg::construct<ComplexContainer>(
+            dg::create::uniform_real_distribution( 0, 1, m_multi.grid(0)));
         auto T = lanczos.tridiag( ops[0], rnd, ops[0].weights(), 1e-4, 1., "compute_extreme_EV");
         //auto T = lanczos.tridiag( ops[0], rnd, ops[0].weights());
         auto EVs = dg::mat::compute_extreme_EV( T);

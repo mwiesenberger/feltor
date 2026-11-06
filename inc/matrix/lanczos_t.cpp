@@ -19,7 +19,8 @@ TEST_CASE( "Lanczos")
     unsigned n = 3, Nx = 16, Ny = 16;
     dg::CartesianGrid2d grid( 0., lx, 0, ly, n, Nx, Ny, bcx, bcy);
     const Container w2d = dg::create::weights( grid);
-    const Container rnd = dg::evaluate( dg::RandomNumbers<double>(0,1), grid);
+    const Container rnd = dg::construct<Container>(
+            dg::create::uniform_real_distribution( 0, 1, grid));
 
     dg::mat::UniversalLanczos<Container> lanczos( w2d, 2000);
     SECTION( "Dirichlet")

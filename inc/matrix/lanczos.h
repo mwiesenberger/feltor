@@ -250,7 +250,8 @@ class UniversalLanczos
      *
      * @code{.cpp}
      *  dg::mat::UniversalLanczos lanczos( A.weights(), 2000);
-     *  const Container rnd = dg::evaluate( dg::RandomNumbers<double>(0,1), grid);
+     *  const Container rnd = dg::construct<Container>(
+     *      dg::create::uniform_real_distribution( 0, 1, grid));
      *  auto T = lanczos.tridiag( A, rnd, A.weights());
      *  auto EV = dg::mat::compute_extreme_EV( T);
      *  // EV[0] is the minimum, EV[1] the maximum Eigenvalue
