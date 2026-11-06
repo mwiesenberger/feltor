@@ -400,7 +400,7 @@ struct ProductMatrixFunction
  * \begin{align}
  * f( A, D) \vec b \approx \sum_{k=1}^{N} \frac{1}{z_k 1 -  A} w_kf(z_k, D) \vec b\\
  * f( D, A) \vec b \approx \sum_{k=1}^{N} w_kf(z_k, D)\frac{1}{z_k 1 -  A}  \vec b\\
- * \end{align
+ * \end{align}
  * \f]
  *
  * The complex nodes and weights \f$ z_k\f$ and \f$ w_k\f$ are found by applying

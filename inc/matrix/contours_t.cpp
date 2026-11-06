@@ -101,7 +101,7 @@ TEST_CASE( "Contours")
         cauchyTCV( params, results);
         double err = dg::blas1::dot( results, results);
         INFO( "Cauchy error "<<log( err/2.));
-        CHECK( (log( err/2.)  - 49.6527560932954)  < 1e-6);
+        CHECK( fabs(log( err/2.)  - 49.6527560932954)  < 1e-6);
 
         std::vector<double> jac_py = {3.95388423e+24, -2.55687962e+24, -1.10062347e+24, -1.13320849e+24};
         INFO( "Numerical Jacobian");
@@ -146,7 +146,7 @@ TEST_CASE( "Contours")
         IcauchyTCV( paramsI, results);
         double err = dg::blas1::dot( results, results);
         INFO( "Cauchy Identity error "<<log( err/2.));
-        CHECK( (log( err/2.)  - 49.6527560932954)  < 1e-6);
+        CHECK( fabs(log( err/2.)  - 49.6527560932954)  < 1e-6);
         dg::mat::LeastSquaresCauchyJacobian IjacTCV( 2*n, dg::mat::weights_and_nodes_identity,
             dg::mat::jacobian_identity,
             func, dxfunc, rrs, lls, fun_order);

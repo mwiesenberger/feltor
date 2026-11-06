@@ -300,7 +300,7 @@ unsigned newton( Gradient grad, InvHessian invhess,
  * and reduce the trust region.
  * We use Algorithm 4.1. of [Nocedal&Wright]
  * @subsection weights Choice of weights
- * The weights are chosen according to [Nocedal&Wright, More1967] as the decreasing sequence
+ * The weights are chosen according to [Nocedal&Wright, More1967] as the non-decreasing sequence
  * \f[
  * \begin{align}
  *  W^{k} =& \text{diag}( W_0^k, ..., W_{n-1}^k)\\

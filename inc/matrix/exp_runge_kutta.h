@@ -1,3 +1,5 @@
+#pragma once
+
 #include "dg/algorithm.h"
 #include "matrixsqrt.h"
 #include "lanczos.h"
@@ -38,7 +40,7 @@ namespace mat {
 * This integrator computes the exact solution
 * \f[
  \begin{align}
-    y^{n+1} = \exp(-\Delta t A) y^n
+    y^{n+1} = \exp(\Delta t A) y^n
  \end{align}
 \f]
 
@@ -111,7 +113,7 @@ We introduce the functions
 \varphi_0(z) = \exp(z)
 \end{align}
 \f]
-and the shorthand notation \f$ \varphi_{j,k} := \varphi_j(-c_k\Delta t A),\ \varphi_j := \varphi_j(-\Delta tA)\f$.
+and the shorthand notation \f$ \varphi_{j,k} := \varphi_j(c_k\Delta t A),\ \varphi_j := \varphi_j(\Delta tA)\f$.
 
 You can provide your own coefficients or use one of our predefined methods:
 @copydoc hide_func_explicit_butcher_tableaus
@@ -166,6 +168,12 @@ struct ExponentialERKStep
     * @note on return \c explicit_rhs(t1, u1) will be the last call to \c explicit_rhs (this is
     * useful if \c ExplicitRHS holds state, which is thus updated to the current
     * timestep)
+    * @attention If \c t0 equals \c t1 of the previous call, the value
+    * \c explicit_rhs(t1,u1) computed at the end of the previous step is reused
+    * as the first stage, i.e. \c u0 is assumed to equal the previous \c u1.
+    * This is wrong if \c explicit_rhs or the matrix (function) change between
+    * steps (e.g. an exponential Rosenbrock method that updates the Jacobian);
+    * construct a new object in such a case
     */
     template< class ExplicitRHS, class MatrixFunction>
     void step( const std::tuple<ExplicitRHS, MatrixFunction>& ode, value_type t0,
@@ -256,5 +264,5 @@ struct ExponentialERKStep
 
 };
 
-} //namespace matrix
+} //namespace mat
 } //namespace dg
