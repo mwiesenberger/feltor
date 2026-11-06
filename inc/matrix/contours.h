@@ -13,19 +13,19 @@ namespace mat{
 ///@cond
 //The following is an implementation of the python notebook
 
-double f_alpha( double alphabar, double lambda = 1.)
+inline double f_alpha( double alphabar, double lambda = 1.)
 {
     return 1-exp( -lambda*alphabar);
 }
-double finv_alpha( double alpha, double lambda = 1.)
+inline double finv_alpha( double alpha, double lambda = 1.)
 {
     return - log( 1. - alpha)/lambda;
 }
-double df_alpha( double alphabar, double lambda = 1)
+inline double df_alpha( double alphabar, double lambda = 1)
 {
     return lambda*exp( -alphabar*lambda);
 }
-double ddf_alpha( double alphabar, double lambda = 1)
+inline double ddf_alpha( double alphabar, double lambda = 1)
 {
     return -lambda*lambda*exp( -alphabar*lambda);
 }
@@ -36,7 +36,7 @@ double ddf_alpha( double alphabar, double lambda = 1)
 // counterclockwise in the second Quadrant starting at 0. Since we only deal with **positive** (semi)-definite
 // matrices that have positive Eigenvalues >= 0 and only positive gyro-radii rho we mirror
 // the curve to the fourth quadrant!!
-std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
+inline std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
     weights_and_nodes_talbot( unsigned N, const std::vector<double>& params)
 {
     thrust::complex<double> I( 0,1);
@@ -59,7 +59,7 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
     return std::make_pair( zk, wk);
 }
 
-std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
+inline std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
     jacobian_talbot( unsigned N, const std::vector<double>& params)
 {
     thrust::complex<double> I( 0,1);
@@ -90,7 +90,7 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
     return std::make_pair( dzk, dwk);
 }
 
-std::vector<double> weights_and_nodes2params( const
+inline std::vector<double> weights_and_nodes2params( const
 std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>& zkwk)
 {
     const auto& zk = zkwk.first;
@@ -112,7 +112,7 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
 
 
 // There are 2*N real params and there will be N/2 nodes
-std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
+inline std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
     weights_and_nodes_identity( unsigned N, const std::vector<double>& params )
 {
     if( N != params.size()/2)
@@ -126,7 +126,7 @@ std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<doubl
         wk[i] = thrust::complex<double>(params[2*n+i], params[3*n+i]);
     return std::make_pair( zk, wk);
 }
-std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
+inline std::pair<std::vector<thrust::complex<double>>,std::vector<thrust::complex<double>>>
     jacobian_identity( unsigned N, const std::vector<double>&)
 {
     unsigned n = N/2;
@@ -315,7 +315,7 @@ struct LeastSquaresCauchyJacobian
     unsigned m_order = 2;
 };
 
-std::vector<double> generate_range( double min, double max, unsigned per_order = 20, bool with_zero = false)
+inline std::vector<double> generate_range( double min, double max, unsigned per_order = 20, bool with_zero = false)
 {
     unsigned orders = unsigned (log10(max) - log10(min));
     if ( orders == 0)
