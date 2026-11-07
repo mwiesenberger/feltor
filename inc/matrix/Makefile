@@ -21,6 +21,7 @@ matrixsqrt_t\
 mcg_t\
 optimise_t\
 outer_t\
+polarization_t\
 sqrt_cauchy_t\
 sqrt_ode_t\
 tensorelliptic_t\

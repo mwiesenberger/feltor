@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include "dg/algorithm.h"
 
 #include "lanczos.h"
@@ -103,12 +104,12 @@ class PolCharge
         if (m_mode == "ff")
         {
             m_ell.construct(g, bcx, bcy, dir, jfactor );
-            m_multi_gamma.resize(1);
-            m_multi_gamma.resize(1);
-            m_multi_gamma[0].construct( m_alpha, dg::Elliptic<Geometry,
-                Matrix, Container>{g, bcx, bcy, dir, jfactor});
-
-            m_inv_sqrt.construct( m_multi_gamma[0], -1, g, m_eps_gamma[0]);
+            // m_inv_sqrt stores the Helmholtz operator by reference, so keep
+            // it on the heap where copies of *this can share it
+            m_ff_gamma = std::make_shared<dg::Helmholtz<Geometry, Matrix,
+                Container>>( m_alpha, dg::Elliptic<Geometry, Matrix,
+                Container>{g, bcx, bcy, dir, jfactor});
+            m_inv_sqrt.construct( *m_ff_gamma, -1, g, m_eps_gamma[0]);
         }
         if (m_mode == "ffO4")
         {
@@ -338,6 +339,7 @@ class PolCharge
     dg::mat::TensorElliptic<Geometry,  Matrix, Container> m_tensorell;
 
     std::vector< dg::Helmholtz<Geometry,  Matrix, Container> > m_multi_gamma;
+    std::shared_ptr< dg::Helmholtz<Geometry,  Matrix, Container> > m_ff_gamma;
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multi_g;
     dg::mat::MatrixSqrt<Container> m_inv_sqrt;
     Container m_temp, m_temp2;
