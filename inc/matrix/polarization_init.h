@@ -119,9 +119,7 @@ class PolChargeN
         return m_ell.precond();
     }
     /**
-     * @brief Compute elliptic term and store in output
-     *
-     * i.e. \f$  y=f(x) = - \nabla \cdot (x \nabla_\perp \phi) \f$ or \f$  y=f(x) = x + (1+ \alpha \Delta_\perp )\nabla \cdot (x \nabla_\perp \phi) \f$
+     * @brief Same as \c symv
      * @param x left-hand-side
      * @param y result
      * @tparam ContainerTypes must be usable with \c Container in \ref dispatch
@@ -134,7 +132,9 @@ class PolChargeN
     /**
      * @brief Compute elliptic term and store in output
      *
-     * i.e. \f$ y=M(phi) x  \f$
+     * i.e. \f$ y = -\left[ \nabla\phi\cdot\chi\nabla(x-1) + x\Delta\phi + x - 1\right]\f$
+     * where \f$ \nabla\phi\f$ and \f$\Delta\phi\f$ are given by \c set_dxphi,
+     * \c set_dyphi and \c set_lapphi and \f$\chi\f$ is the metric
      * @param x left-hand-side
      * @param y result
      * @tparam ContainerTypes must be usable with \c Container in \ref dispatch
@@ -206,11 +206,13 @@ class PolChargeN
 
 }  //namespace mat
 
+///@cond
 template< class G, class M, class V>
 struct TensorTraits< mat::PolChargeN<G, M, V> >
 {
     using value_type      = get_value_type<V>;
     using tensor_category = SelfMadeMatrixTag;
 };
+///@endcond
 
 }  //namespace dg

@@ -44,7 +44,8 @@ class PolCharge
      *
      * @param alpha alpha of the Helmholtz operator
      * @param eps_gamma epsilon (-vector) for the Helmholtz operator inversion
-     *  or the sqrt Helmholtz operator inversion
+     *  or the sqrt Helmholtz operator inversion ("df" and "ffO4" need one
+     *  entry per multigrid stage, i.e. 3, "ff" uses only \c eps_gamma[0])
      * @param g The Grid, boundary conditions are taken from here
      * @param dir Direction of the right first derivative in x and y
      *  (i.e. \c dg::forward, \c dg::backward or \c dg::centered),
@@ -69,7 +70,8 @@ class PolCharge
      *
      * @param alpha alpha of the Helmholtz operator
      * @param eps_gamma epsilon (-vector) for the Helmholtz operator inversion
-     *  or the sqrt Helmholtz operator inversion
+     *  or the sqrt Helmholtz operator inversion ("df" and "ffO4" need one
+     *  entry per multigrid stage, i.e. 3, "ff" uses only \c eps_gamma[0])
      * @param g The Grid, boundary conditions are taken from here
      * @param bcx boundary condition in x
      * @param bcy boundary contition in y
@@ -177,7 +179,7 @@ class PolCharge
     /**
      * @brief Change \f$\iota\f$ in the tensor elliptic operator
      *
-     * @param sigma The new scalar part in \f$\chi\f$ (all elements must be >0)
+     * @param sigma The new \f$\iota\f$ (all elements must be >0; only used in "ffO4")
      * @tparam ContainerType0 must be usable with \c Container in \ref dispatch
      */
     template<class ContainerType0>
@@ -212,10 +214,9 @@ class PolCharge
     /**
      * @brief Return the default preconditioner to use in conjugate gradient
      *
-     * Currently returns the inverse scalar part of \f$ \chi\f$.
-     * This is especially good when \f$ \chi\f$ exhibits large amplitudes or
-     *  variations
-     * @return the inverse of \f$\chi\f$.
+     * Returns the preconditioner of the elliptic (or, in "ffO4", tensor
+     * elliptic) operator
+     * @return preconditioner
      */
     const Container& precond()const {
         if (m_mode == "ffO4")

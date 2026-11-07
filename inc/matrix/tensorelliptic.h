@@ -66,11 +66,8 @@ struct TensorElliptic
         dg::assign( dg::evaluate( dg::one, g), m_temp);
         m_tempx = m_tempy = m_tempxy = m_tempyx = m_iota  = m_helper = m_temp;
 
-        m_chi=g.metric();
         m_metric=g.metric();
-        m_vol=dg::tensor::volume(m_chi); //sqrt(g)
-        dg::tensor::scal( m_chi, m_vol); //m_chi = sqrt(g) g^{ij}
-        dg::assign( dg::evaluate(dg::one, g), m_sigma);
+        m_vol=dg::tensor::volume(m_metric); //sqrt(g)
     }
     ///@copydoc hide_construct
     template<class ...Params>
@@ -155,11 +152,16 @@ struct TensorElliptic
      * @brief apply operator
      *
      * Computes
-     * \f[ y = W\left[-\nabla \cdot \chi \nabla_\perp - \Delta_\perp \iota \Delta_\perp +  2\nabla \cdot\nabla \cdot \iota \nabla_\perp \nabla_\perp \right] x \f] to make the matrix symmetric
+     * \f[ y = \alpha\left[-\nabla \cdot \chi \nabla_\perp - \Delta_\perp \iota \Delta_\perp +  2\nabla \cdot\nabla \cdot \iota \nabla_\perp \nabla_\perp \right] x + \beta y\f]
+     * The operator is self-adjoint in the weights \c weights()
      *
-     * @param alpha
+     * @note The fourth order terms apply a discrete second derivative to a
+     * discrete second derivative. Just as \c dg::Elliptic applied twice, the
+     * result approximates the continuous operator only in the weak sense,
+     * i.e. in scalar products with smooth functions, not pointwise
+     * @param alpha a scalar
      * @param x lhs (is constant up to changes in ghost cells)
-     * @param beta
+     * @param beta a scalar
      * @param y rhs contains solution
      *
      * @note Note that for Cartesian and Cylindrical coordinate systems (with the straight field line approximation) the following relation holds  \f[\nabla \cdot\nabla \cdot (\chi \nabla_\perp^2 f) =  \frac{1}{\sqrt{g}}  \partial_j \left\{\partial_i \left[\sqrt{g} \chi P^{ni} \left( \partial_n ( P^{jm} \partial_m f)\right) \right]\right\} \f] where P is the projection tensor
@@ -228,9 +230,8 @@ struct TensorElliptic
      Elliptic<Geometry, Matrix, Container> m_laplaceM_chi, m_laplaceM_iota;
      Matrix m_leftx, m_lefty, m_rightx, m_righty, m_jumpX, m_jumpY;
      Container m_temp, m_tempx, m_tempy, m_tempxy, m_tempyx, m_iota, m_helper;
-     SparseTensor<Container> m_chi;
      SparseTensor<Container> m_metric;
-     Container m_sigma, m_vol;
+     Container m_vol;
      value_type m_jfactor;
 };
 
