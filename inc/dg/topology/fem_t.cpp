@@ -110,7 +110,9 @@ TEST_CASE("FEM")
         auto split_y = dg::split(y, g3d);
         auto split_z = dg::split(z, g3d);
         MassMatrix fem_mass2d = dg::create::fem_linear2const2d( g3d);
-        MassMatrix fem_mass   = dg::create::fem_linear2const( *g3d.perp_grid());
+        // the caller owns the grid returned by perp_grid
+        const dg::ClonePtr<dg::aGeometry2d> perp_ptr = g3d.perp_grid();
+        MassMatrix fem_mass   = dg::create::fem_linear2const( *perp_ptr);
         dg::blas2::symv( fem_mass2d, x, y);
         for( unsigned i=0; i<g3d.Nz(); i++)
             dg::blas2::symv( fem_mass, split_x[i], split_z[i]);
@@ -122,7 +124,7 @@ TEST_CASE("FEM")
         InvMassMatrix inv_fem_mass2d = dg::create::inv_fem_linear2const2d( g3d);
         dg::blas2::symv( inv_fem_mass2d, y, z);
         InvMassMatrix inv_fem_mass = dg::create::inv_fem_linear2const(
-            *g3d.perp_grid());
+            *perp_ptr);
         for( unsigned i=0; i<g3d.Nz(); i++)
             dg::blas2::symv( inv_fem_mass, split_y[i], split_x[i]);
         dg::blas1::axpby( 1., z, -1., x);
