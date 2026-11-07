@@ -128,7 +128,7 @@ class PolChargeN
      */
     template<class ContainerType0, class ContainerType1>
     void operator()( const ContainerType0& x, ContainerType1& y){
-        symv( 1., x, 0., y);
+        symv( x, y);
     }
 
     /**
