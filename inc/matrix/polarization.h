@@ -51,9 +51,12 @@ class PolCharge
      * @param jfactor (\f$ = \alpha \f$ ) scale jump terms (1 is a good value
      *  but in some cases 0.1 or 0.01 might be better)
      * @param mode arbitrary wavelength polarization charge mode ("df" / "ff" /
-     *  "ffO4" are implemented)
+     *  "ffO4" are implemented, other values throw a \c dg::Error)
      * @param commute false if Helmholtz operators (or their square root) are
      *  outside the elliptic or tensorelliptic operator and true otherwise
+     *  (true is only implemented for "df", \c symv throws a \c dg::Error otherwise)
+     * @note For \c alpha=0 the Helmholtz operators are the identity and only
+     *  the elliptic or tensor elliptic operator is applied
      */
     PolCharge(value_type alpha, std::vector<value_type> eps_gamma,
             const Geometry& g, direction dir = forward, value_type jfactor=1.,
@@ -75,9 +78,12 @@ class PolCharge
      * @param jfactor (\f$ = \alpha \f$ ) scale jump terms (1 is a good value
      *  but in some cases 0.1 or 0.01 might be better)
      * @param mode arbitrary wavelength polarization charge mode ("df" / "ff" /
-     *  "ffO4" (O as in Order!) are implemented)
+     *  "ffO4" (O as in Order!) are implemented, other values throw a \c dg::Error)
      * @param commute false if Helmholtz operators (or their square root) are
      *  outside the elliptic or tensorelliptic operator and true otherwise
+     *  (true is only implemented for "df", \c symv throws a \c dg::Error otherwise)
+     * @note For \c alpha=0 the Helmholtz operators are the identity and only
+     *  the elliptic or tensor elliptic operator is applied
     */
     PolCharge( value_type alpha, std::vector<value_type> eps_gamma,
             const Geometry& g, bc bcx, bc bcy, direction dir = forward,
@@ -87,6 +93,8 @@ class PolCharge
         m_eps_gamma = eps_gamma;
         m_mode = mode;
         m_commute = commute;
+        if( m_mode != "df" && m_mode != "ff" && m_mode != "ffO4")
+            throw dg::Error( dg::Message(_ping_)<<"PolCharge mode "<<m_mode<<" not implemented!");
         m_temp2 = dg::evaluate(dg::zero, g);
         m_temp =  m_temp2;
         m_temp2_ex.set_max(1, m_temp2);
@@ -106,10 +114,14 @@ class PolCharge
             m_ell.construct(g, bcx, bcy, dir, jfactor );
             // m_inv_sqrt stores the Helmholtz operator by reference, so keep
             // it on the heap where copies of *this can share it
-            m_ff_gamma = std::make_shared<dg::Helmholtz<Geometry, Matrix,
-                Container>>( m_alpha, dg::Elliptic<Geometry, Matrix,
-                Container>{g, bcx, bcy, dir, jfactor});
-            m_inv_sqrt.construct( *m_ff_gamma, -1, g, m_eps_gamma[0]);
+            // (for alpha = 0 the operator is the identity and not needed)
+            if( m_alpha != 0)
+            {
+                m_ff_gamma = std::make_shared<dg::Helmholtz<Geometry, Matrix,
+                    Container>>( m_alpha, dg::Elliptic<Geometry, Matrix,
+                    Container>{g, bcx, bcy, dir, jfactor});
+                m_inv_sqrt.construct( *m_ff_gamma, -1, g, m_eps_gamma[0]);
+            }
         }
         if (m_mode == "ffO4")
         {
@@ -258,9 +270,15 @@ class PolCharge
     void symv( value_type alpha, const ContainerType0& x, value_type beta, ContainerType1& y)
     {
 
-        if (m_alpha == 0)
+        if ( m_commute && m_mode != "df")
+            throw dg::Error( dg::Message(_ping_)<<"PolCharge mode "<<m_mode
+                    <<" with commute = true is not implemented!");
+        if (m_alpha == 0) // the Helmholtz operators are the identity
         {
-            dg::blas1::scal( y, beta);
+            if (m_mode == "ffO4")
+                m_tensorell.symv(alpha, x, beta, y);
+            else
+                m_ell.symv(alpha, x, beta, y);
             return;
         }
         if (m_mode == "df")
@@ -304,10 +322,6 @@ class PolCharge
 
                 dg::blas1::axpby(alpha, m_temp2, beta, y);
             }
-            else
-            {
-                //TODO not implemented so far (relevant thermal models)
-            }
         }
         if (m_mode == "ffO4")
         {
@@ -327,10 +341,6 @@ class PolCharge
 
                 dg::blas1::axpby(alpha, m_temp2, beta, y);
             }
-            if (m_commute == true)
-            {
-                //TODO not implemented so far (relevant thermal models)
-            }
         }
     }
 
@@ -343,11 +353,11 @@ class PolCharge
     dg::MultigridCG2d<Geometry, Matrix, Container> m_multi_g;
     dg::mat::MatrixSqrt<Container> m_inv_sqrt;
     Container m_temp, m_temp2;
-    value_type  m_alpha;
+    value_type  m_alpha = 0;
     std::vector<value_type> m_eps_gamma;
     std::string m_mode;
     dg::Extrapolation<Container> m_temp2_ex, m_temp_ex;
-    bool m_commute;
+    bool m_commute = false;
 
 
 };
