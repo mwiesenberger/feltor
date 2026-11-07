@@ -132,7 +132,7 @@ struct TensorElliptic
 
        //laplacian part
        dg::blas2::symv(m_laplaceM_iota, phi, m_temp);
-       dg::blas1::pointwiseDot(alpha/2., chi, m_temp, m_temp, -1., varphi); //varphi-= alpha *chi/2 (lap phi)^2
+       dg::blas1::pointwiseDot(-alpha/2., chi, m_temp, m_temp, 1., varphi); //varphi-= alpha *chi/2 (lap phi)^2
 
        //elliptic part
        tensor::multiply2d( m_metric, m_tempx, m_tempy, m_temp, m_helper);

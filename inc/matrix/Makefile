@@ -23,6 +23,7 @@ optimise_t\
 outer_t\
 sqrt_cauchy_t\
 sqrt_ode_t\
+tensorelliptic_t\
 tridiaginv_t\
 exp_runge_kutta_t\
 contours_t
