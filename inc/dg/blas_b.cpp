@@ -27,9 +27,6 @@
 using value_type = double;
 using Vector     = dg::x::DVec;
 using Matrix     = dg::x::DMatrix;
-//using value_type = float;
-//using Vector     = dg::x::fDVec;
-//using Matrix     = dg::x::fDMatrix;
 
 using ArrayVec   = std::array<Vector, 3>;
 
@@ -62,6 +59,76 @@ struct test_inplace{
         inout1 = t;
     }
 };
+
+/// Time the matrix-vector multiplications that use EllSparseBlockMat for a given precision
+template<class value_type, class Vector, class Matrix, class Grid>
+void symv_benchmarks( const Grid& grid, const Grid& grid_half, int multi)
+{
+#ifdef WITH_MPI
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+#endif
+    using ArrayVec = std::array<Vector, 3>;
+    dg::Timer t;
+    ArrayVec x = dg::construct<ArrayVec>( dg::evaluate( left, grid)), y=x;
+    const double gbytes=(double)x.size()*grid.size()*sizeof(value_type)/1e9;
+    DG_RANK0 std::cout << "Size of vectors is "<<gbytes<<" GB\n";
+    auto report = [&]( const std::string& name, double memops)
+    {
+        DG_RANK0 std::cout<<std::left<<std::setw(33)<<name<<t.diff()/multi<<"s\t"<<memops*gbytes*multi/t.diff()<<"GB/s\n";
+    };
+    Matrix M;
+    auto benchmark = [&]( const std::string& name, const auto& matrix)
+    {
+        dg::blas2::transfer( matrix, M);
+        dg::blas2::symv( M, x, y);//warm up
+        t.tic();
+        for( int i=0; i<multi; i++)
+            dg::blas2::symv( M, x, y);
+        t.toc();
+        report( name, 3);
+    };
+    benchmark( "forward x derivative took", dg::create::dx( grid, dg::forward));
+    benchmark( "backward x derivative took", dg::create::dx( grid, dg::backward));
+    benchmark( "centered x derivative took", dg::create::dx( grid, dg::centered));
+    benchmark( "forward y derivative took", dg::create::dy( grid, dg::forward));
+    benchmark( "backward y derivative took", dg::create::dy( grid, dg::backward));
+
+    dg::blas2::transfer(dg::create::dy( grid, dg::centered), M);
+    // Here we test if OpenMP region is parallelized for normal vector
+    dg::blas2::symv( M, x[0], y[0]);//warm up
+    t.tic();
+    for( int i=0; i<multi; i++)
+        dg::blas2::symv( M, x[0], y[0]);
+    t.toc();
+    report( "centered y derivative took", 3./(double)x.size());
+
+    if( grid.Nz() > 1)
+    {
+        benchmark( "forward z derivative took", dg::create::dz( grid, dg::forward));
+        benchmark( "backward z derivative took", dg::create::dz( grid, dg::backward));
+        benchmark( "centered z derivative took", dg::create::dz( grid, dg::centered));
+    }
+    benchmark( "jump X took", dg::create::jumpX( grid));
+
+    dg::MultiMatrix<Matrix, ArrayVec> inter, project;
+    dg::blas2::transfer(dg::create::fast_interpolation( grid_half, 1,2,2), inter);
+    dg::blas2::transfer(dg::create::fast_projection( grid, 1,2,2), project);
+    ArrayVec x_half = dg::construct<ArrayVec>(dg::evaluate( dg::zero, grid_half));
+    dg::blas2::gemv( inter, x_half, x); //warm up
+    t.tic();
+    for( int i=0; i<multi; i++)
+        dg::blas2::gemv( inter, x_half, x); //internally 2 multiplications: quarter-> half, half -> full
+    t.toc();
+    report( "Interpolation quarter to full", 3.75);
+    dg::blas2::gemv( project, x, x_half); //warm up
+    t.tic();
+    for( int i=0; i<multi; i++)
+        dg::blas2::gemv( project, x, x_half); //internally 2 multiplications: full -> half, half -> quarter
+    t.toc();
+    report( "Projection full to quarter", 3);
+}
+
 
 int main(
 #ifdef WITH_MPI
@@ -114,9 +181,6 @@ int main(
     //std::cout << "Sizeof value type is "<<sizeof(value_type)<<"\n";
     value_type gbytes=(value_type)x.size()*grid.size()*sizeof(value_type)/1e9;
     DG_RANK0 std::cout << "Size of vectors is "<<gbytes<<" GB\n";
-    dg::MultiMatrix<Matrix, ArrayVec> inter, project;
-    dg::blas2::transfer(dg::create::fast_interpolation( grid_half, 1,2,2), inter);
-    dg::blas2::transfer(dg::create::fast_projection( grid, 1,2,2), project);
     dg::x::IDMatrix stencil = dg::create::window_stencil( {3,3}, grid,
             grid.bcx(), grid.bcy());
     int multi=100;
@@ -208,50 +272,16 @@ int main(
     /// get different timings on cpu and omp for symv. Why?
     x = dg::construct<ArrayVec>( dg::evaluate( left, grid)), y=x;
     DG_RANK0 std::cout<<"\nLocal communication\n";
-    Matrix M;
-    dg::blas2::transfer(dg::create::dx( grid, dg::backward), M);
-    dg::blas2::symv( M, x, y);//warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::symv( M, x, y);
-    t.toc();
-    DG_RANK0 std::cout<<"forward x derivative took        "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()<<"GB/s\n";
-
-    dg::blas2::transfer(dg::create::dy( grid, dg::backward), M);
-    dg::blas2::symv( M, x, y);//warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::symv( M, x, y);
-    t.toc();
-    DG_RANK0 std::cout<<"forward y derivative took        "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()<<"GB/s\n";
-
-    dg::blas2::transfer(dg::create::dx( grid, dg::centered), M);
-    dg::blas2::symv( M, x, y);//warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::symv( M, x, y);
-    t.toc();
-    DG_RANK0 std::cout<<"centered x derivative took       "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()<<"GB/s\n";
-
-    dg::blas2::transfer(dg::create::dy( grid, dg::centered), M);
-    // Here we test if OpenMP region is parallelized for normal vector
-    dg::blas2::symv( M, x[0], y[0]);//warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::symv( M, x[0], y[0]);
-    t.toc();
-    DG_RANK0 std::cout<<"centered y derivative took       "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()/(double)x.size()<<"GB/s\n";
-
-    if( grid.Nz() > 1)
-    {
-        dg::blas2::transfer(dg::create::dz( grid, dg::centered), M);
-        dg::blas2::symv( M, x, y);//warm up
-        t.tic();
-        for( int i=0; i<multi; i++)
-            dg::blas2::symv( M, x, y);
-        t.toc();
-        DG_RANK0 std::cout<<"centered z derivative took       "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()<<"GB/s\n";
-    }
+    symv_benchmarks<value_type, Vector, Matrix>( grid, grid_half, multi);
+    DG_RANK0 std::cout<<"\nLocal communication in single precision\n";
+#ifdef WITH_MPI
+    dg::RealMPIGrid3d<float> fgrid( 0., lx, 0, ly, 0, ly, n, Nx, Ny, Nz, comm);
+#else
+    dg::RealGrid3d<float> fgrid( 0., lx, 0, ly, 0, ly, n, Nx, Ny, Nz);
+#endif
+    dg::x::RealGrid3d<float> fgrid_half = fgrid;
+    fgrid_half.multiplyCellNumbers(0.5, 0.5);
+    symv_benchmarks<float, dg::x::fDVec, dg::x::fDMatrix>( fgrid, fgrid_half, multi);
 
 #ifndef WITH_MPI
     // Only for shared memory
@@ -296,26 +326,6 @@ int main(
     t.toc();
     DG_RANK0 std::cout<<"stencil Median             took  "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()/x.size()<<"GB/s\n";
 
-    dg::blas2::transfer(dg::create::jumpX( grid), M);
-    dg::blas2::symv( M, x, y);//warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::symv( M, x, y);
-    t.toc();
-    DG_RANK0 std::cout<<"jump X took                      "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()<<"GB/s\n";
-    ArrayVec x_half = dg::construct<ArrayVec>(dg::evaluate( dg::zero, grid_half));
-    dg::blas2::gemv( inter, x_half, x); //warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::gemv( inter, x_half, x); //internally 2 multiplications: quarter-> half, half -> full
-    t.toc();
-    DG_RANK0 std::cout<<"Interpolation quarter to full    "<<t.diff()/multi<<"s\t"<<3.75*gbytes*multi/t.diff()<<"GB/s\n";
-    dg::blas2::gemv( project, x, x_half); //warm up
-    t.tic();
-    for( int i=0; i<multi; i++)
-        dg::blas2::gemv( project, x, x_half); //internally 2 multiplications: full -> half, half -> quarter
-    t.toc();
-    DG_RANK0 std::cout<<"Projection full to quarter       "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()<<"GB/s\n";
     //////////////////////these functions are more mean to dot
     DG_RANK0 std::cout<<"\nGlobal communication\n";
     x = dg::construct<ArrayVec>( dg::evaluate( left, grid));
