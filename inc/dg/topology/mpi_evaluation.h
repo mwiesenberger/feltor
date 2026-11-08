@@ -30,7 +30,9 @@ MPI_Vector<thrust::host_vector<real_type> > global2local(
     for( unsigned idx = 0; idx<g.local().size(); idx++)
     {
         int gIdx = 0;
-        g.local2globalIdx( idx, rank, gIdx);
+        if( !g.local2globalIdx( idx, rank, gIdx))
+            throw Error( Message(_ping_)<<"Local index "<<idx<<" on rank "<<rank
+                <<" has no global int index! Global grid size is "<<g.size());
         temp[idx] = global[gIdx];
     }
     return MPI_Vector<thrust::host_vector<real_type> >(temp, g.communicator());

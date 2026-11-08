@@ -29,6 +29,9 @@ namespace dg{
  * @note successive calls to blas routines are executed sequentially
  * @note A manual synchronization of threads or devices is never needed in an application
  * using these functions. All functions returning a value block until the value is ready.
+ * @attention The size of each shared memory vector, and of the local part of
+ * each MPI vector, must be smaller than \f$ 2^{31}\f$. Otherwise the behaviour
+ * is undefined. The global size of an MPI vector is not restricted by this.
  */
 namespace blas1
 {

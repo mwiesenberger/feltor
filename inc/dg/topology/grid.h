@@ -529,10 +529,10 @@ struct aRealTopology
      *
      * @return \f$ \prod_{i=0}^{N-1} n_i N_i\f$
      */
-    unsigned size() const {
-        unsigned size=1;
+    size_t size() const {
+        size_t size=1;
         for( unsigned u=0; u<Nd; u++)
-            size *= m_n[u]*m_N[u];
+            size *= size_t(m_n[u])*m_N[u];
         return size;
     }
 

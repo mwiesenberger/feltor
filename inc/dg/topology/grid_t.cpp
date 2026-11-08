@@ -9,6 +9,11 @@
 TEST_CASE( "The grid class")
 {
     const unsigned n = 3, Nx = 9, Ny = 5, Nz = 4;
+    SECTION("The size does not wrap around at 2^32")
+    {
+        dg::Grid2d g( 0, 1, 0, 1, 1, 65536, 65536);
+        CHECK( g.size() == size_t(1) << 32);
+    }
     SECTION("Grid2d set functions")
     {
         dg::Grid2d g( -M_PI, 0, -5*M_PI, -4*M_PI, n, Nx, Ny);

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include "../backend/mpi_vector.h"
 #include "../backend/mpi_kron.h"
 #include "dg/enums.h"
@@ -445,12 +447,12 @@ struct aRealMPITopology
      * @brief The total global number of points
      * @return \f$ \prod_{i=0}^{N-1} n_i N_i\f$
      */
-    unsigned size() const { return m_g.size();}
+    size_t size() const { return m_g.size();}
     /**
      * @brief The total local number of points
      * @return \c local().size()
      */
-    unsigned local_size() const { return m_l.size();}
+    size_t local_size() const { return m_l.size();}
     // used in conversion policy in interpolation
 
     /**
@@ -487,13 +489,15 @@ struct aRealMPITopology
      * @param globalIdx (write only) Global index of the element
      * @sa The main usage of this function is dg::make_mpi_matrix and dg::global2local
      * @return true if succesful, false if \c localIdx is not smaller than the
-     * local size of the \c rank grid or if an MPI call is unsuccesful
+     * local size of the \c rank grid, if the global index does not fit into
+     * an \c int (possible if the global grid has more than \f$ 2^{31}-1\f$
+     * points) or if an MPI call is unsuccesful
      */
     bool local2globalIdx( int localIdx, int rank, int& globalIdx)const
     {
         // ATTENTION This function cannot depend on who is calling it
         // so it cannot depend on m_l
-        if( localIdx < 0 || localIdx >= (int)m_g.size()) return false;
+        if( localIdx < 0 || (size_t)localIdx >= m_g.size()) return false;
 
         int dims[Nd], periods[Nd], coords[Nd]; // we need the dims
         if( mpi_cart_get( m_comm, Nd, dims, periods, coords) != MPI_SUCCESS)
@@ -513,9 +517,12 @@ struct aRealMPITopology
         }
         if( current != 0) // localIdx >= local size of rank
             return false;
-        globalIdx = gIdx[int(Nd)-1]; // prevent overflow if Nd == 0
+        int64_t wideIdx = gIdx[int(Nd)-1]; // prevent overflow if Nd == 0
         for( int u=int(Nd)-2; u>=0; u--)
-            globalIdx = globalIdx*m_g.shape(u) + gIdx[u];
+            wideIdx = wideIdx*m_g.shape(u) + gIdx[u];
+        if( wideIdx > std::numeric_limits<int>::max())
+            return false;
+        globalIdx = int(wideIdx);
         return true;
     }
 
@@ -533,7 +540,7 @@ struct aRealMPITopology
     bool global2localIdx( int globalIdx, int& localIdx, int& rank)const
     {
         // an exercise in flattening and unflattening indices
-        if( globalIdx < 0 || globalIdx >= (int)m_g.size()) return false;
+        if( globalIdx < 0 || (size_t)globalIdx >= m_g.size()) return false;
 
         int dims[Nd], periods[Nd], coords[Nd];
         if( dg::mpi_cart_get( m_comm, Nd, dims, periods, coords) != MPI_SUCCESS)

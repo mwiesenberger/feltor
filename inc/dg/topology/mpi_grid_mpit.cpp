@@ -80,6 +80,30 @@ TEST_CASE( "MPI Grid")
         CHECK( g2d.shape(1) == shape[1]);
         CHECK( g2d.get_shape() == shape);
     }
+    SECTION( "Global grids larger than the int range")
+    {
+        const unsigned big = 65536;
+        dg::MPIGrid2d gbig( {0.,0.}, {1.,1.}, {1u,1u}, {big,big},
+            {dg::PER, dg::PER}, dg::mpi_cart_split_as<2>(comm));
+        CHECK( gbig.size() == size_t(1) << 32);
+        const int int_max = std::numeric_limits<int>::max();
+        int lIdx = -1, pid = -1, gIdx = -1;
+        // All int indices are valid global indices
+        CHECK( gbig.global2localIdx( int_max, lIdx, pid));
+        // The last point has a global index that does not fit into int
+        int cart_rank, cart_size;
+        MPI_Comm_rank( gbig.communicator(), &cart_rank);
+        MPI_Comm_size( gbig.communicator(), &cart_size);
+        size_t last = gbig.local_size()-1;
+        if( cart_rank == cart_size-1 and last <= size_t(int_max))
+            CHECK( not gbig.local2globalIdx( int(last), cart_rank, gIdx));
+        // Small global indices keep working
+        if( cart_rank == 0)
+        {
+            CHECK( gbig.local2globalIdx( 0, cart_rank, gIdx));
+            CHECK( gIdx == 0);
+        }
+    }
     SECTION( "local2globalIdx rejects indices outside the local vector")
     {
         for( int pid=0; pid<size; pid++)
