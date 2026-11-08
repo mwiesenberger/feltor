@@ -52,8 +52,13 @@ template<class real_type, class value_type>
 
 
 //specialized multiply kernel
-template<class real_type, class value_type, size_t n, size_t blocks_per_line>
- __global__ void ell_multiply_kernel(value_type alpha, value_type beta,
+// Every thread computes all n output rows of one cell, which means that the
+// 3n input values are loaded once per cell and integer divisions by run-time
+// values are done once per cell instead of once per row.
+// The sum over the blocks is kept in the same order as in the general kernel
+// such that both produce the same floating point results
+template<class real_type, class value_type, size_t n, size_t blocks_per_line, bool unit_right>
+ __global__ void ell_multiply_cell_kernel(value_type alpha, value_type beta,
          const real_type* __restrict__  data,
          const int* __restrict__  cols_idx, const int* __restrict__  data_idx,
          const int num_rows, const int num_cols,
@@ -62,107 +67,67 @@ template<class real_type, class value_type, size_t n, size_t blocks_per_line>
          const value_type* __restrict__  x, value_type * __restrict__ y
          )
 {
-    //int size = left*num_rows*n*right;
+    //int size = left*num_rows*right;
     const int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
     const int grid_size = gridDim.x*blockDim.x;
     const int right_ = right_range[1]-right_range[0];
+    const int stride = unit_right ? 1 : right_size;
     // size counts all right_size columns but only right_ of them are computed
-    const int lines = size/right_size*right_;
-    //every thread takes num_rows/grid_size rows
-    if( beta != 0)
+    const int cells = size/right_size*right_;
+    for( int cell = thread_id; cell<cells; cell += grid_size)
     {
-    for( int row = thread_id; row<lines; row += grid_size)
-    {
-        value_type temp[blocks_per_line]={0};
-        if(right_size==1)
+        int rs = cell, j = 0;
+        if( !unit_right)
         {
-            int rrn = row/n, k = row%n;
-            int s=rrn/num_rows, i = (rrn)%num_rows;
-            for( int d=0; d<blocks_per_line; d++)
-            {
-                int B = (data_idx[i*blocks_per_line+d]*n+k)*n;
-                int C = cols_idx[i*blocks_per_line+d];
-                if( C == -1)
-                    continue;
-                int J = (s*num_cols+C)*n;
-                for( int q=0; q<n; q++) //multiplication-loop
-                    temp[d] = dg::detail::dg_fma( data[ B+q], x[(J+q)], temp[d]);
-            }
-            y[row] = y[row]*beta;
-            for( int d=0; d<blocks_per_line; d++)
-                y[row] = dg::detail::dg_fma( alpha, temp[d], y[row]);
+            rs = cell/right_;
+            j = right_range[0] + cell - rs*right_;
         }
-        else
+        const int s = rs/num_rows, i = rs - s*num_rows;
+        value_type temp[blocks_per_line][n] = {{0}};
+        for( int d=0; d<(int)blocks_per_line; d++)
         {
-            int rr = row/right_;
-            int rrn = rr/n, k = rr%n;
-            int s=rrn/num_rows, i = (rrn)%num_rows;
-            int j=right_range[0]+row%right_;
-            for( int d=0; d<blocks_per_line; d++)
-            {
-                int B = (data_idx[i*blocks_per_line+d]*n+k)*n;
-                int C = cols_idx[i*blocks_per_line+d];
-                if( C == -1)
-                    continue;
-                int J = (s*num_cols+C)*n;
-                for( int q=0; q<n; q++) //multiplication-loop
-                    temp[d] = dg::detail::dg_fma( data[ B+q], x[(J+q)*right_size+j], temp[d]);
-            }
-            int idx = ((s*num_rows+i)*n+k)*right_size+j;
-            //idx != row ( if right_range[0] != 0)
-            y[idx] = y[idx]*beta;
-            for( int d=0; d<blocks_per_line; d++)
-                y[idx] = dg::detail::dg_fma( alpha, temp[d], y[idx]);
+            const int C = cols_idx[i*blocks_per_line+d];
+            if( C == -1)
+                continue;
+            const int B = data_idx[i*blocks_per_line+d]*n*n;
+            const int J = (s*num_cols+C)*n;
+            value_type xx[n];
+            for( int q=0; q<(int)n; q++)
+                xx[q] = x[(J+q)*stride+j];
+            for( int k=0; k<(int)n; k++)
+                for( int q=0; q<(int)n; q++) //multiplication-loop
+                    temp[d][k] = dg::detail::dg_fma( data[ B+k*n+q], xx[q], temp[d][k]);
+        }
+        const int idx = (s*num_rows+i)*n*stride+j;
+        for( int k=0; k<(int)n; k++)
+        {
+            const int I = idx + k*stride;
+            value_type result = beta == 0 ? (value_type)0 : y[I]*beta;
+            for( int d=0; d<(int)blocks_per_line; d++)
+                result = dg::detail::dg_fma( alpha, temp[d][k], result);
+            y[I] = result;
         }
     }
-    }
+}
+
+template<class real_type, class value_type, size_t n, size_t blocks_per_line>
+void launch_ell_multiply_cell_kernel( size_t NUM_BLOCKS, size_t BLOCK_SIZE,
+         value_type alpha, value_type beta,
+         const real_type * __restrict__ data_ptr,
+         const int * __restrict__ cols_ptr, const int * __restrict__ block_ptr,
+         const int num_rows, const int num_cols,
+         const int size, const int right_size,
+         const int * __restrict__ right_range_ptr,
+         const value_type * __restrict__ x_ptr, value_type * __restrict__ y_ptr)
+{
+    if( right_size == 1)
+        ell_multiply_cell_kernel<real_type, value_type, n, blocks_per_line, true><<<NUM_BLOCKS, BLOCK_SIZE>>>
+        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, size,
+        right_size, right_range_ptr,  x_ptr,y_ptr);
     else
-    {
-    for( int row = thread_id; row<lines; row += grid_size)
-    {
-        value_type temp[blocks_per_line]={0};
-        if(right_size==1)
-        {
-            int rrn = row/n, k = row%n;
-            int s=rrn/num_rows, i = (rrn)%num_rows;
-            for( int d=0; d<blocks_per_line; d++)
-            {
-                int B = (data_idx[i*blocks_per_line+d]*n+k)*n;
-                int C = cols_idx[i*blocks_per_line+d];
-                if( C == -1)
-                    continue;
-                int J = (s*num_cols+C)*n;
-                for( int q=0; q<n; q++) //multiplication-loop
-                    temp[d] = dg::detail::dg_fma( data[ B+q], x[(J+q)], temp[d]);
-            }
-            y[row] = 0;
-            for( int d=0; d<blocks_per_line; d++)
-                y[row] = dg::detail::dg_fma( alpha, temp[d], y[row]);
-        }
-        else
-        {
-            int rr = row/right_;
-            int rrn = rr/n, k = rr%n;
-            int s=rrn/num_rows, i = (rrn)%num_rows;
-            int j=right_range[0]+row%right_;
-            for( int d=0; d<blocks_per_line; d++)
-            {
-                int B = (data_idx[i*blocks_per_line+d]*n+k)*n;
-                int C = cols_idx[i*blocks_per_line+d];
-                if( C == -1)
-                    continue;
-                int J = (s*num_cols+C)*n;
-                for( int q=0; q<n; q++) //multiplication-loop
-                    temp[d] = dg::detail::dg_fma( data[ B+q], x[(J+q)*right_size+j], temp[d]);
-            }
-            int idx = ((s*num_rows+i)*n+k)*right_size+j;
-            //idx != row ( if right_range[0] != 0)
-            y[idx] = 0;
-            for( int d=0; d<blocks_per_line; d++)
-                y[idx] = dg::detail::dg_fma( alpha, temp[d], y[idx]);
-        }
-    }
-    }
+        ell_multiply_cell_kernel<real_type, value_type, n, blocks_per_line, false><<<NUM_BLOCKS, BLOCK_SIZE>>>
+        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, size,
+        right_size, right_range_ptr,  x_ptr,y_ptr);
 }
 
 template<class real_type, class value_type, size_t n>
@@ -176,29 +141,33 @@ void call_ell_multiply_kernel( value_type alpha, value_type beta,
 {
     //set up kernel parameters
     const size_t BLOCK_SIZE = 256;
+    if( blocks_per_line >= 1 && blocks_per_line <= 4)
+    {
+        const size_t cells = left_size*right_size*num_rows; //number of cells
+        const size_t NUM_BLOCKS = std::min<size_t>((cells-1)/BLOCK_SIZE+1, 65000);
+        if( blocks_per_line == 1)
+            launch_ell_multiply_cell_kernel<real_type, value_type, n, 1>(NUM_BLOCKS, BLOCK_SIZE,
+            alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, cells,
+            right_size, right_range_ptr,  x_ptr,y_ptr);
+        else if (blocks_per_line == 2)
+            launch_ell_multiply_cell_kernel<real_type, value_type, n, 2>(NUM_BLOCKS, BLOCK_SIZE,
+            alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, cells,
+            right_size, right_range_ptr,  x_ptr,y_ptr);
+        else if (blocks_per_line == 3)
+            launch_ell_multiply_cell_kernel<real_type, value_type, n, 3>(NUM_BLOCKS, BLOCK_SIZE,
+            alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, cells,
+            right_size, right_range_ptr,  x_ptr,y_ptr);
+        else
+            launch_ell_multiply_cell_kernel<real_type, value_type, n, 4>(NUM_BLOCKS, BLOCK_SIZE,
+            alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, cells,
+            right_size, right_range_ptr,  x_ptr,y_ptr);
+        return;
+    }
     const size_t size = left_size*right_size*num_rows*n; //number of lines
     const size_t NUM_BLOCKS = std::min<size_t>((size-1)/BLOCK_SIZE+1, 65000);
-    //note that the following use size instead of left_size
-    if( blocks_per_line == 1)
-        ell_multiply_kernel<real_type, value_type, n, 1><<<NUM_BLOCKS, BLOCK_SIZE>>>
-        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, size,
-        right_size, right_range_ptr,  x_ptr,y_ptr);
-    else if (blocks_per_line == 2)
-        ell_multiply_kernel<real_type, value_type, n, 2><<<NUM_BLOCKS, BLOCK_SIZE>>>
-        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, size,
-        right_size, right_range_ptr,  x_ptr,y_ptr);
-    else if (blocks_per_line == 3)
-        ell_multiply_kernel<real_type, value_type, n, 3><<<NUM_BLOCKS, BLOCK_SIZE>>>
-        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, size,
-        right_size, right_range_ptr,  x_ptr,y_ptr);
-    else if (blocks_per_line == 4)
-        ell_multiply_kernel<real_type, value_type, n, 4><<<NUM_BLOCKS, BLOCK_SIZE>>>
-        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols, size,
-        right_size, right_range_ptr,  x_ptr,y_ptr);
-    else
-        ell_multiply_kernel<real_type, value_type><<<NUM_BLOCKS, BLOCK_SIZE>>>
-        (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols,
-        blocks_per_line, n, size, right_size, right_range_ptr,  x_ptr,y_ptr);
+    ell_multiply_kernel<real_type, value_type><<<NUM_BLOCKS, BLOCK_SIZE>>>
+    (alpha, beta, data_ptr, cols_ptr, block_ptr, num_rows, num_cols,
+    blocks_per_line, n, size, right_size, right_range_ptr,  x_ptr,y_ptr);
 }
 
 
