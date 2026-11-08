@@ -273,15 +273,6 @@ int main(
     x = dg::construct<ArrayVec>( dg::evaluate( left, grid)), y=x;
     DG_RANK0 std::cout<<"\nLocal communication\n";
     symv_benchmarks<value_type, Vector, Matrix>( grid, grid_half, multi);
-    DG_RANK0 std::cout<<"\nLocal communication in single precision\n";
-#ifdef WITH_MPI
-    dg::RealMPIGrid3d<float> fgrid( 0., lx, 0, ly, 0, ly, n, Nx, Ny, Nz, comm);
-#else
-    dg::RealGrid3d<float> fgrid( 0., lx, 0, ly, 0, ly, n, Nx, Ny, Nz);
-#endif
-    dg::x::RealGrid3d<float> fgrid_half = fgrid;
-    fgrid_half.multiplyCellNumbers(0.5, 0.5);
-    symv_benchmarks<float, dg::x::fDVec, dg::x::fDMatrix>( fgrid, fgrid_half, multi);
 
 #ifndef WITH_MPI
     // Only for shared memory
@@ -326,6 +317,15 @@ int main(
     t.toc();
     DG_RANK0 std::cout<<"stencil Median             took  "<<t.diff()/multi<<"s\t"<<3*gbytes*multi/t.diff()/x.size()<<"GB/s\n";
 
+    DG_RANK0 std::cout<<"\nLocal communication in single precision\n";
+#ifdef WITH_MPI
+    dg::RealMPIGrid3d<float> fgrid( 0., lx, 0, ly, 0, ly, n, Nx, Ny, Nz, comm);
+#else
+    dg::RealGrid3d<float> fgrid( 0., lx, 0, ly, 0, ly, n, Nx, Ny, Nz);
+#endif
+    dg::x::RealGrid3d<float> fgrid_half = fgrid;
+    fgrid_half.multiplyCellNumbers(0.5, 0.5);
+    symv_benchmarks<float, dg::x::fDVec, dg::x::fDMatrix>( fgrid, fgrid_half, multi);
     //////////////////////these functions are more mean to dot
     DG_RANK0 std::cout<<"\nGlobal communication\n";
     x = dg::construct<ArrayVec>( dg::evaluate( left, grid));
