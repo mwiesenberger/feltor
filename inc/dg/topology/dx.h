@@ -85,6 +85,13 @@ EllSparseBlockMat<real_type, thrust::host_vector> dx_symm(int n, int N, real_typ
     a = backward*a*forward, a_bound_left  = backward*a_bound_left*forward;
     b = backward*b*forward, a_bound_right = backward*a_bound_right*forward;
     bp = backward*bp*forward;
+    // For n == 1 the interior block vanishes. Not referencing it saves one
+    // full read of the input vector in every multiplication
+    bool a_is_zero = true;
+    for( int i=0; i<n; i++)
+    for( int j=0; j<n; j++)
+        if( a(i,j) != 0)
+            a_is_zero = false;
     //assemble the matrix
     if( bcx != PER)
     {
@@ -111,7 +118,7 @@ EllSparseBlockMat<real_type, thrust::host_vector> dx_symm(int n, int N, real_typ
             for( int d=0; d<3; d++)
             {
                 A.data_idx[i*3+d] = d; //bp, a, b
-                A.cols_idx[i*3+d] = i+d-1;
+                A.cols_idx[i*3+d] = (d == 1 && a_is_zero) ? invalid_idx : i+d-1;
             }
         A.data_idx[(N-1)*3+0] = 0; //bp
         A.cols_idx[(N-1)*3+0] = N-2;
@@ -136,7 +143,7 @@ EllSparseBlockMat<real_type, thrust::host_vector> dx_symm(int n, int N, real_typ
             for( int d=0; d<3; d++)
             {
                 A.data_idx[i*3+d] = d; //bp, a, b
-                A.cols_idx[i*3+d] = (i+d-1+N)%N;
+                A.cols_idx[i*3+d] = (d == 1 && a_is_zero) ? invalid_idx : (i+d-1+N)%N;
             }
         return A;
     }
