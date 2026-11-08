@@ -205,7 +205,10 @@ void ell_omp_multiply_kernel( value_type alpha, value_type beta,
     else // right_size != 1
     {
     real_type dprivate[blocks_per_line*n];
-    int J[blocks_per_line];
+    // J and Jd are long instead of int on purpose: with int, gcc 13 does not
+    // vectorize the j loops below for some template instantiations, and
+    // derivatives in y are up to 1.4x slower. Widening only I or j does not help.
+    long J[blocks_per_line];
     if( !( (right_range[1]-right_range[0]) > 100*left_size*num_rows*n )) //typically a derivative in y ( Ny*Nz >~ Nx)
     {
         #pragma omp for nowait
@@ -233,7 +236,7 @@ void ell_omp_multiply_kernel( value_type alpha, value_type beta,
                 y[I] = beta == 0 ? (value_type)0 : y[I]*beta;
                 for( int d=0; d<blocks_per_line; d++)
                 {
-                    int Jd = J[d];
+                    long Jd = J[d];
                     if ( Jd == -1)
                         continue;
                     value_type temp = 0;
@@ -271,7 +274,7 @@ void ell_omp_multiply_kernel( value_type alpha, value_type beta,
                 y[I] = beta == 0 ? (value_type)0 : y[I]*beta;
                 for( int d=0; d<blocks_per_line; d++)
                 {
-                    int Jd = J[d];
+                    long Jd = J[d];
                     if( Jd == -1)
                         continue;
                     value_type temp = 0;
