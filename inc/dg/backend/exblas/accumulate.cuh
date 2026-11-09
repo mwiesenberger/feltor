@@ -17,6 +17,8 @@
  */
 #pragma once
 #include <algorithm>
+#include <type_traits>
+#include <thrust/complex.h>
 #include "../exceptions.h"
 #include "config.h"
 #include "mylibm.cuh"
@@ -84,13 +86,33 @@ inline double TwoProductFMA(double a, double b, double *d) {
     return p;
 }
 
-template<class T>
+// The compiler may fuse a product with a following sum (-fmad=true is the
+// default), so with an inlined product a + b would not be the rounded sum of
+// a and the rounded b and the error term would be wrong. The _rn functions are
+// never merged into a multiply-add.
 __device__
-inline std::enable_if_t<!std::is_integral_v<T>,T> KnuthTwoSum(T a, T b, T *s) {
-    T r = a + b;
-    T z = r - a;
-    *s = (a - (r - z)) + (b - z);
+inline double KnuthTwoSum(double a, double b, double *s) {
+    double r = __dadd_rn(a, b);
+    double z = __dsub_rn(r, a);
+    *s = __dadd_rn(__dsub_rn(a, __dsub_rn(r, z)), __dsub_rn(b, z));
     return r;
+}
+__device__
+inline float KnuthTwoSum(float a, float b, float *s) {
+    float r = __fadd_rn(a, b);
+    float z = __fsub_rn(r, a);
+    *s = __fadd_rn(__fsub_rn(a, __fsub_rn(r, z)), __fsub_rn(b, z));
+    return r;
+}
+// Component-wise, since sum and difference of complex numbers are
+template<class R>
+__device__
+inline thrust::complex<R> KnuthTwoSum(thrust::complex<R> a, thrust::complex<R> b, thrust::complex<R> *s) {
+    R sr, si;
+    R rr = KnuthTwoSum(a.real(), b.real(), &sr);
+    R ri = KnuthTwoSum(a.imag(), b.imag(), &si);
+    *s = thrust::complex<R>(sr, si);
+    return thrust::complex<R>(rr, ri);
 }
 template<typename T> // for unsigned, int, char etc.
 __device__
