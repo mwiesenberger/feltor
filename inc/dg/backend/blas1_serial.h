@@ -1,5 +1,6 @@
 #ifndef _DG_BLAS_SERIAL_
 #define _DG_BLAS_SERIAL_
+#include <cstring>
 #include "config.h"
 #include "exceptions.h"
 #include "execution_policy.h"
@@ -8,6 +9,7 @@
 
 namespace dg
 {
+struct equals; // defined in subroutines.h
 namespace blas1
 {
 namespace detail
@@ -52,6 +54,16 @@ inline void doSubroutine_dispatch( SerialTag, int size, Subroutine f, PointerOrV
         //f(x[i], xs[i]...);
         //f(thrust::raw_reference_cast(*(x+i)), thrust::raw_reference_cast(*(xs+i))...);
     }
+}
+
+// A copy of equal types is a memcpy: on an i5-14400F it is up to 2x faster
+// than the loop for vectors larger than the caches
+template< class T>
+inline void doSubroutine_dispatch( SerialTag, int size, const dg::equals&, const T* x, T* y)
+{
+    if( x == y) // memcpy does not allow overlapping ranges
+        return;
+    std::memcpy( y, x, size_t(size)*sizeof(T));
 }
 
 template<class T, class Pointer, class BinaryOp, class UnaryOp>
