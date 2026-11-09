@@ -87,27 +87,36 @@ inline T doReduce_dispatch( CudaTag, int size, Pointer x, T init, BinaryOp op,
 // Note: Here the universal reference is really important vs "F f" else we copy f on every call
 template<class Binary, class F, class Pointer, std::size_t ...I, class ...PointerOrValues>
 __device__
-inline void call_device_F( Binary && binary, F && f, Pointer y, int i, size_t* a,
+inline void call_device_F( Binary && binary, F && f, Pointer y, int i, const unsigned* a,
         std::index_sequence<I...>, PointerOrValues ... xs)
 {
     binary( f( get_device_element( xs, a[I])...), y[i]);
 }
 
+// The sizes travel as a kernel argument: a device vector would cost an
+// allocation per call and a memory load per element and dimension
+template<size_t N>
+struct KroneckerSizes
+{
+    unsigned s[N];
+};
+
 template<class Binary, class F, size_t N, class Pointer, class ...PointerOrValues>
-__global__ void kronecker_kernel( int size, const size_t* sizes, Pointer y,
+__global__ void kronecker_kernel( int size, KroneckerSizes<N> sizes, Pointer y,
         Binary binary, F f, PointerOrValues ...xs)
 {
     const int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
     const int grid_size = gridDim.x*blockDim.x;
-    size_t current[N];
+    unsigned current[N];
     for( int i = thread_id; i<size; i += grid_size)
     {
-        current[0] = i%sizes[0];
-        int remain = i/sizes[0];
-        for( int k=1; k<N; k++)
+        // The total size is an unsigned, so 32 bit divisions suffice
+        unsigned remain = i;
+        for( unsigned k=0; k<N; k++)
         {
-            current[k] = remain%sizes[k];
-            remain = remain/sizes[k];
+            unsigned quotient = remain/sizes.s[k];
+            current[k] = remain - quotient*sizes.s[k];
+            remain = quotient;
         }
         call_device_F( binary, f, y, i, current, std::make_index_sequence<N>(), xs...);
     }
@@ -119,12 +128,14 @@ inline void doKronecker_dispatch( dg::CudaTag, Pointer y, size_t size, Binary &&
 {
     const size_t BLOCK_SIZE = 256;
     const size_t NUM_BLOCKS = std::min<size_t>((size-1)/BLOCK_SIZE+1, 65000);
-    thrust::device_vector<size_t> tmp( sizes.begin(), sizes.end());
+    KroneckerSizes<N> ksizes;
+    for( unsigned k=0; k<N; k++)
+        ksizes.s[k] = sizes[k];
     // The kernel must take binary and f by value: Binary and F may be
     // deduced as lvalue references to host memory
     kronecker_kernel<std::decay_t<Binary>,std::decay_t<F>,N,Pointer,PointerOrValues...>
         <<<NUM_BLOCKS, BLOCK_SIZE>>>(size,
-            thrust::raw_pointer_cast(tmp.data()),
+            ksizes,
             y,
             std::forward<Binary>(binary), std::forward<F>(f),
             xs...);
