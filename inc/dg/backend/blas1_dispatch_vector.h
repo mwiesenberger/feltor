@@ -26,7 +26,7 @@ To doConstruct( const From& src, ArrayVectorTag, SharedVectorTag, Params&&...ps 
     To t;
     using inner_vector = typename To::value_type;
     for (unsigned i=0; i<t.size(); i++)
-        t[i] = dg::construct<inner_vector>(src, std::forward<Params>(ps)...);
+        t[i] = dg::construct<inner_vector>(src, ps...);
     return t;
 }
 template<class To, class From, class ...Params>
@@ -35,7 +35,7 @@ To doConstruct( const From& src, ArrayVectorTag, MPIVectorTag, Params&&...ps )
     To t;
     using inner_vector = typename To::value_type;
     for (unsigned i=0; i<t.size(); i++)
-        t[i] = dg::construct<inner_vector>(src, std::forward<Params>(ps)...);
+        t[i] = dg::construct<inner_vector>(src, ps...);
     return t;
 }
 template<class To, class From, class ...Params>
@@ -44,7 +44,7 @@ To doConstruct( const From& src, ArrayVectorTag, RecursiveVectorTag, Params&&...
     To t;
     using inner_vector = typename To::value_type;
     for (unsigned i=0; i<t.size(); i++)
-        t[i] = dg::construct<inner_vector>(src[i], std::forward<Params>(ps)...);
+        t[i] = dg::construct<inner_vector>(src[i], ps...);
     return t;
 }
 
@@ -54,7 +54,7 @@ To doConstruct( const From& src, RecursiveVectorTag, SharedVectorTag, Size size,
     To t(size);
     using inner_vector = typename To::value_type;
     for (int i=0; i<(int)size; i++)
-        t[i] = dg::construct<inner_vector>(src, std::forward<Params>(ps)...);
+        t[i] = dg::construct<inner_vector>(src, ps...);
     return t;
 }
 template<class To, class From, class Size, class ...Params>
@@ -63,7 +63,7 @@ To doConstruct( const From& src, RecursiveVectorTag, MPIVectorTag, Size size, Pa
     To t(size);
     using inner_vector = typename To::value_type;
     for (int i=0; i<(int)size; i++)
-        t[i] = dg::construct<inner_vector>(src, std::forward<Params>(ps)...);
+        t[i] = dg::construct<inner_vector>(src, ps...);
     return t;
 }
 template<class To, class From, class ...Params>
@@ -73,7 +73,7 @@ To doConstruct( const From& src, RecursiveVectorTag, RecursiveVectorTag, Params&
     To t(size);
     using inner_vector = typename To::value_type;
     for (unsigned i=0; i<size; i++)
-        t[i] = dg::construct<inner_vector>(src[i], std::forward<Params>(ps)...);
+        t[i] = dg::construct<inner_vector>(src[i], ps...);
     return t;
 }
 
@@ -81,19 +81,19 @@ template<class From, class To, class ...Params>
 void doAssign( const From& src, To& to, SharedVectorTag, ArrayVectorTag, Params&&...ps )
 {
     for (unsigned i=0; i<to.size(); i++)
-        dg::assign(src, to[i], std::forward<Params>(ps)...);
+        dg::assign(src, to[i], ps...);
 }
 template<class From, class To, class ...Params>
 void doAssign( const From& src, To& to, MPIVectorTag, ArrayVectorTag, Params&&...ps )
 {
     for (unsigned i=0; i<to.size(); i++)
-        dg::assign(src, to[i], std::forward<Params>(ps)...);
+        dg::assign(src, to[i], ps...);
 }
 template<class From, class To, class ...Params>
 void doAssign( const From& src, To& to, RecursiveVectorTag, ArrayVectorTag, Params&&...ps )
 {
     for (unsigned i=0; i<to.size(); i++)
-        dg::assign(src[i], to[i], std::forward<Params>(ps)...);
+        dg::assign(src[i], to[i], ps...);
 }
 
 template<class From, class To, class Size, class ...Params>
@@ -101,14 +101,14 @@ void doAssign( const From& src, To& to, SharedVectorTag, RecursiveVectorTag, Siz
 {
     to.resize(size);
     for (int i=0; i<(int)size; i++)
-        dg::assign(src, to[i], std::forward<Params>(ps)...);
+        dg::assign(src, to[i], ps...);
 }
 template<class From, class To, class Size, class ...Params>
 void doAssign( const From& src, To& to, MPIVectorTag, RecursiveVectorTag, Size size, Params&&... ps )
 {
     to.resize(size);
     for (int i=0; i<(int)size; i++)
-        dg::assign(src, to[i], std::forward<Params>(ps)...);
+        dg::assign(src, to[i], ps...);
 }
 template<class From, class To, class ...Params>
 void doAssign( const From& src, To& to, RecursiveVectorTag, RecursiveVectorTag, Params&&...ps )
@@ -116,7 +116,7 @@ void doAssign( const From& src, To& to, RecursiveVectorTag, RecursiveVectorTag, 
     unsigned size = src.size();
     to.resize(size);
     for (unsigned i=0; i<size; i++)
-        dg::assign(src[i], to[i], std::forward<Params>(ps)...);
+        dg::assign(src[i], to[i], ps...);
 }
 
 } //namespace detail
@@ -186,16 +186,16 @@ inline void doSubroutine_dispatch( RecursiveVectorTag, OmpTag, size_type size, S
         {
             for( int i=0; i<(int)size; i++) {//omp sometimes has problems if loop variable is not int
                 dg::blas1::subroutine( f,
-                    do_get_vector_element(std::forward<container>(x),i,get_tensor_category<container>()),
-                    do_get_vector_element(std::forward<Containers>(xs),i,get_tensor_category<Containers>())...);
+                    do_get_vector_element(x,i,get_tensor_category<container>()),
+                    do_get_vector_element(xs,i,get_tensor_category<Containers>())...);
             }
         }
     }
     else //we are already in a parallel omp region
         for( int i=0; i<(int)size; i++) {
             dg::blas1::subroutine( f,
-                do_get_vector_element(std::forward<container>(x),i,get_tensor_category<container>()),
-                do_get_vector_element(std::forward<Containers>(xs),i,get_tensor_category<Containers>())...);
+                do_get_vector_element(x,i,get_tensor_category<container>()),
+                do_get_vector_element(xs,i,get_tensor_category<Containers>())...);
         }
 }
 #endif //_OPENMP
@@ -207,7 +207,7 @@ template<class size_type, class Subroutine, class container, class ...Containers
 inline void doSubroutine_dispatch( RecursiveVectorTag, AnyPolicyTag, size_type size, Subroutine f, container&& x, Containers&&... xs)
 {
     for( int i=0; i<(int)size; i++) {
-        dg::blas1::subroutine( f, do_get_vector_element(std::forward<container>(x),i,get_tensor_category<container>()), do_get_vector_element(std::forward<Containers>(xs),i,get_tensor_category<Containers>())...);
+        dg::blas1::subroutine( f, do_get_vector_element(x,i,get_tensor_category<container>()), do_get_vector_element(xs,i,get_tensor_category<Containers>())...);
     }
 }
 

@@ -77,7 +77,7 @@ inline void doSymv_dispatch(
               AnyPolicyTag)
 {
     for(unsigned i=0; i<x.size(); i++)
-        doSymv_dispatch( alpha, std::forward<Matrix>(m), x[i], beta, y[i],
+        doSymv_dispatch( alpha, m, x[i], beta, y[i],
                 SparseBlockMatrixTag(),
                 get_tensor_category<typename Vector1::value_type>(),
                 get_execution_policy<Vector1>());
@@ -99,7 +99,7 @@ inline void doSymv_dispatch(
         #pragma omp parallel
         {
             for(unsigned i=0; i<x.size(); i++)
-                doSymv_dispatch( alpha, std::forward<Matrix>(m), x[i], beta, y[i],
+                doSymv_dispatch( alpha, m, x[i], beta, y[i],
                         SparseBlockMatrixTag(),
                         get_tensor_category<typename Vector1::value_type>(),
                         OmpTag());
@@ -107,7 +107,7 @@ inline void doSymv_dispatch(
     }
     else
         for(unsigned i=0; i<x.size(); i++)
-            doSymv_dispatch( alpha, std::forward<Matrix>(m), x[i], beta, y[i],
+            doSymv_dispatch( alpha, m, x[i], beta, y[i],
                     SparseBlockMatrixTag(),
                     get_tensor_category<typename Vector1::value_type>(),
                     OmpTag());
