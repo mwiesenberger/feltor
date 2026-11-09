@@ -16,13 +16,13 @@ namespace detail
 constexpr int MIN_SIZE=100;//don't parallelize if work is too small
 
 template<class T, size_t N, class Functor, class ...PointerOrValues>
-inline void doDot_fpe_dispatch( OmpTag, int* status, unsigned size, std::array<T,N>& fpe,
+inline void doDot_fpe_dispatch( OmpTag, unsigned size, std::array<T,N>& fpe,
     Functor f, PointerOrValues ...xs_ptr)
 {
     if(size<MIN_SIZE)
-        exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( status, size, fpe, f, xs_ptr...);
+        exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
     else
-        exblas::fpedot_omp<T,N,Functor,PointerOrValues...>( status, size, fpe, f, xs_ptr...);
+        exblas::fpedot_omp<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
 }
 
 template<class PointerOrValue1, class PointerOrValue2>

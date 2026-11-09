@@ -128,7 +128,7 @@ namespace blas1
 namespace detail
 {
 template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( RecursiveVectorTag, int* status, std::array<T,N>& fpe, Functor f,
+inline void doDot_fpe( RecursiveVectorTag, std::array<T,N>& fpe, Functor f,
     const ContainerType& x, const ContainerTypes& ...xs)
 {
     //find out which one is the RecursiveVector and determine size
@@ -140,11 +140,11 @@ inline void doDot_fpe( RecursiveVectorTag, int* status, std::array<T,N>& fpe, Fu
     for( unsigned u=0; u<size; u++)
     {
         std::array<T,N> tmp;
-        doDot_fpe( status, tmp, f,
+        doDot_fpe( tmp, f,
             do_get_vector_element(x, u, get_tensor_category<ContainerType>()),
             do_get_vector_element(xs, u, get_tensor_category<ContainerTypes>())...);
         for (unsigned k = 0; k < N; ++k)
-            exblas::cpu::Accumulate( tmp[k], fpe, status);
+            exblas::cpu::Accumulate( tmp[k], fpe);
     }
 }
 

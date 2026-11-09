@@ -61,10 +61,10 @@ namespace detail{
 //}
 
 template<class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-void doDot_fpe( MPIVectorTag, int* status, std::array<T,N>& fpe, Functor f, const ContainerType& x, const ContainerTypes& ...xs)
+void doDot_fpe( MPIVectorTag, std::array<T,N>& fpe, Functor f, const ContainerType& x, const ContainerTypes& ...xs)
 {
     constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, ContainerType, ContainerType, ContainerTypes...>::value;
-    doDot_fpe( status, fpe, f,
+    doDot_fpe( fpe, f,
         do_get_data(x, get_tensor_category<ContainerType>()),
         do_get_data(xs, get_tensor_category<ContainerTypes>())...);
 
@@ -82,9 +82,7 @@ void doDot_fpe( MPIVectorTag, int* status, std::array<T,N>& fpe, Functor f, cons
         fpe[k] = T(0);
     for ( unsigned u=0; u<(unsigned)size; u++)
         for (unsigned k = 0; k < N; ++k)
-            exblas::cpu::Accumulate( reduction[u*N+k], fpe, status);
-    // Communicate the status to all
-    MPI_Allreduce( MPI_IN_PLACE, status, 1, MPI_INT, MPI_MAX, comm);
+            exblas::cpu::Accumulate( reduction[u*N+k], fpe);
 }
 
 template< class Vector1, class Vector2>

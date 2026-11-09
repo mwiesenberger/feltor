@@ -13,12 +13,12 @@ namespace blas1
 namespace detail
 {
 template<class T, size_t N, class Functor, class ...PointerOrValues>
-inline void doDot_fpe_dispatch( CudaTag, int * status, unsigned size, std::array<T,N>& fpe,
+inline void doDot_fpe_dispatch( CudaTag, unsigned size, std::array<T,N>& fpe,
     Functor f, PointerOrValues ...xs_ptr)
 {
     static thrust::device_vector<T> d_fpe(N, T(0));
     T * d_ptr = thrust::raw_pointer_cast( d_fpe.data());
-    exblas::fpedot_gpu<T,N,Functor,PointerOrValues...>( status, size, d_ptr, f, xs_ptr...);
+    exblas::fpedot_gpu<T,N,Functor,PointerOrValues...>( size, d_ptr, f, xs_ptr...);
     cudaError_t code = cudaGetLastError( );
     if( code != cudaSuccess)
         throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));

@@ -13,10 +13,10 @@ namespace blas1
 namespace detail
 {
 template<class T, size_t N, class Functor, class ...PointerOrValues>
-inline void doDot_fpe_dispatch( SerialTag, int * status, unsigned size, std::array<T,N>& fpe,
+inline void doDot_fpe_dispatch( SerialTag, unsigned size, std::array<T,N>& fpe,
     Functor f, PointerOrValues ...xs_ptr)
 {
-    exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( status, size, fpe, f, xs_ptr...);
+    exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
 }
 template<class PointerOrValue1, class PointerOrValue2>
 inline std::vector<int64_t> doDot_dispatch( SerialTag, int* status, unsigned size,

@@ -55,9 +55,6 @@ __device__ void warpReduce64( T * a, unsigned int tid)
                 a[i*THREADS_PER_BLOCK+tid] = KnuthTwoSum(a[i*THREADS_PER_BLOCK+tid], x, &s);
                 x = s;
             }
-            //if (x != T(0)) { // can't indicate nan at this point ( branch not allowed)
-            //    *status = 2; //indicate overflow
-            //}
         }
         modulo_factor/=2;
         // We need a memory barrier between iterations
@@ -70,7 +67,6 @@ __device__ void warpReduce64( T * a, unsigned int tid)
 
 template<class T, unsigned N, unsigned THREADS_PER_BLOCK, class Functor, class ...PointerOrValues>
 __global__ void fpeDOT(
-    volatile int* status,
     const unsigned NbElements,
     T *d_PartialFPEs,
     Functor f,
@@ -93,16 +89,11 @@ __global__ void fpeDOT(
     for(unsigned pos = blockIdx.x*THREADS_PER_BLOCK+threadIdx.x; pos < NbElements; pos += gridDim.x*THREADS_PER_BLOCK) {
         T x = f(get_element(d_xs,pos)...);
 
-        //if( (x -x) != T(0) ) *status = 1;
-
         #pragma unroll
         for(unsigned i = 0; i != N; ++i) {
             T s;
             a[i*THREADS_PER_BLOCK] = KnuthTwoSum(a[i*THREADS_PER_BLOCK], x, &s);
             x = s;
-        }
-        if (x != T(0)) {
-            *status = 2; //indicate overflow (here is where Nan is caught)
         }
     }
     __syncthreads();
@@ -120,9 +111,6 @@ __global__ void fpeDOT(
                     T s;
                     a[i*THREADS_PER_BLOCK] = KnuthTwoSum(a[i*THREADS_PER_BLOCK], x, &s);
                     x = s;
-                }
-                if (x != T(0)) {
-                    *status = 2; //indicate overflow (here is where Nan is caught as well)
                 }
             }
         }
@@ -175,17 +163,14 @@ static constexpr unsigned NUM_FPES                    = 64; //# of blocks
  */
 template<class T, size_t N, class Functor, class ...PointerOrValues>
 __host__
-void fpedot_gpu(int * status, unsigned size, T* fpe, Functor f, PointerOrValues ...xs_ptr)
+void fpedot_gpu(unsigned size, T* fpe, Functor f, PointerOrValues ...xs_ptr)
 {
     static thrust::device_vector<T> d_PartialFPEsV( gpu::NUM_FPES*N, T(0));
     T *d_PartialFPEs = thrust::raw_pointer_cast( d_PartialFPEsV.data());
-    thrust::device_vector<int> d_statusV(1, 0);
-    int *d_status = thrust::raw_pointer_cast( d_statusV.data());
     gpu::fpeDOT<T, N, gpu::THREADS_PER_BLOCK, Functor, PointerOrValues...>
         <<<gpu::NUM_FPES, gpu::THREADS_PER_BLOCK, N*gpu::THREADS_PER_BLOCK*sizeof(T)>>>(
-            d_status, size, d_PartialFPEs, f, xs_ptr...);
+            size, d_PartialFPEs, f, xs_ptr...);
     gpu::fpeDOTMerge<T, N, gpu::NUM_FPES><<<1, 32>>>( d_PartialFPEs, fpe);
-    *status = d_statusV[0];
 }
 
 }//namespace exblas

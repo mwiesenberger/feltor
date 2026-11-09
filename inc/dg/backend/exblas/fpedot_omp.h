@@ -37,7 +37,7 @@ namespace cpu{
  */
 template<class T, int N>
 inline void Reduction(unsigned int tid, unsigned int tnum,
-    std::vector<std::array<T,N>>& acc, int* status)
+    std::vector<std::array<T,N>>& acc)
 {
     // Custom tree reduction
     for(unsigned int s = 1; (unsigned)(1 << (s-1)) < tnum; ++s)
@@ -49,7 +49,7 @@ inline void Reduction(unsigned int tid, unsigned int tnum,
             unsigned int tid2 = tid | (1 << (s-1)); //effectively adds 1, 2, 4,...
             if(tid2 < tnum) {
                 for( unsigned i=0; i<N; i++)
-                    Accumulate( acc[tid2][i], acc[tid], status);
+                    Accumulate( acc[tid2][i], acc[tid]);
             }
         }
     }
@@ -63,12 +63,11 @@ inline void Reduction(unsigned int tid, unsigned int tnum,
  * @copydetails fpedot_cpu
 */
 template<class T, size_t N, class Functor, class ...PointerOrValues>
-void fpedot_omp(int * status, unsigned size, std::array<T,N>& fpe, Functor f, PointerOrValues ...xs_ptr)
+void fpedot_omp(unsigned size, std::array<T,N>& fpe, Functor f, PointerOrValues ...xs_ptr)
 {
     // OpenMP sum+reduction
     int maxthreads = omp_get_max_threads();
     std::vector<std::array<T, N>> acc(maxthreads);
-    std::vector<int> status_i( maxthreads, 0);
     #pragma omp parallel
     {
         unsigned int tid = omp_get_thread_num();
@@ -83,19 +82,12 @@ void fpedot_omp(int * status, unsigned size, std::array<T,N>& fpe, Functor f, Po
         for(int i = l; i <= r; i++)
         {
             T res = f( cpu::get_element( xs_ptr, i)...);
-            cpu::Accumulate(res, myacc, &status_i[tid]);
-            // std::isfinite does not work for complex
-            //if( !std::isfinite(res) ) *status = 1;
+            cpu::Accumulate(res, myacc);
         }
-        cpu::Reduction<T,N>( tid, tnum, acc, status);
+        cpu::Reduction<T,N>( tid, tnum, acc);
     }//omp parallel
     for( unsigned i=0; i<N; i++)
         fpe[i] = acc[0][i];
-    for( int i=0; i<maxthreads; i++)
-    {
-        if( status_i[i] == 2) *status = 2;
-        if( status_i[i] == 1) *status = 1;
-    }
 }
 
 

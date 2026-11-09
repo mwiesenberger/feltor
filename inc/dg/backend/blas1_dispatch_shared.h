@@ -54,7 +54,7 @@ inline void kronecker( ContainerType& y, BinarySubroutine f, Functor g, const Co
 namespace detail
 {
 template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( int* status,
+inline void doDot_fpe(
     std::array<T,N>& fpe, Functor f, const ContainerType&, const ContainerTypes& ...xs);
 template< class ContainerType1, class ContainerType2>
 inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x, const ContainerType2& y);
@@ -62,7 +62,7 @@ inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( SharedVectorTag, int* status, std::array<T,N>& fpe, Functor f,
+inline void doDot_fpe( SharedVectorTag, std::array<T,N>& fpe, Functor f,
     const ContainerType& x, const ContainerTypes& ...xs)
 {
     using vector_type = find_if_t<dg::is_not_scalar_has_not_any_policy, get_value_type<ContainerType>, ContainerType, ContainerTypes...>;
@@ -73,7 +73,6 @@ inline void doDot_fpe( SharedVectorTag, int* status, std::array<T,N>& fpe, Funct
     constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar_has_not_any_policy, get_value_type<ContainerType>, ContainerType, ContainerTypes...>::value;
     doDot_fpe_dispatch(
             get_execution_policy<vector_type>(),
-            status,
             get_idx<vector_idx>( x, xs...).size(),
             fpe,
             f,

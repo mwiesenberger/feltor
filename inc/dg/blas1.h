@@ -94,11 +94,10 @@ auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
     // with two arguments
     using T = std::invoke_result_t<Functor, dg::get_value_type<ContainerType>, dg::get_value_type<ContainerTypes>...>;
 
-    int status = 0;
     if constexpr( std::is_integral_v<T>) // e.g. T = int
     {
         std::array<T, 1> fpe;
-        dg::blas1::detail::doDot_fpe( &status, fpe, f, x, xs ...);
+        dg::blas1::detail::doDot_fpe( fpe, f, x, xs ...);
         if( fpe[0] - fpe[0] != T(0))
             throw dg::Error(dg::Message(_ping_)
                 <<"dg::blas1::vdot (integral type) failed "
@@ -109,7 +108,7 @@ auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
     {
         constexpr size_t N = 3;
         std::array<T, N> fpe;
-        dg::blas1::detail::doDot_fpe( &status, fpe, f, x, xs ...);
+        dg::blas1::detail::doDot_fpe( fpe, f, x, xs ...);
         for( unsigned u=0; u<N; u++)
         {
             if( fpe[u] - fpe[u] != T(0))
@@ -619,7 +618,7 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
 namespace detail{
 
 template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( int* status, std::array<T,N>& fpe, Functor f,
+inline void doDot_fpe( std::array<T,N>& fpe, Functor f,
     const ContainerType& x, const ContainerTypes& ...xs)
 {
     static_assert( ( dg::is_vector_v<ContainerType> && ...
@@ -630,7 +629,7 @@ inline void doDot_fpe( int* status, std::array<T,N>& fpe, Functor f,
     static_assert( ( dg::is_scalar_or_same_base_category<ContainerType, tensor_category>::value &&
               ... && dg::is_scalar_or_same_base_category<ContainerTypes, tensor_category>::value),
         "All container types must be either Scalar or have compatible Vector categories (AnyVector or Same base class)!");
-    return doDot_fpe( tensor_category(), status, fpe, f, x, xs ...);
+    return doDot_fpe( tensor_category(), fpe, f, x, xs ...);
 
 }
 

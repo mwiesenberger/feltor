@@ -102,7 +102,7 @@ inline T TwoProductFMA(T a, T b, T &d) {
 ////////////////////////////////////////////////////////////////////////////////
 //does not check for NaN
 template<typename T, size_t N> EXBLAS_UNROLL_ATTRIBUTE
-void Accumulate(T x, std::array<T,N>& fpe , int* status)
+void Accumulate(T x, std::array<T,N>& fpe)
 {
     if( x == T(0) )
         return;
@@ -112,10 +112,6 @@ void Accumulate(T x, std::array<T,N>& fpe , int* status)
         x = s;
         if( x == T(0)) //early exit
 	        return;
-    }
-
-    if (x != T(0) && *status != 1) {
-        *status = 2;
     }
 }
 /**
@@ -133,9 +129,8 @@ inline T Round( const std::array<T,N>& fpe ) {
     // Our own implementation
     // Just accumulate to a FPE of size 2 and return sum;
     std::array<T, 2> fpe_red{T(0),T(0)};
-    int status_red = 0;
     for( unsigned u = 0; u<N; u++)
-        Accumulate( fpe[u], fpe_red, &status_red);
+        Accumulate( fpe[u], fpe_red);
     return fpe_red[0] + fpe_red[1];
 
     // The problem with the following is to get it to work for complex

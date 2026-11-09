@@ -52,7 +52,7 @@ namespace detail
 {
 
 template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( StdMapTag, int* status, std::array<T,N>& fpe, Functor f,
+inline void doDot_fpe( StdMapTag, std::array<T,N>& fpe, Functor f,
     const ContainerType& x, const ContainerTypes& ...xs)
 {
     //find out which one is the map and determine the keys
@@ -64,7 +64,7 @@ inline void doDot_fpe( StdMapTag, int* status, std::array<T,N>& fpe, Functor f,
     {
         std::array<T,N> tmp;
         try{
-        doDot_fpe( status, tmp, f,
+        doDot_fpe( tmp, f,
             do_get_vector_element(x, el.first, get_tensor_category<ContainerType>()),
             do_get_vector_element(xs, el.first, get_tensor_category<ContainerTypes>())...);
         }catch( std::out_of_range& err)
@@ -72,7 +72,7 @@ inline void doDot_fpe( StdMapTag, int* status, std::array<T,N>& fpe, Functor f,
             throw dg::Error( dg::Message(_ping_)<<"Wrong key '"<<el.first<<"' in blas1::vdot "<<err.what());
         }
         for (unsigned k = 0; k < N; ++k)
-            exblas::cpu::Accumulate( tmp[k], fpe, status);
+            exblas::cpu::Accumulate( tmp[k], fpe);
     }
 }
 

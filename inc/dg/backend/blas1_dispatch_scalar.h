@@ -28,7 +28,7 @@ namespace blas1
 namespace detail
 {
 template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( AnyScalarTag, int* , std::array<T,N>& fpe, Functor f,
+inline void doDot_fpe( AnyScalarTag, std::array<T,N>& fpe, Functor f,
     const ContainerType& x, const ContainerTypes& ...xs)
 {
     fpe[0] = f(x,xs...);
