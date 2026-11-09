@@ -44,22 +44,6 @@
 
 #endif//EXBLAS_WITHOUT_VCL
 
-#if defined __INTEL_COMPILER
-#define EXBLAS_UNROLL_ATTRIBUTE
-#elif defined __GNUC__
-
-#ifdef __APPLE__ //MAC does not know "unroll-loops"
-#define EXBLAS_UNROLL_ATTRIBUTE
-#elif defined __clang__
-#define EXBLAS_UNROLL_ATTRIBUTE
-#else
-#define EXBLAS_UNROLL_ATTRIBUTE __attribute__((optimize("unroll-loops")))
-#endif // __APPLE__
-
-#else
-#define EXBLAS_UNROLL_ATTRIBUTE
-#endif
-
 #ifdef ATT_SYNTAX
 #define EXBLAS_ASM_BEGIN ".intel_syntax;"
 #define EXBLAS_ASM_END ";.att_syntax"

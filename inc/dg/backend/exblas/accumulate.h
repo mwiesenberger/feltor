@@ -101,7 +101,7 @@ inline T TwoProductFMA(T a, T b, T &d) {
 // FPE Accumulate and Round function for leightweight implementation
 ////////////////////////////////////////////////////////////////////////////////
 //does not check for NaN
-template<typename T, size_t N> EXBLAS_UNROLL_ATTRIBUTE
+template<typename T, size_t N>
 void Accumulate(T x, std::array<T,N>& fpe)
 {
     if( x == T(0) )
