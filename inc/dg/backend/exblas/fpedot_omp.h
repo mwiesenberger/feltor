@@ -72,7 +72,8 @@ void fpedot_omp(unsigned size, std::array<T,N>& fpe, Functor f, PointerOrValues 
     {
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();
-        std::array<T,N> & myacc = acc[tid];
+        // Local: FPEs next to each other in acc would share cache lines
+        std::array<T,N> myacc;
         // Thread boundaries tid*size/tnum must not overflow unsigned: with
         // 128 threads this happens for size 2^26 already
         int l = (tid * int64_t(size)) / tnum;
@@ -84,6 +85,7 @@ void fpedot_omp(unsigned size, std::array<T,N>& fpe, Functor f, PointerOrValues 
             T res = f( cpu::get_element( xs_ptr, i)...);
             cpu::Accumulate(res, myacc);
         }
+        acc[tid] = myacc;
         cpu::Reduction<T,N>( tid, tnum, acc);
     }//omp parallel
     for( unsigned i=0; i<N; i++)
