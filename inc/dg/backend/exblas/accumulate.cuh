@@ -16,6 +16,7 @@
  *        Matthias Wiesenberger -- mattwi@fysik.dtu.dk
  */
 #pragma once
+#include <algorithm>
 #include "../exceptions.h"
 #include "config.h"
 #include "mylibm.cuh"
@@ -39,6 +40,25 @@ inline void wait_for_kernels()
     code = cudaGetLastError( );
     if( code != cudaSuccess)
         throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+}
+// How many blocks of a kernel the device can run at the same time. Queried
+// from the runtime, so that the number of blocks adapts to the device in use
+template<class Kernel>
+inline unsigned max_active_blocks( Kernel kernel, int threads_per_block,
+    size_t dynamic_shared_memory, unsigned limit)
+{
+    int device = 0, blocks_per_sm = 0;
+    cudaDeviceProp prop;
+    cudaError_t code = cudaGetDevice( &device);
+    if( code == cudaSuccess)
+        code = cudaGetDeviceProperties( &prop, device);
+    if( code == cudaSuccess)
+        code = cudaOccupancyMaxActiveBlocksPerMultiprocessor( &blocks_per_sm,
+            kernel, threads_per_block, dynamic_shared_memory);
+    if( code != cudaSuccess)
+        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    unsigned blocks = std::max( prop.multiProcessorCount*blocks_per_sm, 1);
+    return std::min( blocks, limit);
 }
 ///////////////////////////////////////////////////////////////////////////
 //********* Here, the change from float to double happens ***************//

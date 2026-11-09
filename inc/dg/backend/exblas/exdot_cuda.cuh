@@ -259,6 +259,9 @@ __global__ void ExDOT(
 // Merging
 ////////////////////////////////////////////////////////////////////////////////
 ////////////// parameters for Kernel execution            //////////////////////
+// ATTENTION The following values were only measured on a TITAN Xp and should
+// be reevaluated on an A100. Only the cap on the number of blocks adapts to
+// the device at runtime
 static constexpr unsigned WARP_COUNT            = 16;  //# of sub superaccs per block in ExDOT
 static constexpr unsigned EXDOT_BLOCK_THREADS   = 128; //# threads per block in ExDOT
 static constexpr unsigned MIN_ITEMS_PER_THREAD  = 16;  //# of elements per thread before we add blocks beyond MERGE_SIZE
@@ -309,25 +312,6 @@ void ExDOTCompleteFinal(
 
         d_superacc[lid] = sum;
     }
-}
-
-// How many blocks of ExDOT the device can run at the same time. Queried from
-// the runtime, so that the number of blocks adapts to the device in use
-template<class Kernel>
-inline unsigned max_active_blocks( Kernel kernel)
-{
-    int device = 0, blocks_per_sm = 0;
-    cudaDeviceProp prop;
-    cudaError_t code = cudaGetDevice( &device);
-    if( code == cudaSuccess)
-        code = cudaGetDeviceProperties( &prop, device);
-    if( code == cudaSuccess)
-        code = cudaOccupancyMaxActiveBlocksPerMultiprocessor( &blocks_per_sm,
-            kernel, EXDOT_BLOCK_THREADS, 0);
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
-    unsigned blocks = std::max( prop.multiProcessorCount*blocks_per_sm, 1);
-    return std::min( blocks, MAX_PARTIAL_SUPERACCS);
 }
 
 // Every block has a fixed cost and more than MERGE_SIZE blocks need an extra
@@ -417,7 +401,8 @@ void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, in
     static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
     static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, PointerOrValue1, PointerOrValue2, unsigned, volatile bool*)>(
-        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, PointerOrValue1, PointerOrValue2>));
+        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, PointerOrValue1, PointerOrValue2>),
+        gpu::EXDOT_BLOCK_THREADS, 0, gpu::MAX_PARTIAL_SUPERACCS);
     int64_t *d_PartialSuperaccs = gpu::partial_superaccs( max_blocks);
     const unsigned blocks = gpu::num_exdot_blocks( size, max_blocks);
     gpu::HostResult *result = gpu::host_result();
@@ -439,7 +424,8 @@ void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, Po
     static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue3>::value, "PointerOrValue3 needs to be T or T* with T one of (const) float or (const) double");
     static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, PointerOrValue1, PointerOrValue2, PointerOrValue3, unsigned, volatile bool*)>(
-        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, PointerOrValue1, PointerOrValue2, PointerOrValue3>));
+        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, PointerOrValue1, PointerOrValue2, PointerOrValue3>),
+        gpu::EXDOT_BLOCK_THREADS, 0, gpu::MAX_PARTIAL_SUPERACCS);
     int64_t *d_PartialSuperaccs = gpu::partial_superaccs( max_blocks);
     const unsigned blocks = gpu::num_exdot_blocks( size, max_blocks);
     gpu::HostResult *result = gpu::host_result();
