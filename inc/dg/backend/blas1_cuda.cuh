@@ -8,6 +8,7 @@
 #include "exblas/fpedot_cuda.cuh"
 namespace dg
 {
+struct equals; // defined in subroutines.h
 namespace blas1
 {
 namespace detail
@@ -63,6 +64,16 @@ inline void doSubroutine_dispatch( CudaTag, int size, Subroutine f, PointerOrVal
     const size_t BLOCK_SIZE = 256;
     const size_t NUM_BLOCKS = std::min<size_t>((size-1)/BLOCK_SIZE+1, 65000);
     subroutine_kernel<Subroutine, PointerOrValue, PointerOrValues...><<<NUM_BLOCKS, BLOCK_SIZE>>>(size, f, x, xs...);
+}
+
+// A device to device copy of equal types needs no kernel: on a TITAN Xp
+// cudaMemcpy is never slower and up to 1.9x faster for a few 1e5 elements
+template< class T>
+inline void doSubroutine_dispatch( CudaTag, int size, const dg::equals&, const T* x, T* y)
+{
+    if( x == y) // cudaMemcpy does not allow overlapping ranges
+        return;
+    cudaMemcpy( y, x, size_t(size)*sizeof(T), cudaMemcpyDeviceToDevice);
 }
 
 template<class T, class Pointer, class BinaryOp, class UnaryOp>
