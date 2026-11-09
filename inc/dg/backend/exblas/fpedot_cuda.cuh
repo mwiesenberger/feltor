@@ -11,6 +11,8 @@
  *        Matthias Wiesenberger -- mattwi@fysik.dtu.dk
  */
 #pragma once
+#include <algorithm>
+#include <array>
 #include "thrust/device_vector.h"
 #include "accumulate.cuh"
 
@@ -152,6 +154,21 @@ void fpeDOTMerge(
 static constexpr unsigned THREADS_PER_BLOCK           = 512; //# threads per block >= 64
 static constexpr unsigned NUM_FPES                    = 64; //# of blocks
 
+// The result lives in pinned host memory (see HostResult in exdot_cuda.cuh)
+template<class T, size_t N>
+inline T* host_fpe()
+{
+    static T* fpe = []()
+    {
+        void* ptr = nullptr;
+        cudaError_t code = cudaHostAlloc( &ptr, N*sizeof(T), cudaHostAllocDefault);
+        if( code != cudaSuccess)
+            throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+        return static_cast<T*>(ptr);
+    }();
+    return fpe;
+}
+
 }//namespace gpu
 ///@endcond
 
@@ -163,14 +180,17 @@ static constexpr unsigned NUM_FPES                    = 64; //# of blocks
  */
 template<class T, size_t N, class Functor, class ...PointerOrValues>
 __host__
-void fpedot_gpu(unsigned size, T* fpe, Functor f, PointerOrValues ...xs_ptr)
+void fpedot_gpu(unsigned size, std::array<T,N>& fpe, Functor f, PointerOrValues ...xs_ptr)
 {
     static thrust::device_vector<T> d_PartialFPEsV( gpu::NUM_FPES*N, T(0));
     T *d_PartialFPEs = thrust::raw_pointer_cast( d_PartialFPEsV.data());
     gpu::fpeDOT<T, N, gpu::THREADS_PER_BLOCK, Functor, PointerOrValues...>
         <<<gpu::NUM_FPES, gpu::THREADS_PER_BLOCK, N*gpu::THREADS_PER_BLOCK*sizeof(T)>>>(
             size, d_PartialFPEs, f, xs_ptr...);
-    gpu::fpeDOTMerge<T, N, gpu::NUM_FPES><<<1, 32>>>( d_PartialFPEs, fpe);
+    T *h_fpe = gpu::host_fpe<T,N>();
+    gpu::fpeDOTMerge<T, N, gpu::NUM_FPES><<<1, 32>>>( d_PartialFPEs, h_fpe);
+    gpu::wait_for_kernels();
+    std::copy_n( h_fpe, N, fpe.begin());
 }
 
 }//namespace exblas

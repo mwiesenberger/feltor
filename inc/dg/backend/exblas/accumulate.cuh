@@ -16,6 +16,7 @@
  *        Matthias Wiesenberger -- mattwi@fysik.dtu.dk
  */
 #pragma once
+#include "../exceptions.h"
 #include "config.h"
 #include "mylibm.cuh"
 //this file has a direct correspondance to cpu code accumulate.h
@@ -27,6 +28,18 @@ namespace exblas
 namespace gpu
 {
 ///@cond
+// Wait for all launched kernels and throw if any of them failed
+inline void wait_for_kernels()
+{
+    cudaError_t code = cudaDeviceSynchronize();
+    if( code != cudaSuccess)
+        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    // This test checks for errors in the current stream, the error may come
+    // from any kernel prior to this point not necessarily the ones of the dot
+    code = cudaGetLastError( );
+    if( code != cudaSuccess)
+        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+}
 ///////////////////////////////////////////////////////////////////////////
 //********* Here, the change from float to double happens ***************//
 ///////////////////////////////////////////////////////////////////////////

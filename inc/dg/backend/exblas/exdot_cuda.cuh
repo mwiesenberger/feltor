@@ -398,14 +398,7 @@ inline HostResult* host_result()
 // Wait for the launched kernels and copy their result
 inline void finish_exdot( const HostResult* result, int64_t* h_superacc, int* status)
 {
-    cudaError_t code = cudaDeviceSynchronize();
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
-    // This test checks for errors in the current stream, the error may come
-    // from any kernel prior to this point not necessarily the ones of the dot
-    code = cudaGetLastError( );
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    wait_for_kernels();
     std::copy_n( result->superacc, BIN_COUNT, h_superacc);
     *status = result->error ? 1 : 0;
 }
