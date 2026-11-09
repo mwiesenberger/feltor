@@ -534,7 +534,7 @@ dg::KroneckerTriDiagonal2d<dg::HVec_t<real_type>> fem_mass2d(
 {
     auto mx = fem_mass(g.gx());
     auto my = fem_mass(g.gy());
-    return {g.gz().size(), my, mx};
+    return {(unsigned)g.gz().size(), my, mx};
 }
 
 ///@copydoc hide_fem_inv_mass_doc
@@ -553,7 +553,7 @@ dg::KroneckerTriDiagonal2d<dg::HVec_t<real_type>> fem_linear2const2d(
 {
     auto mx = fem_linear2const(g.gx());
     auto my = fem_linear2const(g.gy());
-    return {g.gz().size(), my, mx};
+    return {(unsigned)g.gz().size(), my, mx};
 }
 
 ///@copydoc hide_fem_inv_mass_doc

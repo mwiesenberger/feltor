@@ -142,7 +142,7 @@ unsigned BICGSTABl< ContainerType>::solve( Matrix&& A, ContainerType0& x, const 
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif //MPI
-    dg::blas2::symv(std::forward<Preconditioner>(P),b,m_tmp);
+    dg::blas2::symv(P,b,m_tmp);
     value_type nrmb = sqrt(dg::blas2::dot(W,m_tmp));
     value_type tol = eps*(nrmb + nrmb_correction);
     if( nrmb == 0)
@@ -150,11 +150,11 @@ unsigned BICGSTABl< ContainerType>::solve( Matrix&& A, ContainerType0& x, const 
         blas1::copy( 0., x);
         return 0;
     }
-    dg::blas2::symv(std::forward<Matrix>(A),x,m_tmp);
+    dg::blas2::symv(A,x,m_tmp);
     dg::blas1::axpby(1.,b,-1.,m_tmp);
     if( sqrt( blas2::dot(W,m_tmp) ) < tol) //if x happens to be the solution
         return 0;
-    dg::blas2::symv(std::forward<Preconditioner>(P),m_tmp,rhat[0]);
+    dg::blas2::symv(P,m_tmp,rhat[0]);
 
     dg::blas1::copy(0., uhat[0]);
 
@@ -177,8 +177,8 @@ unsigned BICGSTABl< ContainerType>::solve( Matrix&& A, ContainerType0& x, const 
             {
                 dg::blas1::axpby(1.,rhat[i],-1.0*beta,uhat[i]);
             }
-            dg::blas2::symv(std::forward<Matrix>(A),uhat[j],m_tmp);
-            dg::blas2::symv(std::forward<Preconditioner>(P),m_tmp,uhat[j+1]);
+            dg::blas2::symv(A,uhat[j],m_tmp);
+            dg::blas2::symv(P,m_tmp,uhat[j+1]);
             if( rho_0 == 0)
                 alpha = 0;
             else
@@ -187,8 +187,8 @@ unsigned BICGSTABl< ContainerType>::solve( Matrix&& A, ContainerType0& x, const 
             {
                 dg::blas1::axpby(-1.0*alpha,uhat[i+1],1.,rhat[i]);
             }
-            dg::blas2::symv(std::forward<Matrix>(A),rhat[j],m_tmp);
-            dg::blas2::symv(std::forward<Preconditioner>(P),m_tmp,rhat[j+1]);
+            dg::blas2::symv(A,rhat[j],m_tmp);
+            dg::blas2::symv(P,m_tmp,rhat[j+1]);
             dg::blas1::axpby(alpha,uhat[0],1.,xhat);
         }
 

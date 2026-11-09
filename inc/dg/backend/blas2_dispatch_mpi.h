@@ -104,7 +104,7 @@ template< class Matrix, class Vector1, class Vector2>
 inline void doSymv( Matrix&& m, const Vector1& x, Vector2& y, MPIVectorTag, RecursiveVectorTag )
 {
     for( unsigned i=0; i<y.size(); i++)
-        dg::blas2::symv( std::forward<Matrix>(m), do_get_vector_element(x,i,get_tensor_category<Vector1>()), do_get_vector_element(y,i,get_tensor_category<Vector2>()));
+        dg::blas2::symv( m, do_get_vector_element(x,i,get_tensor_category<Vector1>()), do_get_vector_element(y,i,get_tensor_category<Vector2>()));
 }
 
 template< class Matrix, class Vector1, class Vector2>
@@ -118,7 +118,7 @@ inline void doSymv( get_value_type<Vector1> alpha,
                 )
 {
     for( unsigned i=0; i<y.size(); i++)
-        dg::blas2::symv( alpha, std::forward<Matrix>(m), do_get_vector_element(x,i,get_tensor_category<Vector1>()), beta, do_get_vector_element(y,i,get_tensor_category<Vector2>()));
+        dg::blas2::symv( alpha, m, do_get_vector_element(x,i,get_tensor_category<Vector1>()), beta, do_get_vector_element(y,i,get_tensor_category<Vector2>()));
 }
 //Matrix is an MPI matrix
 template< class Matrix, class Vector1, class Vector2>
@@ -144,7 +144,7 @@ template< class Matrix, class Vector1, class Vector2>
 inline void doSymv( Matrix&& m, const Vector1& x, Vector2& y, MPIMatrixTag, RecursiveVectorTag )
 {
     for( unsigned i=0; i<y.size(); i++)
-        dg::blas2::symv( std::forward<Matrix>(m), do_get_vector_element(x,i,get_tensor_category<Vector1>()), do_get_vector_element(y,i,get_tensor_category<Vector2>()));
+        dg::blas2::symv( m, do_get_vector_element(x,i,get_tensor_category<Vector1>()), do_get_vector_element(y,i,get_tensor_category<Vector2>()));
 }
 
 template< class Matrix, class Vector1, class Vector2>
@@ -158,13 +158,13 @@ inline void doSymv( get_value_type<Vector1> alpha,
                 )
 {
     for( unsigned i=0; i<y.size(); i++)
-        dg::blas2::symv( alpha, std::forward<Matrix>(m), x[i], beta, y[i]);
+        dg::blas2::symv( alpha, m, x[i], beta, y[i]);
 }
 template< class Matrix, class Vector1, class Vector2>
 inline void doSymv( Matrix&& m, const Vector1& x, Vector2& y, MPIMatrixTag, StdMapTag )
 {
     for( const auto& el : y)
-        dg::blas2::symv( std::forward<Matrix>(m), do_get_vector_element(x,el.first,get_tensor_category<Vector1>()), do_get_vector_element(y,el.first,get_tensor_category<Vector2>()));
+        dg::blas2::symv( m, do_get_vector_element(x,el.first,get_tensor_category<Vector1>()), do_get_vector_element(y,el.first,get_tensor_category<Vector2>()));
 }
 
 template< class Matrix, class Vector1, class Vector2>
@@ -178,7 +178,7 @@ inline void doSymv( get_value_type<Vector1> alpha,
                 )
 {
     for( const auto& el : y)
-        dg::blas2::symv( alpha, std::forward<Matrix>(m), do_get_vector_element(x,el.first,get_tensor_category<Vector1>()), beta, do_get_vector_element(y,el.first,get_tensor_category<Vector2>()));
+        dg::blas2::symv( alpha, m, do_get_vector_element(x,el.first,get_tensor_category<Vector1>()), beta, do_get_vector_element(y,el.first,get_tensor_category<Vector2>()));
 }
 
 template<class Functor, class Matrix, class Vector1, class Vector2>

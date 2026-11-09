@@ -229,13 +229,13 @@ class UniversalLanczos
             double res_fac = 1.,
             unsigned q = 1 )
     {
-        tridiag( f, std::forward<MatrixType>(A), b, weights, eps,
+        tridiag( f, A, b, weights, eps,
                 nrmb_correction, error_norm, res_fac, q);
         // m_yH is only up to date if the universal criterion just converged
         if( !m_yH_is_current && m_bnorm != 0)
             m_yH = f( m_TH);
         //Compute x = |b|_M V f(T) e1
-        normMbVy(std::forward<MatrixType>(A), m_TH, m_yH, x, b,
+        normMbVy(A, m_TH, m_yH, x, b,
                 m_bnorm);
         return m_iter;
     }
@@ -312,7 +312,7 @@ class UniversalLanczos
 
         for ( unsigned i=0; i+1<less_iter; i++) // less_iter may be 0
         {
-            dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
+            dg::blas2::symv( A, m_v, m_vp);
             dg::blas1::axpbypgz(
                     -T.M[i]/T.P[i], m_vm,
                     -T.O[i]/T.P[i], m_v,
@@ -378,7 +378,7 @@ class UniversalLanczos
         for( unsigned i=0; i<m_max_iter; i++)
         {
             m_TH.M[i] =  betaip; // -1 diagonal
-            dg::blas2::symv(std::forward<MatrixType>(A), m_v, m_vp);
+            dg::blas2::symv(A, m_v, m_vp);
             dg::blas1::axpby(-betaip, m_vm, 1.0, m_vp);  // only - if i>0, therefore no if (i>0)
             alphai  = dot(m_vp, weights, m_v);
             m_TH.O[i] = alphai;

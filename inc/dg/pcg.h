@@ -231,17 +231,17 @@ unsigned PCG< ContainerType, mode>::solve( Matrix&& A, ContainerType0& x, const 
         blas1::copy( value_type(0), x);
         return 0;
     }
-    blas2::symv( std::forward<Matrix>(A), x, m_r);
+    blas2::symv( A, x, m_r);
     blas1::axpby( 1., b, -1., m_r);
     nrmr = nrm( W, m_r);
 
     if( nrmr < tol) //if x happens to be the solution
         return 0;
-    blas2::symv( std::forward<Preconditioner>(P), m_r, m_p );
+    blas2::symv( P, m_r, m_p );
     auto dotzr_old = dot( m_p, W, m_r), alpha(dotzr_old), dotzr_new(dotzr_old);
     for( unsigned i=1; i<=m_max_iter; i++)
     {
-        blas2::symv( std::forward<Matrix>(A), m_p, m_ap);
+        blas2::symv( A, m_p, m_ap);
         alpha =  dotzr_old/dot( m_p, W, m_ap);
         blas1::axpby( alpha, m_p, 1., x);
         blas1::axpby( -alpha, m_ap, 1., m_r);
@@ -257,7 +257,7 @@ unsigned PCG< ContainerType, mode>::solve( Matrix&& A, ContainerType0& x, const 
             if( nrmr < tol)
                 return i;
         }
-        blas2::symv(std::forward<Preconditioner>(P),m_r,m_ap);
+        blas2::symv(P,m_r,m_ap);
         dotzr_new = dot( m_ap, W, m_r);
         blas1::axpby(1., m_ap, dotzr_new/dotzr_old, m_p );
         dotzr_old=dotzr_new;

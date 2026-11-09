@@ -26,7 +26,7 @@ To doConstruct( const From& src, StdMapTag, StdMapTag, Params&&...ps )
     using inner_vector = typename To::mapped_type;
     for( const auto& el : src)
         t.emplace( el.first, dg::construct<inner_vector>(el.second,
-            std::forward<Params>(ps)...));
+            ps...));
     return t;
 }
 template<class From, class To, class ...Params>
@@ -41,7 +41,7 @@ void doAssign( const From& src, To& to, StdMapTag, StdMapTag, Params&&...ps )
             ++it;
     }
     for( const auto& el : src)
-        dg::assign( el.second, to[el.first], std::forward<Params>(ps)...);
+        dg::assign( el.second, to[el.first], ps...);
 }
 } //namespace detail
 
@@ -130,7 +130,7 @@ inline void doSubroutine( StdMapTag, Subroutine f, container&& x, Containers&&..
     for( const auto& el : get_idx<vector_idx>( std::forward<container>(x), std::forward<Containers>(xs)...))
     {
         try{
-        dg::blas1::subroutine( f, do_get_vector_element(std::forward<container>(x),el.first,get_tensor_category<container>()), do_get_vector_element(std::forward<Containers>(xs),el.first,get_tensor_category<Containers>())...);
+        dg::blas1::subroutine( f, do_get_vector_element(x,el.first,get_tensor_category<container>()), do_get_vector_element(xs,el.first,get_tensor_category<Containers>())...);
         }catch( std::out_of_range& err)
         {
             throw dg::Error( dg::Message(_ping_)<<"Wrong key '"<<el.first<<"' in subroutine");

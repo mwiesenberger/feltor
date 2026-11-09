@@ -68,7 +68,8 @@ void fpedot_omp(unsigned size, std::array<T,N>& fpe, Functor f, PointerOrValues 
     // OpenMP sum+reduction
     int maxthreads = omp_get_max_threads();
     std::vector<std::array<T, N>> acc(maxthreads);
-    #pragma omp parallel
+    // Each thread calls its own copy of f, like the other backends do
+    #pragma omp parallel firstprivate(f)
     {
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();

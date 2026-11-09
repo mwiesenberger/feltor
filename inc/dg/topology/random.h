@@ -42,7 +42,9 @@ MPI_Vector<thrust::host_vector<real_type>> do_uniform_real_distribution(
     for( unsigned idx=0; idx<vec.size(); idx++)
     {
         int gIdx = 0;
-        g.local2globalIdx( idx, rank, gIdx);
+        if( !g.local2globalIdx( idx, rank, gIdx))
+            throw Error( Message(_ping_)<<"Local index "<<idx<<" on rank "<<rank
+                <<" has no global int index! Global grid size is "<<g.size());
         // The distribution draws exactly one number from the engine
         thrust::minstd_rand rng;
         rng.discard( gIdx);

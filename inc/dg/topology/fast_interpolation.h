@@ -63,7 +63,7 @@ struct MultiMatrix
         for( unsigned i=0; i<dimsM; i++)
             m_inter[i] = src.m_inter[i];
         for( unsigned i=0; i<dimsT; i++)
-            dg::assign( src.m_temp[i], m_temp[i], std::forward<Params>(ps)...);
+            dg::assign( src.m_temp[i], m_temp[i], ps...);
     }
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y) const{ symv( 1., x,0,y);}

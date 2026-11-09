@@ -727,6 +727,26 @@ TEST_CASE( "Kronecker above the parallel threshold")
     }
 }
 
+TEST_CASE( "Temporary arguments")
+{
+    // Temporaries are valid input arguments: they must not be moved from
+    // before their elements are read
+    SECTION( "Shared vector")
+    {
+        dg::DVec y( 1000, 0.);
+        dg::blas1::subroutine( dg::equals(), dg::DVec( 1000, 3.), y);
+        CHECK( y == dg::DVec( 1000, 3.));
+    }
+    SECTION( "Recursive vector")
+    {
+        std::array<dg::DVec,2> y{ dg::DVec( 1000, 0.), dg::DVec( 1000, 0.)};
+        dg::blas1::subroutine( dg::equals(), std::array<dg::DVec,2>{
+            dg::DVec( 1000, 4.), dg::DVec( 1000, 5.)}, y);
+        CHECK( y[0] == dg::DVec( 1000, 4.));
+        CHECK( y[1] == dg::DVec( 1000, 5.));
+    }
+}
+
 TEST_CASE( "Aliases and special numbers")
 {
     SECTION( "copy")

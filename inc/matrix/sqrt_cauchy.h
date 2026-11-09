@@ -123,7 +123,7 @@ struct SqrtCauchyInt
             d = boost::math::jacobi_dn(sqrt1mk2, t)*c;
             m_w = sqrtminEV*s;
             dg::blas1::axpby(c*d, b, 0.0 , m_helper); //m_helper = c d b
-            dg::blas2::symv( std::forward<MatrixType1>(wAinv), m_helper, m_temp);
+            dg::blas2::symv( wAinv, m_helper, m_temp);
 
             dg::blas1::axpby(fac, m_temp, 1.0, m_helper3); // m_helper3 += fac  (w^2 + A )^(-1) c d x
         }

@@ -67,13 +67,13 @@ struct NestedGrids
             // Projecting from one grid to the next is the same as
             // projecting from the original grid to the coarse grids
             m_project[u].construct( dg::create::fast_projection(*m_grids[u], 1,
-                        2, 2), std::forward<ContainerParams>(ps)...);
+                        2, 2), ps...);
             m_inter[u].construct( dg::create::fast_interpolation(*m_grids[u+1],
-                        1, 2, 2), std::forward<ContainerParams>(ps)...);
+                        1, 2, 2), ps...);
         }
         for( unsigned u=0; u<m_stages; u++)
             m_x[u] = dg::construct<Container>( dg::evaluate( dg::zero,
-                        *m_grids[u]), std::forward<ContainerParams>(ps)...);
+                        *m_grids[u]), ps...);
         m_w = m_r = m_b = m_x;
 
     }

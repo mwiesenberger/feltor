@@ -24,6 +24,10 @@ namespace dg{
 
  @ingroup blas2
  @note Only those routines that are actually called need to be implemented for a given type.
+ @attention The size of each shared memory vector and matrix dimension, and of
+ the local part of each MPI vector and matrix dimension, must be smaller than
+ \f$ 2^{31}\f$. Otherwise the behaviour is undefined. The global size of MPI
+ objects is not restricted by this.
 */
 namespace blas2{
 ///@addtogroup blas2

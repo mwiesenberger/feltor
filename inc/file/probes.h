@@ -132,7 +132,7 @@ struct Probes
 
         for ( auto& record : records)
         {
-            record.function( result, std::forward<Params>(ps)...);
+            record.function( result, ps...);
             dg::assign( result, m_resultH);
             dg::blas2::symv( m_probe_interpolate, m_resultH, m_simple_probes);
 
@@ -167,7 +167,7 @@ struct Probes
 
         for( auto& record : probe_list)
         {
-            record.function( result, std::forward<Params>(ps)...);
+            record.function( result, ps...);
             dg::assign( result, m_resultH);
             dg::blas2::symv( m_probe_interpolate, m_resultH, m_simple_probes);
             m_simple_probes_intern.at(record.name).push_back(m_simple_probes);
