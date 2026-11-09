@@ -17,6 +17,7 @@
  */
 #pragma once
 #include "thrust/device_vector.h"
+#include "../exceptions.h"
 #include "accumulate.cuh"
 
 namespace dg
@@ -310,52 +311,87 @@ void ExDOTCompleteFinal(
     }
 }
 
+// The flag lives in pinned host memory: The kernels only write to it for NaN
+// or Inf, and the host can read it without an additional transfer. This is
+// worth several microseconds per dot product, which dominates at small sizes
+inline volatile bool* host_error_flag()
+{
+    static volatile bool* flag = []()
+    {
+        void* ptr = nullptr;
+        cudaError_t code = cudaHostAlloc( &ptr, sizeof(bool), cudaHostAllocDefault);
+        if( code != cudaSuccess)
+            throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+        return static_cast<volatile bool*>(ptr);
+    }();
+    return flag;
+}
+
+// Wait for the launched kernels and transfer their result to the host
+inline void finish_exdot( const int64_t* d_superacc, int64_t* h_superacc,
+    const volatile bool* error, int* status)
+{
+    // This test checks for errors in the current stream, the error may come
+    // from any kernel prior to this point not necessarily the ones of the dot
+    cudaError_t code = cudaGetLastError( );
+    if( code != cudaSuccess)
+        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    // cudaMemcpy returns only after all previously launched kernels finished
+    code = cudaMemcpy( h_superacc, d_superacc, BIN_COUNT*sizeof(int64_t),
+        cudaMemcpyDeviceToHost);
+    if( code != cudaSuccess)
+        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    *status = *error ? 1 : 0;
+}
+
 }//namespace gpu
 ///@endcond
 
 ///@brief GPU version of exact dot product
 ///@copydoc hide_exdot2
-///@copydoc hide_deviceacc
+///@copydoc hide_hostacc
 ///@copydoc hide_gpu_static_buffer
 template<class PointerOrValue1, class PointerOrValue2, size_t NBFPE=3>
 __host__
-void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t* d_superacc, int* status)
+void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t* h_superacc, int* status)
 {
     static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
     static thrust::device_vector<int64_t> d_PartialSuperaccsV( gpu::PARTIAL_SUPERACCS_COUNT*BIN_COUNT, 0); //39 columns and PSC rows
     int64_t *d_PartialSuperaccs = thrust::raw_pointer_cast( d_PartialSuperaccsV.data());
-    thrust::device_vector<bool> d_errorV(1, false);
-    bool *d_error = thrust::raw_pointer_cast( d_errorV.data());
-    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<gpu::PARTIAL_SUPERACCS_COUNT, gpu::WORKGROUP_SIZE>>>( d_PartialSuperaccs, x1_ptr, x2_ptr,size, d_error);
+    static thrust::device_vector<int64_t> d_superaccV( BIN_COUNT);
+    int64_t *d_superacc = thrust::raw_pointer_cast( d_superaccV.data());
+    volatile bool *error = gpu::host_error_flag();
+    *error = false;
+    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<gpu::PARTIAL_SUPERACCS_COUNT, gpu::WORKGROUP_SIZE>>>( d_PartialSuperaccs, x1_ptr, x2_ptr,size, error);
     gpu::ExDOTComplete<gpu::MERGE_SUPERACCS_SIZE><<<gpu::PARTIAL_SUPERACCS_COUNT/gpu::MERGE_SUPERACCS_SIZE, gpu::MERGE_WORKGROUP_SIZE>>>( d_PartialSuperaccs, d_superacc );
     //# blocks, # threads per block
     gpu::ExDOTCompleteFinal<gpu::MERGE_SUPERACCS_SIZE><<<1, 64>>>( d_PartialSuperaccs, d_superacc );
-    *status = 0;
-    if( d_errorV[0] ) *status = 1;
+    gpu::finish_exdot( d_superacc, h_superacc, error, status);
 }
 
 ///@brief GPU version of exact dot product
 ///@copydoc hide_exdot3
-///@copydoc hide_deviceacc
+///@copydoc hide_hostacc
 ///@copydoc hide_gpu_static_buffer
 template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3, size_t NBFPE=3>
 __host__
-void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t* d_superacc, int* status)
+void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t* h_superacc, int* status)
 {
     static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
     static_assert( has_floating_value<PointerOrValue3>::value, "PointerOrValue3 needs to be T or T* with T one of (const) float or (const) double");
     static thrust::device_vector<int64_t> d_PartialSuperaccsV( gpu::PARTIAL_SUPERACCS_COUNT*BIN_COUNT, 0); //39 columns and PSC rows
     int64_t *d_PartialSuperaccs = thrust::raw_pointer_cast( d_PartialSuperaccsV.data());
-    thrust::device_vector<bool> d_errorV(1, false);
-    bool *d_error = thrust::raw_pointer_cast( d_errorV.data());
-    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<gpu::PARTIAL_SUPERACCS_COUNT, gpu::WORKGROUP_SIZE>>>( d_PartialSuperaccs, x1_ptr, x2_ptr, x3_ptr,size,d_error);
+    static thrust::device_vector<int64_t> d_superaccV( BIN_COUNT);
+    int64_t *d_superacc = thrust::raw_pointer_cast( d_superaccV.data());
+    volatile bool *error = gpu::host_error_flag();
+    *error = false;
+    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<gpu::PARTIAL_SUPERACCS_COUNT, gpu::WORKGROUP_SIZE>>>( d_PartialSuperaccs, x1_ptr, x2_ptr, x3_ptr,size,error);
     gpu::ExDOTComplete<gpu::MERGE_SUPERACCS_SIZE><<<gpu::PARTIAL_SUPERACCS_COUNT/gpu::MERGE_SUPERACCS_SIZE, gpu::MERGE_WORKGROUP_SIZE>>>( d_PartialSuperaccs, d_superacc );
     //# blocks, # threads per block
     gpu::ExDOTCompleteFinal<gpu::MERGE_SUPERACCS_SIZE><<<1, 64>>>( d_PartialSuperaccs, d_superacc );
-    *status = 0;
-    if( d_errorV[0] ) *status = 1;
+    gpu::finish_exdot( d_superacc, h_superacc, error, status);
 }
 
 }//namespace exblas

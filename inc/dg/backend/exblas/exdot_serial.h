@@ -214,8 +214,8 @@ void ExDOTFPE_cpu(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c
  * was NaN or Inf (which includes NaN or Inf inputs and overflow of the product)
  */
 /*!@class hide_gpu_static_buffer
- * @attention The function uses a static buffer in device memory, which is
- * allocated on the device that is current at the first call. Therefore
+ * @attention The function uses a static buffer in device memory (and possibly
+ * in pinned host memory), which is allocated on the device that is current at the first call. Therefore
  * - it must not be called concurrently from several host threads (e.g.
  *   OpenMP threads), even if they use the same device, because all calls
  *   share the buffer, and

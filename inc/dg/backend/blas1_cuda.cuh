@@ -31,35 +31,14 @@ template<class PointerOrValue1, class PointerOrValue2>
 inline std::vector<int64_t> doDot_dispatch( CudaTag, int* status, unsigned
     size, PointerOrValue1 x_ptr, PointerOrValue2 y_ptr)
 {
-    static thrust::device_vector<int64_t> d_superacc(exblas::BIN_COUNT);
-    int64_t * d_ptr = thrust::raw_pointer_cast( d_superacc.data());
-    exblas::exdot_gpu( size, x_ptr,y_ptr, d_ptr, status );
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    // This test checks for errors in the current stream, the error may come
-    // from any kernel prior to this point not necessarily the above one
-    cudaError_t code = cudaGetLastError( );
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
-    code = cudaMemcpy( &h_superacc[0], d_ptr,
-            exblas::BIN_COUNT*sizeof(int64_t), cudaMemcpyDeviceToHost);
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    exblas::exdot_gpu( size, x_ptr,y_ptr, &h_superacc[0], status );
     return h_superacc;
 }
 template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3>
 inline std::vector<int64_t> doDot_dispatch( CudaTag, int* status, unsigned size, PointerOrValue1 x_ptr, PointerOrValue2 y_ptr, PointerOrValue3 z_ptr) {
-    static thrust::device_vector<int64_t> d_superacc(exblas::BIN_COUNT);
-    int64_t * d_ptr = thrust::raw_pointer_cast( d_superacc.data());
-    exblas::exdot_gpu( size, x_ptr,y_ptr,z_ptr, d_ptr, status);
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    // This test checks for errors in the current stream, the error may come
-    // from any kernel prior to this point not necessarily the above one
-    cudaError_t code = cudaGetLastError( );
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
-    code = cudaMemcpy( &h_superacc[0], d_ptr, exblas::BIN_COUNT*sizeof(int64_t), cudaMemcpyDeviceToHost);
-    if( code != cudaSuccess)
-        throw dg::Error(dg::Message(_ping_)<<cudaGetErrorString(code));
+    exblas::exdot_gpu( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status);
     return h_superacc;
 }
 
