@@ -69,7 +69,8 @@ void fpedot_omp(int * status, unsigned size, std::array<T,N>& fpe, Functor f, Po
     int maxthreads = omp_get_max_threads();
     std::vector<std::array<T, N>> acc(maxthreads);
     std::vector<int> status_i( maxthreads, 0);
-    #pragma omp parallel
+    // Each thread calls its own copy of f, like the other backends do
+    #pragma omp parallel firstprivate(f)
     {
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();
