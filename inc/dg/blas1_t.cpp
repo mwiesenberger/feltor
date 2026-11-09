@@ -673,6 +673,58 @@ TEST_CASE( "Blas1 documentation")
         //! [construct]
     }
 }
+TEST_CASE( "Kronecker above the parallel threshold")
+{
+    // Sizes above OpenMP's serial threshold, whose rows do not divide evenly
+    // among threads; all values are integers, so the sums are exact
+    std::vector<double> h0(37), h1(5), h2(7);
+    for( unsigned i=0; i<h0.size(); i++) h0[i] = i+1;
+    for( unsigned j=0; j<h1.size(); j++) h1[j] = 100*(j+1);
+    for( unsigned k=0; k<h2.size(); k++) h2[k] = 10000*(k+1);
+    dg::DVec x0(h0), x1(h1), x2(h2);
+    SECTION( "Three vectors")
+    {
+        dg::DVec y( 37*5*7, 1.);
+        dg::blas1::kronecker( y, dg::plus_equals(), dg::Sum(), x0, x1, x2);
+        dg::HVec result(y);
+        bool equal = true;
+        for( unsigned k=0; k<7; k++)
+        for( unsigned j=0; j<5; j++)
+        for( unsigned i=0; i<37; i++)
+            equal = equal && result[(k*5+j)*37+i] == 1 + h0[i] + h1[j] + h2[k];
+        CHECK( equal);
+        dg::HVec allocated( dg::kronecker( dg::Sum(), x0, x1, x2));
+        equal = allocated.size() == 37*5*7;
+        for( unsigned u=0; u<allocated.size(); u++)
+            equal = equal && allocated[u] == result[u] - 1;
+        CHECK( equal);
+    }
+    SECTION( "Scalar in the middle")
+    {
+        dg::DVec y( 37*7);
+        dg::blas1::kronecker( y, dg::equals(), dg::Sum(), x0, 0.5, x2);
+        dg::HVec result(y);
+        bool equal = true;
+        for( unsigned k=0; k<7; k++)
+        for( unsigned i=0; i<37; i++)
+            equal = equal && result[k*37+i] == h0[i] + 0.5 + h2[k];
+        CHECK( equal);
+    }
+    SECTION( "One long row")
+    {
+        std::vector<double> h(1000);
+        for( unsigned i=0; i<h.size(); i++) h[i] = i;
+        dg::DVec x(h), y( 1000);
+        dg::blas1::kronecker( y, dg::equals(), dg::Sum(), x, 10000.);
+        CHECK( dg::HVec(y) == dg::HVec( dg::kronecker( dg::Sum(), x, 10000.)));
+        dg::HVec result(y);
+        bool equal = true;
+        for( unsigned i=0; i<h.size(); i++)
+            equal = equal && result[i] == h[i] + 10000;
+        CHECK( equal);
+    }
+}
+
 TEST_CASE( "Aliases and special numbers")
 {
     SECTION( "copy")

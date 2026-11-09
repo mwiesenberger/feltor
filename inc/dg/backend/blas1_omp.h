@@ -87,51 +87,35 @@ inline T doReduce_dispatch( OmpTag, int size, Pointer x, T init, BinaryOp op,
 {
     return thrust::transform_reduce(thrust::omp::par, x, x+size, unary_op, init, op);
 }
+// Called by every thread of a parallel region. The serial kronecker_range in
+// blas1_serial.h computes any interval of the result, starting and ending in
+// the middle of a row if needed (see the design comment there). Each thread
+// therefore takes a contiguous share of size/tnum elements and runs the
+// serial, vectorised row loop on it. f and g are taken by value, so each
+// thread works on its own copy of the functors.
 template<class F, class G, size_t N, class Pointer, class ...PointerOrValues>
 void doKronecker_omp( Pointer y, size_t size, F f, G g, const std::array<size_t, N>& sizes, PointerOrValues ...xs)
 {
-//#pragma omp for nowait
-//for( unsigned u=0; u<size; u++)
-    unsigned int tid = omp_get_thread_num();
-    unsigned int tnum = omp_get_num_threads();
-    int l = tid * size / tnum;
-    int r = ((tid+1) * size / tnum)  - 1;
-    std::array<size_t, N> current;
-    // Compute initial current
-    current[0] = l%sizes[0];
-    size_t remain = l/sizes[0];
-    for( unsigned k=1; k<N; k++)
-    {
-        current[k] = remain%sizes[k];
-        remain = remain/sizes[k];
-    }
-    for(int i = l; i <= r; i++)
-    {
-        call_host_F( f, g, y, i, &current[0], std::make_index_sequence<N>(), xs ...);
-        // Counting is faster than re-computing modulo operations
-        for( unsigned k=0; k<N; k++)
-        {
-            current[k] ++;
-            if( current[k] == sizes[k])
-                current[k] = 0;
-            else
-                break;
-        }
-    }
+    // Split by elements, not rows, so that few long rows still use all threads
+    size_t tid = omp_get_thread_num();
+    size_t tnum = omp_get_num_threads();
+    kronecker_range( y, tid*size/tnum, (tid+1)*size/tnum, f, g, sizes, xs...);
 }
 template<class F, class G, size_t N, class Pointer, class ...PointerOrValues>
 void doKronecker_dispatch( OmpTag, Pointer y, size_t size, F&& f, G&& g, const std::array<size_t, N>& sizes, PointerOrValues ...xs)
 {
+    // f and g are copied, not forwarded: every thread calls doKronecker_omp,
+    // and a forwarded rvalue would be moved from by more than one thread
     if(omp_in_parallel())
     {
-        doKronecker_omp( y, size, std::forward<F>(f), std::forward<G>(g), sizes, xs... );
+        doKronecker_omp( y, size, f, g, sizes, xs... );
         return;
     }
     if(size>MIN_SIZE)
     {
         #pragma omp parallel
         {
-            doKronecker_omp( y, size, std::forward<F>(f), std::forward<G>(g), sizes, xs... );
+            doKronecker_omp( y, size, f, g, sizes, xs... );
         }
     }
     else
