@@ -46,8 +46,35 @@ TEST_CASE( "Accumulate does not reuse comm of a freed comm")
     // Every rank contributes 1
     std::vector<int64_t> in( dg::exblas::BIN_COUNT, 0), out( in);
     dg::exblas::cpu::Accumulate( in.data(), 1.);
-    dg::exblas::reduce_mpi_cpu( 1, in.data(), out.data(), comm2, comm_mod,
-        comm_red);
+    int status = 0;
+    dg::exblas::reduce_mpi_cpu( 1, in.data(), out.data(), &status, comm2,
+        comm_mod, comm_red);
     CHECK( dg::exblas::cpu::Round( out.data()) == size2);
+    CHECK( status == 0);
     MPI_Comm_free( &comm2);
+}
+
+TEST_CASE( "Accumulate reduces the status with the superaccumulator")
+{
+    int rank, size;
+    MPI_Comm comm = MPI_COMM_WORLD;
+    MPI_Comm_rank( comm, &rank);
+    MPI_Comm_size( comm, &size);
+    MPI_Comm comm_mod, comm_red;
+    dg::exblas::mpi_reduce_communicator( comm, &comm_mod, &comm_red);
+    // Test the first and the last rank as well as all ranks
+    auto failing = GENERATE( as<std::string>{}, "none", "first", "last", "all");
+    int status = 0;
+    if( failing == "all" || (failing == "first" && rank == 0)
+        || (failing == "last" && rank == size-1))
+        status = 1;
+    // Every rank contributes 1 and the sum must not be affected by the status
+    std::vector<int64_t> in( dg::exblas::BIN_COUNT, 0);
+    std::vector<int64_t> out( in);
+    dg::exblas::cpu::Accumulate( in.data(), 1.);
+    dg::exblas::reduce_mpi_cpu( 1, in.data(), out.data(), &status, comm,
+        comm_mod, comm_red);
+    INFO( "Failing ranks: "<<failing);
+    CHECK( dg::exblas::cpu::Round( out.data()) == size);
+    CHECK( status == (failing == "none" ? 0 : 1));
 }

@@ -7,6 +7,7 @@
  */
 #pragma once
 #include <mpi.h>
+#include <algorithm>
 #include <array>
 #include <vector>
 #include "accumulate.h"
@@ -119,6 +120,9 @@ inline void mpi_reduce_communicator(MPI_Comm comm,
  * @param out each process contains the result on output( must be of size
  * num_superacc*\c exblas::BIN_COUNT, allocated on the cpu) (write, may not
  * alias in)
+ * @param status (read/write) on input the status of this process (0 for
+ * success), on output 0 on every process if all processes had 0 and 1 on
+ * every process otherwise
  * @param comm The complete MPI communicator
  * @param comm_mod This is the line communicator of up to 128 ranks
  * @param comm_mod_reduce This is the column communicator consisting of all
@@ -126,44 +130,50 @@ inline void mpi_reduce_communicator(MPI_Comm comm,
  * @sa \c exblas::mpi_reduce_communicator to generate the required communicators
 */
 inline void reduce_mpi_cpu(  unsigned num_superacc, int64_t* in, int64_t* out,
-MPI_Comm comm, MPI_Comm comm_mod, MPI_Comm comm_mod_reduce )
+int* status, MPI_Comm comm, MPI_Comm comm_mod, MPI_Comm comm_mod_reduce )
 {
     for( unsigned i=0; i<num_superacc; i++)
     {
         int imin=exblas::IMIN, imax=exblas::IMAX;
         cpu::Normalize(&in[i*exblas::BIN_COUNT], imin, imax);
     }
+    // The status travels in one additional word of the same message, which
+    // saves a separate collective for every dot product. Only its sum matters
+    // and it is never normalized
+    const unsigned num_words = num_superacc*exblas::BIN_COUNT;
+    std::vector<int64_t> send( in, in+num_words), receive( num_words+1);
+    send.push_back( *status);
     int size_comm, size_comm_mod;
     MPI_Comm_size( comm, &size_comm);
     MPI_Comm_size( comm_mod, &size_comm_mod);
     if( size_comm == size_comm_mod) // size < 128
+        MPI_Allreduce( send.data(), receive.data(), num_words+1, MPI_INT64_T, MPI_SUM, comm);
+    else
     {
-        MPI_Allreduce( in, out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T, MPI_SUM, comm);
-        return;
-    }
-
-    MPI_Reduce(in, out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T, MPI_SUM, 0,
-        comm_mod);
-    int rank;
-    MPI_Comm_rank( comm_mod, &rank);
-    if(rank == 0)
-    {
-        int size;
-        MPI_Comm_size( comm_mod_reduce, &size);
-        if( size > 1)
+        MPI_Reduce( send.data(), receive.data(), num_words+1, MPI_INT64_T,
+            MPI_SUM, 0, comm_mod);
+        int rank;
+        MPI_Comm_rank( comm_mod, &rank);
+        if(rank == 0)
         {
-            for( unsigned i=0; i<num_superacc; i++)
+            int size;
+            MPI_Comm_size( comm_mod_reduce, &size);
+            if( size > 1)
             {
-                int imin=exblas::IMIN, imax=exblas::IMAX;
-                cpu::Normalize(&out[i*exblas::BIN_COUNT], imin, imax);
-                for( int k=0; k<exblas::BIN_COUNT; k++)
-                    in[i*BIN_COUNT+k] = out[i*BIN_COUNT+k];
+                for( unsigned i=0; i<num_superacc; i++)
+                {
+                    int imin=exblas::IMIN, imax=exblas::IMAX;
+                    cpu::Normalize(&receive[i*exblas::BIN_COUNT], imin, imax);
+                }
+                send = receive;
+                MPI_Reduce( send.data(), receive.data(), num_words+1, MPI_INT64_T,
+                    MPI_SUM, 0, comm_mod_reduce);
             }
-            MPI_Reduce(in, out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T,
-                MPI_SUM, 0, comm_mod_reduce);
         }
+        MPI_Bcast( receive.data(), num_words+1, MPI_INT64_T, 0, comm);
     }
-    MPI_Bcast( out, num_superacc*exblas::BIN_COUNT, MPI_INT64_T, 0, comm);
+    std::copy_n( receive.data(), num_words, out);
+    *status = receive[num_words] != 0 ? 1 : 0;
 }
 
 }//namespace exblas

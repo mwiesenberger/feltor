@@ -102,9 +102,7 @@ std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Vector
     auto comm = get_idx<vector_idx>(x,y).communicator();
     MPI_Comm comm_mod, comm_red;
     dg::exblas::mpi_reduce_communicator( comm, &comm_mod, &comm_red);
-    exblas::reduce_mpi_cpu( 1, acc.data(), receive.data(), comm, comm_mod, comm_red);
-    // Communicate the status to all
-    MPI_Allreduce( MPI_IN_PLACE, status, 1, MPI_INT, MPI_MAX, comm);
+    exblas::reduce_mpi_cpu( 1, acc.data(), receive.data(), status, comm, comm_mod, comm_red);
     return receive;
 }
 
