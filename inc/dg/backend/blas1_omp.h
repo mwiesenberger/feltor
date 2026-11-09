@@ -14,12 +14,16 @@ namespace blas1
 namespace detail
 {
 constexpr int MIN_SIZE=100;//don't parallelize if work is too small
+// A dot is cheap compared to its parallel region and tree reduction. Serial is
+// faster up to at least this size (measured on a 6 core i5-14400F only; the
+// crossover is at about 8000-16000 there and depends on the machine)
+constexpr int MIN_DOT_SIZE=4096;
 
 template<class T, size_t N, class Functor, class ...PointerOrValues>
 inline void doDot_fpe_dispatch( OmpTag, unsigned size, std::array<T,N>& fpe,
     Functor f, PointerOrValues ...xs_ptr)
 {
-    if(size<MIN_SIZE)
+    if(size<MIN_DOT_SIZE)
         exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
     else
         exblas::fpedot_omp<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
@@ -30,7 +34,7 @@ inline std::vector<int64_t> doDot_dispatch( OmpTag, int * status, unsigned size,
     PointerOrValue1 x_ptr, PointerOrValue2 y_ptr)
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    if(size<MIN_SIZE)
+    if(size<MIN_DOT_SIZE)
         exblas::exdot_cpu( size, x_ptr,y_ptr, &h_superacc[0], status);
     else
         exblas::exdot_omp( size, x_ptr,y_ptr, &h_superacc[0], status);
@@ -41,7 +45,7 @@ inline std::vector<int64_t> doDot_dispatch( OmpTag, int* status, unsigned size,
     PointerOrValue1 x_ptr, PointerOrValue2 y_ptr, PointerOrValue3 z_ptr)
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    if(size<MIN_SIZE)
+    if(size<MIN_DOT_SIZE)
         exblas::exdot_cpu( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status);
     else
         exblas::exdot_omp( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status);

@@ -228,12 +228,12 @@ TEST_CASE( "Exact dot product")
 {
     // The sum is exact before it is rounded: 2^100 + 1 - 2^100 = 1
     // Sizes test the remainder of the vectorized loop (multiples of 8) and
-    // the OpenMP version (size >= 100)
+    // the OpenMP version (size >= 4096)
     int ranks = 1;
 #ifdef WITH_MPI
     MPI_Comm_size( MPI_COMM_WORLD, &ranks);
 #endif
-    unsigned size = GENERATE( range( 1u, 21u), values( {99u, 100u, 101u, 999u, 1003u}));
+    unsigned size = GENERATE( range( 1u, 21u), values( {4095u, 4096u, 4097u, 5003u}));
     INFO( "Local size "<<size<<" on "<<ranks<<" ranks");
     const double big = ldexp( 1., 100);
     thrust::host_vector<double> h_v( size), h_w( size, 1.);
@@ -299,8 +299,8 @@ TEST_CASE( "Dot of subnormal numbers")
 #ifdef WITH_MPI
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
-    // Sizes test the serial and the OpenMP version (size >= 100)
-    unsigned size = GENERATE( 5u, 1003u);
+    // Sizes test the serial and the OpenMP version (size >= 4096)
+    unsigned size = GENERATE( 5u, 5003u);
     INFO( "Local size "<<size<<" on rank "<<rank);
     const double dmin = std::numeric_limits<double>::min();
     const double tiny = std::numeric_limits<double>::denorm_min();
@@ -319,13 +319,13 @@ TEST_CASE( "Dot of subnormal numbers")
 
 TEST_CASE( "Dot throws on NaN or Inf")
 {
-    // Sizes test the serial and the OpenMP version (size >= 100)
+    // Sizes test the serial and the OpenMP version (size >= 4096)
     // With MPI only even ranks hold the non-finite value but all ranks throw
     int rank = 0;
 #ifdef WITH_MPI
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif
-    unsigned size = GENERATE( 10u, 1003u);
+    unsigned size = GENERATE( 10u, 5003u);
     double nonfinite = GENERATE( std::numeric_limits<double>::quiet_NaN(),
             std::numeric_limits<double>::infinity());
     INFO( "Size "<<size<<" with "<<nonfinite<<" on rank "<<rank);
