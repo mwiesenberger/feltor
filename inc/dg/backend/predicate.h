@@ -33,15 +33,17 @@ struct find_if_impl<Predicate, n, Default, T, Ts...>
 
 //access the element at position index
 //we name it get_idx and not get so we do not get a conflict with std::get
+// Returns a reference, never a copy: returning T by value would move from an
+// rvalue argument, which the callers still use afterwards
 template<size_t index, typename T, typename... Ts>
-inline std::enable_if_t<index==0, T>
+inline std::enable_if_t<index==0, T&&>
 get_idx(T&& t, Ts&&... ) {
     return std::forward<T>(t);
 }
 
 template<size_t index, typename T, typename... Ts>
 inline std::enable_if_t<(index > 0) && index <= sizeof...(Ts),
-          std::tuple_element_t<index, std::tuple<T, Ts...>>>
+          std::tuple_element_t<index, std::tuple<T&&, Ts&&...>>>
 get_idx(T&&, Ts&&... ts) {
     return get_idx<index-1>(std::forward<Ts>(ts)...);
 }
