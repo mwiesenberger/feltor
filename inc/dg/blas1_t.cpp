@@ -117,7 +117,9 @@ TEST_CASE("blas1")
     //Vector v1( {2,2.0002}), v2({3,3.00003}), v3({5,5.0005}), v4({4,4.00004}), v5(v4); //std::array
     SECTION( "Shared vector")
     {
-        dg::DVec v1p( 500, 2.0002), v2p( 500, 3.00003), v3p(500,5.0005), v4p(500,4.00004);
+        // OpenMP runs sizes up to 512 serially
+        const unsigned n = GENERATE( 500u, 513u);
+        dg::DVec v1p( n, 2.0002), v2p( n, 3.00003), v3p(n,5.0005), v4p(n,4.00004);
 #ifdef WITH_MPI
         Vector v1(v1p, comm), v2(v2p, comm), v3(v3p, comm), v4(v4p, comm);
         Vector nanvec( v3p, comm);

@@ -13,7 +13,10 @@ namespace blas1
 {
 namespace detail
 {
-constexpr int MIN_SIZE=100;//don't parallelize if work is too small
+// Don't parallelize if work is too small: a parallel region costs about 5us
+// on a 6 core i5-14400F. 512 slowed none of the measured kernels there, while
+// 4096 made expensive functors and stencils slower.
+constexpr int MIN_SIZE=512;
 // A dot is cheap compared to its parallel region and tree reduction. Serial is
 // faster up to at least this size (measured on a 6 core i5-14400F only; the
 // crossover is at about 8000-16000 there and depends on the machine)

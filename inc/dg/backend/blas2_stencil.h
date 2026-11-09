@@ -37,7 +37,7 @@ inline void doParallelFor_dispatch( CudaTag, unsigned size, Stencil f, PointerOr
 
 #elif THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_OMP
 
-constexpr int MIN_SIZE=100;//don't parallelize if work is too small
+constexpr int MIN_SIZE=512;//don't parallelize if work is too small, see blas1_omp.h
 
 template< class Stencil, class PointerOrValue, class ...PointerOrValues>
 inline void doParallelFor_omp( unsigned size, Stencil f, PointerOrValue x, PointerOrValues... xs)
