@@ -1976,8 +1976,8 @@ struct WriteIntegrateDiagnostics2dList
     template< class ... Params>
     void write( double time, Params&& ... ps)
     {
-        buffer( time, std::forward<Params>(ps)...);
-        flush(std::forward<Params>(ps)...);
+        buffer( time, ps...);
+        flush(ps...);
     }
 
     template< class ... Params>
@@ -1989,7 +1989,7 @@ struct WriteIntegrateDiagnostics2dList
         {
             if( record.integral)
             {
-                record.function( m_resultD, std::forward<Params>(ps)...);
+                record.function( m_resultD, ps...);
                 dg::blas2::symv( m_projectD, m_resultD, m_transferD);
                 //toroidal average and add to time integral
                 std::string name = record.name+"_ta2d";
@@ -2034,7 +2034,7 @@ struct WriteIntegrateDiagnostics2dList
             }
             else // compute from scratch
             {
-                record.function( m_resultD, std::forward<Params>(ps)...);
+                record.function( m_resultD, ps...);
                 dg::blas2::symv( m_projectD, m_resultD, m_transferD);
 
                 dg::assign( m_transferD, m_transferH);

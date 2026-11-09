@@ -216,7 +216,7 @@ template< class Subroutine, class container, class ...Containers>
 inline void doSubroutine( RecursiveVectorTag, Subroutine f, container&& x, Containers&&... xs)
 {
     constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, get_value_type<container>, container, Containers...>::value;
-    auto size = get_idx<vector_idx>( std::forward<container>(x), std::forward<Containers>(xs)...).size();
+    auto size = get_idx<vector_idx>( x, xs...).size();
     using vector_type = find_if_t<dg::has_not_any_policy, get_value_type<container>, container, Containers...>;
     doSubroutine_dispatch( RecursiveVectorTag(), get_execution_policy<vector_type>(), size, f, std::forward<container>( x), std::forward<Containers>( xs)...);
 }

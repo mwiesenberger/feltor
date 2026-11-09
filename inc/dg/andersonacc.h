@@ -188,7 +188,7 @@ unsigned AndersonAcceleration<ContainerType>::solve(
             if(verbose)DG_RANK0 std::cout << "Iter = " << iter << std::endl;
         }
 
-        dg::apply( std::forward<MatrixType>(func), x, m_fval);
+        dg::apply( func, x, m_fval);
         dg::blas1::axpby( -1., b, 1., m_fval); //f(x) = func - b (residual)
         value_type res_norm = sqrt(dg::blas2::dot(m_fval,weights,m_fval));  //l2norm(m_fval)
 

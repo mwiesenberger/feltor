@@ -82,10 +82,10 @@ struct ProductMatrixFunction
      * This function is equivalent to:
      * @code{.cpp}
         auto func = dg::mat::make_FuncEigen_Te1( [&](value_type x) {return op(1., x);});
-        auto T = m_lanczos.tridiag( func, std::forward<MatrixType>(A),
+        auto T = m_lanczos.tridiag( func, A,
                 b, weights, eps, nrmb_correction,
                 "universal", 1.0, 2);
-        compute_vlcl( op, diag, std::forward<MatrixType>(A), T, x, b,
+        compute_vlcl( op, diag, A, T, x, b,
                     m_lanczos.get_bnorm());
         return T.size();
      * @endcode
@@ -122,10 +122,10 @@ struct ProductMatrixFunction
         dg::Timer t;
         t.tic();
         auto func = make_FuncEigen_Te1( [&](value_type x) {return op(1., x);});
-        auto T = m_lanczos.tridiag( func, std::forward<MatrixType>(A),
+        auto T = m_lanczos.tridiag( func, A,
                 b, weights, eps, nrmb_correction,
                 "universal", 1.0, 2);
-        compute_vlcl( op, diag, std::forward<MatrixType>(A), T, x, b,
+        compute_vlcl( op, diag, A, T, x, b,
                     m_lanczos.get_bnorm());
         t.toc();
         if( m_benchmark)
@@ -141,10 +141,10 @@ struct ProductMatrixFunction
      * This function is equivalent to:
      * @code{.cpp}
         auto func = make_FuncEigen_Te1( [&](value_type x) {return op( x, 1.);});
-        auto T = m_lanczos.tridiag( func, std::forward<MatrixType>(A),
+        auto T = m_lanczos.tridiag( func, A,
                 b, weights, eps, nrmb_correction,
                 "universal", 1.0, 2);
-        compute_vlcl_adjoint( op, std::forward<MatrixType>(A), diag, T, x, b,
+        compute_vlcl_adjoint( op, A, diag, T, x, b,
                 weights, m_lanczos.get_bnorm());
         return T.size();
      * @endcode
@@ -187,10 +187,10 @@ struct ProductMatrixFunction
         dg::Timer t;
         t.tic();
         auto func = make_FuncEigen_Te1( [&](value_type x) {return op( x, 1.);});
-        auto T = m_lanczos.tridiag( func, std::forward<MatrixType>(A),
+        auto T = m_lanczos.tridiag( func, A,
                 b, weights, eps, nrmb_correction,
                 "universal", 1.0, 2);
-        compute_vlcl_adjoint( op, std::forward<MatrixType>(A), diag, T, x, b,
+        compute_vlcl_adjoint( op, A, diag, T, x, b,
                 weights, m_lanczos.get_bnorm());
 
         t.toc();
@@ -263,7 +263,7 @@ struct ProductMatrixFunction
         }
         for ( unsigned i=0; i<iter-1; i++)
         {
-            dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
+            dg::blas2::symv( A, m_v, m_vp);
             dg::blas1::axpbypgz(
                     -T.M[i]/T.P[i], m_vm,
                     -T.O[i]/T.P[i], m_v,
@@ -341,7 +341,7 @@ struct ProductMatrixFunction
         }
         for ( unsigned i=0; i<iter-1; i++)
         {
-            dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
+            dg::blas2::symv( A, m_v, m_vp);
             dg::blas1::axpbypgz(
                     -T.M[i]/T.P[i], m_vm,
                     -T.O[i]/T.P[i], m_v,
@@ -368,7 +368,7 @@ struct ProductMatrixFunction
         dg::blas1::axpby( cl[0], m_v, 1., x);
         for ( unsigned i=0; i<iter-1; i++)
         {
-            dg::blas2::symv( std::forward<MatrixType>(A), m_v, m_vp);
+            dg::blas2::symv( A, m_v, m_vp);
             dg::blas1::axpbypgz(
                     -T.M[i]/T.P[i], m_vm,
                     -T.O[i]/T.P[i], m_v,

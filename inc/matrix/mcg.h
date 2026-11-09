@@ -103,7 +103,7 @@ class MCG
         dg::blas1::axpby( y[0], m_r, 1., x); //Compute x= R y
         for ( unsigned i=0; i<y.size()-1; i++)
         {
-            dg::blas2::symv( std::forward<MatrixType>(A), m_p, m_ap);
+            dg::blas2::symv( A, m_p, m_ap);
             value_type alphainv = i==0 ? T.O[i] :
                 T.O[i] + T.P[i-1];
             value_type beta = -T.P[i]/alphainv;
@@ -168,7 +168,7 @@ class MCG
         for( unsigned i=0; i<m_max_iter; i++)
         {
             alpha_old = alpha, beta_old = beta;
-            dg::blas2::symv( std::forward<MatrixType>(A), m_p, m_ap);
+            dg::blas2::symv( A, m_p, m_ap);
             alpha = nrmzr_old /dg::blas2::dot( m_p, weights, m_ap);
             dg::blas1::axpby( -alpha, m_ap, 1., m_r);
             nrmzr_new = dg::blas2::dot( m_r, weights, m_r);
@@ -301,7 +301,7 @@ class MCGFuncEigen
             return 0;
         }
         //Compute x (with initODE with gemres replacing cg invert)
-        m_TH = m_mcg(std::forward<MatrixType>(A), b, weights, eps,
+        m_TH = m_mcg(A, b, weights, eps,
                 nrmb_correction, res_fac);
         unsigned iter = m_mcg.get_iter();
         //resize
@@ -343,7 +343,7 @@ class MCGFuncEigen
         dg::blas2::symv(m_EH, m_e1H, m_yH);
         dg::blas1::pointwiseDot(m_yH, m_delta, m_yH);
         //Compute x = R f(T) e_1
-        m_mcg.Ry(std::forward<MatrixType>(A), m_TH, m_yH, x, b);
+        m_mcg.Ry(A, m_TH, m_yH, x, b);
 
         return iter;
     }

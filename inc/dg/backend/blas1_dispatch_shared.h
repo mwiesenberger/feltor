@@ -114,7 +114,7 @@ inline void doSubroutine( SharedVectorTag, Subroutine f, ContainerType&& x, Cont
     constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar_has_not_any_policy, get_value_type<ContainerType>, ContainerType, ContainerTypes...>::value;
     doSubroutine_dispatch(
             get_execution_policy<vector_type>(),
-            get_idx<vector_idx>( std::forward<ContainerType>(x), std::forward<ContainerTypes>(xs)...).size(),
+            get_idx<vector_idx>( x, xs...).size(),
             f,
             do_get_pointer_or_reference(std::forward<ContainerType>(x),get_tensor_category<ContainerType>()) ,
             do_get_pointer_or_reference(std::forward<ContainerTypes>(xs),get_tensor_category<ContainerTypes>()) ...

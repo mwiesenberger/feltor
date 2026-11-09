@@ -106,7 +106,7 @@ class ChebyshevIteration
         if( !x_is_zero)
         {
             dg::blas1::copy( x, m_xm1); //x_{k-1}
-            dg::blas2::symv( std::forward<MatrixType>(A), x, m_ax);
+            dg::blas2::symv( A, x, m_ax);
             dg::blas1::axpbypgz( 1./theta, b, -1./theta, m_ax, 1., x); //x_1
         }
         else
@@ -118,7 +118,7 @@ class ChebyshevIteration
         for ( unsigned k=1; k<num_iter; k++)
         {
             rhok = 1./(2.*theta/delta - rhokm1);
-            dg::blas2::symv( std::forward<MatrixType>(A), x, m_ax);
+            dg::blas2::symv( A, x, m_ax);
             dg::blas1::evaluate( m_xm1, dg::equals(), PairSum(),
                              1.+rhok*rhokm1, x,
                             -rhok*rhokm1,    m_xm1,
@@ -165,21 +165,21 @@ class ChebyshevIteration
         if( !x_is_zero)
         {
             dg::blas1::copy( x, m_xm1); //x_{k-1}
-            dg::blas2::symv( std::forward<MatrixType0>(A), x, m_ax);
+            dg::blas2::symv( A, x, m_ax);
             dg::blas1::axpby( 1., b, -1., m_ax); //r_0
-            dg::blas2::symv( std::forward<MatrixType1>(P), m_ax, m_z);
+            dg::blas2::symv( P, m_ax, m_z);
             dg::blas1::axpby( 1./theta, m_z, 1., x); //x_{k-1}
         }
         else
         {
             dg::blas1::copy( 0., m_xm1); //x_{k-1}
-            dg::blas2::symv( std::forward<MatrixType1>(P), b, x);
+            dg::blas2::symv( P, b, x);
             dg::blas1::scal( x, 1./theta); //x_1
         }
         for ( unsigned k=1; k<num_iter; k++)
         {
             rhok = 1./(2.*theta/delta - rhokm1);
-            dg::blas2::symv( std::forward<MatrixType0>(A), x, m_ax);
+            dg::blas2::symv( A, x, m_ax);
             dg::blas1::axpby( 1., b, -1., m_ax); //r_k
             dg::blas2::symv( P, m_ax, m_z);
             dg::blas1::axpbypgz(

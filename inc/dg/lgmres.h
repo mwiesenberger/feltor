@@ -220,7 +220,7 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
         m_Vptr[i] = &m_V[i];
     do
 	{
-        dg::blas2::gemv(std::forward<Matrix>(A),x,m_residual);
+        dg::blas2::gemv(A,x,m_residual);
         dg::blas1::axpby(1.,b,-1.,m_residual);
         rho = sqrt(dg::blas2::dot(S,m_residual));
         counter ++;
@@ -239,8 +239,8 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
             unsigned outer_w_count = std::min(restartCycle,m_outer_k);
             if(iteration < m_krylovDimension-outer_w_count){
                 m_W[iteration] = &m_V[iteration];
-                dg::blas2::gemv(std::forward<Preconditioner>(P),*m_W[iteration],m_tmp);
-                dg::blas2::gemv(std::forward<Matrix>(A),m_tmp,m_V[iteration+1]);
+                dg::blas2::gemv(P,*m_W[iteration],m_tmp);
+                dg::blas2::gemv(A,m_tmp,m_V[iteration+1]);
                 counter++;
             } else if( iteration < m_krylovDimension){ // size of W
                 unsigned w_idx = iteration - (m_krylovDimension - outer_w_count);
@@ -318,11 +318,11 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
             rho = fabs(m_s[iteration+1]);
             if( rho < tol)
 			{
-                Update(std::forward<Preconditioner>(P),m_dx,x,iteration,m_H,m_s,m_W);
+                Update(P,m_dx,x,iteration,m_H,m_s,m_W);
                 return counter;
             }
         }
-        Update(std::forward<Preconditioner>(P),m_dx,x,m_krylovDimension-1,m_H,m_s,m_W);
+        Update(P,m_dx,x,m_krylovDimension-1,m_H,m_s,m_W);
         if( m_outer_k > 1)
         {
             std::rotate(m_outer_w.rbegin(),m_outer_w.rbegin()+1,m_outer_w.rend());
