@@ -248,6 +248,8 @@ void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_typ
     * conditions are represented by changing vec outside the grid domain using
     * e.g. the \c periodify function.
     * @param grid The grid on which to integrate fieldlines.
+    * In MPI every process must own at least one plane, i.e. \c grid.Nz() must
+    * be at least the number of processes in z (checked: throws \c dg::Error)
     * @param bcx This parameter is passed on to \c dg::create::interpolation(const thrust::host_vector<real_type>&,const thrust::host_vector<real_type>&,const aRealTopology2d<real_type>&,dg::bc,dg::bc,std::string) (see there for more details)
     * function and deterimens what happens when the endpoint of the fieldline integration leaves the domain boundaries of \c grid. Note that \c bcx and \c grid.bcx() have to be either both periodic or both not periodic.
     * @param bcy analogous to \c bcx, applies to y direction

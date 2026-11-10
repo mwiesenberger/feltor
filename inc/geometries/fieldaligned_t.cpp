@@ -20,11 +20,12 @@ TEST_CASE( "Fieldaligned boundary in z")
 {
     // In a toroidal field the plus and minus transformations just shift planes
     // Independent of the limiter z is not periodic in the communicator
+    // 8 planes so that every process has one with up to 8 processes in z
 #ifdef WITH_MPI
     MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {1,1,0}, {false,false,false});
 #endif
     const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
-        3, 8, 8, 4, dg::NEU, dg::NEU, dg::DIR
+        3, 8, 8, 8, dg::NEU, dg::NEU, dg::DIR
 #ifdef WITH_MPI
     , comm
 #endif
@@ -168,6 +169,24 @@ TEST_CASE( "Fieldaligned boundary in z")
     }
 }
 
+#ifdef WITH_MPI
+TEST_CASE( "Fieldaligned needs a plane on every process")
+{
+    int size;
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    if( size == 1) // one process always owns all planes
+        return;
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {1,1,0}, {false,false,false});
+    // one plane fewer than processes in z
+    const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
+        3, 8, 8, size-1, dg::NEU, dg::NEU, dg::DIR, comm);
+    auto bhat = dg::geo::createBHat( dg::geo::createToroidalField( R_0));
+    using FA = dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>;
+    CHECK_THROWS_AS( FA( bhat, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(),
+        1e-8, 1, 1, -1, "dg", false), dg::Error);
+}
+#endif
+
 TEST_CASE( "Fieldaligned distance to boundary")
 {
     // In the field v = (0,c,1) fieldlines are straight with dZ/dphi = c
@@ -212,7 +231,8 @@ TEST_CASE( "Fieldaligned evaluate")
     MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {1,1,0}, {false,false,true});
 #endif
     // With MPI the number of planes is not necessarily divisible by the number of ranks
-    const unsigned Nz = GENERATE( 4u, 5u, 7u);
+    // (but every rank needs a plane: at least 8 planes for up to 8 ranks)
+    const unsigned Nz = GENERATE( 9u, 11u, 13u);
     INFO( "Nz "<<Nz);
     const dg::x::CylindricalGrid3d g3d( R_0-a, R_0+a, -a, a, 0, 2.*M_PI,
         3, 8, 8, Nz, dg::NEU, dg::NEU, dg::PER

@@ -396,6 +396,11 @@ Fieldaligned<MPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >::Fieldaligned(
     int dims[3], periods[3], coords[3];
     dg::mpi_cart_get( m_g->communicator(), 3, dims, periods, coords);
     m_coords2 = coords[2], m_sizeZ = dims[2];
+    // A process without planes has no place in the ring of planes in z
+    // (the same condition on all processes, so all of them throw)
+    if( grid.global().Nz() < (unsigned)m_sizeZ)
+        throw( dg::Error(dg::Message(_ping_)<<"Fieldaligned: Every process needs at least one plane, but "
+            <<grid.global().Nz()<<" planes are distributed among "<<m_sizeZ<<" processes in z"));
 
     ///Let us check boundary conditions:
     if( (grid.bcx() == PER && bcx != PER) || (grid.bcx() != PER && bcx == PER) )
