@@ -360,77 +360,65 @@ void EllSparseBlockMat<real_type, Vector>::launch_multiply_kernel( OmpTag, value
 template<class real_type, class value_type, template<class> class Vector>
 void coo_omp_multiply_kernel( value_type alpha, const value_type** x, value_type /*beta*/, value_type* RESTRICT y, const CooSparseBlockMat<real_type, Vector>& m )
 {
-    #pragma omp for nowait
-	for (int skj = 0; skj < m.left_size*m.n*m.right_size; skj++)
-	{
-		int s = skj / (m.n*m.right_size);
-		int k = (skj % (m.n*m.right_size)) / m.right_size;
-		int j = (skj % (m.n*m.right_size)) % m.right_size;
-		for (int i = 0; i < m.num_entries; i++)
-		{
-			int I = ((s*m.num_rows + m.rows_idx[i])*m.n + k)*m.right_size + j;
-			value_type temp = 0;
-			for (int q = 0; q < m.n; q++) //multiplication-loop
-				temp = DG_FMA(m.data[(m.data_idx[i] * m.n + k)*m.n + q],
-                    //x[((s*m.num_cols + m.cols_idx[i])*m.n+q)*m.right_size+j],
-                    x[m.cols_idx[i]][(q*m.left_size +s )*m.right_size+j],
-					temp);
-			y[I] = DG_FMA(alpha, temp, y[I]);
-		}
-	}
+    // One loop per entry is faster than all entries in one loop (hypothesis:
+    // the loop over sj vectorises). A static schedule without simd gives
+    // every thread the same sj in every loop, so there is no race on y and
+    // each y[I] sums its entries in the same order as before.
+    // Entry values are read before the loop over sj: gcc cannot tell that the
+    // writes to y leave them unchanged, and with them inside the loop gcc 13
+    // warns about undefined behaviour (-Waggressive-loop-optimizations) for n=4
+    const int n = m.n, left_size = m.left_size, right_size = m.right_size;
+    const int num_rows = m.num_rows, size = left_size*right_size;
+    const real_type* RESTRICT data = thrust::raw_pointer_cast( m.data.data());
+    for (int i = 0; i < m.num_entries; i++)
+    {
+        const int row = m.rows_idx[i], B = m.data_idx[i];
+        const value_type* RESTRICT xi = x[m.cols_idx[i]];
+        #pragma omp for schedule(static) nowait
+        for (int sj = 0; sj < size; sj++)
+        {
+            int s = sj / right_size;
+            int j = sj % right_size;
+            for( int k=0; k<n; k++)
+            {
+                int I = ((s*num_rows + row)*n + k)*right_size + j;
+                value_type temp = 0;
+                for (int q = 0; q < n; q++) //multiplication-loop
+                    temp = DG_FMA(data[(B * n + k)*n + q],
+                        //x[((s*m.num_cols + m.cols_idx[i])*n+q)*m.right_size+j],
+                        xi[q*size +sj],
+                        temp);
+                y[I] = DG_FMA(alpha, temp, y[I]);
+            }
+        }
+    }
 }
 template<class real_type, class value_type, int n, template<class > class Vector>
 void coo_omp_multiply_kernel( value_type alpha, const value_type** x, value_type /*beta*/, value_type* RESTRICT y, const CooSparseBlockMat<real_type, Vector>& m )
 {
-    bool trivial = true;
-    int CC = m.cols_idx[0], DD = m.data_idx[0];
-    for( int i=0; i<m.num_entries; i++)
-        if( CC+i != m.cols_idx[i] || DD+i != m.data_idx[i])
-            trivial=false;
-    if( trivial)
+    // see the general kernel for the loop order, the schedule and the locals
+    const int left_size = m.left_size, right_size = m.right_size;
+    const int num_rows = m.num_rows, size = left_size*right_size;
+    const real_type* RESTRICT data = thrust::raw_pointer_cast( m.data.data());
+    for (int i = 0; i < m.num_entries; i++)
     {
-        #pragma omp for SIMD nowait
-        for (int sj = 0; sj < m.left_size*m.right_size; sj++)
+        const int row = m.rows_idx[i], B = m.data_idx[i];
+        const value_type* RESTRICT xi = x[m.cols_idx[i]];
+        #pragma omp for schedule(static) nowait
+        for (int sj = 0; sj < size; sj++)
         {
-            int s = sj / m.right_size;
-            int j = (sj % m.right_size) % m.right_size;
+            int s = sj / right_size;
+            int j = sj % right_size;
             for( int k=0; k<n; k++)
             {
-            for (int i = 0; i < m.num_entries; i++)
-            {
-                int I = ((s*m.num_rows + m.rows_idx[i])*n + k)*m.right_size + j;
-                int DDD = ((DD +i)*n+k)*n, CCC = CC+i;
+                int I = ((s*num_rows + row)*n + k)*right_size + j;
                 value_type temp = 0;
                 for (int q = 0; q < n; q++) //multiplication-loop
-                    temp = DG_FMA(m.data[DDD + q],
-                        //x[((s*m.num_cols + CCC)*n+q)*m.right_size+sj],
-                        x[CCC][q*m.left_size*m.right_size +sj],
-                        temp);
-                y[I] = DG_FMA(alpha, temp, y[I]);
-            }
-            }
-        }
-    }
-    else
-    {
-        #pragma omp for SIMD nowait
-        for (int sj = 0; sj < m.left_size*m.right_size; sj++)
-        {
-            int s = sj / m.right_size;
-            int j = (sj % m.right_size) % m.right_size;
-            for( int k=0; k<n; k++)
-            {
-            for (int i = 0; i < m.num_entries; i++)
-            {
-                int I = ((s*m.num_rows + m.rows_idx[i])*n + k)*m.right_size + j;
-                value_type temp = 0;
-                for (int q = 0; q < n; q++) //multiplication-loop
-                    temp = DG_FMA(m.data[(m.data_idx[i] * n + k)*n + q],
+                    temp = DG_FMA(data[(B * n + k)*n + q],
                         //x[((s*m.num_cols + m.cols_idx[i])*n+q)*m.right_size+j],
-                        x[m.cols_idx[i]][q*m.left_size*m.right_size +sj],
+                        xi[q*size +sj],
                         temp);
                 y[I] = DG_FMA(alpha, temp, y[I]);
-            }
             }
         }
     }
@@ -450,6 +438,8 @@ void CooSparseBlockMat<real_type, Vector>::launch_multiply_kernel( OmpTag, value
         coo_omp_multiply_kernel<real_type, value_type, 3>( alpha, x, beta, y, *this);
     else if( n == 4)
         coo_omp_multiply_kernel<real_type, value_type, 4>( alpha, x, beta, y, *this);
+    else if( n == 5)
+        coo_omp_multiply_kernel<real_type, value_type, 5>( alpha, x, beta, y, *this);
     else
         coo_omp_multiply_kernel<real_type, value_type>( alpha, x, beta, y, *this);
 }
