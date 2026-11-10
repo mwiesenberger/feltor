@@ -192,12 +192,20 @@ int main(
 
     g.idx(0,0) = 0, g.idx(0,1) = g.idx(1,0) = 1, g.idx(1,1) = 2;
     g.values().resize(3);
-    g.values()[0] = g.values()[1] = g.values()[2] = w2d;
+    // A reflection keeps the magnitude of (x,y) in the repeated in-place
+    // multiplication. A tensor of weights shrinks x and y into denormal
+    // numbers, which are slow on CPUs and made these timings meaningless.
+    g.values()[0] = dg::construct<Vector>( dg::evaluate( []( double x, double y,
+        double){ return cos(x+y);}, grid));
+    g.values()[1] = dg::construct<Vector>( dg::evaluate( []( double x, double y,
+        double){ return sin(x+y);}, grid));
+    g.values()[2] = dg::construct<Vector>( dg::evaluate( []( double x, double y,
+        double){ return -cos(x+y);}, grid));
     t.tic();
     for( int i=0; i<multi; i++)
         dg::tensor::multiply2d( 1., g, x[0], y[0], 0., x[0], y[0]);
     t.toc();
-    DG_RANK0 std::cout<<"multiply_inplace(g,x,y) took              "<<t.diff()/multi<<"s\t"<<7/3*gbytes*multi/t.diff()<<"GB/s\n";
+    DG_RANK0 std::cout<<"multiply_inplace(g,x,y) took              "<<t.diff()/multi<<"s\t"<<7./3.*gbytes*multi/t.diff()<<"GB/s\n";
     t.tic();
     for( int i=0; i<multi; i++)
         dg::tensor::multiply2d( 1., g, x[0], y[0], 0., u[0], v[0]);
