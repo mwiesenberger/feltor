@@ -1,10 +1,26 @@
 #pragma once
 
+#include <tuple>
+#include <utility>
 #include "densematrix.h"
 
 namespace dg{
 namespace blas2{
 namespace detail{
+
+// one blas1::evaluate over the columns offset, ..., offset+sizeof...(I)-1
+template< class Matrix, class Vector1, class Vector2, std::size_t ...I>
+inline void dense_pass( get_value_type<Vector1> alpha, const Matrix& m,
+    const Vector1& x, unsigned offset, get_value_type<Vector1> beta, Vector2& y,
+    std::index_sequence<I...>)
+{
+    using value_type = get_value_type<Vector1>;
+    using container = typename std::decay_t<Matrix>::container_type;
+    std::apply( [&]( const auto& ... args){
+        dg::blas1::evaluate( y, dg::Axpby(alpha, beta), dg::PairSum(), args...);
+    }, std::tuple_cat( std::tuple<value_type, const container&>(
+        x[offset+I], *m.get()[offset+I])...));
+}
 
 // s.a. the detail::gemm algorithm in runge_kutta.h
 template< class Matrix, class Vector1, class Vector2>
@@ -32,45 +48,22 @@ inline void doSymv(
         dg::blas1::scal( y, beta);
         return;
     }
-    // naive summation
-    //dg::blas1::scal( y, beta);
-    //for( unsigned i=0; i<size; i++)
-    //    dg::blas1::axpby( alpha*x[i], *m.get()[i], 1., y);
+    // Sum 8 columns per pass, then the remaining columns in one pass
+    // (every pass reads and writes y)
     unsigned i=0;
-    if( size >= 8)
+    for( ; i+8 <= size; i+=8)
+        dense_pass( alpha, m, x, i, i == 0 ? beta : 1., y, std::make_index_sequence<8>());
+    const get_value_type<Vector1> b = i == 0 ? beta : 1.;
+    switch( size - i)
     {
-        for( i=0; i<size/8; i++)
-            dg::blas1::evaluate( y, dg::Axpby(alpha, i == 0 ? beta : 1.), dg::PairSum(),
-                    x[i*8+0], *m.get()[i*8+0],
-                    x[i*8+1], *m.get()[i*8+1],
-                    x[i*8+2], *m.get()[i*8+2],
-                    x[i*8+3], *m.get()[i*8+3],
-                    x[i*8+4], *m.get()[i*8+4],
-                    x[i*8+5], *m.get()[i*8+5],
-                    x[i*8+6], *m.get()[i*8+6],
-                    x[i*8+7], *m.get()[i*8+7]);
-    }
-    unsigned l=0;
-    if( size%8 >= 4)
-    {
-        for( l=0; l<(size%8)/4; l++)
-            dg::blas1::evaluate( y, dg::Axpby(alpha,size < 8 ? beta : 1.), dg::PairSum(),
-                    x[i*8+l*4+0], *m.get()[i*8+l*4+0],
-                    x[i*8+l*4+1], *m.get()[i*8+l*4+1],
-                    x[i*8+l*4+2], *m.get()[i*8+l*4+2],
-                    x[i*8+l*4+3], *m.get()[i*8+l*4+3]);
-    }
-    unsigned k=0;
-    if( (size%8)%4 >= 2)
-    {
-        for( k=0; k<((size%8)%4)/2; k++)
-            dg::blas1::evaluate( y, dg::Axpby(alpha, size < 4 ? beta : 1.), dg::PairSum(),
-                    x[i*8+l*4+k*2+0], *m.get()[i*8+l*4+k*2+0],
-                    x[i*8+l*4+k*2+1], *m.get()[i*8+l*4+k*2+1]);
-    }
-    if( ((size%8)%4)%2 == 1)
-    {
-        dg::blas1::axpby( alpha*x[i*8+l*4+k*2], *m.get()[i*8+l*4+k*2], size < 2 ? beta: 1., y);
+        case 1: dg::blas1::axpby( alpha*x[i], *m.get()[i], b, y); break;
+        case 2: dense_pass( alpha, m, x, i, b, y, std::make_index_sequence<2>()); break;
+        case 3: dense_pass( alpha, m, x, i, b, y, std::make_index_sequence<3>()); break;
+        case 4: dense_pass( alpha, m, x, i, b, y, std::make_index_sequence<4>()); break;
+        case 5: dense_pass( alpha, m, x, i, b, y, std::make_index_sequence<5>()); break;
+        case 6: dense_pass( alpha, m, x, i, b, y, std::make_index_sequence<6>()); break;
+        case 7: dense_pass( alpha, m, x, i, b, y, std::make_index_sequence<7>()); break;
+        default: break;
     }
 }
 

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <array>
 #include <tuple>
+#include <utility>
 
 #include "ode.h"
 #include "backend/exceptions.h"
@@ -18,6 +19,24 @@
 namespace dg{
 ///@cond
 namespace detail{
+// one blas1::subroutine over the columns offset, ..., offset+sizeof...(I)-1
+template<class ContainerType, std::size_t ...I>
+void gemm_pass(
+        const std::array<double,2>& alpha,
+        const DenseMatrix<ContainerType>& m,
+        const std::array<const std::vector<double>*,2>& x,
+        unsigned offset,
+        double beta0, double beta1,
+        std::array<ContainerType*,2>& y,
+        std::index_sequence<I...>)
+{
+    std::apply( [&]( const auto& ... args){
+        dg::blas1::subroutine( dg::EmbeddedPairSum(), *y[0], *y[1], beta0, beta1,
+            args...);
+    }, std::tuple_cat( std::tuple<double, double, const ContainerType&>(
+        alpha[0]*(*x[0])[offset+I], alpha[1]*(*x[1])[offset+I],
+        *m.get()[offset+I])...));
+}
 // this is a dense matrix-matrix multiplication
 // a generalization of the corresponding blas2::gemv DenseMatrix algorithm
 template<class ContainerType>
@@ -28,41 +47,25 @@ void gemm(
         const std::array<double,2>& beta,
         std::array<ContainerType*,2>&& y)
 {
+    // Sum 8 columns per pass, then the remaining columns in one pass
+    // (every pass reads and writes y)
     const unsigned size = m.num_cols();
     unsigned i=0;
-    if( size >= 8)
-        for( i=0; i<size/8; i++)
-            dg::blas1::subroutine( dg::EmbeddedPairSum(),
-                    *y[0], *y[1], i==0 ? beta[0] : 1., i==0 ? beta[1] : 1.,
-                    alpha[0]*(*x[0])[i*8+0], alpha[1]*(*x[1])[i*8+0], *m.get()[i*8+0],
-                    alpha[0]*(*x[0])[i*8+1], alpha[1]*(*x[1])[i*8+1], *m.get()[i*8+1],
-                    alpha[0]*(*x[0])[i*8+2], alpha[1]*(*x[1])[i*8+2], *m.get()[i*8+2],
-                    alpha[0]*(*x[0])[i*8+3], alpha[1]*(*x[1])[i*8+3], *m.get()[i*8+3],
-                    alpha[0]*(*x[0])[i*8+4], alpha[1]*(*x[1])[i*8+4], *m.get()[i*8+4],
-                    alpha[0]*(*x[0])[i*8+5], alpha[1]*(*x[1])[i*8+5], *m.get()[i*8+5],
-                    alpha[0]*(*x[0])[i*8+6], alpha[1]*(*x[1])[i*8+6], *m.get()[i*8+6],
-                    alpha[0]*(*x[0])[i*8+7], alpha[1]*(*x[1])[i*8+7], *m.get()[i*8+7]);
-    unsigned l=0;
-    if( size%8 >= 4)
-        for( l=0; l<(size%8)/4; l++)
-            dg::blas1::subroutine( dg::EmbeddedPairSum(),
-                    *y[0], *y[1], size < 8 ?  beta[0]  : 1., size < 8 ? beta[1] : 1.,
-                    alpha[0]*(*x[0])[i*8+l*4+0], alpha[1]*(*x[1])[i*8+l*4+0], *m.get()[i*8+l*4+0],
-                    alpha[0]*(*x[0])[i*8+l*4+1], alpha[1]*(*x[1])[i*8+l*4+1], *m.get()[i*8+l*4+1],
-                    alpha[0]*(*x[0])[i*8+l*4+2], alpha[1]*(*x[1])[i*8+l*4+2], *m.get()[i*8+l*4+2],
-                    alpha[0]*(*x[0])[i*8+l*4+3], alpha[1]*(*x[1])[i*8+l*4+3], *m.get()[i*8+l*4+3]);
-    unsigned k=0;
-    if( (size%8)%4 >= 2)
-        for( k=0; k<((size%8)%4)/2; k++)
-            dg::blas1::subroutine( dg::EmbeddedPairSum(),
-                    *y[0], *y[1], size < 4 ?  beta[0]  : 1., size < 4 ? beta[1] : 1.,
-                    alpha[0]*(*x[0])[i*8+l*4+k*2+0], alpha[1]*(*x[1])[i*8+l*4+k*2+0], *m.get()[i*8+l*4+k*2+0],
-                    alpha[0]*(*x[0])[i*8+l*4+k*2+1], alpha[1]*(*x[1])[i*8+l*4+k*2+1], *m.get()[i*8+l*4+k*2+1]);
-    if( ((size%8)%4)%2 == 1)
-        dg::blas1::subroutine( dg::EmbeddedPairSum(),
-                    *y[0], *y[1], size < 2 ?  beta[0]  : 1., size < 2 ? beta[1] : 1.,
-                    alpha[0]*(*x[0])[i*8+l*4+k*2], alpha[1]*(*x[1])[i*8+l*4+k*2], *m.get()[i*8+l*4+k*2]);
-
+    for( ; i+8 <= size; i+=8)
+        gemm_pass( alpha, m, x, i, i==0 ? beta[0] : 1., i==0 ? beta[1] : 1.,
+            y, std::make_index_sequence<8>());
+    const double b0 = i==0 ? beta[0] : 1., b1 = i==0 ? beta[1] : 1.;
+    switch( size - i)
+    {
+        case 1: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<1>()); break;
+        case 2: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<2>()); break;
+        case 3: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<3>()); break;
+        case 4: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<4>()); break;
+        case 5: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<5>()); break;
+        case 6: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<6>()); break;
+        case 7: gemm_pass( alpha, m, x, i, b0, b1, y, std::make_index_sequence<7>()); break;
+        default: break;
+    }
 }
 } // namespace detail
 ///@endcond
