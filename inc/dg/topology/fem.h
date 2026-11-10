@@ -170,6 +170,10 @@ struct InverseTriDiagonal
  *
  * Consists of Two \c TriDiagonal matrices \f$ T_x\f$ and \f$ T_y\f$
  * @note It is fast to apply using \c dg::blas2::parallel_for (which only works on shared memory vectors though)
+ * @attention Experimental: the result is not bitwise reproducible across
+ * backends. GPU results may differ from CPU and OpenMP results by 1 ulp
+ * because the compilers contract the sums into fused multiply-adds
+ * differently.
  * @tparam Container One of the shared memory containers
  */
 template<class Container>
