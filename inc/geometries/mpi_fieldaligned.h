@@ -608,8 +608,12 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
     MPI_Vector<dg::View<container>> send_buf(
             {m_ghostP.data().data(), m_ghostP.size()}, m_g->get_perp_comm());
     //1. compute 2d interpolation in every plane and store in m_split_out
-    for( unsigned i0=0; i0<m_Nz; i0++)
+    // The last plane comes first: if communication is necessary it goes
+    // into the send buffer, and its transfer overlaps with the
+    // interpolation of the other planes
+    for( unsigned k=0; k<m_Nz; k++)
     {
+        unsigned i0 = (k+m_Nz-1)%m_Nz; // Nz-1, 0, 1, ..., Nz-2
         // If communication necessary we write the symv result into send buffer
         bool comm_plane = (m_sizeZ != 1 and i0 == m_Nz -1);
         unsigned ip = (i0==m_Nz-1) ? 0:i0+1;
@@ -620,15 +624,12 @@ void Fieldaligned<G,M, MPI_Vector<container> >::ePlus( enum whichMatrix which, c
             if( ! m_have_adjoint) updateAdjoint( );
             dg::blas2::symv( m_minusT, m_split_in[ip], comm_plane ? send_buf : m_split_out[i0]);
         }
+        //2. start the halo communication in z
+        if( comm_plane)
+            m_from_plus.global_gather_init( send_buf.data(), m_split_out[i0].data());
     }
-
-    //2. communicate halo in z
     if( m_sizeZ != 1)
-    {
-        unsigned i0 = m_Nz-1;
-        m_from_plus.global_gather_init( send_buf.data(), m_split_out[i0].data());
-        m_from_plus.global_gather_wait( m_split_out[i0].data());
-    }
+        m_from_plus.global_gather_wait( m_split_out[m_Nz-1].data());
     if( apply_inv_backproject)
     {
         dg::blas2::symv( m_inv_bx, fpe.data(), m_temp0.data());
@@ -667,6 +668,9 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
     MPI_Vector<dg::View<container>> send_buf(
             {m_ghostM.data().data(), m_ghostM.size()}, m_g->get_perp_comm());
     //1. compute 2d interpolation in every plane and store in m_split_out
+    // The first plane comes first: if communication is necessary it goes
+    // into the send buffer, and its transfer overlaps with the
+    // interpolation of the other planes
     for( unsigned i0=0; i0<m_Nz; i0++)
     {
         // If communication necessary we write the symv result into send buffer
@@ -679,15 +683,12 @@ void Fieldaligned<G, M, MPI_Vector<container> >::eMinus( enum
         }
         else if(which == einsMinus)
             dg::blas2::symv( m_minus, m_split_in[im], comm_plane ? send_buf : m_split_out[i0]);
+        //2. start the halo communication in z
+        if( comm_plane)
+            m_from_minus.global_gather_init( send_buf.data(), m_split_out[i0].data());
     }
-
-    //2. communicate halo in z
     if( m_sizeZ != 1)
-    {
-        unsigned i0 = 0;
-        m_from_minus.global_gather_init( send_buf.data(), m_split_out[i0].data());
-        m_from_minus.global_gather_wait( m_split_out[i0].data());
-    }
+        m_from_minus.global_gather_wait( m_split_out[0].data());
     if( apply_inv_backproject)
     {
         dg::blas2::symv( m_inv_bx, fme.data(), m_temp0.data());
