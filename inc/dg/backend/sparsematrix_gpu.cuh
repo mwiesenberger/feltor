@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <cusparse.h>
 #include <exception>
 #include <complex>
@@ -131,6 +133,8 @@ struct CSRCache_gpu
     {
         if ( m_dBuffer != nullptr)
             cudaFree( m_dBuffer);
+        if ( m_temp != nullptr)
+            cudaFree( m_temp);
         if( m_active)
             cusparseDestroySpMat( m_matA);
     }
@@ -140,6 +144,8 @@ struct CSRCache_gpu
         std::swap( m_matA, src.m_matA);
         std::swap( m_dBuffer, src.m_dBuffer);
         std::swap( m_bufferSize, src.m_bufferSize);
+        std::swap( m_temp, src.m_temp);
+        std::swap( m_tempSize, src.m_tempSize);
     }
     void forget()
     {
@@ -193,6 +199,18 @@ struct CSRCache_gpu
         cudaFree( y_ptr);
     }
     size_t getBufferSize() { return m_bufferSize;}
+    // An aligned device buffer of at least size bytes
+    void * getTemp( size_t size)
+    {
+        if( size > m_tempSize)
+        {
+            if ( m_temp != nullptr)
+                cudaFree( m_temp);
+            cudaMalloc( &m_temp, size);
+            m_tempSize = size;
+        }
+        return m_temp;
+    }
     void * getBuffer() { return m_dBuffer;}
     cusparseSpMatDescr_t getSpMat() const { return m_matA;}
 
@@ -201,6 +219,8 @@ struct CSRCache_gpu
     cusparseSpMatDescr_t m_matA;
     void * m_dBuffer = nullptr;
     size_t m_bufferSize = 0;
+    void * m_temp = nullptr;
+    size_t m_tempSize = 0;
 };
 
 //y = alpha A*x + beta y
@@ -213,11 +233,22 @@ void spmv_gpu_kernel(
 )
 {
     CusparseErrorHandle err;
+    // cusparseSpMV needs y aligned to 16 bytes (a misaligned y gives
+    // cudaErrorMisalignedAddress). A View into a larger vector, e.g. one
+    // plane of a 3d vector with an odd number of points per plane, need not
+    // be, so then we compute in an aligned temporary
+    const bool aligned = reinterpret_cast<std::uintptr_t>( y_ptr) % 16 == 0;
+    C2* y_spmv = y_ptr;
+    if( not aligned)
+    {
+        y_spmv = static_cast<C2*>( cache.getTemp( A_num_rows*sizeof(C2)));
+        cudaMemcpy( y_spmv, y_ptr, A_num_rows*sizeof(C2), cudaMemcpyDeviceToDevice);
+    }
     // Assume here that the descriptors are lightweight structures ...
     cusparseDnVecDescr_t vecX;
     cusparseDnVecDescr_t vecY;
     err = cusparseCreateDnVec( &vecX, A_num_cols, const_cast<C1*>(x_ptr), getCudaDataType<C1>());
-    err = cusparseCreateDnVec( &vecY, A_num_rows, y_ptr, getCudaDataType<C2>());
+    err = cusparseCreateDnVec( &vecY, A_num_rows, y_spmv, getCudaDataType<C2>());
 
     if( not cache.isUpToDate())
         cache.update<I,V>( A_num_rows, A_num_cols, A_nnz, A_pos, A_idx, A_val);
@@ -228,6 +259,8 @@ void spmv_gpu_kernel(
 
     err = cusparseDestroyDnVec( vecX);
     err = cusparseDestroyDnVec( vecY);
+    if( not aligned)
+        cudaMemcpy( y_ptr, y_spmv, A_num_rows*sizeof(C2), cudaMemcpyDeviceToDevice);
 }
 
 } // namespace detail

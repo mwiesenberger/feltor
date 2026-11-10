@@ -6,6 +6,7 @@
 #include "tensor_traits_thrust.h"
 #include "sparsematrix.h"
 #include "sparseblockmat.h"
+#include "view.h"
 #include "../blas1.h"
 #include "../blas2.h"
 #include "catch2/catch_all.hpp"
@@ -279,6 +280,26 @@ TEST_CASE( "SpMV on device")
         CHECK( w[0] == 24);
         CHECK( w[1] == 17);
         CHECK( w[2] == 13);
+    }
+    SECTION( "gemv on views at any offset")
+    {
+        // Views into a larger vector need not be aligned like the vector
+        unsigned x_off = GENERATE( 0, 1), y_off = GENERATE( 0, 1, 2, 3);
+        thrust::host_vector<double> v( 16, 0.);
+        for( unsigned i=0; i<5; i++)
+            v[x_off + i] = double(i+1);
+        for( unsigned i=0; i<3; i++)
+            v[8 + y_off + i] = 1.;
+        thrust::device_vector<double> dv( v);
+        dg::View<const thrust::device_vector<double>> x(
+            thrust::raw_pointer_cast( dv.data()) + x_off, 5);
+        dg::View<thrust::device_vector<double>> y(
+            thrust::raw_pointer_cast( dv.data()) + 8 + y_off, 3);
+        dg::blas2::symv( 2., dA, x, 3., y);
+        v = dv;
+        CHECK( v[8 + y_off + 0] == 51);
+        CHECK( v[8 + y_off + 1] == 37);
+        CHECK( v[8 + y_off + 2] == 29);
     }
 }
 
