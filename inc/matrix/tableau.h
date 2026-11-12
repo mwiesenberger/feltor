@@ -29,8 +29,8 @@ namespace mat{
  */
 template<class real_type>
 struct FunctionalButcherTableau{
-    using value_type = real_type;
-    using function_type = std::function<value_type(value_type)>;
+    using value_type = real_type; //!< type of the coefficients
+    using function_type = std::function<value_type(value_type)>; //!< type of the coefficient functions
     ///No memory allocation
     FunctionalButcherTableau() = default;
     /*! @brief Construct a classic non-embedded tableau
@@ -328,7 +328,7 @@ FunctionalButcherTableau<real_type> func_tableau( std::string name)
 template<class real_type>
 struct ConvertsToFunctionalButcherTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///Of course a FunctionalButcherTableau converts to a FunctionalButcherTableau
     ///Useful if you constructed your very own coefficients
     ConvertsToFunctionalButcherTableau( FunctionalButcherTableau<real_type> tableau): m_t(tableau){}

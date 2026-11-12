@@ -17,10 +17,10 @@ template <class Geometry, class Matrix, class Container>
 class PolChargeN
 {
     public:
-    using geometry_type = Geometry;
-    using matrix_type = Matrix;
-    using container_type = Container;
-    using value_type = get_value_type<Container>;
+    using geometry_type = Geometry; //!< the type of the grid
+    using matrix_type = Matrix; //!< the type of the derivative matrices
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = get_value_type<Container>; //!< value type of the \c Container class
     ///@brief empty object ( no memory allocation)
     PolChargeN(){}
     /**
@@ -79,21 +79,29 @@ class PolChargeN
         *this = PolChargeN( std::forward<Params>( ps)...);
     }
 
+    /// @brief Set \f$ \phi\f$ (not used in \c symv)
+    /// @param phi new value (copied)
     template<class ContainerType0>
     void set_phi( const ContainerType0& phi)
     {
       m_phi = phi;
     }
+    /// @brief Set \f$ \partial_x\phi\f$ in the formula of \c symv
+    /// @param dxphi new value (copied)
     template<class ContainerType0>
     void set_dxphi( const ContainerType0& dxphi)
     {
       m_dxphi = dxphi;
     }
+    /// @brief Set \f$ \partial_y\phi\f$ in the formula of \c symv
+    /// @param dyphi new value (copied)
     template<class ContainerType0>
     void set_dyphi( const ContainerType0& dyphi)
     {
       m_dyphi = dyphi;
     }
+    /// @brief Set \f$ \Delta\phi\f$ in the formula of \c symv
+    /// @param lapphi new value (copied)
     template<class ContainerType0>
     void set_lapphi( const ContainerType0& lapphi)
     {

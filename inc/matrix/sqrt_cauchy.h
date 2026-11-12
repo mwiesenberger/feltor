@@ -36,8 +36,8 @@ template<class Container>
 struct SqrtCauchyInt
 {
   public:
-    using container_type = Container;
-    using value_type = dg::get_value_type<Container>;
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
     SqrtCauchyInt() { }
     /**
      * @brief Construct Rhs operator
@@ -145,8 +145,8 @@ template< class Container>
 struct DirectSqrtCauchy
 {
    public:
-    using container_type = Container;
-    using value_type = dg::get_value_type<Container>;
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
     ///@brief empty object ( no memory allocation)
     DirectSqrtCauchy() {}
     /**

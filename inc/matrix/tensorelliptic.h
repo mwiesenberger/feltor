@@ -23,10 +23,10 @@ namespace mat{
 template< class Geometry, class Matrix, class Container>
 struct TensorElliptic
 {
-    using container_type = Container;
-    using geometry_type = Geometry;
-    using matrix_type = Matrix;
-    using value_type = get_value_type<Container>;
+    using container_type = Container; //!< the type of the vector class in use
+    using geometry_type = Geometry; //!< the type of the grid
+    using matrix_type = Matrix; //!< the type of the derivative matrices
+    using value_type = get_value_type<Container>; //!< value type of the \c Container class
     ///@brief empty object ( no memory allocation)
     TensorElliptic() {}
     /**
@@ -139,11 +139,25 @@ struct TensorElliptic
 
     }
 
+    /**
+     * @brief Apply operator with \f$ \alpha = 1\f$ and \f$ \beta = 0\f$
+     *
+     * i.e. \c y=M*x, see <tt>symv( value_type, const ContainerType0&, value_type, ContainerType1&)</tt>
+     * @param x left-hand-side
+     * @param y result
+     */
     template<class ContainerType0, class ContainerType1>
     void operator()( const ContainerType0& x, ContainerType1& y){
         symv( 1, x, 0, y);
     }
 
+    /**
+     * @brief Apply operator with \f$ \alpha = 1\f$ and \f$ \beta = 0\f$
+     *
+     * i.e. \c y=M*x, see <tt>symv( value_type, const ContainerType0&, value_type, ContainerType1&)</tt>
+     * @param x left-hand-side
+     * @param y result
+     */
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y){
         symv( 1, x, 0, y);

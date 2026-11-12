@@ -69,8 +69,8 @@ template< class Container>
 struct InvSqrtODE
 {
   public:
-    using container_type = Container;
-    using value_type = dg::get_value_type<Container>;
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
     InvSqrtODE() {};
 
     /**
@@ -117,6 +117,15 @@ struct InvSqrtODE
             dg::blas1::axpby( *t, x, (1.-*t), y);
         };
     }
+    /**
+     * @brief Set the inverse of the operator \f$ tI + (1-t)A\f$
+     *
+     * The inverse is applied in every call of \c operator() and must
+     * therefore be set before the first call. A typical inverse is a
+     * conjugate gradient solve of \c make_operator().
+     * @param OpInv applied via <tt>dg::blas2::symv( OpInv, x, y)</tt>, it must
+     * invert \f$ tI + (1-t)A\f$ at the current \c time(); a copy is stored
+     */
     template<class MatrixType>
     void set_inverse_operator( const MatrixType& OpInv ) {
         m_Ainv = OpInv;

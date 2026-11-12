@@ -36,7 +36,7 @@ template <class Geometry, class Matrix, class Container>
 class PolCharge
 {
     public:
-    using value_type = get_value_type<Container>;
+    using value_type = get_value_type<Container>; //!< value type of the \c Container class
     ///@brief empty object ( no memory allocation)
     PolCharge(){}
     /**
