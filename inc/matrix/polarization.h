@@ -224,14 +224,6 @@ class PolCharge
         else return m_ell.precond();
     }
 
-    template<class ContainerType0, class ContainerType1>
-    void variation( const ContainerType0& phi, ContainerType1& varphi)
-    {
-        if (m_mode == "ff")
-            m_ell.variation(phi, varphi);
-        if (m_mode == "ffO4")
-            m_tensorell.variation(phi, varphi);
-    }
     /**
      * @brief Compute elliptic term and store in output
      *
