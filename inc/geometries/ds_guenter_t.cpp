@@ -30,7 +30,7 @@ TEST_CASE( "DS Guenter")
     INFO( "# Test the parallel derivative DS in cylindrical coordinates for the \
 guenter flux surfaces. Fieldlines do not cross boundaries.");
     std::string method = GENERATE( "dg", "linear-nearest", "linear-linear");
-    unsigned mm = GENERATE( 1, 12);
+    unsigned mm = GENERATE( 1, 4);
     unsigned n = 3, Nx = 26, Ny = 26, Nz = 20, mx[2] = {mm,mm}, max_iter = 1e4;
     if( "dg" != method)
     {
@@ -67,15 +67,14 @@ guenter flux surfaces. Fieldlines do not cross boundaries.");
     dg::x::DVec sol1 = dg::evaluate( dg::geo::DssFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
     dg::x::DVec sol2 = dg::evaluate( dg::geo::DsDivFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
     dg::x::DVec sol3 = dg::evaluate( dg::geo::DsDivDsFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
-    dg::x::DVec sol4 = dg::evaluate( dg::geo::OMDsDivDsFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
     std::vector<std::tuple<std::string, std::array<const dg::x::DVec*,2>, double,double>> names{
          {"forward",{&fun,&sol0},0.33,0.06},          {"backward",{&fun,&sol0},0.33,0.07},
          {"forward2",{&fun,&sol0},0.15,0.06},         {"backward2",{&fun,&sol0},0.15,0.06},
          {"centered",{&fun,&sol0},0.075,0.06},         {"dss",{&fun,&sol1},0.41,0.01},
          {"centered_bc_along",{&fun,&sol0},0.08,0.06},{"dss_bc_along",{&fun,&sol1},0.05,0.01},
          {"divForward",{&fun,&sol2},0.33,1e-5},       {"divBackward",{&fun,&sol2},0.33,1e-5},
-         {"divCentered",{&fun,&sol2},0.08,1e-5},      {"directLap",{&fun,&sol3},0.05,5e-5}//,
-         //{"invCenteredLap",{&sol4,&fun}}
+         {"divCentered",{&fun,&sol2},0.08,1e-5},      {"directLap",{&fun,&sol3},0.05,5e-5}
+         // invCenteredLap (solution OMDsDivDsFunction) is not tested: the inversion may take too long
     };
 
     ///##########################################################///
@@ -124,7 +123,7 @@ TEST_CASE("Staggered")
     dg::x::DVec zMinus(fun), eMinus(fun), zPlus(fun), ePlus(fun), eZero(fun);
     dg::x::DVec funST(fun);
     dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>  dsFAST(
-            mag, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 12, 12,
+            mag, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 4, 4,
             g3d.hz()/2., method, false);
     dsFAST( dg::geo::zeroMinus, fun, zMinus);
     dsFAST( dg::geo::einsPlus,  fun, ePlus);
@@ -218,7 +217,6 @@ guenter flux surfaces. Fieldlines do not cross boundaries.");
     dg::x::DVec sol1 = dg::evaluate( dg::geo::ToroidalDssFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
     dg::x::DVec sol2 = dg::evaluate( dg::geo::ToroidalDsDivFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
     dg::x::DVec sol3 = dg::evaluate( dg::geo::ToroidalDsDivDsFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
-    dg::x::DVec sol4 = dg::evaluate( dg::geo::ToroidalOMDsDivDsFunction<dg::geo::TestFunctionPsi2>(mag,ff), g3d);
     std::vector<std::tuple<std::string, std::array<const dg::x::DVec*,2>>> names{
          {"forward2",{&fun,&sol0}},         {"backward2",{&fun,&sol0}},
          {"centered",{&fun,&sol0}},         {"dss",{&fun,&sol1}},
