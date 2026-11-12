@@ -29,6 +29,15 @@ How to run the test suite is described in the section "Running the test suite" o
 A test that writes files with fixed names must not run concurrently with other such tests under `ctest -j`.
 Register it with the `RESOURCE_LOCK` argument of `add_dg_test` (documented in `cmake/FeltorTests.cmake`), as the tests in `inc/file` do.
 
+### Warnings as errors
+
+A full test should also check that the code compiles without warnings. Configure the build directory once with
+```bash
+cmake --preset gpu -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+```
+to treat compiler warnings as errors. The setting stays in the cache of `build/gpu`, so later `cmake --preset gpu` calls and the `test-gpu` workflow keep it.
+The presets themselves do not set it, because warnings depend on the compiler and its version, and a build should not fail only because a different compiler warns.
+
 ### How the presets in `CMakePresets.json` are organised
 
 CMake has four kinds of presets. Each kind stands for one step on the command line, and each kind has its own namespace, so presets of different kinds may share a name:
