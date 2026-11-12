@@ -63,9 +63,9 @@ namespace geo
  */
 struct Topology1d
 {
-    unsigned n;
-    unsigned N;
-    bc b = dg::PER;
+    unsigned n; //!< number of polynomial coefficients per cell
+    unsigned N; //!< number of cells
+    bc b = dg::PER; //!< boundary condition
 };
 
 
@@ -134,6 +134,7 @@ struct RealCurvilinearGrid2d : public dg::aRealGeometry2d<real_type>
 
     ///read access to the generator
     const aRealGenerator2d<real_type>& generator() const{return *m_handle;}
+    ///Geometries are cloneable
     virtual RealCurvilinearGrid2d* clone()const override final{return new RealCurvilinearGrid2d(*this);}
     private:
     virtual void do_set(std::array<unsigned,2> new_n, std::array<unsigned,2> new_N) override final
@@ -171,7 +172,7 @@ struct RealCurvilinearGrid2d : public dg::aRealGeometry2d<real_type>
 template<class real_type>
 struct RealCurvilinearProductGrid3d : public dg::aRealProductGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCurvilinearGrid2d<real_type>;
+    using perpendicular_grid = RealCurvilinearGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCurvilinearProductGrid3d() = default;
 
     ///@copydoc hide_grid_parameters3d
@@ -194,6 +195,7 @@ struct RealCurvilinearProductGrid3d : public dg::aRealProductGeometry3d<real_typ
 
     ///@copydoc RealCurvilinearGrid2d::generator()const
     const aRealGenerator2d<real_type> & generator() const{return *m_handle;}
+    ///Geometries are cloneable
     virtual RealCurvilinearProductGrid3d* clone()const override final{return new RealCurvilinearProductGrid3d(*this);}
     private:
     virtual RealCurvilinearGrid2d<real_type>* do_perp_grid() const override final;
@@ -260,12 +262,18 @@ struct RealCurvilinearProductGrid3d : public dg::aRealProductGeometry3d<real_typ
     dg::ClonePtr<aRealGenerator2d<real_type>> m_handle;
 };
 
-using CurvilinearGrid2d         = dg::geo::RealCurvilinearGrid2d<double>;
+///@name Double precision typedefs
+///@{
+using CurvilinearGrid2d         = dg::geo::RealCurvilinearGrid2d<double>; ///< Double precision version of the class template with the \c Real prefix
 using CurvilinearProductGrid3d  = dg::geo::RealCurvilinearProductGrid3d<double>;
+///@}
 #ifndef MPI_VERSION
 namespace x{
-using CurvilinearGrid2d         = CurvilinearGrid2d        ;
+///@name Typedefs that do not depend on MPI
+///@{
+using CurvilinearGrid2d         = CurvilinearGrid2d        ; ///< Shared memory version, see \c dg::geo::x
 using CurvilinearProductGrid3d  = CurvilinearProductGrid3d ;
+///@}
 }
 #endif
 

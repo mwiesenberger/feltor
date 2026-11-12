@@ -1,4 +1,12 @@
 #error Documentation only
+/*! @namespace dg::geo
+ * @brief This is the namespace for all functions and
+ * classes defined and used by the geometries extension of the dg library.
+ */
+/*! @namespace dg::geo::x
+ * @brief Typedefs that resolve to the MPI types if \c MPI_VERSION is defined
+ * and to the shared memory types else
+ */
 /*!
  *
  * @defgroup grids 1. General Curvilinear grids

@@ -435,11 +435,22 @@ struct IpolZ: public aCylindricalFunctor<IpolZ>
     std::function<double(double,double)> m_psip, m_psipZ;
 };
 
+/**
+ * @brief \f$ \psi_p\f$ and its first and second derivatives
+ * @param gp geometric parameters
+ * @return \c Psip, \c PsipR, \c PsipZ, \c PsipRR, \c PsipRZ, \c PsipZZ
+ */
 inline dg::geo::CylindricalFunctorsLvl2 createPsip( const Parameters& gp)
 {
     return CylindricalFunctorsLvl2( Psip(gp), PsipR(gp), PsipZ(gp),
         PsipRR(gp), PsipRZ(gp), PsipZZ(gp));
 }
+/**
+ * @brief \f$ I\f$ and its first derivatives
+ * @param gp geometric parameters
+ * @param psip \f$ \psi_p\f$ and its first derivatives
+ * @return \c Ipol, \c IpolR, \c IpolZ
+ */
 inline dg::geo::CylindricalFunctorsLvl1 createIpol( const Parameters& gp, const CylindricalFunctorsLvl1& psip)
 {
     return CylindricalFunctorsLvl1(

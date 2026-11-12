@@ -49,7 +49,7 @@ struct Parameters
            elongation, //!< elongation of the magnetic surfaces
            triangularity; //!< triangularity of the magnetic surfaces
     std::vector<double> c;  //!< 12 coefficients for the solovev equilibrium;
-    std::string description;
+    std::string description; //!< the geometry of the field, see \c dg::geo::description for valid values
     Parameters() = default;
     /**
      * @brief Construct from Json dataset

@@ -44,6 +44,7 @@ struct FluxSurfaceIntegral
         double deltapsi = 0.5*(psipZmax*g2d.hy() +psipRmax*g2d.hx())/g2d.nx();
         m_eps = deltapsi*width_factor;
     }
+    ///@brief The width of the numerical delta function (\c 0.5*h*GradPsi*width_factor)
     double get_deltapsi() const{return m_eps;}
 
     /**
@@ -170,6 +171,7 @@ struct FluxSurfaceAverage
         m_area.set_right( weights);
     }
 
+    ///@copydoc FluxSurfaceIntegral::get_deltapsi()
     double get_deltapsi() const{return m_avg.get_deltapsi();}
 
     /**
@@ -256,6 +258,7 @@ struct SafetyFactorAverage
  */
 struct SafetyFactor
 {
+    ///@param mag the magnetic field (psip, ipol and R0 are copied)
     SafetyFactor( const TokamakMagneticField& mag):
         m_fpsi( mag.get_psip(), mag.get_ipol(), mag.R0(), 0.,false){}
 

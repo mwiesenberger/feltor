@@ -367,9 +367,11 @@ struct Fieldaligned
         *this = Fieldaligned( std::forward<Params>( ps)...);
     }
 
+    ///@brief The boundary condition \c bcx given in the constructor
     dg::bc bcx()const{
         return m_bcx;
     }
+    ///@brief The boundary condition \c bcy given in the constructor
     dg::bc bcy()const{
         return m_bcy;
     }
@@ -439,6 +441,7 @@ struct Fieldaligned
     */
     void operator()(enum whichMatrix which, const container& in, container& out) const;
 
+    ///@brief The angular distance of the fieldline integration (\c grid.hz() if the \c deltaPhi parameter in the constructor was <= 0)
     double deltaPhi() const{return m_deltaPhi;}
     ///@brief Angular distance between the planes and the boundary in the minus direction, \c deltaPhi() if the boundary is not reached
     ///@return three-dimensional vector

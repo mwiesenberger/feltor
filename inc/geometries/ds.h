@@ -655,6 +655,7 @@ struct DS
     * @return acces to Fieldaligned object
     */
     FA& fieldaligned(){return m_fa;}
+    ///@copydoc fieldaligned()
     const FA& fieldaligned()const{return m_fa;}
     private:
     Fieldaligned<ProductGeometry, IMatrix, container> m_fa;

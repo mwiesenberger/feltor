@@ -7,6 +7,11 @@
  * contains an adaption function and a monitor metric for the Hector algorithm
  *
  */
+/*!@class hide_liseikin_parameters
+ * @param psi \f$ \psi(x,y)\f$ and its derivatives
+ * @param k the parameter \f$ k\f$ in the Liseikin monitor metric
+ * @param eps the parameter \f$ \varepsilon\f$ in the Liseikin monitor metric
+ */
 namespace dg
 {
 namespace geo
@@ -85,6 +90,7 @@ struct NablaPsiInv: public aCylindricalFunctor<NablaPsiInv>
  */
 struct NablaPsiInvX: public aCylindricalFunctor<NablaPsiInvX>
 {
+    ///@param psi \f$ \psi(x,y)\f$ and its first and second derivatives
     NablaPsiInvX( const CylindricalFunctorsLvl2& psi):psi_(psi) {}
     double do_compute(double x, double y)const
     {
@@ -104,6 +110,7 @@ struct NablaPsiInvX: public aCylindricalFunctor<NablaPsiInvX>
  */
 struct NablaPsiInvY: public aCylindricalFunctor<NablaPsiInvY>
 {
+    ///@param psi \f$ \psi(x,y)\f$ and its first and second derivatives
     NablaPsiInvY( const CylindricalFunctorsLvl2& psi):psi_(psi) {}
     double do_compute(double x, double y)const
     {
@@ -137,6 +144,8 @@ inline CylindricalFunctorsLvl1 make_NablaPsiInvCollective( const CylindricalFunc
  */
 struct Liseikin_XX: public aCylindricalFunctor<Liseikin_XX>
 {
+    ///@brief Construct
+    ///@copydetails hide_liseikin_parameters
     Liseikin_XX(const CylindricalFunctorsLvl1& psi, double k, double eps):k_(k), eps_(eps), psi_(psi){}
     double do_compute(double x, double y)const
     {
@@ -160,6 +169,8 @@ struct Liseikin_XX: public aCylindricalFunctor<Liseikin_XX>
  */
 struct Liseikin_XY: public aCylindricalFunctor<Liseikin_XY>
 {
+    ///@brief Construct
+    ///@copydetails hide_liseikin_parameters
     Liseikin_XY(const CylindricalFunctorsLvl1& psi, double k, double eps):k_(k), eps_(eps), psi_(psi){}
     double do_compute(double x, double y)const
     {
@@ -183,6 +194,8 @@ struct Liseikin_XY: public aCylindricalFunctor<Liseikin_XY>
  */
 struct Liseikin_YY: public aCylindricalFunctor<Liseikin_YY>
 {
+    ///@brief Construct
+    ///@copydetails hide_liseikin_parameters
     Liseikin_YY(const CylindricalFunctorsLvl1& psi, double k, double eps):k_(k), eps_(eps), psi_(psi){}
     double do_compute(double x, double y)const
     {
@@ -203,6 +216,8 @@ struct Liseikin_YY: public aCylindricalFunctor<Liseikin_YY>
  */
 struct DivLiseikinX: public aCylindricalFunctor<DivLiseikinX>
 {
+    ///@brief Construct
+    ///@copydetails hide_liseikin_parameters
     DivLiseikinX(const CylindricalFunctorsLvl2& psi, double k, double eps): k_(k), eps_(eps), psi_(psi){}
     double do_compute(double x, double y)const
     {
@@ -230,6 +245,8 @@ struct DivLiseikinX: public aCylindricalFunctor<DivLiseikinX>
  */
 struct DivLiseikinY : public aCylindricalFunctor<DivLiseikinY>
 {
+    ///@brief Construct
+    ///@copydetails hide_liseikin_parameters
     DivLiseikinY(const CylindricalFunctorsLvl2& psi, double k, double eps):k_(k), eps_(eps), psi_(psi){}
     double do_compute(double x, double y)const
     {
@@ -251,6 +268,11 @@ struct DivLiseikinY : public aCylindricalFunctor<DivLiseikinY>
     CylindricalFunctorsLvl2 psi_;
 };
 
+/**
+ * @brief The Liseikin monitor metric and its divergence
+ * @copydetails hide_liseikin_parameters
+ * @return \c Liseikin_XX, \c Liseikin_XY, \c Liseikin_YY, \c DivLiseikinX, \c DivLiseikinY
+ */
 inline CylindricalSymmTensorLvl1 make_LiseikinCollective( const CylindricalFunctorsLvl2& psi, double k, double eps)
 {
     return CylindricalSymmTensorLvl1( Liseikin_XX(psi,k,eps),

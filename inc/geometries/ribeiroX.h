@@ -249,6 +249,17 @@ struct XFieldFinv
  */
 struct RibeiroX : public aGeneratorX2d
 {
+    /**
+     * @brief Construct the generator
+     *
+     * @param psi the flux function, the separatrix must be at \f$ \psi = 0\f$
+     * @param psi_0 The left boundary of the grid this generator will generate. Must be a closed flux surface (\c psi_0<0).
+     * @param fx factor for the partition in x-direction (as in \c dg::RealGridX2d)
+     * @param xX the X-point x - coordinate
+     * @param yX the X-point y - coordinate
+     * @param x0 a point in the inside of the separatrix (can be the O-point)
+     * @param y0 a point in the inside of the separatrix (can be the O-point)
+     */
     RibeiroX( const CylindricalFunctorsLvl2& psi, double psi_0, double fx,
             double xX, double yX, double x0, double y0):
         psi_(psi), fpsi_(psi, xX, yX, x0,y0), fpsiMinv_(psi, xX, yX, x0,y0, 500)

@@ -30,6 +30,7 @@ namespace guenter
  */
 struct Psip : public aCylindricalFunctor<Psip>
 {
+    /// @param R_0 major radius
     Psip(double R_0 ):   R_0(R_0) {}
     double do_compute(double R, double Z) const
     {
@@ -43,6 +44,7 @@ struct Psip : public aCylindricalFunctor<Psip>
  */
 struct PsipR : public aCylindricalFunctor<PsipR>
 {
+    /// @param R_0 major radius
     PsipR(double R_0 ):   R_0(R_0) {}
     double do_compute(double R, double Z) const
     {
@@ -56,6 +58,7 @@ struct PsipR : public aCylindricalFunctor<PsipR>
  */
 struct PsipRR : public aCylindricalFunctor<PsipRR>
 {
+    /// @param R_0 major radius
     PsipRR(double R_0 ):   R_0(R_0) {}
     double do_compute(double R, double Z) const
     {
@@ -70,6 +73,7 @@ struct PsipRR : public aCylindricalFunctor<PsipRR>
 struct PsipZ : public aCylindricalFunctor<PsipZ>
 
 {
+    /// @param R_0 major radius
     PsipZ(double R_0 ):   R_0(R_0) {}
     double do_compute(double R, double Z) const
     {
@@ -83,6 +87,7 @@ struct PsipZ : public aCylindricalFunctor<PsipZ>
  */
 struct PsipZZ : public aCylindricalFunctor<PsipZZ>
 {
+    /// @param R_0 major radius
     PsipZZ(double R_0 ):   R_0(R_0){}
     double do_compute(double R, double Z) const
     {
@@ -96,6 +101,7 @@ struct PsipZZ : public aCylindricalFunctor<PsipZZ>
  */
 struct PsipRZ : public aCylindricalFunctor<PsipRZ>
 {
+    /// @param R_0 major radius
     PsipRZ(double R_0 ):   R_0(R_0) {}
     double do_compute(double R, double Z) const
     {
@@ -110,6 +116,7 @@ struct PsipRZ : public aCylindricalFunctor<PsipRZ>
  */
 struct Ipol : public aCylindricalFunctor<Ipol>
 {
+    /// @param I_0 the constant current
     Ipol( double I_0):   I_0(I_0) {}
     double do_compute(double, double) const { return I_0; }
     private:
@@ -120,6 +127,7 @@ struct Ipol : public aCylindricalFunctor<Ipol>
  */
 struct IpolR : public aCylindricalFunctor<IpolR>
 {
+    ///@brief No parameters
     IpolR(  ) {}
     double do_compute(double, double) const { return 0; }
     private:
@@ -129,16 +137,27 @@ struct IpolR : public aCylindricalFunctor<IpolR>
  */
 struct IpolZ : public aCylindricalFunctor<IpolZ>
 {
+    ///@brief No parameters
     IpolZ(  ) {}
     double do_compute(double, double) const { return 0; }
     private:
 };
 
+/**
+ * @brief \f$ \psi_p\f$ and its first and second derivatives
+ * @param R_0 major radius
+ * @return \c Psip, \c PsipR, \c PsipZ, \c PsipRR, \c PsipRZ, \c PsipZZ
+ */
 inline CylindricalFunctorsLvl2 createPsip( double R_0)
 {
     return CylindricalFunctorsLvl2( Psip(R_0), PsipR(R_0), PsipZ(R_0),
         PsipRR(R_0), PsipRZ(R_0), PsipZZ(R_0));
 }
+/**
+ * @brief \f$ I\f$ and its first derivatives
+ * @param I_0 the constant current
+ * @return \c Ipol, \c IpolR, \c IpolZ
+ */
 inline CylindricalFunctorsLvl1 createIpol( double I_0)
 {
     return CylindricalFunctorsLvl1( Ipol(I_0), IpolR(), IpolZ());

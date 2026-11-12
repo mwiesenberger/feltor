@@ -63,6 +63,7 @@ struct aRealGenerator2d
     * @return a copy of *this on the heap
     */
     virtual aRealGenerator2d* clone() const=0;
+    ///@brief Allow deletion through base class pointer
     virtual ~aRealGenerator2d(){}
 
     protected:
@@ -88,7 +89,7 @@ struct aRealGenerator2d
 
 
 };
-using aGenerator2d = dg::geo::aRealGenerator2d<double>;
+using aGenerator2d = dg::geo::aRealGenerator2d<double>; //!< Double precision version of the class template with the \c Real prefix
 
 }//namespace geo
 }//namespace dg

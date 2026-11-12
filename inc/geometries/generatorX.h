@@ -19,9 +19,29 @@ is a product space.
 template<class real_type>
 struct aRealGeneratorX2d
 {
+    /**
+     * @brief Left boundary of the computational domain in \f$ \zeta\f$
+     * @param fx factor for the partition in x-direction (as in \c dg::RealGridX2d)
+     * @return \f$ \zeta_0\f$
+     */
     real_type zeta0(real_type fx) const{return do_zeta0(fx);}
+    /**
+     * @brief Right boundary of the computational domain in \f$ \zeta\f$
+     * @param fx factor for the partition in x-direction (as in \c dg::RealGridX2d)
+     * @return \f$ \zeta_1\f$
+     */
     real_type zeta1(real_type fx) const{return do_zeta1(fx);}
+    /**
+     * @brief Lower boundary of the computational domain in \f$ \eta\f$
+     * @param fy factor for the partition in y-direction (as in \c dg::RealGridX2d)
+     * @return \f$ \eta_0\f$
+     */
     real_type eta0(real_type fy) const{return do_eta0(fy);}
+    /**
+     * @brief Upper boundary of the computational domain in \f$ \eta\f$
+     * @param fy factor for the partition in y-direction (as in \c dg::RealGridX2d)
+     * @return \f$ \eta_1\f$
+     */
     real_type eta1(real_type fy) const{return do_eta1(fy);}
     ///@brief sparsity pattern for metric
     bool isOrthogonal() const { return do_isOrthogonal(); }
@@ -65,11 +85,14 @@ struct aRealGeneratorX2d
     * @return a copy of *this on the heap
     */
     virtual aRealGeneratorX2d* clone() const=0;
+    ///@brief Allow deletion through base class pointer
     virtual ~aRealGeneratorX2d(){}
 
     protected:
     aRealGeneratorX2d(){}
+    ///@brief We do not allow object slicing so the copy is protected
     aRealGeneratorX2d(const aRealGeneratorX2d&){}
+    ///@brief We do not allow object slicing so the assignment is protected
     aRealGeneratorX2d& operator=(const aRealGeneratorX2d&){
         return *this;
     }
@@ -92,7 +115,7 @@ struct aRealGeneratorX2d
 
 
 };
-using aGeneratorX2d = dg::geo::aRealGeneratorX2d<double>;
+using aGeneratorX2d = dg::geo::aRealGeneratorX2d<double>; //!< Double precision version of the class template with the \c Real prefix
 
 }//namespace geo
 }//namespace dg

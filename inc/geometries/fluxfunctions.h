@@ -111,6 +111,7 @@ struct aCylindricalFunctor
  */
 struct Constant: public aCylindricalFunctor<Constant>
 {
+    ///@param c the constant value
     Constant(double c):c_(c){}
     double do_compute(double,double)const{return c_;}
     private:
@@ -128,6 +129,8 @@ struct Constant: public aCylindricalFunctor<Constant>
  */
 struct ZCutter : public aCylindricalFunctor<ZCutter>
 {
+    ///@param ZX the value \f$ Z_X\f$
+    ///@param sign +1 or -1 (see above)
     ZCutter(double ZX, int sign = +1): m_heavi( ZX, sign){}
     double do_compute(double, double Z) const {
         return m_heavi(Z);
@@ -488,6 +491,8 @@ struct CylindricalVectorLvl1
  */
 struct ScalarProduct : public aCylindricalFunctor<ScalarProduct>
 {
+    ///@param v the first vector field
+    ///@param w the second vector field
     ScalarProduct( CylindricalVectorLvl0 v, CylindricalVectorLvl0 w) : m_v(v), m_w(w){}
     double do_compute( double R, double Z) const
     {
@@ -506,6 +511,7 @@ struct ScalarProduct : public aCylindricalFunctor<ScalarProduct>
  */
 struct SquareNorm : public aCylindricalFunctor<SquareNorm>
 {
+    ///@copydoc ScalarProduct::ScalarProduct
     SquareNorm( CylindricalVectorLvl0 v, CylindricalVectorLvl0 w) : m_s(v, w){}
     double do_compute( double R, double Z) const
     {

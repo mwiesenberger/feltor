@@ -44,7 +44,9 @@ struct RealCurvilinearRefinedProductGridX3d : public dg::aRealGeometryX3d<real_t
         constructParallel(Nz);
     }
 
+    ///read access to the generator
     const aRealGeneratorX2d<real_type> & generator() const{return *handle_;}
+    ///Geometries are cloneable
     virtual RealCurvilinearRefinedProductGridX3d* clone()const override final{return new RealCurvilinearRefinedProductGridX3d(*this);}
     private:
     //construct phi and lift rest to 3d
@@ -135,7 +137,9 @@ struct RealCurvilinearRefinedGridX2d : public dg::aRealGeometryX2d<real_type>
         construct( fx,fy,n,Nx,Ny);
     }
 
+    ///read access to the generator
     const aRealGeneratorX2d<real_type>& generator() const{return *handle_;}
+    ///Geometries are cloneable
     virtual RealCurvilinearRefinedGridX2d* clone()const override final{return new RealCurvilinearRefinedGridX2d(*this);}
     private:
     void construct(real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny)
@@ -159,8 +163,11 @@ struct RealCurvilinearRefinedGridX2d : public dg::aRealGeometryX2d<real_type>
     dg::ClonePtr<aRealGeneratorX2d<real_type>> handle_;
     dg::ClonePtr<aRealRefinementX2d<real_type>> ref_;
 };
-using CurvilinearRefinedGridX2d        = dg::geo::RealCurvilinearRefinedGridX2d<double>;
+///@name Double precision typedefs
+///@{
+using CurvilinearRefinedGridX2d        = dg::geo::RealCurvilinearRefinedGridX2d<double>; ///< Double precision version of the class template with the \c Real prefix
 using CurvilinearRefinedProductGridX3d = dg::geo::RealCurvilinearRefinedProductGridX3d<double>;
+///@}
 
 ///@}
 
