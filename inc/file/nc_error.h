@@ -25,7 +25,9 @@ struct NC_Error : public std::exception
      */
     NC_Error( int error): m_error( error) {}
 
+    /// The netcdf error code given in the constructor
     int error() const { return m_error;}
+    /// Write access to the netcdf error code
     int& error() { return m_error;}
     /**
      * @brief What string

@@ -44,7 +44,7 @@ namespace file
  */
 struct MPINcFile
 {
-    using Hyperslab = MPINcHyperslab;
+    using Hyperslab = MPINcHyperslab; //!< The hyperslab type that \c put_var and \c get_var accept
     // ///////////////////////////// CONSTRUCTORS/DESTRUCTOR /////////
     /*! @brief Construct a File Handle not associated to any file
      *

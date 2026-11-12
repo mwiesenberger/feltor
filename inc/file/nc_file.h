@@ -161,7 +161,7 @@ enum NcFileMode
 */
 struct SerialNcFile
 {
-    using Hyperslab = NcHyperslab;
+    using Hyperslab = NcHyperslab; //!< The hyperslab type that \c put_var and \c get_var accept
     // ///////////////////////////// CONSTRUCTORS/DESTRUCTOR /////////
     /// Construct a File Handle not associated to any file
     /// @snippet{trimleft} nc_file_t.cpp default
