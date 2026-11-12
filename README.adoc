@@ -85,11 +85,14 @@ cmake --build build/cpu --target feltor_projects -j 4
 # Compile all production projects of feltor
 ----
 The tests and benchmarks will be built in `build/X/inc` and the projects in `build/X/src`, where `X` is the preset in use. The location of the executables in `build/X` exactly mirror the folder structure of the original C++ files in `feltor`, for example `feltor/inc/dg/blas_b.cpp` compiles to `build/X/inc/dg/blas_b`.
-The tests can be run using
+The tests can be run from the `feltor` directory using
 [source,sh]
 ----
-ctest --test-dir build/cpu
+ctest --preset test-cpu
+# Run all tests in build/cpu, show the output of failing tests
 ----
+A build directory without a preset (e.g. one configured with `cmake -B mybuild`) is tested with `ctest --test-dir mybuild --output-on-failure`, which also works from any directory.
+See <<sec_testsuite>> for how to test a backend completely.
 
 Lastly, one can also target individual programs. All programs in the dg library start with the prefix `dg_` followed by the component name `backend`, `topology`, `geometries`, `file` or `matrix` followed by the program name without suffix. The feltor project targets follow the naming scheme `project_target` where `project` is the name of the folder in the `src` directory and `target` is the program name without suffix. Again, the output name in the binary directory follows the original folder structure and program name. For example:
 [source,sh]
@@ -114,13 +117,51 @@ cmake --build build/gpu --target dg_blas_b
 cmake --preset omp
 cmake --build build/omp --target dg_blas_b
 export OMP_NUM_THREADS=4
-./build/gpu/inc/dg/blas_b
+./build/omp/inc/dg/blas_b
 # Compile and run the benchmark program feltor/inc/dg/blas_b.cpp for OpenMP
 cmake --preset mpi-cpu
 cmake --build build/mpi-cpu --target feltor_feltor
 mpirun -n 4 ./build/mpi-cpu/src/feltor/feltor
 # Compile and run the 3d feltor code in feltor/src/feltor/feltor.cpp for pure MPI using 4 MPI threads
 ----
+
+=== Running the test suite [[sec_testsuite]]
+A full test of a backend compiles all targets (tests, benchmarks and projects) and runs all tests.
+Each of the 6 presets has a CMake workflow preset `test-X` that does exactly that in `build/X`:
+[source,sh]
+----
+export CMAKE_BUILD_PARALLEL_LEVEL=16 # number of parallel compile jobs
+export CTEST_PARALLEL_LEVEL=16       # number of parallel tests
+cmake --workflow --preset test-mpi-omp
+# Configure, compile everything and run all tests for mpi-omp
+----
+`cmake --workflow` accepts no `-j` option, so the number of parallel compile jobs and tests comes from these two environment variables. Without them compilation and tests run one at a time.
+The workflow consists of three steps that can also be run separately, e.g. to repeat only the tests after a change. Here `-j` sets the parallelism directly:
+[source,sh]
+----
+cmake --preset mpi-omp                      # configure
+cmake --build --preset test-mpi-omp -j 16   # compile all targets
+ctest --preset test-mpi-omp -j 16           # run all tests
+----
+The presets register the tests such that
+
+* in the MPI presets every MPI test program additionally runs as a whole with 2, 4, 6 and 8 MPI processes (`mpirun --oversubscribe`, so this works on fewer cores). These tests are named `<target>_np<N>` and carry the labels `mpi` and `np<N>`. Every individual test case also runs on a single process.
+* in the OpenMP presets every test runs with 2 OpenMP threads per process.
+
+Labels select parts of the test suite:
+[source,sh]
+----
+ctest --preset test-mpi-cpu -LE mpi   # all tests except the multi-process runs
+ctest --preset test-mpi-cpu -L np8    # only the runs with 8 processes
+ctest --preset test-mpi-cpu -R blas   # only tests whose name contains "blas"
+----
+The number of processes and threads are the CMake cache variables `FELTOR_TEST_MPI_RANKS` (e.g. `"2;4"`) and `FELTOR_TEST_OMP_THREADS`, which can be changed with `-D` when configuring.
+The MPI presets pass the Open MPI options `--oversubscribe --bind-to none` through `MPIEXEC_PREFLAGS`; other MPI libraries need their own values.
+Parallel test runs never overload the machine: ctest counts the processes and threads of each test.
+
+A full test of the library runs these 6 workflows. On a 16-thread desktop CPU with one GPU one workflow takes about 3 to 10 minutes from scratch, mostly compilation.
+GitHub's free CI runners have no GPU, so the `test-gpu` and `test-mpi-gpu` workflows must be run on your own machine before a merge into the main branch.
+How the presets are organised and how to write tests is explained in `tests/README.md`.
 === Using FELTOR's dg library in CMake
 
 FELTOR contains a library called the *dg-library* (from discontinuous Galerkin). To integrate FELTOR's dg library in your own project via cmake currently the only option is to add it as a submodule i.e. either (i) use https://cmake.org/cmake/help/latest/module/FetchContent.html[FetchContent] directly or (ii) use the cmake package manager https://github.com/cpm-cmake/CPM.cmake[CPM] (our recommendation) or (iii) add feltor as a git submodule and use `add_subdirectory` in your `CMakeLists.txt`. We here show the CPM version. To get started follow the CPM quick start guide to setup the file `cmake/CPM.cmake`. It is also highly recommended to set the `CPM_SOURCE_CACHE` environment variable.

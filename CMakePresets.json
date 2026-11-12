@@ -26,7 +26,8 @@
             "binaryDir": "build/omp",
             "cacheVariables": {
                 "CCCL_THRUST_DEVICE_SYSTEM": "OMP",
-                "CMAKE_CXX_FLAGS": "-march=native -O3"
+                "CMAKE_CXX_FLAGS": "-march=native -O3",
+                "FELTOR_TEST_OMP_THREADS": "2"
             }
         },
         {
@@ -35,7 +36,9 @@
             "binaryDir": "build/mpi-cpu",
             "inherits": "cpu",
             "cacheVariables": {
-                "FELTOR_WITH_MPI": "ON"
+                "FELTOR_WITH_MPI": "ON",
+                "FELTOR_TEST_MPI_RANKS": "2;4;6;8",
+                "MPIEXEC_PREFLAGS": "--oversubscribe;--bind-to;none"
             }
         },
         {
@@ -44,7 +47,9 @@
             "binaryDir": "build/mpi-gpu",
             "inherits": "gpu",
             "cacheVariables": {
-                "FELTOR_WITH_MPI": "ON"
+                "FELTOR_WITH_MPI": "ON",
+                "FELTOR_TEST_MPI_RANKS": "2;4;6;8",
+                "MPIEXEC_PREFLAGS": "--oversubscribe;--bind-to;none"
             }
         },
         {
@@ -53,7 +58,9 @@
             "binaryDir": "build/mpi-omp",
             "inherits": "omp",
             "cacheVariables": {
-                "FELTOR_WITH_MPI": "ON"
+                "FELTOR_WITH_MPI": "ON",
+                "FELTOR_TEST_MPI_RANKS": "2;4;6;8",
+                "MPIEXEC_PREFLAGS": "--oversubscribe;--bind-to;none"
             }
         },
         {
@@ -88,6 +95,246 @@
             "cacheVariables": {
                 "FELTOR_WITH_MPI": "ON"
             }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "test-cpu",
+            "configurePreset": "cpu",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "test-omp",
+            "configurePreset": "omp",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "test-gpu",
+            "configurePreset": "gpu",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "test-mpi-cpu",
+            "configurePreset": "mpi-cpu",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "test-mpi-omp",
+            "configurePreset": "mpi-omp",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "test-mpi-gpu",
+            "configurePreset": "mpi-gpu",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "test-cpu",
+            "configurePreset": "cpu",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "test-omp",
+            "configurePreset": "omp",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "test-gpu",
+            "configurePreset": "gpu",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "test-mpi-cpu",
+            "configurePreset": "mpi-cpu",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "test-mpi-omp",
+            "configurePreset": "mpi-omp",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "test-mpi-gpu",
+            "configurePreset": "mpi-gpu",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "test-cpu",
+            "displayName": "Full test: cpu",
+            "description": "Configure, compile all targets and run all tests for cpu",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "cpu"
+                },
+                {
+                    "type": "build",
+                    "name": "test-cpu"
+                },
+                {
+                    "type": "test",
+                    "name": "test-cpu"
+                }
+            ]
+        },
+        {
+            "name": "test-omp",
+            "displayName": "Full test: omp",
+            "description": "Configure, compile all targets and run all tests for omp",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "omp"
+                },
+                {
+                    "type": "build",
+                    "name": "test-omp"
+                },
+                {
+                    "type": "test",
+                    "name": "test-omp"
+                }
+            ]
+        },
+        {
+            "name": "test-gpu",
+            "displayName": "Full test: gpu",
+            "description": "Configure, compile all targets and run all tests for gpu",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "gpu"
+                },
+                {
+                    "type": "build",
+                    "name": "test-gpu"
+                },
+                {
+                    "type": "test",
+                    "name": "test-gpu"
+                }
+            ]
+        },
+        {
+            "name": "test-mpi-cpu",
+            "displayName": "Full test: mpi-cpu",
+            "description": "Configure, compile all targets and run all tests for mpi-cpu",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "mpi-cpu"
+                },
+                {
+                    "type": "build",
+                    "name": "test-mpi-cpu"
+                },
+                {
+                    "type": "test",
+                    "name": "test-mpi-cpu"
+                }
+            ]
+        },
+        {
+            "name": "test-mpi-omp",
+            "displayName": "Full test: mpi-omp",
+            "description": "Configure, compile all targets and run all tests for mpi-omp",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "mpi-omp"
+                },
+                {
+                    "type": "build",
+                    "name": "test-mpi-omp"
+                },
+                {
+                    "type": "test",
+                    "name": "test-mpi-omp"
+                }
+            ]
+        },
+        {
+            "name": "test-mpi-gpu",
+            "displayName": "Full test: mpi-gpu",
+            "description": "Configure, compile all targets and run all tests for mpi-gpu",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "mpi-gpu"
+                },
+                {
+                    "type": "build",
+                    "name": "test-mpi-gpu"
+                },
+                {
+                    "type": "test",
+                    "name": "test-mpi-gpu"
+                }
+            ]
         }
     ]
 }
