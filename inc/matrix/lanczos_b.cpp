@@ -1,5 +1,8 @@
 #include <iostream>
 #include <iomanip>
+#ifdef WITH_MPI
+#include <mpi.h>
+#endif
 
 #include "lanczos.h"
 #include "mcg.h"
@@ -15,68 +18,90 @@ const double n = 4.;
 double lhs( double x, double y) {return sin(m*x)*sin(n*y);}
 double rhs( double x, double y){ return (1.-(m*m+n*n)*alpha)*sin(m*x)*sin(n*y);}
 
-using Matrix = dg::DMatrix;
-using Container = dg::DVec;
+using Matrix = dg::x::DMatrix;
+using Container = dg::x::DVec;
 
-int main()
+int main(
+#ifdef WITH_MPI
+    int argc, char* argv[]
+#endif
+)
 {
     dg::Timer t;
     unsigned n, Nx, Ny;
+    unsigned max_iter;
+    double eps = 1e-6;
+#ifdef WITH_MPI
+    dg::mpi_init( &argc, &argv);
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm comm;
+    dg::mpi_init2d( bcx, bcy, n, Nx, Ny, comm);
+    DG_RANK0 std::cout << "# Type in max_iter and eps\n";
+    max_iter = dg::mpi_read_as<unsigned>( 1, comm)[0];
+    eps = dg::mpi_read_as<double>( 1, comm)[0];
+    dg::x::CartesianGrid2d grid( 0., lx, 0, ly, n, Nx, Ny, bcx, bcy, comm);
+#else
     std::cout << "# Type n, Nx and Ny\n";
     std::cin >> n >> Nx >> Ny;
-    std::cout <<"# You typed\n"
+    std::cout << "# Type in max_iter and eps\n";
+    std::cin >> max_iter>> eps;
+    dg::x::CartesianGrid2d grid( 0., lx, 0, ly, n, Nx, Ny, bcx, bcy);
+#endif
+    DG_RANK0 std::cout <<"# You typed\n"
               <<"n:  "<<n<<"\n"
               <<"Nx: "<<Nx<<"\n"
-              <<"Ny: "<<Ny<<std::endl;
-    unsigned max_iter;
-    std::cout << "# Type in max_iter and eps\n";
-    double eps = 1e-6;
-    std::cin >> max_iter>> eps;
-    std::cout <<"# You typed\n"
+              <<"Ny: "<<Ny<<"\n"
               <<"max_iter:  "<<max_iter<<"\n"
               <<"eps: "<<eps <<std::endl;
-    dg::CartesianGrid2d grid( 0., lx, 0, ly, n, Nx, Ny, bcx, bcy);
     const Container w2d = dg::create::weights( grid);
     Container x = dg::evaluate( lhs, grid), error(x);
     Container b = dg::evaluate( rhs, grid), xexac(x);
-    dg::Helmholtz<dg::CartesianGrid2d, Matrix, Container> A( alpha, {grid,
+    dg::Helmholtz<dg::x::CartesianGrid2d, Matrix, Container> A( alpha, {grid,
             dg::centered});
+    // The dot products are collective in MPI: compute them on all ranks, print on rank 0
+    auto relative_error = [&]( const Container& num, const Container& ana)
+    {
+        dg::blas1::axpby(-1.0, ana, 1.0, num, error);
+        return sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, ana));
+    };
+    double err = 0.;
 
     {
         t.tic();
         dg::mat::UniversalLanczos< Container > lanczos(x, max_iter);
         //lanczos.set_verbose(true);
         t.toc();
-        std::cout << "# Lanczos creation took "<< t.diff()<<"s   \n";
+        DG_RANK0 std::cout << "# Lanczos creation took "<< t.diff()<<"s   \n";
 
-        std::cout << "\nM-Lanczos-T:\n";
+        DG_RANK0 std::cout << "\nM-Lanczos-T:\n";
         b = dg::evaluate( lhs, grid);
         xexac = dg::evaluate( rhs, grid);
         t.tic();
         unsigned iter = lanczos.solve( x, dg::mat::make_Linear_Te1( 1), A, b,
                 w2d, eps, 1., "residual", 1.);
         t.toc();
-        dg::blas1::axpby(-1.0, xexac, 1.0, x,error);
-        std::cout << "    iter: "<< iter << "\n";
-        std::cout << "    time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x=||b||_M V^T T e_1 and b: \n";
-        std::cout << "    error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    iter: "<< iter << "\n";
+        DG_RANK0 std::cout << "    time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x=||b||_M V^T T e_1 and b: \n";
+        DG_RANK0 std::cout << "    error: " << err << " \n";
 
-        std::cout << "\nM-Lanczos-T-universal:\n";
+        DG_RANK0 std::cout << "\nM-Lanczos-T-universal:\n";
         b = dg::evaluate( lhs, grid);
         xexac = dg::evaluate( rhs, grid);
         t.tic();
         lanczos.solve( x, dg::mat::make_Linear_Te1( 1), A, b, w2d, eps, 1.,
                 "universal", 1., 1);
         t.toc();
-        dg::blas1::axpby(-1.0, xexac, 1.0, x,error);
-        std::cout << "    iter: "<< lanczos.get_iter() << "\n";
-        std::cout << "    time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x=||b||_M V^T T e_1 and b: \n";
-        std::cout << "    error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    iter: "<< lanczos.get_iter() << "\n";
+        DG_RANK0 std::cout << "    time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x=||b||_M V^T T e_1 and b: \n";
+        DG_RANK0 std::cout << "    error: " << err << " \n";
 
 
-        std::cout << "\nM-Lanczos-Tinv:\n";
+        DG_RANK0 std::cout << "\nM-Lanczos-Tinv:\n";
         b = dg::evaluate( rhs, grid);
         xexac = dg::evaluate( lhs, grid);
         t.tic();
@@ -84,13 +109,13 @@ int main()
                 "residual");
         t.toc();
 
-        dg::blas1::axpby(-1.0, xexac, 1.0, x,error);
-        std::cout << "    iter: "<< lanczos.get_iter() << "\n";
-        std::cout << "    time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x=||b||_M V^T T^{-1} e_1 and x: \n";
-        std::cout << "    error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    iter: "<< lanczos.get_iter() << "\n";
+        DG_RANK0 std::cout << "    time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x=||b||_M V^T T^{-1} e_1 and x: \n";
+        DG_RANK0 std::cout << "    error: " << err << " \n";
 
-        std::cout << "\nM-Lanczos-Tinv-universal:\n";
+        DG_RANK0 std::cout << "\nM-Lanczos-Tinv-universal:\n";
         b = dg::evaluate( rhs, grid);
         xexac = dg::evaluate( lhs, grid);
         t.tic();
@@ -98,19 +123,19 @@ int main()
                 "universal", 1., 1);
         t.toc();
 
-        dg::blas1::axpby(-1.0, xexac, 1.0, x,error);
-        std::cout << "    iter: "<< lanczos.get_iter() << "\n";
-        std::cout << "    time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x=||b||_M V^T T^{-1} e_1 and x: \n";
-        std::cout << "    error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    iter: "<< lanczos.get_iter() << "\n";
+        DG_RANK0 std::cout << "    time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x=||b||_M V^T T^{-1} e_1 and x: \n";
+        DG_RANK0 std::cout << "    error: " << err << " \n";
     }
     {
-        std::cout << "\nM-CG-Tinv: \n";
+        DG_RANK0 std::cout << "\nM-CG-Tinv: \n";
         t.tic();
         dg::mat::MCG<Container> mcg(x, max_iter);
         //mcg.set_verbose(true);
         t.toc();
-        std::cout << "#    M-CG creation took "<< t.diff()<<"s   \n";
+        DG_RANK0 std::cout << "#    M-CG creation took "<< t.diff()<<"s   \n";
 
         b = dg::evaluate( rhs, grid);
         xexac = dg::evaluate( lhs, grid);
@@ -121,12 +146,12 @@ int main()
         mcg.Ry( A, T, y, x, b);
         t.toc();
 
-        dg::blas1::axpby(-1.0, xexac, 1.0, x, error);
-        std::cout << "    iter: "<< mcg.get_iter() << "\n";
-        std::cout << "    time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x= R T^{-1} e_1 and x: \n";
-        std::cout << "    error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
-        std::cout << "\nM-CG-T: \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    iter: "<< mcg.get_iter() << "\n";
+        DG_RANK0 std::cout << "    time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x= R T^{-1} e_1 and x: \n";
+        DG_RANK0 std::cout << "    error: " << err << " \n";
+        DG_RANK0 std::cout << "\nM-CG-T: \n";
         b = dg::evaluate( lhs, grid);
         xexac = dg::evaluate( rhs, grid);
         t.tic();
@@ -136,13 +161,13 @@ int main()
         mcg.Ry( A, T, y, x, b);
         t.toc();
 
-        dg::blas1::axpby(-1.0, xexac, 1.0, x, error);
-        std::cout << "    iter: "<< mcg.get_iter() << "\n";
-        std::cout << "    time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x=R T e_1 and b: \n";
-        std::cout << "    error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    iter: "<< mcg.get_iter() << "\n";
+        DG_RANK0 std::cout << "    time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x=R T e_1 and b: \n";
+        DG_RANK0 std::cout << "    error: " << err << " \n";
 
-        std::cout << "\n#Test solution of normal PCG\n";
+        DG_RANK0 std::cout << "\n#Test solution of normal PCG\n";
         dg::PCG<Container> pcg( x, max_iter);
         b = dg::evaluate( rhs, grid);
         xexac = dg::evaluate( lhs, grid);
@@ -151,12 +176,14 @@ int main()
         unsigned number = pcg.solve(A, x, b, 1., w2d, eps);
         t.toc();
 
-        dg::blas1::axpby(-1.0, xexac, 1.0, x, error);
-        std::cout << "    #iter: "<< number << "\n";
-        std::cout << "    #time: "<< t.diff()<<"s \n";
-        std::cout << "    # Relative error between x=R T e_1 and b: \n";
-        std::cout << "    #error: " << sqrt(dg::blas2::dot(w2d, error)/dg::blas2::dot(w2d, xexac)) << " \n";
+        err = relative_error( x, xexac);
+        DG_RANK0 std::cout << "    #iter: "<< number << "\n";
+        DG_RANK0 std::cout << "    #time: "<< t.diff()<<"s \n";
+        DG_RANK0 std::cout << "    # Relative error between x=R T e_1 and b: \n";
+        DG_RANK0 std::cout << "    #error: " << err << " \n";
     }
-
+#ifdef WITH_MPI
+    MPI_Finalize();
+#endif
     return 0;
 }
