@@ -11,6 +11,7 @@ namespace mat {
 template < class T = double>
 struct BESSELI0
 {
+    ///@brief No parameters
     BESSELI0( ) {}
     /**
      * @brief return \f$ f(x) = I_0 (x)\f$ with \f$I_0\f$ the zeroth order modified Bessel function
@@ -78,6 +79,7 @@ struct LaguerreL
 template < class T = double>
 struct GAMMA0
 {
+    ///@brief No parameters
     GAMMA0( ) {}
     /**
      * @brief return \f$ f(x) = I_0 (x) exp(x) \f$ with \f$I_0\f$ the zeroth order modified Bessel function

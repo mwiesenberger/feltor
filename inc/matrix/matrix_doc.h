@@ -1,4 +1,8 @@
 #error Documentation only
+/*! @namespace dg::mat
+ * @brief This is the namespace for all functions and
+ * classes defined and used by the matrix extension of the dg library.
+ */
 /*!
  *
  *

@@ -186,6 +186,15 @@ InvSqrtODE<Container> make_inv_sqrtodeCG( Matrix& A, const Preconditioner& P,
     return sqrtode;
 }
 
+/**
+ * @brief Right hand side of the square root ODE \f[ \dot{y}= \left[tI + (1-t) T\right]^{-1} (I - T)/2  y \f]
+ * where \f$ T\f$ is a tridiagonal matrix and the inverse is computed directly via \c dg::mat::compute_Tinv_y
+ *
+ * @ingroup matrixfunctionapproximation
+ * @note Solution of ODE: \f$ y(1) = 1/\sqrt{T} y(0)\f$
+ * @param TH tridiagonal matrix on the host (stored by reference so needs to live)
+ * @param copyable a vector of the size of \c TH
+ */
 template< class Matrix, class Container>
 InvSqrtODE<Container> make_inv_sqrtodeTri( const Matrix& TH, const Container&
         copyable)

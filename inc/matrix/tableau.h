@@ -234,10 +234,10 @@ FunctionalButcherTableau<real_type> hochbruck_3_3_4()
 *  @ingroup exp_int
 */
 enum func_tableau_identifier{
-    EXPLICIT_EULER_1_1, //!
-    MIDPOINT_2_2, //!
-    CLASSIC_4_4,//!
-    HOCHBRUCK_3_3_4
+    EXPLICIT_EULER_1_1, //!< "Euler"
+    MIDPOINT_2_2, //!< "Midpoint-2-2"
+    CLASSIC_4_4,//!< "Runge-Kutta-4-4"
+    HOCHBRUCK_3_3_4 //!< "Hochbruck-3-3-4"
 };
 
 ///@cond
