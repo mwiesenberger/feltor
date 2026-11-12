@@ -39,7 +39,8 @@ TARGETSMPI=mpi_average_t\
 mpi_evaluation_t\
 mpi_dx_t\
 mpi_derivatives_t\
-mpi_average_t\
+mpi_base_geometry_t\
+mpi_geometry_t\
 mpi_grid_mpit\
 filter_mpit\
 stencil_mpit\
@@ -61,6 +62,9 @@ mpi_dx_t.$(device).o: dx_t.cpp mpi_derivatives.h derivativesT.h
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 # There is no mpi_average.h
 mpi_average_t.$(device).o: average_t.cpp average.h
+	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
+# There is no mpi_geometry.h
+mpi_geometry_t.$(device).o: geometry_t.cpp geometry.h mpi_base_geometry.h
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 
 %_mpit.$(device).o: %_mpit.cpp %.h

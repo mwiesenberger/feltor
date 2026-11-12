@@ -145,7 +145,6 @@ set(DG_HEADERS
   topology/xspacelib.h
 )
 
-# These can be compiled for MPI as well
 # find . -type f -name "*b.cpp" | sort
 set(DG_BENCHMARKS
   arakawa_b.cpp
@@ -161,6 +160,18 @@ set(DG_BENCHMARKS
   multigrid_b.cpp
   poisson_b.cpp
   refined_elliptic2d_b.cpp
+)
+
+# These can be compiled for MPI as well
+# grep -l WITH_MPI *_b.cpp | sort
+set(DG_MPI_BENCHMARKS
+  arakawa_b.cpp
+  blas_b.cpp
+  cg2d_b.cpp
+  cluster_b.cpp
+  elliptic2d_b.cpp
+  elliptic3d_b.cpp
+  elliptic_b.cpp
 )
 
 # These can be compiled for MPI as well
@@ -215,7 +226,6 @@ set(DG_TESTS
 
 # These are pure MPI tests
 # find . -type f -name "*mpit.cpp" | sort
-## TODO some mpi tests are missing (see Makefile MPITargets!)
 set(DG_MPI_TESTS
   backend/mpi_exblas_mpit.cpp
   backend/mpi_gather_kron_mpit.cpp
@@ -231,17 +241,21 @@ set(DG_MPI_TESTS
 )
 
 # Manually list tests that can be compiled for MPI
-# Cf Makefile, backend/Makefile and topology/Makefile
+# grep -l WITH_MPI $(find . -name "*_t.cpp") | sort
 list( APPEND DG_MPI_TESTS
-    topology/evaluation_t.cpp
-    topology/dx_t.cpp
-    topology/derivatives_t.cpp
-    topology/projection_t.cpp
-    arakawa_t.cpp
-    poisson_t.cpp
-    bicgstabl_t.cpp
-    blas_t.cpp
-    blas1_t.cpp
+  arakawa_t.cpp
+  bicgstabl_t.cpp
+  blas1_t.cpp
+  blas_t.cpp
+  implicit_t.cpp
+  poisson_t.cpp
+  topology/average_t.cpp
+  topology/base_geometry_t.cpp
+  topology/derivatives_t.cpp
+  topology/dx_t.cpp
+  topology/evaluation_t.cpp
+  topology/geometry_t.cpp
+  topology/projection_t.cpp
 )
 
 # ============================================
@@ -378,10 +392,15 @@ endif()
 if(FELTOR_BUILD_BENCHMARKS)
     include(FeltorBenchmarks)
     # There are no backend and topology benchmarks
-    # All benchmarks can be compiled for MPI
-    foreach(benchmark_path IN LISTS DG_BENCHMARKS)
-        add_dg_benchmark("${benchmark_path}" "" ${FELTOR_WITH_MPI} target_name )
-    endforeach()
+    if(FELTOR_WITH_MPI)
+        foreach(benchmark_path IN LISTS DG_MPI_BENCHMARKS)
+            add_dg_benchmark("${benchmark_path}" "" ON target_name )
+        endforeach()
+    else()
+        foreach(benchmark_path IN LISTS DG_BENCHMARKS)
+            add_dg_benchmark("${benchmark_path}" "" OFF target_name )
+        endforeach()
+    endif()
 endif()
 
 # ============================================

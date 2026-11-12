@@ -37,6 +37,7 @@ mpi_poisson_t\
 mpi_bicgstabl_t\
 mpi_blas_t\
 mpi_blas1_t\
+mpi_implicit_t\
 
 all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 
