@@ -208,15 +208,8 @@ template<class BinarySub, class Functor>
 struct Evaluate
 {
     Evaluate( BinarySub sub, Functor g): m_f( sub), m_g( g) {}
-#ifdef __CUDACC__
-// cuda compiler spits out a lot of warnings if
-// e.g. dg::transform is used on host vectors with host function
-// hd_warning_disable is unfortunately undocumented, but let's try
-// If it ever causes trouble we can remove it again
-// it just suppresses compiler warnings:
-// https://stackoverflow.com/questions/55481202/how-to-disable-cuda-host-device-warning-for-just-one-function
-#pragma hd_warning_disable
-#endif
+    // nvcc warns if e.g. dg::transform is used on host vectors with a host function
+DG_NVCC_EXEC_CHECK_DISABLE
     template< class T, class... Ts>
 DG_DEVICE void operator() ( T& y, Ts... xs){
         m_f(m_g(xs...), y);

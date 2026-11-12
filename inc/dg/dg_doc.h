@@ -376,3 +376,14 @@ struct Timer
  * @ingroup typedefs
  */
 #define DG_DEVICE
+/**
+ * @brief Expands to \c \#pragma \c nv_exec_check_disable if compiled with nvcc else is empty
+ *
+ * Place it directly before a \c DG_DEVICE function that is a template or a
+ * member of a class template. nvcc then does
+ * not warn when the template is instantiated with a host-only type, e.g.
+ * \c std::complex, and called on the host. The function can still only be
+ * called on the device with types that are usable on the device.
+ * @ingroup typedefs
+ */
+#define DG_NVCC_EXEC_CHECK_DISABLE

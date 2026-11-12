@@ -187,6 +187,7 @@ struct GyrolagK
      */
     GyrolagK(unsigned n, T a = T(1)): m_n (n), m_a(a) {}
 
+    DG_NVCC_EXEC_CHECK_DISABLE
     DG_DEVICE
     T operator()(T x) const {
         // Factorials overflow int32 for n>12
@@ -203,6 +204,7 @@ struct GyrolagK
             return (x*m_a)*(x*m_a)*(x*m_a)*exp( -x*m_a)/6.0;
         return pow(x*m_a,m_n)/T(fact[m_n])*exp(-x*m_a);
     }
+    DG_NVCC_EXEC_CHECK_DISABLE
     DG_DEVICE
     T operator()(T x, T y) const { return this->operator()(x*y); }
 
@@ -220,11 +222,13 @@ template<class T = double>
 struct DGyrolagK
 {
     DGyrolagK(unsigned n, T a = T(1)): m_n (n), m_a(a), m_kn(n,a), m_knm(n-1,a) {}
+    DG_NVCC_EXEC_CHECK_DISABLE
     T  DG_DEVICE operator()(T x) const {
         if( m_n == 0)
             return-m_a*exp(-x*m_a);
         return m_a*(m_knm(x) - m_kn(x));
     }
+    DG_NVCC_EXEC_CHECK_DISABLE
     T  DG_DEVICE operator()(T x, T y) const { return this->operator()(x*y); }
 
     private:
