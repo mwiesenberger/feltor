@@ -35,7 +35,8 @@ namespace dg
 template <class MatrixType, class ContainerType>
 struct MultiMatrix
 {
-    using real_type = get_value_type<ContainerType>;
+    using real_type = get_value_type<ContainerType>; //!< value type of the \c ContainerType class
+    ///@brief no memory allocation
     MultiMatrix(){}
     /**
     * @brief reserve space for dimension matrices  and dimension-1 ContainerTypes
@@ -43,6 +44,7 @@ struct MultiMatrix
     * @attention it is the user's reponsibility to allocate memory for the intermediate "temp" vectors
     */
     MultiMatrix( int dimension): m_inter(dimension), m_temp(dimension-1 > 0 ? dimension-1 : 0 ){}
+    ///@copydoc hide_construct
     template<class ...Params>
     void construct( Params&& ...ps)
     {
@@ -53,6 +55,13 @@ struct MultiMatrix
     //https://stackoverflow.com/questions/26147061/how-to-share-protected-members-between-c-template-classes
     template< class OtherMatrix, class OtherContainer>
     friend struct MultiMatrix; // enable copy
+    /**
+     * @brief Copy from a MultiMatrix with other types
+     *
+     * The matrices are assigned, the temporary vectors are converted with \c dg::assign
+     * @param src the MultiMatrix to copy
+     * @param ps parameters forwarded to \c dg::assign
+     */
     template<class OtherMatrix, class OtherContainer, class ... Params>
     MultiMatrix( const MultiMatrix<OtherMatrix, OtherContainer>& src, Params&& ... ps)
     {
@@ -65,8 +74,21 @@ struct MultiMatrix
         for( unsigned i=0; i<dimsT; i++)
             dg::assign( src.m_temp[i], m_temp[i], ps...);
     }
+    ///@brief \f$ y = M_{N-1}(...M_1(M_0x))\f$, i.e. <tt>symv( 1, x, 0, y)</tt>
+    ///@param x input
+    ///@param y output
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y) const{ symv( 1., x,0,y);}
+    /**
+     * @brief \f$ y = \alpha M_{N-1}(...M_1(M_0x)) + \beta y\f$
+     *
+     * @param alpha scalar
+     * @param x input
+     * @param beta scalar
+     * @param y output
+     * @attention At least one matrix must be stored and the temporary vectors
+     * must have the sizes of the intermediate results (see \c get_temp)
+     */
     template<class ContainerType0, class ContainerType1>
     void symv(real_type alpha, const ContainerType0& x, real_type beta, ContainerType1& y) const
     {
@@ -81,9 +103,13 @@ struct MultiMatrix
             dg::blas2::symv( m_inter[i], m_temp[i-1], m_temp[i]);
         dg::blas2::symv( alpha, m_inter[dims-1], m_temp[dims-2], beta, y);
     }
+    ///@brief Write access to the dimension-1 temporary vectors (\c get_temp()[i] holds the result of \f$ M_i\f$)
     std::vector<ContainerType >& get_temp(){ return m_temp;}
+    ///@brief Read access to the temporary vectors
     const std::vector<ContainerType >& get_temp()const{ return m_temp;}
+    ///@brief Write access to the matrices \f$ M_i\f$
     std::vector<MatrixType>& get_matrices(){ return m_inter;}
+    ///@brief Read access to the matrices \f$ M_i\f$
     const std::vector<MatrixType>& get_matrices()const{ return m_inter;}
     private:
     std::vector<MatrixType > m_inter;

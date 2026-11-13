@@ -10,14 +10,15 @@
   */
 
 /*! @namespace dg::x
- * @brief Typedefs that resolve to the MPI types if \c MPI_VERSION is defined
- * and to the shared memory types else listed in the \ref dg_x_typedefs_table "Typedef expansion table"
+ * @brief Typedefs that resolve to MPI types if \c MPI_VERSION is defined
+ * and to shared memory types else listed in the \ref dg_tensor_typedefs_table "tensor typedefs table", the \ref dg_grid_typedefs_table "grid typedefs table"
+ * and the \ref dg_geometry_typedefs_table "geometry typedefs table".
  *
  * Code written with these typedefs compiles with and without MPI.
  */
 /*!@addtogroup typedefs
  *
- * @anchor dg_x_typedefs_table
+ * @anchor dg_tensor_typedefs_table
  * The typedefs in namespace \c dg::x expand to
  *
  * | Name | without MPI | with MPI |
@@ -91,7 +92,7 @@ namespace dg{
 ///@name MPI vector typedefs
 ///@{
 template<class T>
-using MHVec_t   = dg::MPI_Vector<dg::HVec_t<T> >; //!< see the \ref dg_x_typedefs_table "Typedef expansion table"
+using MHVec_t   = dg::MPI_Vector<dg::HVec_t<T> >; //!< see the \ref dg_tensor_typedefs_table "tensor typedefs table"
 using MHVec     = dg::MPI_Vector<dg::HVec >;
 using cMHVec    = dg::MPI_Vector<dg::cHVec >;
 using fMHVec    = dg::MPI_Vector<dg::fHVec >;
@@ -114,7 +115,7 @@ using fDCooMat  = dg::CooSparseBlockMat<float, thrust::device_vector>; //!< Devi
 ///@name MPI derivative matrix typedefs
 ///@{
 template<class T>
-using MHMatrix_t  = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix_t<T>, dg::CooMat_t<T>>; //!< see the \ref dg_x_typedefs_table "Typedef expansion table"
+using MHMatrix_t  = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix_t<T>, dg::CooMat_t<T>>; //!< see the \ref dg_tensor_typedefs_table "tensor typedefs table"
 using MHMatrix    = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix, dg::CooMat>;
 using fMHMatrix   = dg::MPISparseBlockMat<thrust::host_vector, dg::fHMatrix, dg::fCooMat>;
 using MDMatrix    = dg::MPISparseBlockMat<thrust::device_vector, dg::DMatrix, dg::DCooMat>;
@@ -125,7 +126,7 @@ using fMDMatrix   = dg::MPISparseBlockMat<thrust::device_vector, dg::fDMatrix, d
 ///@name MPI interpolation matrix typedefs
 ///@{
 template<class real_type>
-using MIHMatrix_t = MPIDistMat< thrust::host_vector, IHMatrix_t<real_type> >; //!< see the \ref dg_x_typedefs_table "Typedef expansion table"
+using MIHMatrix_t = MPIDistMat< thrust::host_vector, IHMatrix_t<real_type> >; //!< see the \ref dg_tensor_typedefs_table "tensor typedefs table"
 template<class real_type>
 using MIDMatrix_t = MPIDistMat< thrust::device_vector, IDMatrix_t<real_type> >;
 using MIHMatrix = MIHMatrix_t<double>;
@@ -146,7 +147,7 @@ namespace x{
 ///@name Typedefs for platform independent code
 ///@{
 #ifdef MPI_VERSION
-using HVec  = MHVec; ///< see the \ref dg_x_typedefs_table "Typedef expansion table"
+using HVec  = MHVec; ///< see the \ref dg_tensor_typedefs_table "tensor typedefs table"
 using cHVec = cMHVec;
 using fHVec = fMHVec;
 using iHVec = iMHVec;

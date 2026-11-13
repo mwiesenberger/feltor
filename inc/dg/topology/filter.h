@@ -173,6 +173,7 @@ DG_DEVICE real_type median( unsigned i, const int* row_offsets,
  */
 struct CSRMedianFilter
 {
+    ///@brief Compute row \c i of \c y; called by \c dg::blas2::stencil, which describes the arguments
     template<class real_type>
     DG_DEVICE
     void operator()( unsigned i, const int* row_offsets,
@@ -207,7 +208,9 @@ struct CSRMedianFilter
 template<class real_type>
 struct CSRSWMFilter
 {
+    ///@param alpha the constant \f$ \alpha\f$
     CSRSWMFilter( real_type alpha) : m_alpha( alpha) {}
+    ///@brief Compute row \c i of \c y; called by \c dg::blas2::stencil, which describes the arguments
     DG_DEVICE
     void operator()( unsigned i, const int* row_offsets,
             const int* column_indices, const real_type* /*values*/,
@@ -235,6 +238,7 @@ struct CSRSWMFilter
  */
 struct CSRAverageFilter
 {
+    ///@brief Compute row \c i of \c y; called by \c dg::blas2::stencil, which describes the arguments
     template<class real_type>
     DG_DEVICE
     void operator()( unsigned i, const int* row_offsets,
@@ -253,6 +257,7 @@ struct CSRAverageFilter
  */
 struct CSRSymvFilter
 {
+    ///@brief Compute row \c i of \c y; called by \c dg::blas2::stencil, which describes the arguments
     template<class real_type>
     DG_DEVICE
     void operator()( unsigned i, const int* row_offsets,
@@ -287,8 +292,10 @@ struct CSRSymvFilter
 template<class real_type>
 struct CSRSlopeLimiter
 {
+    ///@param mod if \f$ |u_{n1}| \le\f$ \c mod the cell is not limited (0 limits every cell)
     CSRSlopeLimiter( real_type mod = (real_type)0) :
         m_mod(mod) {}
+    ///@brief Compute row \c i of \c y; called by \c dg::blas2::stencil, which describes the arguments
     DG_DEVICE
     void operator()( unsigned i, const int* row_offsets,
             const int* column_indices, const real_type* values,

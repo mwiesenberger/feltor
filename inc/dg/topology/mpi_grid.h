@@ -103,6 +103,7 @@ struct aRealMPITopology
     ///via:
     /// <tt>dg::is_vector_v< typename Topology::host_vector, MPIVectorTag></tt>
     using host_vector = MPI_Vector<thrust::host_vector<real_type>>;
+    /// Associated realisation
     using host_grid = RealMPIGrid<real_type, Nd>;
     /// Dimensionality == Nd
     constexpr static unsigned ndim() { return Nd;}
@@ -798,6 +799,15 @@ struct RealMPIGrid : public aRealMPITopology<real_type,Nd>
 {
     ///@copydoc RealGrid::RealGrid()
     RealMPIGrid() = default;
+    /**
+     * @brief 1D grid with periodic boundary conditions
+     *
+     * @param x0 left boundary
+     * @param x1 right boundary
+     * @param n # of polynomial coefficients
+     * @param N # of cells
+     */
+    ///@copydoc hide_comm_parameters1d
     template<size_t Md = Nd>
     RealMPIGrid( real_type x0, real_type x1, unsigned n, unsigned N, MPI_Comm
             comm): aRealMPITopology<real_type,1>( {x0}, {x1},
@@ -893,7 +903,9 @@ struct RealMPIGrid : public aRealMPITopology<real_type,Nd>
 
 ///@addtogroup gridtypes
 ///@{
-using MPIGrid0d         = dg::RealMPIGrid<double,0>;
+///@name Grid typedefs
+///@{
+using MPIGrid0d         = dg::RealMPIGrid<double,0>; ///< see the \ref dg_grid_typedefs_table "grid typedefs table"
 using MPIGrid1d         = dg::RealMPIGrid<double,1>;
 using MPIGrid2d         = dg::RealMPIGrid<double,2>;
 using MPIGrid3d         = dg::RealMPIGrid<double,3>;
@@ -913,8 +925,11 @@ template<class T>
 using RealMPIGrid2d   = dg::RealMPIGrid<T,2>;
 template<class T>
 using RealMPIGrid3d   = dg::RealMPIGrid<T,3>;
+///@}
 namespace x{
-using Grid0d          = MPIGrid0d      ;
+///@name Typedefs for platform independent code
+///@{
+using Grid0d          = MPIGrid0d      ; ///< see the \ref dg_grid_typedefs_table "grid typedefs table"
 using Grid1d          = MPIGrid1d      ;
 using Grid2d          = MPIGrid2d      ;
 using Grid3d          = MPIGrid3d      ;
@@ -934,6 +949,7 @@ template<class T>
 using RealGrid2d   = RealMPIGrid<T,2>;
 template<class T>
 using RealGrid3d   = RealMPIGrid<T,3>;
+///@}
 }//namespace x
 ///@}
 

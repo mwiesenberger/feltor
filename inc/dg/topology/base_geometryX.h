@@ -141,9 +141,12 @@ struct RealCartesianGridX3d: public dg::aRealGeometryX3d<real_type>
 
 ///@addtogroup gridtypes
 ///@{
-using CartesianGridX2d  = dg::RealCartesianGridX2d<double>;
+///@name Double precision typedefs
+///@{
+using CartesianGridX2d  = dg::RealCartesianGridX2d<double>; ///< Double precision version of the class template with the \c Real prefix
 using CartesianGridX3d  = dg::RealCartesianGridX3d<double>;
 using aGeometryX2d      = dg::aRealGeometryX2d<double>;
 using aGeometryX3d      = dg::aRealGeometryX3d<double>;
+///@}
 ///@}
 } //namespace dg

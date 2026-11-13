@@ -79,10 +79,13 @@ struct aRealRefinement1d
         return do_N_new(N_old, bcx);
     }
     virtual aRealRefinement1d* clone()const=0;
+    ///@brief Allow deletion through base class pointer
     virtual ~aRealRefinement1d() = default;
     protected:
     aRealRefinement1d() = default;
+    ///@brief We do not allow object slicing so the copy is protected
     aRealRefinement1d(const aRealRefinement1d& src) = default;
+    ///@brief We do not allow object slicing so the assignment is protected
     aRealRefinement1d& operator=(const aRealRefinement1d& src) = default;
     private:
     virtual void do_generate( const RealGrid1d<real_type>& g, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const =0;
@@ -400,12 +403,15 @@ struct RealExponentialRefinement : public aRealRefinement1d<real_type>
     }
 };
 
-using aRefinement1d         = dg::aRealRefinement1d<double>;
+///@name Double precision typedefs
+///@{
+using aRefinement1d         = dg::aRealRefinement1d<double>; ///< Double precision version of the class template with the \c Real prefix
 using IdentityRefinement    = dg::RealIdentityRefinement<double>;
 using FemRefinement         = dg::RealFemRefinement<double>;
 using LinearRefinement      = dg::RealLinearRefinement<double>;
 using EquidistRefinement    = dg::RealEquidistRefinement<double>;
 using ExponentialRefinement = dg::RealExponentialRefinement<double>;
+///@}
 
 ///@}
 
@@ -416,6 +422,10 @@ using ExponentialRefinement = dg::RealExponentialRefinement<double>;
 template<class real_type>
 struct RealCartesianRefinedGrid2d : public dg::aRealGeometry2d<real_type>
 {
+    ///@param refX the refinement in x (\c Nx is the value before refinement)
+    ///@param refY the refinement in y (\c Ny is the value before refinement)
+    ///@copydoc hide_grid_parameters2d
+    ///@copydoc hide_bc_parameters2d
     RealCartesianRefinedGrid2d( const aRealRefinement1d<real_type>& refX, const aRealRefinement1d<real_type>& refY, real_type x0, real_type x1, real_type y0, real_type y1,
             unsigned n, unsigned Nx, unsigned Ny, bc bcx = dg::PER, bc bcy = dg::PER) :
             dg::aGeometry2d( {x0,y0},{x1,y1}, {n,n},{refX.N_new(Nx,bcx),refY.N_new(Ny,bcy)}, {bcx,bcy}),
@@ -489,6 +499,11 @@ struct RealCartesianRefinedGrid2d : public dg::aRealGeometry2d<real_type>
 template< class real_type>
 struct RealCartesianRefinedGrid3d : public dg::aRealGeometry3d<real_type>
 {
+    ///@param refX the refinement in x (\c Nx is the value before refinement)
+    ///@param refY the refinement in y (\c Ny is the value before refinement)
+    ///@param refZ the refinement in z (\c Nz is the value before refinement)
+    ///@copydoc hide_grid_parameters3d
+    ///@copydoc hide_bc_parameters3d
     RealCartesianRefinedGrid3d( const aRealRefinement1d<real_type>& refX, const aRealRefinement1d<real_type>& refY, aRealRefinement1d<real_type>& refZ, real_type x0, real_type x1, real_type y0, real_type y1, real_type z0, real_type z1,
             unsigned n, unsigned Nx, unsigned Ny, unsigned Nz, bc bcx = dg::PER, bc bcy = dg::PER, bc bcz=dg::PER) :
         dg::aGeometry3d( {x0,y0,z0},{x1,y1,z1}, {n,n,1},
@@ -565,8 +580,11 @@ struct RealCartesianRefinedGrid3d : public dg::aRealGeometry3d<real_type>
 
 ///@addtogroup gridtypes
 ///@{
-using CartesianRefinedGrid2d = dg::RealCartesianRefinedGrid2d<double>;
+///@name Double precision typedefs
+///@{
+using CartesianRefinedGrid2d = dg::RealCartesianRefinedGrid2d<double>; ///< Double precision version of the class template with the \c Real prefix
 using CartesianRefinedGrid3d = dg::RealCartesianRefinedGrid3d<double>;
+///@}
 ///@}
 
 }//namespace dg

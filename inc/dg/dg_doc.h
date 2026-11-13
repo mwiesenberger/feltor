@@ -47,7 +47,7 @@
  *        @defgroup densematrix Dense matrix formats
  *        @defgroup view Vector view
  *        @defgroup typedefs Typedefs for Vectors and Matrices
- *        @brief See \ref dg_x_typedefs_table "Typedef expansion table"
+ *        @brief See \ref dg_tensor_typedefs_table "tensor typedefs table"
  *        @defgroup macros Macros
  *    @}
  *    @brief \#include <mpi.h> before any other dg header file

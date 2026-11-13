@@ -256,7 +256,7 @@ struct RealCartesianGrid2d: public dg::aRealGeometry2d<real_type>
 template<class real_type>
 struct RealCartesianGrid3d: public dg::aRealProductGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCartesianGrid2d<real_type>;
+    using perpendicular_grid = RealCartesianGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCartesianGrid3d() = default;
     ///@copydoc hide_grid_parameters3d
     ///@copydoc hide_bc_parameters3d
@@ -306,7 +306,7 @@ struct RealCartesianGrid3d: public dg::aRealProductGeometry3d<real_type>
 template<class real_type>
 struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCartesianGrid2d<real_type>;
+    using perpendicular_grid = RealCartesianGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCylindricalGrid3d() = default;
     ///@copydoc hide_grid_parameters3d
     ///@copydoc hide_bc_parameters3d
@@ -356,22 +356,44 @@ struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
 ///@}
 
 //TODO With C++17 class type inference we could rethink these?
+/*!@addtogroup gridtypes
+ *
+ * @anchor dg_geometry_typedefs_table
+ * The geometry typedefs (in \c dg and \c dg::x) expand to
+ *
+ * | Name | without MPI | with MPI |
+ * |------|-------------|----------|
+ * | `dg::x::aGeometry2d` | `dg::aGeometry2d` = `dg::aRealGeometry2d<double>` | `dg::aMPIGeometry2d` = `dg::aRealMPIGeometry2d<double>` |
+ * | `dg::x::aGeometry3d` | `dg::aGeometry3d` = `dg::aRealGeometry3d<double>` | `dg::aMPIGeometry3d` = `dg::aRealMPIGeometry3d<double>` |
+ * | `dg::x::aProductGeometry3d` | `dg::aProductGeometry3d` = `dg::aRealProductGeometry3d<double>` | `dg::aProductMPIGeometry3d` = `dg::aRealProductMPIGeometry3d<double>` |
+ * | `dg::x::CartesianGrid2d` | `dg::CartesianGrid2d` = `dg::RealCartesianGrid2d<double>` | `dg::CartesianMPIGrid2d` = `dg::RealCartesianMPIGrid2d<double>` |
+ * | `dg::x::CartesianGrid3d` | `dg::CartesianGrid3d` = `dg::RealCartesianGrid3d<double>` | `dg::CartesianMPIGrid3d` = `dg::RealCartesianMPIGrid3d<double>` |
+ * | `dg::x::CylindricalGrid3d` | `dg::CylindricalGrid3d` = `dg::RealCylindricalGrid3d<double>` | `dg::CylindricalMPIGrid3d` = `dg::RealCylindricalMPIGrid3d<double>` |
+ *
+ * For the topologies see the \ref dg_grid_typedefs_table "grid typedefs table".
+ */
 ///@addtogroup gridtypes
 ///@{
-using aGeometry2d           = dg::aRealGeometry2d<double>;
+///@name Geometry typedefs
+///@{
+using aGeometry2d           = dg::aRealGeometry2d<double>; ///< see the \ref dg_geometry_typedefs_table "geometry typedefs table"
 using aGeometry3d           = dg::aRealGeometry3d<double>;
 using aProductGeometry3d    = dg::aRealProductGeometry3d<double>;
 using CartesianGrid2d       = dg::RealCartesianGrid2d<double>;
 using CartesianGrid3d       = dg::RealCartesianGrid3d<double>;
 using CylindricalGrid3d     = dg::RealCylindricalGrid3d<double>;
+///@}
 #ifndef MPI_VERSION
 namespace x{
-using aGeometry2d           = aGeometry2d           ;
+///@name Typedefs for platform independent code
+///@{
+using aGeometry2d           = aGeometry2d           ; ///< see the \ref dg_geometry_typedefs_table "geometry typedefs table"
 using aGeometry3d           = aGeometry3d           ;
 using aProductGeometry3d    = aProductGeometry3d    ;
 using CartesianGrid2d       = CartesianGrid2d       ;
 using CartesianGrid3d       = CartesianGrid3d       ;
 using CylindricalGrid3d     = CylindricalGrid3d     ;
+///@}
 }//namespace x
 #endif //MPI_VERSION
 

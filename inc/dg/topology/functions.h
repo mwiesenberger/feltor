@@ -24,6 +24,7 @@ T one(T, Ts ...){return T(1);}
 ///@brief \f$ f(x, ...) = 0\f$
 struct ZERO
 {
+    ///@return 0 (converted to the type of the first argument)
     template<class T, class ...Ts>
     DG_DEVICE
     T operator()(T, Ts ...)const{return T(0);}
@@ -32,6 +33,7 @@ struct ZERO
 ///@brief \f$ f(x,...) = 1\f$
 struct ONE
 {
+    ///@return 1 (converted to the type of the first argument)
     template<class T, class ...Ts>
     DG_DEVICE
     T operator()(T, Ts ...)const{return T(1);}
@@ -47,6 +49,7 @@ struct CONSTANT
      */
     CONSTANT( double cte): m_value(cte){}
 
+    ///@return c (converted to the type of the first argument)
     template<class T, class ...Ts>
     DG_DEVICE
     T operator()(T, Ts ...)const{return T(m_value);}

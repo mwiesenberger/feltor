@@ -57,23 +57,38 @@ struct aRealRefinementX2d
     {
         return do_Nx_new(Nx_old, fx_old);
     }
+    /*! @brief the new number of cells in y
+     * @param Ny_old the old number of cells
+     * @param fy_old Factor to partition y-axis
+     */
     unsigned ny_new( unsigned Ny_old, real_type fy_old) const
     {
         return do_Ny_new(Ny_old, fy_old);
     }
+    /*! @brief the new factor to partition the x-axis
+     * @param Nx_old the old number of cells
+     * @param fx_old the old factor to partition x-axis
+     */
     real_type fx_new( unsigned Nx_old, real_type fx_old) const
     {
         return do_fx_new(Nx_old, fx_old);
     }
+    /*! @brief the new factor to partition the y-axis
+     * @param Ny_old the old number of cells
+     * @param fy_old the old factor to partition y-axis
+     */
     real_type fy_new( unsigned Ny_old, real_type fy_old) const
     {
         return do_fy_new(Ny_old, fy_old);
     }
     virtual aRealRefinementX2d* clone()const=0;
+    ///@brief Allow deletion through base class pointer
     virtual ~aRealRefinementX2d() = default;
     protected:
     aRealRefinementX2d() = default;
+    ///@brief We do not allow object slicing so the copy is protected
     aRealRefinementX2d(const aRealRefinementX2d& src) = default;
+    ///@brief We do not allow object slicing so the assignment is protected
     aRealRefinementX2d& operator=(const aRealRefinementX2d& src) = default;
     private:
     virtual void do_generateX( const RealGrid1d<real_type>& gx, unsigned nodeXX, thrust::host_vector<real_type>& weights, thrust::host_vector<real_type>& abscissas) const =0;
@@ -249,10 +264,13 @@ struct RealExponentialXRefinement : public aRealRefinementX2d<real_type>
     }
 };
 
-using aRefinementX2d            = dg::aRealRefinementX2d<double>;
+///@name Double precision typedefs
+///@{
+using aRefinementX2d            = dg::aRealRefinementX2d<double>; ///< Double precision version of the class template with the \c Real prefix
 using IdentityXRefinement       = dg::RealIdentityXRefinement<double>;
 using EquidistXRefinement       = dg::RealEquidistXRefinement<double>;
 using ExponentialXRefinement    = dg::RealExponentialXRefinement<double>;
+///@}
 ///@}
 
 
@@ -263,6 +281,9 @@ using ExponentialXRefinement    = dg::RealExponentialXRefinement<double>;
 template<class real_type>
 struct RealCartesianRefinedGridX2d : public dg::aRealGeometryX2d<real_type>
 {
+    ///@param ref the refinement (\c Nx, \c Ny, \c fx and \c fy are the values before refinement)
+    ///@copydoc hide_gridX_parameters2d
+    ///@copydoc hide_bc_parameters2d
     RealCartesianRefinedGridX2d( const aRealRefinementX2d<real_type>& ref,
             real_type x0, real_type x1, real_type y0, real_type y1,
             real_type fx, real_type fy,
@@ -305,6 +326,9 @@ struct RealCartesianRefinedGridX2d : public dg::aRealGeometryX2d<real_type>
 template<class real_type>
 struct RealCartesianRefinedGridX3d : public dg::aRealGeometryX3d<real_type>
 {
+    ///@param ref the refinement (\c Nx, \c Ny, \c fx and \c fy are the values before refinement)
+    ///@copydoc hide_gridX_parameters3d
+    ///@copydoc hide_bc_parameters3d
     RealCartesianRefinedGridX3d( const aRealRefinementX2d<real_type>& ref,
             real_type x0, real_type x1, real_type y0, real_type y1, real_type z0, real_type z1,
             real_type fx, real_type fy,
@@ -356,8 +380,11 @@ struct RealCartesianRefinedGridX3d : public dg::aRealGeometryX3d<real_type>
 
 ///@addtogroup gridtypes
 ///@{
-using CartesianRefinedGridX2d = dg::RealCartesianRefinedGridX2d<double>;
+///@name Double precision typedefs
+///@{
+using CartesianRefinedGridX2d = dg::RealCartesianRefinedGridX2d<double>; ///< Double precision version of the class template with the \c Real prefix
 using CartesianRefinedGridX3d = dg::RealCartesianRefinedGridX3d<double>;
+///@}
 ///@}
 
 

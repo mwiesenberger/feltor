@@ -9,17 +9,42 @@
   */
 namespace dg{
 
+/**
+ * @brief A matrix composed of one or two matrices that write to disjoint parts of the output
+ *
+ * Used for the derivatives on X-point grids (see \c dg::create::derivative
+ * and \c dg::create::jump), where the inner and the outer part of the domain
+ * need different matrices: applying \c Composite applies \c m1 and then, if
+ * \c dual, \c m2 to the same vectors. The two matrices must therefore write
+ * to disjoint parts of the output (e.g. via \c dg::EllSparseBlockMat::right_range).
+ * @tparam Matrix the type of the two matrices
+ * @ingroup creation
+ */
 template<class Matrix>
 struct Composite
 {
+    ///@brief Empty matrices, not dual
     Composite( ):m1(), m2(), dual(false){ }
+    ///@brief Copy from a composite of another matrix type (\c Matrix must be constructible from \c Matrix2)
+    ///@param src the composite to copy
     template<class Matrix2>
     Composite( const Composite<Matrix2>& src):m1(src.m1), m2(src.m2), dual(src.dual){}
+    ///@brief A single matrix (not dual)
+    ///@param m the matrix
     Composite( const Matrix& m):m1(m), m2(m), dual(false){ }
+    ///@brief Two matrices (dual)
+    ///@param m1 applied first
+    ///@param m2 applied second; must write to a part of the output disjoint from \c m1
     Composite( const Matrix& m1, const Matrix& m2):m1(m1), m2(m2), dual(true){ }
+    ///@brief Assign from a composite of another matrix type
+    ///@param src the composite to copy
+    ///@return \c *this
     template<class Matrix2>
     Composite& operator=( const Composite<Matrix2>& src){ Composite c(src);
         *this = c; return *this;}
+    ///@brief \f$ v_2 = M v_1\f$ (applies \c m1 and, if \c dual, \c m2)
+    ///@param v1 input
+    ///@param v2 output
     template< class ContainerType1, class ContainerType2>
     void symv( const ContainerType1& v1, ContainerType2& v2) const
     {
@@ -27,6 +52,11 @@ struct Composite
         if( dual)
             dg::blas2::symv( m2, v1, v2); //computes second part
     }
+    ///@brief \f$ v_2 = \alpha M v_1 + \beta v_2\f$ (applies \c m1 and, if \c dual, \c m2)
+    ///@param alpha scalar
+    ///@param v1 input
+    ///@param beta scalar
+    ///@param v2 output
     template< class ContainerType>
     void symv( get_value_type<ContainerType> alpha, const  ContainerType& v1, get_value_type<ContainerType> beta, ContainerType& v2) const
     {
@@ -34,6 +64,8 @@ struct Composite
         if( dual)
             dg::blas2::symv( alpha, m2, v1, beta, v2); //computes second part
     }
+    ///@brief Display the matrices to a stream
+    ///@param os the stream
     void display( std::ostream& os = std::cout) const
     {
         if( dual)
@@ -50,8 +82,9 @@ struct Composite
             m1.display(os);
         }
     }
-    Matrix m1, m2;
-    bool dual;
+    Matrix m1; //!< the first matrix
+    Matrix m2; //!< the second matrix (only used if \c dual)
+    bool dual; //!< true if \c m2 is applied
 };
 ///@cond
 template <class Matrix>

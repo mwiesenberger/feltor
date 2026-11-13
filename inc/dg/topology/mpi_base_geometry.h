@@ -188,7 +188,7 @@ struct RealCartesianMPIGrid2d : public aRealMPIGeometry2d<real_type>
 template<class real_type>
 struct RealCartesianMPIGrid3d : public aRealProductMPIGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCartesianMPIGrid2d<real_type>;
+    using perpendicular_grid = RealCartesianMPIGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCartesianMPIGrid3d() = default;
     ///@copydoc hide_grid_parameters3d
     ///@copydoc hide_comm_parameters3d
@@ -245,7 +245,7 @@ struct RealCartesianMPIGrid3d : public aRealProductMPIGeometry3d<real_type>
 template<class real_type>
 struct RealCylindricalMPIGrid3d: public aRealProductMPIGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCartesianMPIGrid2d<real_type>;
+    using perpendicular_grid = RealCartesianMPIGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCylindricalMPIGrid3d() = default;
     ///@copydoc hide_grid_parameters3d
     ///@copydoc hide_bc_parameters3d
@@ -298,19 +298,25 @@ struct RealCylindricalMPIGrid3d: public aRealProductMPIGeometry3d<real_type>
 ///@}
 ///@addtogroup gridtypes
 ///@{
-using aMPIGeometry2d        = dg::aRealMPIGeometry2d<double>;
+///@name Geometry typedefs
+///@{
+using aMPIGeometry2d        = dg::aRealMPIGeometry2d<double>; ///< see the \ref dg_geometry_typedefs_table "geometry typedefs table"
 using aMPIGeometry3d        = dg::aRealMPIGeometry3d<double>;
 using aProductMPIGeometry3d = dg::aRealProductMPIGeometry3d<double>;
 using CartesianMPIGrid2d    = dg::RealCartesianMPIGrid2d<double>;
 using CartesianMPIGrid3d    = dg::RealCartesianMPIGrid3d<double>;
 using CylindricalMPIGrid3d  = dg::RealCylindricalMPIGrid3d<double>;
+///@}
 namespace x{
-using aGeometry2d           = aMPIGeometry2d           ;
+///@name Typedefs for platform independent code
+///@{
+using aGeometry2d           = aMPIGeometry2d           ; ///< see the \ref dg_geometry_typedefs_table "geometry typedefs table"
 using aGeometry3d           = aMPIGeometry3d           ;
 using aProductGeometry3d    = aProductMPIGeometry3d    ;
 using CartesianGrid2d       = CartesianMPIGrid2d       ;
 using CartesianGrid3d       = CartesianMPIGrid3d       ;
 using CylindricalGrid3d     = CylindricalMPIGrid3d     ;
+///@}
 }//namespace x
 ///@}
 

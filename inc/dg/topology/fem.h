@@ -27,7 +27,8 @@ namespace dg{
 template<class Container>
 struct TriDiagonal
 {
-    using value_type = dg::get_value_type<Container>;
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
+    ///@brief empty matrix
     TriDiagonal() = default;
     /*! @brief Allocate size elements for M, O and P
      */
@@ -51,6 +52,7 @@ struct TriDiagonal
         dg::assign( other.O, this->O);
         dg::assign( other.P, this->P);
     }
+    ///@brief The number of rows (the size of \c O)
     unsigned size()const {return O.size();}
     /*! @brief Resize M, O, and P to given size
      * @param size New size
@@ -137,7 +139,10 @@ struct TriDiagonal
 template<class value_type>
 struct InverseTriDiagonal
 {
+    ///@brief empty matrix
     InverseTriDiagonal() = default;
+    ///@brief Store a copy of the matrix to invert
+    ///@param tri the matrix to invert
     InverseTriDiagonal( const TriDiagonal<thrust::host_vector<value_type>>& tri)
     {
         dg::assign( tri.M, this->M);
@@ -179,21 +184,38 @@ struct InverseTriDiagonal
 template<class Container>
 struct KroneckerTriDiagonal2d
 {
-    using value_type = dg::get_value_type<Container>;
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
+    ///@brief empty matrix
     KroneckerTriDiagonal2d() = default;
+    ///@brief \f$ T_y\otimes T_x\f$ on one plane
+    ///@param my \f$ T_y\f$
+    ///@param mx \f$ T_x\f$
     KroneckerTriDiagonal2d( TriDiagonal<Container> my, TriDiagonal<Container> mx): m_nz(1), m_y(my), m_x(mx){}
+    ///@brief \f$ T_y\otimes T_x\f$ applied to each of \c nz planes
+    ///@param nz number of planes
+    ///@param my \f$ T_y\f$
+    ///@param mx \f$ T_x\f$
     KroneckerTriDiagonal2d( unsigned nz, TriDiagonal<Container> my, TriDiagonal<Container> mx): m_nz(nz), m_y(my), m_x(mx){}
 
+    ///@brief Write access to the number of planes
     unsigned& nz() { return m_nz;}
+    ///@brief The number of planes
     unsigned nz() const { return m_nz;}
+    ///@brief Copy from another container type
+    ///@param other the matrix to copy
     template<class Container2>
     KroneckerTriDiagonal2d( const KroneckerTriDiagonal2d<Container2>& other){
         m_x = other.x();
         m_y = other.y();
         m_nz = other.nz();
     }
+    ///@brief \f$ T_x\f$
     const TriDiagonal<Container>& x() const {return m_x;}
+    ///@brief \f$ T_y\f$
     const TriDiagonal<Container>& y() const {return m_y;}
+    ///@brief \f$ y = (T_y\otimes T_x) x\f$ on each plane
+    ///@param x input (size <tt>nz()*y().size()*x().size()</tt>)
+    ///@param y output (same size as \c x)
     template<class ContainerType0, class ContainerType1>
     void operator()( const ContainerType0& x, ContainerType1& y) const
     {
@@ -300,8 +322,11 @@ struct KroneckerTriDiagonal2d
 template<class Container>
 struct InverseKroneckerTriDiagonal2d
 {
-    using value_type = dg::get_value_type<Container>;
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
+    ///@brief empty matrix
     InverseKroneckerTriDiagonal2d() = default;
+    ///@brief Store a copy of the matrix to invert and allocate workspace
+    ///@param tri the matrix to invert
     InverseKroneckerTriDiagonal2d( const KroneckerTriDiagonal2d<Container>& tri)
     {
         m_t = tri;
@@ -310,6 +335,8 @@ struct InverseKroneckerTriDiagonal2d
         m_di.resize( size);
         m_tmp.resize( size);
     }
+    ///@brief Copy from another container type
+    ///@param inv_tri the inverse to copy
     template<class Container2>
     InverseKroneckerTriDiagonal2d( const InverseKroneckerTriDiagonal2d<Container2>& inv_tri)
     {
@@ -319,7 +346,11 @@ struct InverseKroneckerTriDiagonal2d
         m_di.resize( size);
         m_tmp.resize( size);
     }
+    ///@brief The matrix to invert
     const KroneckerTriDiagonal2d<Container>& tri() const {return m_t;}
+    ///@brief \f$ x = (T_y\otimes T_x)^{-1} y\f$ on each plane
+    ///@param y right hand side
+    ///@param x solution (same size as \c y)
     template<class ContainerType0, class ContainerType1>
     void operator()( const ContainerType0& y, ContainerType1& x)
     {

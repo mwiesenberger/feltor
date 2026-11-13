@@ -778,9 +778,34 @@ struct RealGrid : public aRealTopology<real_type, Nd>
 
 };
 
+/*!@addtogroup gridtypes
+ *
+ * @anchor dg_grid_typedefs_table
+ * The grid typedefs (in \c dg and \c dg::x) expand to
+ *
+ * | Name | without MPI | with MPI |
+ * |------|-------------|----------|
+ * | `dg::x::Grid0d` | `dg::Grid0d` = `dg::RealGrid<double,0>` | `dg::MPIGrid0d` = `dg::RealMPIGrid<double,0>` |
+ * | `dg::x::Grid1d` | `dg::Grid1d` = `dg::RealGrid<double,1>` | `dg::MPIGrid1d` = `dg::RealMPIGrid<double,1>` |
+ * | `dg::x::Grid2d` | `dg::Grid2d` = `dg::RealGrid<double,2>` | `dg::MPIGrid2d` = `dg::RealMPIGrid<double,2>` |
+ * | `dg::x::Grid3d` | `dg::Grid3d` = `dg::RealGrid<double,3>` | `dg::MPIGrid3d` = `dg::RealMPIGrid<double,3>` |
+ * | `dg::x::Grid<Nd>` | `dg::Grid<Nd>` = `dg::RealGrid<double,Nd>` | `dg::MPIGrid<Nd>` = `dg::RealMPIGrid<double,Nd>` |
+ * | `dg::x::aTopology2d` | `dg::aTopology2d` = `dg::aRealTopology<double,2>` | `dg::aMPITopology2d` = `dg::aRealMPITopology<double,2>` |
+ * | `dg::x::aTopology3d` | `dg::aTopology3d` = `dg::aRealTopology<double,3>` | `dg::aMPITopology3d` = `dg::aRealMPITopology<double,3>` |
+ * | `dg::x::aRealTopology2d<T>` | `dg::aRealTopology2d<T>` = `dg::aRealTopology<T,2>` | `dg::aRealMPITopology2d<T>` = `dg::aRealMPITopology<T,2>` |
+ * | `dg::x::aRealTopology3d<T>` | `dg::aRealTopology3d<T>` = `dg::aRealTopology<T,3>` | `dg::aRealMPITopology3d<T>` = `dg::aRealMPITopology<T,3>` |
+ * | `dg::x::RealGrid0d<T>` | `dg::RealGrid0d<T>` = `dg::RealGrid<T,0>` | `dg::RealMPIGrid0d<T>` = `dg::RealMPIGrid<T,0>` |
+ * | `dg::x::RealGrid1d<T>` | `dg::RealGrid1d<T>` = `dg::RealGrid<T,1>` | `dg::RealMPIGrid1d<T>` = `dg::RealMPIGrid<T,1>` |
+ * | `dg::x::RealGrid2d<T>` | `dg::RealGrid2d<T>` = `dg::RealGrid<T,2>` | `dg::RealMPIGrid2d<T>` = `dg::RealMPIGrid<T,2>` |
+ * | `dg::x::RealGrid3d<T>` | `dg::RealGrid3d<T>` = `dg::RealGrid<T,3>` | `dg::RealMPIGrid3d<T>` = `dg::RealMPIGrid<T,3>` |
+ *
+ * For the geometries see the \ref dg_geometry_typedefs_table "geometry typedefs table".
+ */
 ///@addtogroup gridtypes
 ///@{
-using Grid0d        = dg::RealGrid<double,0>;
+///@name Grid typedefs
+///@{
+using Grid0d        = dg::RealGrid<double,0>; ///< see the \ref dg_grid_typedefs_table "grid typedefs table"
 using Grid1d        = dg::RealGrid<double,1>;
 using Grid2d        = dg::RealGrid<double,2>;
 using Grid3d        = dg::RealGrid<double,3>;
@@ -800,9 +825,12 @@ template<class T>
 using RealGrid2d   = dg::RealGrid<T,2>;
 template<class T>
 using RealGrid3d   = dg::RealGrid<T,3>;
+///@}
 #ifndef MPI_VERSION
 namespace x {
-using Grid0d        = Grid0d      ;
+///@name Typedefs for platform independent code
+///@{
+using Grid0d        = Grid0d      ; ///< see the \ref dg_grid_typedefs_table "grid typedefs table"
 using Grid1d        = Grid1d      ;
 using Grid2d        = Grid2d      ;
 using Grid3d        = Grid3d      ;
@@ -822,6 +850,7 @@ template<class T>
 using RealGrid2d   = RealGrid<T,2>;
 template<class T>
 using RealGrid3d   = RealGrid<T,3>;
+///@}
 } //namespace x
 #endif
 ///@}
