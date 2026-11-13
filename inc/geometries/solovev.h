@@ -487,7 +487,8 @@ inline dg::geo::TokamakMagneticField createSolovevField(
         solovev::createIpol(gp, psip), params);
 }
 /**
- * @brief DEPRECATED Create a modified Solovev Magnetic field
+ * @brief Create a modified Solovev Magnetic field
+ * @deprecated Use \c dg::geo::createModifiedField
  *
  * Based on \c dg::geo::mod::Psip(gp) and
  * \c dg::geo::solovev::Ipol(gp)

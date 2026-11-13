@@ -309,7 +309,7 @@ struct MinMod
 };
 
 /**
- * @brief DEPRECATED <tt>thrust::uniform_real_distribution<T></tt> as a functor
+ * @brief <tt>thrust::uniform_real_distribution<T></tt> as a functor
  * to evaluate on our grids
  *
  * @attention The functor holds the state of its random engine. Parallel
@@ -335,7 +335,8 @@ DG_DEVICE T operator()( Ts... )
     thrust::uniform_real_distribution<T> m_dist;
 };
 
-/// DEPRECATED, see \c dg::UniformRealDistribution and use \c dg::create::uniform_real_distribution
+/// Old name of \c dg::UniformRealDistribution
+/// @deprecated Use \c dg::create::uniform_real_distribution
 template<class T>
 using RandomNumbers = UniformRealDistribution<T>;
 

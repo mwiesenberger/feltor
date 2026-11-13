@@ -495,11 +495,13 @@ struct Extrapolation
     const ContainerType& head()const{
         return m_x[0];
     }
-    ///DEPRECATED write access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@brief write access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@deprecated
     ContainerType& tail(){
         return m_x[m_max-1];
     }
-    ///DEPRECATED read access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@brief read access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@deprecated
     const ContainerType& tail()const{
         return m_x[m_max-1];
     }

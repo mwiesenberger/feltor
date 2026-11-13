@@ -130,7 +130,8 @@ struct TriDiagonal
 
 ///@addtogroup fem
 ///@{
-/*!@brief DEPRECATED/UNTESTED Fast inverse tridiagonal sparse matrix
+/*!@brief UNTESTED Fast inverse tridiagonal sparse matrix
+ * @deprecated Use \c dg::mat::TridiagInvDF or \c dg::mat::compute_Tinv_y
  *
  * When applied to a vector, uses Thomas algorithm to compute \f$ T^{-1} v\f$
  * @attention Only for shared memory host vectors

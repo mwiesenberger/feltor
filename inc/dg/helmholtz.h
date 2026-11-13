@@ -145,7 +145,8 @@ template<class Geometry, class Matrix, class Container, class ContainerTmp = Con
 using Helmholtz3d = GeneralHelmholtz<dg::Elliptic3d<Geometry,Matrix,Container,ContainerTmp>, Container>;
 
 /**
- * @brief DEPRECATED, Matrix class that represents a more general Helmholtz-type operator
+ * @brief Matrix class that represents a more general Helmholtz-type operator
+ * @deprecated Solve the normal Helmholtz operator twice instead (see the \c attention note below)
  *
  * @ingroup matrixoperators
  *

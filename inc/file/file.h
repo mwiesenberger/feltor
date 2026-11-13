@@ -32,6 +32,7 @@
  * @}
  *
  * @defgroup legacy Legacy NetCDF-C utility
+ * @brief Deprecated: use the \c dg::file::SerialNcFile or \c dg::file::MPINcFile interface instead (see \ref ncfile)
  */
 
 namespace dg

@@ -285,7 +285,7 @@ void put_vara_detail(int ncid, int varid, unsigned slice,
 
 /**
 *
-* @brief DEPRECATED Write an array to NetCDF file
+* @brief Write an array to NetCDF file
 *
 * Convenience wrapper around \c nc_put_var
 *
@@ -307,6 +307,7 @@ void put_vara_detail(int ncid, int varid, unsigned slice,
 * [unnamed bool] This parameter is there to make serial and parallel interface equal.
 * @copydoc hide_master_comment
 * @copydoc hide_parallel_write
+ * @deprecated See \ref legacy
 */
 template<class host_vector, class Topology>
 void put_var( int ncid, int varid, const Topology& /*grid*/,
@@ -317,7 +318,7 @@ void put_var( int ncid, int varid, const Topology& /*grid*/,
 }
 
 /**
-* @brief DEPRECATED Write an array to NetCDF file
+* @brief Write an array to NetCDF file
 *
 * Convenience wrapper around \c nc_put_vara
 *
@@ -340,6 +341,7 @@ void put_var( int ncid, int varid, const Topology& /*grid*/,
 * [unnamed bool] This parameter is there to make serial and parallel interface equal.
 * @copydoc hide_master_comment
 * @copydoc hide_parallel_write
+ * @deprecated See \ref legacy
 */
 template<class host_vector, class Topology>
 void put_vara( int ncid, int varid, unsigned slice, const Topology& grid,
@@ -353,7 +355,7 @@ void put_vara( int ncid, int varid, unsigned slice, const Topology& grid,
 // scalar data
 
 /**
- * @brief DEPRECATED Write a scalar to the NetCDF file
+ * @brief Write a scalar to the NetCDF file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to write
@@ -367,6 +369,7 @@ void put_vara( int ncid, int varid, unsigned slice, const Topology& grid,
  * [unnamed bool] This parameter is ignored in both serial and MPI versions.
  * In an MPI program all processes can call this function but only the master thread writes.
  * @copydoc hide_master_comment
+ * @deprecated See \ref legacy
  */
 template<class T, class real_type>
 void put_var( int ncid, int varid, const RealGrid0d<real_type>& /*grid*/,
@@ -376,7 +379,7 @@ void put_var( int ncid, int varid, const RealGrid0d<real_type>& /*grid*/,
     err = detail::put_var_T( ncid, varid, &data);
 }
 /**
- * @brief DEPRECATED Write a scalar to the NetCDF file
+ * @brief Write a scalar to the NetCDF file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to write
@@ -392,6 +395,7 @@ void put_var( int ncid, int varid, const RealGrid0d<real_type>& /*grid*/,
  * [unnamed bool] This parameter is ignored in both serial and MPI versions.
  * In an MPI program all processes can call this function but only the master thread writes.
  * @copydoc hide_master_comment
+ * @deprecated See \ref legacy
  */
 template<class T, class real_type>
 void put_vara( int ncid, int varid, unsigned slice, const RealGrid0d<real_type>& /*grid*/,
@@ -446,8 +450,8 @@ void put_vara( int ncid, int varid, unsigned slice, const RealMPIGrid0d<real_typ
 
 #endif //MPI_VERSION
 
-/// DEPRECATED
 /// alias for \c put_var
+///@deprecated See \ref legacy
 template<class host_vector, class Topology>
 void put_var_double(int ncid, int varid, const Topology& grid,
     const host_vector& data, bool parallel = false)
@@ -455,8 +459,8 @@ void put_var_double(int ncid, int varid, const Topology& grid,
     put_var( ncid, varid, grid, data, parallel);
 }
 
-/// DEPRECATED
 /// alias for \c put_vara
+///@deprecated See \ref legacy
 template<class host_vector, class Topology>
 void put_vara_double(int ncid, int varid, unsigned slice, const Topology& grid,
     const host_vector& data, bool parallel = false)

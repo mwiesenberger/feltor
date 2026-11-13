@@ -204,7 +204,7 @@ void get_vara_detail(int ncid, int varid, unsigned slice,
  * @{
  */
 /**
-* @brief DEPRECATED Convenience wrapper around \c nc_get_var
+* @brief Convenience wrapper around \c nc_get_var
 *
 * The purpose of this function is mainly to simplify input in an MPI
 * environment and to provide the same interface also in a shared memory system
@@ -224,6 +224,7 @@ void get_vara_detail(int ncid, int varid, unsigned slice,
 * [unnamed bool] This parameter is there to make serial and parallel interface equal.
 * @copydoc hide_master_comment
 * @copydoc hide_parallel_read
+ * @deprecated See \ref legacy
 */
 template<class host_vector, class Topology>
 void get_var( int ncid, int varid, const Topology& /*grid*/,
@@ -234,7 +235,7 @@ void get_var( int ncid, int varid, const Topology& /*grid*/,
 }
 
 /**
-* @brief DEPRECATED Convenience wrapper around \c nc_get_vara()
+* @brief Convenience wrapper around \c nc_get_vara()
 *
 * The purpose of this function is mainly to simplify input in an MPI environment and to provide
 * the same interface also in a shared memory system for uniform programming.
@@ -254,6 +255,7 @@ void get_var( int ncid, int varid, const Topology& /*grid*/,
 * [unnamed bool] This parameter is there to make serial and parallel interface equal.
 * @copydoc hide_master_comment
 * @copydoc hide_parallel_read
+ * @deprecated See \ref legacy
 */
 template<class host_vector, class Topology>
 void get_vara( int ncid, int varid, unsigned slice, const Topology& grid,
@@ -267,7 +269,7 @@ void get_vara( int ncid, int varid, unsigned slice, const Topology& grid,
 // scalar data
 
 /**
- * @brief DEPRECATED Read a scalar from the netcdf file
+ * @brief Read a scalar from the netcdf file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to read
@@ -281,6 +283,7 @@ void get_vara( int ncid, int varid, unsigned slice, const Topology& grid,
  * [unnamed bool] This parameter is ignored in both serial and MPI versions.
  * In an MPI program all processes call this function and all processes read.
  * @copydoc hide_parallel_read
+ * @deprecated See \ref legacy
  */
 template<class T, class real_type>
 void get_var( int ncid, int varid, const RealGrid0d<real_type>& /*grid*/,
@@ -290,7 +293,7 @@ void get_var( int ncid, int varid, const RealGrid0d<real_type>& /*grid*/,
     err = detail::get_var_T( ncid, varid, &data);
 }
 /**
- * @brief DEPRECATED Read a scalar to the netcdf file
+ * @brief Read a scalar to the netcdf file
  *
  * @note This function throws a \c dg::file::NC_Error if an error occurs
  * @tparam T Determines data type to read
@@ -306,6 +309,7 @@ void get_var( int ncid, int varid, const RealGrid0d<real_type>& /*grid*/,
  * In an MPI program all processes call this function and all processes read.
  * @copydoc hide_master_comment
  * @copydoc hide_parallel_read
+ * @deprecated See \ref legacy
  */
 template<class T, class real_type>
 void get_vara( int ncid, int varid, unsigned slice, const RealGrid0d<real_type>& /*grid*/,

@@ -475,7 +475,8 @@ inline CylindricalFunctor createWallRegion( dg::geo::TokamakMagneticField mag,
     detail::createModifiedField( mag, jsmod, mod, mod_psip, wall, transition);
     return wall;
 }
-///@brief DEPRECATED Same as <tt> createWallRegion( createMagneticField(gs), jsmod);</tt>
+///@brief Same as <tt> createWallRegion( createMagneticField(gs), jsmod);</tt>
+///@deprecated Use <tt> createWallRegion( createMagneticField(gs), jsmod);</tt>
 inline CylindricalFunctor createWallRegion( dg::file::WrappedJsonValue gs,
     dg::file::WrappedJsonValue jsmod)
 {
