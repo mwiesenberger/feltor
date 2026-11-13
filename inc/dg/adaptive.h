@@ -231,7 +231,7 @@ suitable timestep like in the multistep method.
 template<class Stepper>
 struct Adaptive
 {
-    using stepper_type = Stepper;
+    using stepper_type = Stepper; //!< the type of the embedded stepper
     using container_type = typename Stepper::container_type; //!< the type of the vector class in use by \c Stepper
     using value_type = typename Stepper::value_type; //!< the value type of the time variable defined by \c Stepper (float or double)
     Adaptive() = default;
@@ -498,8 +498,8 @@ struct EntireDomain
 template<class ContainerType>
 struct AdaptiveTimeloop : public aTimeloop<ContainerType>
 {
-    using value_type = dg::get_value_type<ContainerType>;
-    using container_type = ContainerType;
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
+    using container_type = ContainerType; //!< the type of the vector class in use
     /// no allocation
     AdaptiveTimeloop( ) = default;
 

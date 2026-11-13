@@ -9,6 +9,7 @@ namespace dg{
  */
 struct IDENTITY
 {
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()(T x)const{return x;}
 };
@@ -20,6 +21,7 @@ struct IDENTITY
 ///\f$ y=x\f$
 struct equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -29,6 +31,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y=y+x\f$
 struct plus_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -38,6 +41,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y=y-x\f$
 struct minus_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -47,6 +51,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y=xy\f$
 struct times_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -56,6 +61,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y = y/x\f$
 struct divides_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {

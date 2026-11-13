@@ -28,10 +28,10 @@ namespace dg
 template<class Geometry, class Matrix, class Container>
 struct NestedGrids
 {
-    using geometry_type = Geometry;
-    using matrix_type = Matrix;
-    using container_type = Container; // MultiMatrix<Matrix, Container>
-    using value_type = typename Geometry::value_type;
+    using geometry_type = Geometry; //!< the type of the grid
+    using matrix_type = Matrix; //!< the type of the derivative matrices
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = typename Geometry::value_type; //!< real value type of the grid (also for complex \c Container)
     ///@brief Allocate nothing, Call \c construct method before usage
     NestedGrids(): m_stages(0), m_grids(0), m_inter(0), m_project(0){}
     /**
@@ -140,14 +140,19 @@ struct NestedGrids
     {
         return m_project[stage];
     }
-    Container& x(unsigned stage){ return m_x[stage];}
-    const Container& x(unsigned stage) const{ return m_x[stage];}
-    Container& r(unsigned stage){ return m_r[stage];}
-    const Container& r(unsigned stage) const{ return m_r[stage];}
-    Container& b(unsigned stage){ return m_b[stage];}
-    const Container& b(unsigned stage) const{ return m_b[stage];}
-    Container& w(unsigned stage){ return m_w[stage];}
-    const Container& w(unsigned stage) const{ return m_w[stage];}
+    /// @name Workspace vectors on the grid of a stage
+    /// Used by the multigrid algorithms (e.g. \c dg::nested_iterations)
+    /// @param stage must fulfill \c 0 <= stage < stages()
+    ///@{
+    Container& x(unsigned stage){ return m_x[stage];} //!< solution
+    const Container& x(unsigned stage) const{ return m_x[stage];} //!< solution
+    Container& r(unsigned stage){ return m_r[stage];} //!< residual
+    const Container& r(unsigned stage) const{ return m_r[stage];} //!< residual
+    Container& b(unsigned stage){ return m_b[stage];} //!< right hand side
+    const Container& b(unsigned stage) const{ return m_b[stage];} //!< right hand side
+    Container& w(unsigned stage){ return m_w[stage];} //!< auxiliary vector (e.g. the initial guess)
+    const Container& w(unsigned stage) const{ return m_w[stage];} //!< auxiliary vector (e.g. the initial guess)
+    ///@}
 
     private:
     unsigned m_stages;
@@ -520,10 +525,10 @@ void fmg_solve(
 template< class Geometry, class Matrix, class Container, ComplexMode complex_mode = dg::complex_hermitian>
 struct MultigridCG2d
 {
-    using geometry_type = Geometry;
-    using matrix_type = Matrix;
-    using container_type = Container;
-    using value_type = typename Geometry::value_type; // Type of eps needs to be real
+    using geometry_type = Geometry; //!< the type of the grid
+    using matrix_type = Matrix; //!< the type of the derivative matrices
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = typename Geometry::value_type; //!< real value type of the grid (also for complex \c Container); type of \c eps
     ///@brief Allocate nothing, Call \c construct method before usage
     MultigridCG2d() = default;
     /**

@@ -35,7 +35,7 @@ template< class ContainerType>
 class BICGSTABl
 {
   public:
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = dg::get_value_type<ContainerType>; //!< value type of the ContainerType class
     ///@brief Allocate nothing, Call \c construct method before usage
     BICGSTABl() = default;

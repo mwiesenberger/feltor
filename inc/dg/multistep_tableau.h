@@ -32,7 +32,7 @@ namespace dg{
 template<class real_type>
 struct MultistepTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///No memory allocation
     MultistepTableau(){}
     /*! @brief Construct a tableau
@@ -363,48 +363,48 @@ MultistepTableau<real_type> ssp(unsigned steps)
 */
 enum multistep_identifier{
     //IMEX methods
-    IMEX_EULER_1_1,
-    IMEX_ADAMS_2_2,
-    IMEX_KOTO_2_2,
-    IMEX_BDF_2_2,
-    IMEX_BDF_3_3,
-    IMEX_BDF_4_4,
-    IMEX_BDF_5_5,
-    IMEX_BDF_6_6,
-    IMEX_TVB_3_3,
-    IMEX_TVB_4_4,
-    IMEX_TVB_5_5,
+    IMEX_EULER_1_1, //!< "Euler"
+    IMEX_ADAMS_2_2, //!< "ImEx-Adams-2-2"
+    IMEX_KOTO_2_2, //!< "ImEx-Koto-2-2"
+    IMEX_BDF_2_2, //!< "ImEx-BDF-2-2"
+    IMEX_BDF_3_3, //!< "ImEx-BDF-3-3"
+    IMEX_BDF_4_4, //!< "ImEx-BDF-4-4"
+    IMEX_BDF_5_5, //!< "ImEx-BDF-5-5"
+    IMEX_BDF_6_6, //!< "ImEx-BDF-6-6"
+    IMEX_TVB_3_3, //!< "ImEx-TVB-3-3"
+    IMEX_TVB_4_4, //!< "ImEx-TVB-4-4"
+    IMEX_TVB_5_5, //!< "ImEx-TVB-5-5"
     // Explicit methods
-    AB_1_1,
-    AB_2_2,
-    AB_3_3,
-    AB_4_4,
-    AB_5_5,
-    eBDF_1_1,
-    eBDF_2_2,
-    eBDF_3_3,
-    eBDF_4_4,
-    eBDF_5_5,
-    eBDF_6_6,
-    TVB_1_1,
-    TVB_2_2,
-    TVB_3_3,
-    TVB_4_4,
-    TVB_5_5,
-    TVB_6_6,
-    SSP_1_1,
-    SSP_2_2,
-    SSP_3_2,
-    SSP_4_2,
-    SSP_5_3,
-    SSP_6_3,
+    AB_1_1, //!< "AB-1-1"
+    AB_2_2, //!< "AB-2-2"
+    AB_3_3, //!< "AB-3-3"
+    AB_4_4, //!< "AB-4-4"
+    AB_5_5, //!< "AB-5-5"
+    eBDF_1_1, //!< "eBDF-1-1"
+    eBDF_2_2, //!< "eBDF-2-2"
+    eBDF_3_3, //!< "eBDF-3-3"
+    eBDF_4_4, //!< "eBDF-4-4"
+    eBDF_5_5, //!< "eBDF-5-5"
+    eBDF_6_6, //!< "eBDF-6-6"
+    TVB_1_1, //!< "TVB-1-1"
+    TVB_2_2, //!< "TVB-2-2"
+    TVB_3_3, //!< "TVB-3-3"
+    TVB_4_4, //!< "TVB-4-4"
+    TVB_5_5, //!< "TVB-5-5"
+    TVB_6_6, //!< "TVB-6-6"
+    SSP_1_1, //!< "SSP-1-1"
+    SSP_2_2, //!< "SSP-2-2"
+    SSP_3_2, //!< "SSP-3-2"
+    SSP_4_2, //!< "SSP-4-2"
+    SSP_5_3, //!< "SSP-5-3"
+    SSP_6_3, //!< "SSP-6-3"
     // implicit methods
-    BDF_1_1,
-    BDF_2_2,
-    BDF_3_3,
-    BDF_4_4,
-    BDF_5_5,
-    BDF_6_6,
+    BDF_1_1, //!< "BDF-1-1"
+    BDF_2_2, //!< "BDF-2-2"
+    BDF_3_3, //!< "BDF-3-3"
+    BDF_4_4, //!< "BDF-4-4"
+    BDF_5_5, //!< "BDF-5-5"
+    BDF_6_6, //!< "BDF-6-6"
 };
 
 ///@cond
@@ -646,7 +646,7 @@ MultistepTableau<real_type> lmstableau( std::string name)
 template<class real_type>
 struct ConvertsToMultistepTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///Of course a MultistepTableau converts to a MultistepTableau
     ///Useful if you constructed your very own coefficients
     ConvertsToMultistepTableau( MultistepTableau<real_type> tableau): m_t(tableau){}

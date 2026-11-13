@@ -104,7 +104,7 @@ template<class ContainerType, ComplexMode complex_mode = dg::complex_hermitian>
 class PCG
 {
   public:
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = get_value_type<ContainerType>; //!< value type of the ContainerType class
 
     ///@brief Allocate nothing, Call \c construct method before usage

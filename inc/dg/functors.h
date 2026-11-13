@@ -17,6 +17,13 @@
 /*!@file
  * Functors to use in dg::evaluate or dg::blas1::transform functions
  */
+/*!@class hide_functor_call
+ * @brief Evaluate the function given in the class description
+ *
+ * Arguments that do not appear in the formula (e.g. y and z for an
+ * \f$ f(x)\f$) are ignored
+ * @return the function value
+ */
 namespace dg
 {
 
@@ -35,6 +42,7 @@ struct PLUS
      * @param value the constant c to be added
      */
     PLUS( T value): x_(value){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     T operator()( T x)const{ return x + x_;}
     private:
@@ -45,6 +53,7 @@ struct PLUS
 template< class T = double >
 struct EXP
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator() ( T x) const
     {
         return exp(x);
@@ -55,6 +64,7 @@ struct EXP
 template < class T = double>
 struct LN
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator() (const T& x) const
     {
         return log(x);
@@ -66,6 +76,7 @@ struct LN
 template < class T = double>
 struct SQRT
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator() (T x) const
     {
         return sqrt(x);
@@ -75,6 +86,7 @@ struct SQRT
 ///@brief \f$ f(x) = x^2\f$
 struct Square
 {
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()( T x) const{ return x*x;}
 };
@@ -83,6 +95,7 @@ struct Square
 template < class T = double>
 struct InvSqrt
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator() (T x) const
     {
         return 1./sqrt(x);
@@ -93,6 +106,7 @@ struct InvSqrt
 template <class T = double>
 struct INVERT
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator()( T x)const{ return 1./x;}
 };
 
@@ -100,6 +114,7 @@ struct INVERT
 template <class T = double>
 struct ABS
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator()(T x)const{ return fabs(x);}
 };
 
@@ -114,6 +129,7 @@ struct ABS
 template <class T = double>
 struct Sign
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator()(T x)const{ return (T(0) < x) - (x < T(0));}
 };
 
@@ -121,6 +137,7 @@ struct Sign
 template <class T = double>
 struct AbsMax
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator() ( T x, T y) const
     {
         T absx = x>0 ? x : -x;
@@ -133,6 +150,7 @@ struct AbsMax
 template <class T = double>
 struct AbsMin
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator() (T x, T y) const
     {
         T absx = x<0 ? -x : x;
@@ -152,6 +170,7 @@ struct AbsMin
 template <class T = double>
 struct POSVALUE
 {
+    ///@copydoc hide_functor_call
     DG_DEVICE T operator()( T x)const{
         if (x >= 0.0) return x;
         return 0.0;
@@ -174,6 +193,7 @@ struct MOD
      */
     MOD( T m): m_m(m){}
 
+    ///@copydoc hide_functor_call
     DG_DEVICE
     T operator()( T x)const{
         return (fmod(x,m_m) < 0 ) ? (m_m + fmod(x,m_m)) : fmod(x,m_m);
@@ -201,6 +221,7 @@ struct ISNFINITE
 #ifdef __CUDACC__
     DG_DEVICE bool operator()(T x) const{ return !isfinite(x);}
 #else
+    ///@copydoc hide_functor_call
     bool operator()( T x) const{ return !std::isfinite(x);}
 #endif
 };
@@ -233,6 +254,7 @@ struct ISNSANE
         return false;
     }
 #else
+    ///@copydoc hide_functor_call
     bool operator()( T x) const{
         if( !std::isfinite(x))
             return true;
@@ -327,6 +349,7 @@ using RandomNumbers = UniformRealDistribution<T>;
  */
 struct VanLeer
 {
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()( T x1, T x2) const
     {
@@ -344,6 +367,7 @@ struct VanLeer
  */
 struct Upwind
 {
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()( T velocity, T backward, T forward) const{
         if( velocity >= 0)
@@ -361,6 +385,7 @@ struct Upwind
  */
 struct UpwindProduct
 {
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()( T velocity, T backward, T forward)const{
         return velocity*m_up(velocity, backward, forward);
@@ -382,7 +407,9 @@ template<class Limiter>
 struct SlopeLimiter
 {
     SlopeLimiter() {}
+    ///@param l the limiter \f$ \Lambda\f$
     SlopeLimiter( Limiter l ) : m_l( l){}
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()( T v, T gm, T g0, T gp, T hm, T hp ) const{
         if( v >= 0)
@@ -407,7 +434,9 @@ template<class Limiter>
 struct SlopeLimiterProduct
 {
     SlopeLimiterProduct() {}
+    ///@param l the limiter \f$ \Lambda\f$
     SlopeLimiterProduct( Limiter l ) : m_s( l){}
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()( T v, T gm, T g0, T gp, T hm, T hp ) const{
         return v*m_s(v,gm,g0,gp,hm,hp);
@@ -437,8 +466,11 @@ struct SlopeLimiterProduct
  */
 struct Iris
 {
+    ///@param psi_min \f$ \psi_{\min}\f$
+    ///@param psi_max \f$ \psi_{\max}\f$
     Iris( double psi_min, double psi_max ):
         m_psimin(psi_min), m_psimax(psi_max) { }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double psi)const
     {
@@ -458,8 +490,10 @@ struct Iris
  */
 struct Pupil
 {
+    ///@param psimax \f$ \psi_{\max}\f$
     Pupil( double psimax):
         psimax_(psimax) { }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double psi)const
     {
@@ -478,8 +512,10 @@ struct Pupil
  */
 struct PsiPupil
 {
+    ///@param psimax \f$ \psi_{\max}\f$
     PsiPupil(double psimax):
         psimax_(psimax){ }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double psi)const
     {
@@ -511,6 +547,7 @@ struct Heaviside
     Heaviside( double xb, int sign = +1):
         m_xb(xb), m_s(sign){ }
 
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x)const
     {
@@ -528,7 +565,10 @@ struct Heaviside
  */
 struct Distance
 {
+    ///@param x0 \f$ x_0\f$
+    ///@param y0 \f$ y_0\f$
     Distance( double x0, double y0): m_x0(x0), m_y0(y0){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x, double y) const{
         return sqrt( (x-m_x0)*(x-m_x0) + (y-m_y0)*(y-m_y0));
@@ -543,8 +583,13 @@ struct Distance
  * The linear interpolation polynomial
  */
 struct Line{
+    ///@param x0 \f$ x_0\f$
+    ///@param y0 \f$ y_0\f$
+    ///@param x1 \f$ x_1\f$
+    ///@param y1 \f$ y_1\f$
     Line(double x0, double y0, double x1, double y1) :
         m_x0(x0), m_y0(y0), m_x1(x1), m_y1(y1){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x) const{
         return m_y1*(x-m_x0)/(m_x1-m_x0) + m_y0*(x-m_x1)/(m_x0-m_x1);
@@ -566,10 +611,13 @@ struct LinearX
      * @param b constant coefficient
      */
     LinearX( double a, double b):a_(a), b_(b){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x)const{ return a_*x+b_;}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
    private:
@@ -588,8 +636,10 @@ struct LinearY
      * @param b constant coefficient
      */
     LinearY( double a, double b):a_(a), b_(b){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double, double y, double)const { return a_*y+b_;}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double, double y)const{ return a_*y+b_;}
   private:
@@ -608,6 +658,7 @@ struct LinearZ
      * @param b constant coefficient
      */
     LinearZ( double a, double b):a_(a), b_(b){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double, double, double z)const{ return a_*z+b_;}
   private:
@@ -699,6 +750,7 @@ struct Cauchy
         assert( sigma_x != 0  &&  "sigma_x must be !=0 in Cauchy");
         assert( sigma_y != 0  &&  "sigma_y must be !=0 in Cauchy");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x, double y )const{
         double xbar = (x-x0_)/sigmaX_;
@@ -707,6 +759,7 @@ struct Cauchy
             return amp_*exp( 1. +  1./( xbar*xbar + ybar*ybar -1.) );
         return 0.;
     }
+    ///@brief True if \f$ (x,y)\f$ lies inside the ellipse where \f$ f\neq 0\f$
     bool inside( double x, double y)const
     {
         double xbar = (x-x0_)/sigmaX_;
@@ -716,12 +769,14 @@ struct Cauchy
         return false;
     }
 
+    ///@return \f$ \partial_x f(x,y)\f$
     double dx( double x, double y )const{
         double xbar = (x-x0_)/sigmaX_;
         double ybar = (y-y0_)/sigmaY_;
         double temp = sigmaX_*(xbar*xbar + ybar*ybar  - 1.);
         return -2.*(x-x0_)*this->operator()(x,y)/temp/temp;
     }
+    ///@return \f$ \partial_x^2 f(x,y)\f$
     double dxx( double x, double y)const{
         double temp = sigmaY_*sigmaY_*(x-x0_)*(x-x0_) + sigmaX_*sigmaX_*((y-y0_)*(y-y0_) - sigmaY_*sigmaY_);
         double bracket = sigmaX_*sigmaX_*((y-y0_)*(y-y0_)-sigmaY_*sigmaY_)*sigmaX_*sigmaX_*((y-y0_)*(y-y0_)-sigmaY_*sigmaY_)
@@ -729,12 +784,14 @@ struct Cauchy
             -2.*sigmaY_*sigmaY_*sigmaX_*sigmaX_*(x-x0_)*(x-x0_)*(y-y0_)*(y-y0_);
         return -2.*sigmaX_*sigmaX_*sigmaY_*sigmaY_*sigmaY_*sigmaY_*this->operator()(x,y)*bracket/temp/temp/temp/temp;
     }
+    ///@return \f$ \partial_y f(x,y)\f$
     double dy( double x, double y)const{
         double xbar = (x-x0_)/sigmaX_;
         double ybar = (y-y0_)/sigmaY_;
         double temp = sigmaY_*(xbar*xbar + ybar*ybar  - 1.);
         return -2.*(y-y0_)*this->operator()(x,y)/temp/temp;
     }
+    ///@return \f$ \partial_y^2 f(x,y)\f$
     double dyy( double x, double y)const{
         double temp = sigmaX_*sigmaX_*(y-y0_)*(y-y0_) + sigmaY_*sigmaY_*((x-x0_)*(x-x0_) - sigmaX_*sigmaX_);
         double bracket = sigmaY_*sigmaY_*((x-x0_)*(x-x0_)-sigmaX_*sigmaX_)*sigmaY_*sigmaY_*((x-x0_)*(x-x0_)-sigmaX_*sigmaX_)
@@ -742,6 +799,7 @@ struct Cauchy
             -2.*sigmaX_*sigmaX_*sigmaY_*sigmaY_*(y-y0_)*(y-y0_)*(x-x0_)*(x-x0_);
         return -2.*sigmaY_*sigmaY_*sigmaX_*sigmaX_*sigmaX_*sigmaX_*this->operator()(x,y)*bracket/temp/temp/temp/temp;
     }
+    ///@return \f$ \partial_x\partial_y f(x,y)\f$
     double dxy( double x, double y )const{
         double xbar = (x-x0_)/sigmaX_;
         double ybar = (y-y0_)/sigmaY_;
@@ -777,6 +835,7 @@ struct CauchyX
     CauchyX( double x0,  double sigma_x, double amp): x0_(x0), sigmaX_(sigma_x),  amp_(amp){
         assert( sigma_x != 0  &&  "sigma_x must be !=0 in Cauchy");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x, double )const{
         double xbar = (x-x0_)/sigmaX_;
@@ -784,6 +843,7 @@ struct CauchyX
             return amp_*exp( 1. +  1./( xbar*xbar -1.) );
         return 0.;
     }
+    ///@brief True if \f$ x\f$ lies inside the interval where \f$ f\neq 0\f$
     bool inside( double x, double)const
     {
         double xbar = (x-x0_)/sigmaX_;
@@ -881,16 +941,19 @@ struct GaussianX
         :m_x0(x0), m_sigma_x(sigma_x), m_amp(amp){
             assert( m_sigma_x != 0  &&  "sigma_x must be !=0 in GaussianX");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x) const
     {
         return  m_amp* exp( -((x-m_x0)*(x-m_x0)/2./m_sigma_x/m_sigma_x ));
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x, double) const
     {
         return this->operator()(x);
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double x, double, double) const
     {
@@ -1115,10 +1178,13 @@ struct SinX
      * @param kx  kx
      */
     SinX( double amp, double bamp, double kx):amp_(amp), bamp_(bamp),kx_(kx){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x)const{ return bamp_+amp_*sin(x*kx_);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
   private:
@@ -1138,6 +1204,7 @@ struct SinY
      * @param ky  ky
      */
     SinY( double amp, double bamp, double ky):amp_(amp), bamp_(bamp),ky_(ky){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double, double y)const{ return bamp_+amp_*sin(y*ky_);}
   private:
@@ -1157,6 +1224,7 @@ struct CosY
      * @param ky  ky
      */
     CosY( double amp, double bamp, double ky):amp_(amp), bamp_(bamp),ky_(ky){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double, double y)const{ return bamp_+amp_*cos(y*ky_);}
   private:
@@ -1175,10 +1243,13 @@ struct InvCoshXsq
      * @param kx  kx
      */
     InvCoshXsq( double amp, double kx):m_amp(amp), m_kx(kx){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x)const{ return m_amp/cosh(x*m_kx)/cosh(x*m_kx);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
   private:
@@ -1198,10 +1269,13 @@ struct SinProfX
      * @param kx  kx
      */
     SinProfX( double amp, double bamp, double kx):m_amp(amp), m_bamp(bamp),m_kx(kx){}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x)const{ return m_bamp+m_amp*(1.-sin(x*m_kx));}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
   private:
@@ -1223,10 +1297,13 @@ struct ExpProfX
     ExpProfX( double amp, double bamp, double ln):m_amp(amp),m_bamp(bamp),m_ln(ln){
         assert( ln!=0 && "ln parameter must be != 0 in ExpProfX!");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x)const{ return m_bamp+m_amp*exp(-x/m_ln);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
   private:
@@ -1247,10 +1324,13 @@ struct ExpProfX
  */
 struct GaussianDamping
 {
+    ///@param psimax \f$ \psi_{\max}\f$
+    ///@param alpha \f$ \alpha\f$ (must not be 0)
     GaussianDamping( double psimax, double alpha):
         m_psimax(psimax), m_alpha(alpha) {
             assert( alpha!= 0 && "Damping width in GaussianDamping must not be zero");
         }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()(double psi)const
     {
@@ -1283,13 +1363,16 @@ struct TanhProfX {
         xb_(xb),w_(width), s_(sign),bga_(bgamp),profa_(profamp)  {
             assert( width != 0&& "Width in TanhProfX must not be zero!");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator() (double x)const
     {
         return profa_*0.5*(1.+s_*tanh((x-xb_)/w_))+bga_;
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
     private:
@@ -1325,6 +1408,7 @@ struct PolynomialHeaviside {
         x0(xb), a(a), m_s(sign){
             assert( a!=0 && "PolynomialHeaviside width must not be zero");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator() (double x)const
     {
@@ -1337,8 +1421,10 @@ struct PolynomialHeaviside {
                *(a + x - x0)*(a + x - x0)
                *(a + x - x0)*(a + x - x0))/(32.*a*a*a * a*a*a*a);
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
     private:
@@ -1377,13 +1463,16 @@ struct PolynomialRectangle {
         m_hl( xl, al, +1), m_hr( xr, ar, -1) {
         assert( xl < xr && "left boundary must be left of right boundary");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator() (double x)const
     {
         return m_hl(x)*m_hr(x);
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
     private:
@@ -1415,6 +1504,7 @@ struct IPolynomialHeaviside {
         x0(xb), a(a), m_s(sign){
             assert( a!=0 && "IPolynomialHeaviside width must not be zero");
         }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator() (double x)const
     {
@@ -1431,8 +1521,10 @@ struct IPolynomialHeaviside {
         return 2*x0 - result;
 
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
     private:
@@ -1468,6 +1560,7 @@ struct DPolynomialHeaviside {
         x0(xb), a(a), m_s(sign){
             assert( a!=0 && "DPolynomialHeaviside width must not be zero");
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator() (double x)const
     {
@@ -1477,8 +1570,10 @@ struct DPolynomialHeaviside {
         if( m_s == -1) return -result;
         return result;
     }
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double)const{ return this->operator()(x);}
+    ///@copydoc hide_functor_call
     DG_DEVICE
     double operator()( double x, double, double)const{ return this->operator()(x);}
     private:
@@ -1516,6 +1611,7 @@ struct ExponentialFilter
      */
     ExponentialFilter( double alpha, double eta_c, unsigned order, unsigned n):
         m_alpha(alpha), m_etac(eta_c), m_s(order), m_n(n) {}
+    ///@copydoc hide_functor_call
     double operator()( unsigned i) const
     {
         double eta = (double)i/(double)(m_n-1);
@@ -1959,6 +2055,7 @@ struct Horner1d
             m_M = 1;
         }
     }
+    ///@copydoc hide_functor_call
     double operator()( double x) const
     {
         if( m_prev[0] == x)
@@ -2002,6 +2099,7 @@ struct Horner2d
             m_cx.resize(1, 0.);
         }
     }
+    ///@copydoc hide_functor_call
     double operator()( double x, double y) const
     {
         // Optimization rationale: Horner is typically repeatedly evaluated at
