@@ -414,6 +414,7 @@ struct SimpleOrthogonal : public aGenerator2d
      * @return f_0 is the grid constant  s.a. width() )
      */
     double f0() const{return f0_;}
+    ///@copydoc hide_clone
     virtual SimpleOrthogonal* clone() const override final{return new SimpleOrthogonal(*this);}
 
     private:

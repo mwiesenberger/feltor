@@ -715,6 +715,7 @@ struct MultistepTimeloop : public aTimeloop<ContainerType>
         *this = MultistepTimeloop( std::forward<Params>( ps)...);
     }
 
+    ///@copydoc hide_clone
     virtual MultistepTimeloop* clone() const{return new
         MultistepTimeloop(*this);}
     private:

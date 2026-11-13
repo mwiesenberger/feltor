@@ -1,4 +1,11 @@
 #error Documentation only
+// Same text as hide_clone in dg/dg_doc.h (@copydoc cannot copy across libraries)
+/*!@class hide_clone
+ * @brief Return a copy of \c *this on the heap
+ *
+ * Enables \c dg::ClonePtr for this class (and its base classes)
+ * @return a pointer to a new copy of \c *this; the caller owns the memory
+ */
 /*! @namespace dg::geo
  * @brief This is the namespace for all functions and
  * classes defined and used by the geometries extension of the dg library.

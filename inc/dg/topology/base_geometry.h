@@ -56,7 +56,7 @@ struct aRealGeometry2d : public aRealTopology<real_type,2>
     std::vector<thrust::host_vector<real_type> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealGeometry2d* clone()const=0;
     ///allow deletion through base class pointer
     virtual ~aRealGeometry2d() = default;
@@ -136,7 +136,7 @@ struct aRealGeometry3d : public aRealTopology<real_type,3>
     std::vector<thrust::host_vector<real_type> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealGeometry3d* clone()const=0;
     ///allow deletion through base class pointer
     virtual ~aRealGeometry3d() = default;
@@ -195,7 +195,7 @@ struct aRealProductGeometry3d : public aRealGeometry3d<real_type>
     }
     ///allow deletion through base class pointer
     virtual ~aRealProductGeometry3d() = default;
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealProductGeometry3d* clone()const=0;
     protected:
     using aRealGeometry3d<real_type>::aRealGeometry3d;
@@ -234,7 +234,7 @@ struct RealCartesianGrid2d: public dg::aRealGeometry2d<real_type>
      */
     RealCartesianGrid2d( const dg::RealGrid2d<real_type>& g):
         dg::aRealGeometry2d<real_type>(std::array{g.gx(), g.gy()}){}
-    /// Enable ClonePtr
+    ///@copydoc hide_clone
     virtual RealCartesianGrid2d<real_type>* clone()const override final{
         return new RealCartesianGrid2d<real_type>(*this);
     }
@@ -280,7 +280,7 @@ struct RealCartesianGrid3d: public dg::aRealProductGeometry3d<real_type>
      */
     RealCartesianGrid3d( const dg::RealGrid3d<real_type>& g):
         dg::aRealProductGeometry3d<real_type>(std::array{g.gx(), g.gy(), g.gz()}){}
-    /// Enable ClonePtr
+    ///@copydoc hide_clone
     virtual RealCartesianGrid3d* clone()const override final{
         return new RealCartesianGrid3d(*this);
     }
@@ -325,7 +325,7 @@ struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
      */
     RealCylindricalGrid3d( RealGrid1d<real_type> gx, RealGrid1d<real_type> gy, RealGrid1d<real_type> gz):
         dg::aRealProductGeometry3d<real_type>(std::array{gx,gy,gz}){}
-    ///Enable ClonePtr
+    ///@copydoc hide_clone
     virtual RealCylindricalGrid3d* clone()const override final{
         return new RealCylindricalGrid3d(*this);
     }

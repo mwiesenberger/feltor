@@ -46,7 +46,7 @@ struct RealCurvilinearRefinedProductGridX3d : public dg::aRealGeometryX3d<real_t
 
     ///read access to the generator
     const aRealGeneratorX2d<real_type> & generator() const{return *handle_;}
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual RealCurvilinearRefinedProductGridX3d* clone()const override final{return new RealCurvilinearRefinedProductGridX3d(*this);}
     private:
     //construct phi and lift rest to 3d
@@ -139,7 +139,7 @@ struct RealCurvilinearRefinedGridX2d : public dg::aRealGeometryX2d<real_type>
 
     ///read access to the generator
     const aRealGeneratorX2d<real_type>& generator() const{return *handle_;}
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual RealCurvilinearRefinedGridX2d* clone()const override final{return new RealCurvilinearRefinedGridX2d(*this);}
     private:
     void construct(real_type fx, real_type fy, unsigned n, unsigned Nx, unsigned Ny)

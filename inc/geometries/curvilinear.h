@@ -134,7 +134,7 @@ struct RealCurvilinearGrid2d : public dg::aRealGeometry2d<real_type>
 
     ///read access to the generator
     const aRealGenerator2d<real_type>& generator() const{return *m_handle;}
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual RealCurvilinearGrid2d* clone()const override final{return new RealCurvilinearGrid2d(*this);}
     private:
     virtual void do_set(std::array<unsigned,2> new_n, std::array<unsigned,2> new_N) override final
@@ -195,7 +195,7 @@ struct RealCurvilinearProductGrid3d : public dg::aRealProductGeometry3d<real_typ
 
     ///@copydoc RealCurvilinearGrid2d::generator()const
     const aRealGenerator2d<real_type> & generator() const{return *m_handle;}
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual RealCurvilinearProductGrid3d* clone()const override final{return new RealCurvilinearProductGrid3d(*this);}
     private:
     virtual RealCurvilinearGrid2d<real_type>* do_perp_grid() const override final;

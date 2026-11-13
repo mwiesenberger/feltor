@@ -28,7 +28,7 @@ struct aRealGeometryX2d : public aRealTopologyX2d<real_type>
     std::vector<thrust::host_vector<real_type> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealGeometryX2d* clone()const=0;
     ///allow deletion through base class pointer
     virtual ~aRealGeometryX2d() = default;
@@ -73,7 +73,7 @@ struct aRealGeometryX3d : public aRealTopologyX3d<real_type>
     std::vector<thrust::host_vector<real_type> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealGeometryX3d* clone()const=0;
     ///allow deletion through base class pointer
     virtual ~aRealGeometryX3d() = default;
@@ -114,6 +114,7 @@ struct RealCartesianGridX2d: public dg::aRealGeometryX2d<real_type>
      * @param g existing grid class
      */
     RealCartesianGridX2d( const dg::GridX2d& g):dg::aRealGeometryX2d<real_type>(g.x0(),g.x1(),g.y0(),g.y1(),g.fx(),g.fy(),g.n(),g.Nx(),g.Ny(),g.bcx(),g.bcy()){}
+    ///@copydoc hide_clone
     virtual RealCartesianGridX2d* clone()const override final{
         return new RealCartesianGridX2d(*this);
     }
@@ -133,6 +134,7 @@ struct RealCartesianGridX3d: public dg::aRealGeometryX3d<real_type>
      * @param g existing grid class
      */
     RealCartesianGridX3d( const dg::GridX3d& g):dg::aRealGeometryX3d<real_type>(g.x0(), g.x1(), g.y0(), g.y1(), g.z0(), g.z1(),g.fx(),g.fy(),g.n(),g.Nx(),g.Ny(),g.Nz(),g.bcx(),g.bcy(),g.bcz()){}
+    ///@copydoc hide_clone
     virtual RealCartesianGridX3d* clone()const override final{
         return new RealCartesianGridX3d(*this);
     }

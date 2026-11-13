@@ -57,11 +57,7 @@ struct aRealGenerator2d
         do_generate( zeta1d, eta1d, x,y,zetaX,zetaY,etaX,etaY);
     }
 
-    /**
-    * @brief Abstract clone method that returns a copy on the heap
-    *
-    * @return a copy of *this on the heap
-    */
+    ///@copydoc hide_clone
     virtual aRealGenerator2d* clone() const=0;
     ///@brief Allow deletion through base class pointer
     virtual ~aRealGenerator2d(){}

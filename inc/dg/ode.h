@@ -171,12 +171,7 @@ struct aTimeloop
     value_type get_dt() const { return do_dt(); }
 
 
-    /**
-    * @brief Abstract copy method that returns a copy of *this on the heap
-    *
-    * @return a copy of *this on the heap
-    * @sa dg::ClonePtr
-    */
+    ///@copydoc hide_clone
     virtual aTimeloop* clone() const=0;
 
     virtual ~aTimeloop(){}

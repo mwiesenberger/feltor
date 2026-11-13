@@ -28,7 +28,7 @@ struct aRealMPIGeometry2d : public aRealMPITopology2d<real_type>
     std::vector<MPI_Vector<thrust::host_vector<real_type>> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealMPIGeometry2d* clone()const=0;
     ///Construct the global non-MPI geometry
     virtual aRealGeometry2d<real_type>* global_geometry()const =0;
@@ -73,7 +73,7 @@ struct aRealMPIGeometry3d : public aRealMPITopology3d<real_type>
     std::vector<MPI_Vector<thrust::host_vector<real_type>> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealMPIGeometry3d* clone()const=0;
     ///Construct the global non-MPI geometry
     virtual aRealGeometry3d<real_type>* global_geometry()const =0;
@@ -120,7 +120,7 @@ struct aRealProductMPIGeometry3d : public aRealMPIGeometry3d<real_type>
     }
     ///allow deletion through base class pointer
     virtual ~aRealProductMPIGeometry3d() = default;
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealProductMPIGeometry3d* clone()const=0;
     protected:
     using aRealMPIGeometry3d<real_type>::aRealMPIGeometry3d;
@@ -164,6 +164,7 @@ struct RealCartesianMPIGrid2d : public aRealMPIGeometry2d<real_type>
     RealCartesianMPIGrid2d( const dg::RealMPIGrid2d<real_type>& g):
         aRealMPIGeometry2d<real_type>( std::array{g.gx(), g.gy()})
         {}
+    ///@copydoc hide_clone
     virtual RealCartesianMPIGrid2d* clone()const override final{return new RealCartesianMPIGrid2d(*this);}
     virtual RealCartesianGrid2d<real_type>* global_geometry()const override final{
         return new RealCartesianGrid2d<real_type>(
@@ -211,6 +212,7 @@ struct RealCartesianMPIGrid3d : public aRealProductMPIGeometry3d<real_type>
     ///@param g existing grid object
     RealCartesianMPIGrid3d( const dg::RealMPIGrid3d<real_type>& g):
         aRealProductMPIGeometry3d<real_type>( std::array{g.gx(), g.gy(), g.gz()}){}
+    ///@copydoc hide_clone
     virtual RealCartesianMPIGrid3d* clone()const override final{
         return new RealCartesianMPIGrid3d(*this);
     }
@@ -264,6 +266,7 @@ struct RealCylindricalMPIGrid3d: public aRealProductMPIGeometry3d<real_type>
     ///@copydoc RealCylindricalGrid3d::RealCylindricalGrid3d(RealGrid1d<real_type>,RealGrid1d<real_type>,RealGrid1d<real_type>)
     RealCylindricalMPIGrid3d( RealMPIGrid1d<real_type> gx, RealMPIGrid1d<real_type> gy, RealMPIGrid1d<real_type> gz): dg::aRealProductMPIGeometry3d<real_type>(std::array{gx,gy,gz}){}
 
+    ///@copydoc hide_clone
     virtual RealCylindricalMPIGrid3d<real_type>* clone()const override final{
         return new RealCylindricalMPIGrid3d(*this);
     }

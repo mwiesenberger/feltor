@@ -1076,6 +1076,7 @@ struct SinglestepTimeloop : public aTimeloop<ContainerType>
         this->integrate( t0, u0, t1, u1);
     }
 
+    ///@copydoc hide_clone
     virtual SinglestepTimeloop* clone() const{ return new
         SinglestepTimeloop(*this);}
     private:

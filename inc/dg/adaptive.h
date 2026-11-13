@@ -625,6 +625,7 @@ struct AdaptiveTimeloop : public aTimeloop<ContainerType>
                   value_type eps_root
                   );
 
+    ///@copydoc hide_clone
     virtual AdaptiveTimeloop* clone() const{return new
         AdaptiveTimeloop(*this);}
     private:

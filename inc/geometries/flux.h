@@ -209,6 +209,7 @@ struct FluxGenerator : public aGenerator2d
         if(m_verbose)std::cout << "lx = "<<lx_<<"\n";
     }
 
+    ///@copydoc hide_clone
     virtual FluxGenerator* clone() const override final{return new FluxGenerator(*this);}
 
     private:
@@ -305,6 +306,7 @@ struct RibeiroFluxGenerator : public aGenerator2d
         x0_=x0, y0_=y0, psi0_=psi_0, psi1_=psi_1;
         if(m_verbose)std::cout << "lx = "<<lx_<<"\n";
     }
+    ///@copydoc hide_clone
     virtual RibeiroFluxGenerator* clone() const{return new RibeiroFluxGenerator(*this);}
 
     private:

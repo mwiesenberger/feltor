@@ -49,7 +49,7 @@ struct RealCurvilinearMPIGrid2d : public dg::aRealMPIGeometry2d<real_type>
 
     ///read access to the generator
     const aRealGenerator2d<real_type>& generator() const{return *m_handle;}
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual RealCurvilinearMPIGrid2d* clone()const override final{return new RealCurvilinearMPIGrid2d(*this);}
     ///Construct the global non-MPI geometry
     virtual RealCurvilinearGrid2d<real_type>* global_geometry()const override final{
@@ -148,7 +148,7 @@ struct RealCurvilinearProductMPIGrid3d : public dg::aRealProductMPIGeometry3d<re
 
     ///read access to the generator
     const aRealGenerator2d<real_type>& generator() const{return *m_handle;}
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual RealCurvilinearProductMPIGrid3d* clone()const override final{return new RealCurvilinearProductMPIGrid3d(*this);}
     ///Construct the global non-MPI geometry
     virtual RealCurvilinearProductGrid3d<real_type>* global_geometry()const override final{

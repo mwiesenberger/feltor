@@ -270,6 +270,7 @@ struct RibeiroX : public aGeneratorX2d
         psi0_=psi_0;
     }
 
+    ///@copydoc hide_clone
     virtual RibeiroX* clone() const override final{return new RibeiroX(*this);}
     private:
     bool isConformal()const{return false;}
