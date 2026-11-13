@@ -11,6 +11,7 @@
 //for the fmas it is important to activate -mfma compiler flag
 
 namespace dg{
+///@cond
 
 // general multiply kernel
 template<class real_type, class value_type>
@@ -443,4 +444,5 @@ void CooSparseBlockMat<real_type, Vector>::launch_multiply_kernel( SerialTag, va
         coo_cpu_multiply_kernel<real_type, value_type>( alpha, x, beta, y, *this);
 }
 
+///@endcond
 }//namespace dg

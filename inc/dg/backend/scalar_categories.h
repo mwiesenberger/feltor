@@ -4,6 +4,8 @@
 #include "vector_categories.h"
 
 namespace dg{
+///@addtogroup scalar_tags
+///@{
 
 /**
  * @brief Scalar Tag base class
@@ -19,6 +21,7 @@ struct IntegralTag : public ArithmeticTag{};
 
 /// complex number type
 struct ComplexTag : public AnyScalarTag{};
+///@}
 
 
 }//namespace dg

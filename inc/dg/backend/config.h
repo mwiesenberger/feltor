@@ -95,7 +95,7 @@ inline constexpr bool nccl_mpi = false;
 } // namespace dg
 
 //%%%%%%%%%%%%%%%Define DG_DEVICE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-///@brief Expands to \__host__ \__device__ if compiled with nvcc else is empty
+// Documented in dg_doc.h
 #define DG_DEVICE
 #ifdef __CUDACC__
 #undef DG_DEVICE

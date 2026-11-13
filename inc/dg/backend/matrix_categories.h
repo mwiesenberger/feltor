@@ -3,15 +3,18 @@
 
 namespace dg{
 
-///@addtogroup dispatch
+///@addtogroup matrix_tags
 ///@{
 
 ///tensor_category base class
 struct AnyMatrixTag{};
 
-///Indicate that a type is not a tensor
-struct NotATensorTag{};
 ///@}
+///Indicate that a type is not a tensor
+///@ingroup tags
+struct NotATensorTag{};
+///@addtogroup matrix_tags
+///@{
 
 
 //
@@ -33,6 +36,7 @@ struct SparseBlockMatrixTag: public AnyMatrixTag {};
 struct SparseMatrixTag: public SparseBlockMatrixTag {};
 /// indicate our dense matrix format
 struct DenseMatrixTag: public AnyMatrixTag {};
+///@}
 
 }//namespace dg
 

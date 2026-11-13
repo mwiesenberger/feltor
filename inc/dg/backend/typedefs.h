@@ -9,11 +9,42 @@
   @brief Useful typedefs of commonly used types.
   */
 
+/*! @namespace dg::x
+ * @brief Typedefs that resolve to the MPI types if \c MPI_VERSION is defined
+ * and to the shared memory types else listed in the \ref dg_x_typedefs_table "Typedef expansion table"
+ *
+ * Code written with these typedefs compiles with and without MPI.
+ */
+/*!@addtogroup typedefs
+ *
+ * @anchor dg_x_typedefs_table
+ * The typedefs in namespace \c dg::x expand to
+ *
+ * | Name | without MPI | with MPI |
+ * |------|-------------|----------|
+ * | `dg::x::HVec` | `dg::HVec` = `thrust::host_vector<double>` | `dg::MHVec` = `dg::MPI_Vector<thrust::host_vector<double>>` |
+ * | `dg::x::cHVec` | `dg::cHVec` = `thrust::host_vector<thrust::complex<double>>` | `dg::cMHVec` = `dg::MPI_Vector<thrust::host_vector<thrust::complex<double>>>` |
+ * | `dg::x::fHVec` | `dg::fHVec` = `thrust::host_vector<float>` | `dg::fMHVec` = `dg::MPI_Vector<thrust::host_vector<float>>` |
+ * | `dg::x::iHVec` | `dg::iHVec` = `thrust::host_vector<int>` | `dg::iMHVec` = `dg::MPI_Vector<thrust::host_vector<int>>` |
+ * | `dg::x::DVec` | `dg::DVec` = `thrust::device_vector<double>` | `dg::MDVec` = `dg::MPI_Vector<thrust::device_vector<double>>` |
+ * | `dg::x::cDVec` | `dg::cDVec` = `thrust::device_vector<thrust::complex<double>>` | `dg::cMDVec` = `dg::MPI_Vector<thrust::device_vector<thrust::complex<double>>>` |
+ * | `dg::x::fDVec` | `dg::fDVec` = `thrust::device_vector<float>` | `dg::fMDVec` = `dg::MPI_Vector<thrust::device_vector<float>>` |
+ * | `dg::x::iDVec` | `dg::iDVec` = `thrust::device_vector<int>` | `dg::iMDVec` = `dg::MPI_Vector<thrust::device_vector<int>>` |
+ * | `dg::x::HMatrix` | `dg::HMatrix` = `dg::EllSparseBlockMat<double, thrust::host_vector>` | `dg::MHMatrix` = `dg::MPISparseBlockMat<thrust::host_vector, dg::EllSparseBlockMat<double, thrust::host_vector>, dg::CooSparseBlockMat<double, thrust::host_vector>>` |
+ * | `dg::x::fHMatrix` | `dg::fHMatrix` = `dg::EllSparseBlockMat<float, thrust::host_vector>` | `dg::fMHMatrix` = `dg::MPISparseBlockMat<thrust::host_vector, dg::EllSparseBlockMat<float, thrust::host_vector>, dg::CooSparseBlockMat<float, thrust::host_vector>>` |
+ * | `dg::x::DMatrix` | `dg::DMatrix` = `dg::EllSparseBlockMat<double, thrust::device_vector>` | `dg::MDMatrix` = `dg::MPISparseBlockMat<thrust::device_vector, dg::EllSparseBlockMat<double, thrust::device_vector>, dg::CooSparseBlockMat<double, thrust::device_vector>>` |
+ * | `dg::x::fDMatrix` | `dg::fDMatrix` = `dg::EllSparseBlockMat<float, thrust::device_vector>` | `dg::fMDMatrix` = `dg::MPISparseBlockMat<thrust::device_vector, dg::EllSparseBlockMat<float, thrust::device_vector>, dg::CooSparseBlockMat<float, thrust::device_vector>>` |
+ * | `dg::x::IHMatrix` | `dg::IHMatrix` = `dg::SparseMatrix<int, double, thrust::host_vector>` | `dg::MIHMatrix` = `dg::MPIDistMat<thrust::host_vector, dg::SparseMatrix<int, double, thrust::host_vector>>` |
+ * | `dg::x::IDMatrix` | `dg::IDMatrix` = `dg::SparseMatrix<int, double, thrust::device_vector>` | `dg::MIDMatrix` = `dg::MPIDistMat<thrust::device_vector, dg::SparseMatrix<int, double, thrust::device_vector>>` |
+ */
+
 namespace dg{
 
 ///@addtogroup typedefs
 ///@{
 //vectors
+///@name Vector typedefs
+///@{
 template<class T>
 using HVec_t  = thrust::host_vector<T>; //!< Host Vector
 using HVec  = thrust::host_vector<double>; //!< Host Vector
@@ -24,23 +55,28 @@ using fHVec = thrust::host_vector<float>; //!< Host Vector
 using DVec  = thrust::device_vector<double>; //!< Device Vector. The device can be an OpenMP parallelized cpu or a gpu. This depends on the value of the macro THRUST_DEVICE_SYSTEM, which can be either THRUST_DEVICE_SYSTEM_OMP for openMP or THRUST_DEVICE_SYSTEM_CUDA for a gpu or THRUST_DEVICE_SYSTEM_CPP for a cpu.
 using iDVec = thrust::device_vector<int>; //!< integer Device Vector
 using cDVec = thrust::device_vector<thrust::complex<double>>; //!< complex Device Vector
-using fDVec = thrust::device_vector<float>; //!< Device Vector. The device can be an OpenMP parallelized cpu or a gpu. This depends on the value of the macro THRUST_DEVICE_SYSTEM, which can be either THRUST_DEVICE_SYSTEM_OMP for openMP or THRUST_DEVICE_SYSTEM_CUDA for a gpu or THRUST_DEVICE_SYSTEM_CPP for a cpu.
+using fDVec = thrust::device_vector<float>; //!< Device Vector. The device can be an OpenMP parallelized, a serial cpu or a gpu. This depends on the value of the macro THRUST_DEVICE_SYSTEM, which can be either THRUST_DEVICE_SYSTEM_OMP for openMP or THRUST_DEVICE_SYSTEM_CUDA for a gpu or THRUST_DEVICE_SYSTEM_CPP for a cpu.
+///@}
 
-//derivative matrices
+///@name Derivative matrices
+///@{
 template<class T>
-using HMatrix_t = EllSparseBlockMat<T, thrust::host_vector>;
+using HMatrix_t = EllSparseBlockMat<T, thrust::host_vector>; //!< Host Matrix for derivatives
 using HMatrix = EllSparseBlockMat<double, thrust::host_vector>; //!< Host Matrix for derivatives
 using fHMatrix = EllSparseBlockMat<float, thrust::host_vector>; //!< Host Matrix for derivatives
 using DMatrix = EllSparseBlockMat<double, thrust::device_vector>; //!< Device Matrix for derivatives
 using fDMatrix = EllSparseBlockMat<float, thrust::device_vector>; //!< Device Matrix for derivatives
+///@}
 
-// Interpolation matrices
+///@name Interpolation matrices
+///@{
 template<class real_type>
-using IHMatrix_t = dg::SparseMatrix<int, real_type, thrust::host_vector>;
+using IHMatrix_t = dg::SparseMatrix<int, real_type, thrust::host_vector>; //!< Host Matrix for interpolation
 template<class real_type>
-using IDMatrix_t = dg::SparseMatrix<int, real_type, thrust::device_vector>;
-using IHMatrix = IHMatrix_t<double>;
-using IDMatrix = IDMatrix_t<double>;
+using IDMatrix_t = dg::SparseMatrix<int, real_type, thrust::device_vector>; //!< Device Matrix for interpolation
+using IHMatrix = IHMatrix_t<double>; //!< Host Matrix for interpolation
+using IDMatrix = IDMatrix_t<double>; //!< Device Matrix for interpolation
+///@}
 
 ///@}
 }//namespace dg
@@ -52,53 +88,65 @@ using IDMatrix = IDMatrix_t<double>;
 namespace dg{
 ///@addtogroup typedefs
 ///@{
-//using MPI_Vector<thrust::device_vector<double> >  MDVec; //!< MPI Device Vector s.a. dg::DVec
+///@name MPI vector typedefs
+///@{
 template<class T>
-using MHVec_t   = dg::MPI_Vector<dg::HVec_t<T> >; //!< MPI Host Vector s.a. dg::HVec_t
-using MHVec     = dg::MPI_Vector<dg::HVec >; //!< MPI Host Vector s.a. dg::HVec
-using cMHVec    = dg::MPI_Vector<dg::cHVec >; //!< MPI Host Vector s.a. dg::cHVec
-using fMHVec    = dg::MPI_Vector<dg::fHVec >; //!< MPI Host Vector s.a. dg::fHVec
-using iMHVec    = dg::MPI_Vector<dg::iHVec >; //!< MPI Host Vector s.a. dg::iHVec
-using MDVec     = dg::MPI_Vector<dg::DVec >; //!< MPI Device Vector s.a. dg::DVec
-using cMDVec    = dg::MPI_Vector<dg::cDVec >; //!< MPI Device Vector s.a. dg::cDVec
-using fMDVec    = dg::MPI_Vector<dg::fDVec >; //!< MPI Device Vector s.a. dg::fDVec
-using iMDVec    = dg::MPI_Vector<dg::iDVec >; //!< MPI Device Vector s.a. dg::iDVec
+using MHVec_t   = dg::MPI_Vector<dg::HVec_t<T> >; //!< see the \ref dg_x_typedefs_table "Typedef expansion table"
+using MHVec     = dg::MPI_Vector<dg::HVec >;
+using cMHVec    = dg::MPI_Vector<dg::cHVec >;
+using fMHVec    = dg::MPI_Vector<dg::fHVec >;
+using iMHVec    = dg::MPI_Vector<dg::iHVec >;
+using MDVec     = dg::MPI_Vector<dg::DVec >;
+using cMDVec    = dg::MPI_Vector<dg::cDVec >;
+using fMDVec    = dg::MPI_Vector<dg::fDVec >;
+using iMDVec    = dg::MPI_Vector<dg::iDVec >;
+///@}
 
-// TODO These may be private
+///@cond
 template< class T>
-using CooMat_t  = dg::CooSparseBlockMat<T, thrust::host_vector>;
-using CooMat    = dg::CooSparseBlockMat<double, thrust::host_vector>;
-using fCooMat   = dg::CooSparseBlockMat<float, thrust::host_vector>;
-using DCooMat   = dg::CooSparseBlockMat<double, thrust::device_vector>;
-using fDCooMat  = dg::CooSparseBlockMat<float, thrust::device_vector>;
+using CooMat_t  = dg::CooSparseBlockMat<T, thrust::host_vector>; //!< Host Matrix for the communication part of \c dg::MHMatrix_t
+using CooMat    = dg::CooSparseBlockMat<double, thrust::host_vector>; //!< Host Matrix for the communication part of \c dg::MHMatrix
+using fCooMat   = dg::CooSparseBlockMat<float, thrust::host_vector>; //!< Host Matrix for the communication part of \c dg::fMHMatrix
+using DCooMat   = dg::CooSparseBlockMat<double, thrust::device_vector>; //!< Device Matrix for the communication part of \c dg::MDMatrix
+using fDCooMat  = dg::CooSparseBlockMat<float, thrust::device_vector>; //!< Device Matrix for the communication part of \c dg::fMDMatrix
+///@endcond
 
+///@name MPI derivative matrix typedefs
+///@{
 template<class T>
-using MHMatrix_t  = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix_t<T>, dg::CooMat_t<T>>; //!< MPI Host Matrix for derivatives
-using MHMatrix    = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix, dg::CooMat>; //!< MPI Host Matrix for derivatives
-using fMHMatrix   = dg::MPISparseBlockMat<thrust::host_vector, dg::fHMatrix, dg::fCooMat>; //!< MPI Host Matrix for derivatives
-using MDMatrix    = dg::MPISparseBlockMat<thrust::device_vector, dg::DMatrix, dg::DCooMat>; //!< MPI Device Matrix for derivatives
-using fMDMatrix   = dg::MPISparseBlockMat<thrust::device_vector, dg::fDMatrix, dg::fDCooMat>; //!< MPI Device Matrix for derivatives
+using MHMatrix_t  = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix_t<T>, dg::CooMat_t<T>>; //!< see the \ref dg_x_typedefs_table "Typedef expansion table"
+using MHMatrix    = dg::MPISparseBlockMat<thrust::host_vector, dg::HMatrix, dg::CooMat>;
+using fMHMatrix   = dg::MPISparseBlockMat<thrust::host_vector, dg::fHMatrix, dg::fCooMat>;
+using MDMatrix    = dg::MPISparseBlockMat<thrust::device_vector, dg::DMatrix, dg::DCooMat>;
+using fMDMatrix   = dg::MPISparseBlockMat<thrust::device_vector, dg::fDMatrix, dg::fDCooMat>;
+///@}
 
+
+///@name MPI interpolation matrix typedefs
+///@{
 template<class real_type>
-using MIHMatrix_t = MPIDistMat< thrust::host_vector, IHMatrix_t<real_type> >;
+using MIHMatrix_t = MPIDistMat< thrust::host_vector, IHMatrix_t<real_type> >; //!< see the \ref dg_x_typedefs_table "Typedef expansion table"
 template<class real_type>
 using MIDMatrix_t = MPIDistMat< thrust::device_vector, IDMatrix_t<real_type> >;
 using MIHMatrix = MIHMatrix_t<double>;
 using MIDMatrix = MIDMatrix_t<double>;
+///@}
 
 
 ///@}
 }//namespace dg
 #endif //MPI_VERSION
 
-//MPI-independent definitions
+//Definitions for platform independent code
 namespace dg{
 ///@addtogroup typedefs
 ///@{
 //vectors
 namespace x{
+///@name Typedefs for platform independent code
+///@{
 #ifdef MPI_VERSION
-using HVec  = MHVec;
+using HVec  = MHVec; ///< see the \ref dg_x_typedefs_table "Typedef expansion table"
 using cHVec = cMHVec;
 using fHVec = fMHVec;
 using iHVec = iMHVec;
@@ -136,12 +184,20 @@ using fDMatrix = fDMatrix;
 using IHMatrix = IHMatrix;
 using IDMatrix = IDMatrix;
 #endif //MPI_VERSION
+///@}
 }//namespace x
 ///@}
 }//namespace dg
 
 ////CONVENIENCE MACRO////////
 #ifdef MPI_VERSION
+/**
+ * @brief Expands to \c if(rank==0) if \c MPI_VERSION is defined else is empty
+ *
+ * Use to let only rank 0 write to \c std::cout, e.g. <tt>DG_RANK0 std::cout << "Hello\n";</tt>
+ * @attention With MPI an \c int variable \c rank must be in scope
+ * @ingroup macros
+ */
 #define DG_RANK0 if(rank==0)
 #else //MPI_VERSION
 #define DG_RANK0

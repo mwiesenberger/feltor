@@ -269,7 +269,7 @@ using CurvilinearMPIGrid2d         = dg::geo::RealCurvilinearMPIGrid2d<double>; 
 using CurvilinearProductMPIGrid3d  = dg::geo::RealCurvilinearProductMPIGrid3d<double>;
 ///@}
 namespace x{
-///@name Typedefs that do not depend on MPI
+///@name Typedefs for platform independent code
 ///@{
 using CurvilinearGrid2d         = CurvilinearMPIGrid2d        ; ///< MPI version, see \c dg::geo::x
 using CurvilinearProductGrid3d  = CurvilinearProductMPIGrid3d ;

@@ -27,13 +27,28 @@
  *    @defgroup utility Utility
  *    @{
  *        @defgroup dispatch The tag dispatch system
+ *        @brief See \ref dg_tensor_traits_table "TensorTraits table"
  *        @{
  *           @defgroup traits All TensorTraits specialisations
+ *           @defgroup tags All dispatch Tags
+ *           @brief The types used as \c tensor_category and \c execution_policy in \c dg::TensorTraits
+ *           @{
+ *               @defgroup matrix_tags Matrix tags
+ *               @brief \c tensor_category of matrices (all derive from \c dg::AnyMatrixTag)
+ *               @defgroup vector_tags Vector tags
+ *               @brief \c tensor_category of vectors (all derive from \c dg::AnyVectorTag)
+ *               @defgroup scalar_tags Scalar tags
+ *               @brief \c tensor_category of scalars (all derive from \c dg::AnyScalarTag)
+ *               @defgroup policy_tags Execution policy tags
+ *               @brief \c execution_policy (all derive from \c dg::AnyPolicyTag)
+ *           @}
  *        @}
  *        @defgroup sparsematrix Sparse matrix formats
  *        @defgroup densematrix Dense matrix formats
  *        @defgroup view Vector view
  *        @defgroup typedefs Typedefs for Vectors and Matrices
+ *        @brief See \ref dg_x_typedefs_table "Typedef expansion table"
+ *        @defgroup macros Macros
  *    @}
  *    @brief \#include <mpi.h> before any other dg header file
  * @}
@@ -258,7 +273,7 @@ struct TensorTraits
 @endcode
  * The values for \c tensor_category are either \c dg::NotATensorTag or (a class derived from) \c dg::AnyMatrixTag,
  * while the values for \c execution_policy are either \c dg::NoPolicyTag or (a class derived from) \c dg::AnyPolicyTag.
- * Any type \c T assumes the above default values for \c value_type, \c tensor_category and \c execution_policy unless a specialisation exists for that type (see \ref traits for a full list).
+ * Any type \c T assumes the above default values for \c value_type, \c tensor_category and \c execution_policy unless a specialisation exists for that type (see the \ref dg_tensor_traits_table "TensorTraits table" for a full list).
  * We define the following nomenclature
  *    - \e Scalar: A template parameter T is a Scalar if <tt> typename dg::TensorTraits<T>::tensor_category </tt>  derives from \c dg::AnyScalarTag
  *    - \e Vector: A template parameter T is a Vector if it is not a Scalar and if <tt> typename dg::TensorTraits<T>::tensor_category </tt> derives from \c dg::AnyVectorTag
@@ -373,7 +388,7 @@ struct Timer
 
 /**
  * @brief Expands to \__host__ \__device__ if compiled with nvcc else is empty
- * @ingroup typedefs
+ * @ingroup macros
  */
 #define DG_DEVICE
 /**
@@ -384,6 +399,6 @@ struct Timer
  * not warn when the template is instantiated with a host-only type, e.g.
  * \c std::complex, and called on the host. The function can still only be
  * called on the device with types that are usable on the device.
- * @ingroup typedefs
+ * @ingroup macros
  */
 #define DG_NVCC_EXEC_CHECK_DISABLE

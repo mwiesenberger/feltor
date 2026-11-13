@@ -141,7 +141,17 @@ mpi matrix to a row distributed mpi matrix. In code
 template<template<class > class Vector, class LocalMatrixInner, class LocalMatrixOuter = LocalMatrixInner>
 struct MPISparseBlockMat
 {
+    ///@brief no memory allocation
     MPISparseBlockMat() = default;
+    /**
+    * @brief Constructor
+    *
+    * @param inside The local matrix for the inner elements
+    * @param outside A local matrix for the elements from other processes
+    * @param mpi_gather The communication object gathers the values from
+    * other processes that \c outside needs. If \c !isCommunicating() only
+    * the inner matrix is applied.
+    */
     MPISparseBlockMat( const LocalMatrixInner& inside,
                 const LocalMatrixOuter& outside,
                 const MPIKroneckerGather<Vector>& mpi_gather // only gather foreign messages
@@ -152,6 +162,13 @@ struct MPISparseBlockMat
     template< template<class> class V, class LI, class LO>
     friend struct MPISparseBlockMat; // enable copy
 
+    /**
+    * @brief Copy constructor
+    *
+    * The idea is that a device matrix can be constructed by copying a host matrix.
+    * @param src another Matrix (\c LocalMatrixInner, \c LocalMatrixOuter
+    * and \c Vector must be copy-constructible from the ones of \c src)
+    */
     template< template<class> class V, class LI, class LO>
     MPISparseBlockMat( const MPISparseBlockMat<V,LI,LO>& src)
     : m_i(src.m_i), m_o(src.m_o), m_g(src.m_g)
@@ -166,6 +183,7 @@ struct MPISparseBlockMat
     ///@brief Write access to the outer matrix
     LocalMatrixOuter& outer_matrix() {return m_o;}
 
+    ///@brief Read access to the MPI Communicator
     MPI_Comm communicator() const { return m_g.communicator();}
 
     /**
@@ -215,6 +233,7 @@ struct MPISparseBlockMat
                 alpha, b_ptrs, value_type(1.), y_ptr);
         }
     }
+    /// @brief Matrix Vector product \f$ y = M x\f$, i.e. <tt>symv( 1, x, 0, y)</tt>
     template<class ContainerType1, class ContainerType2>
     void symv(const ContainerType1& x, ContainerType2& y) const
     {
@@ -478,6 +497,7 @@ struct MPIDistMat
     ///@brief Read access to the MPI Communicator
     MPI_Comm communicator() const{ return m_reduce.communicator();}
 
+    ///@brief Read access to the \c scatter parameter of the constructor
     const Vector<int>& scatter() const {return m_scatter;}
 
     /**
@@ -599,17 +619,19 @@ struct MPIDistMat
 
 ///@addtogroup traits
 ///@{
+///@brief Enable \c dg::MPISparseBlockMat as an MPI matrix
 template<template<class>class V, class LI, class LO>
 struct TensorTraits<MPISparseBlockMat<V, LI,LO> >
 {
-    using value_type = get_value_type<LI>;//!< value type
-    using tensor_category = MPIMatrixTag;
+    using value_type = get_value_type<LI>;//!< see \c dg::TensorTraits
+    using tensor_category = MPIMatrixTag; //!< see \c dg::TensorTraits
 };
+///@brief Enable \c dg::MPIDistMat as an MPI matrix
 template<template<class>class V, class LI, class LO>
 struct TensorTraits<MPIDistMat<V, LI,LO> >
 {
-    using value_type = get_value_type<LI>;//!< value type
-    using tensor_category = MPIMatrixTag;
+    using value_type = get_value_type<LI>;//!< see \c dg::TensorTraits
+    using tensor_category = MPIMatrixTag; //!< see \c dg::TensorTraits
 };
 ///@}
 

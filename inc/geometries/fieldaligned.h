@@ -310,7 +310,8 @@ void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_typ
 * @tparam ProductGeometry must be either \c dg::aProductGeometry3d or \c dg::aProductMPIGeometry3d or any derivative
 * @tparam IMatrix The type of the interpolation matrix
     - \c dg::IHMatrix, or \c dg::IDMatrix, \c dg::MIHMatrix, or \c dg::MIDMatrix
-* @tparam container The container-class on which the interpolation matrix operates on
+* @tparam container The container-class on which the interpolation matrix operates on;
+    its value type must be \c double
     - \c dg::HVec, or \c dg::DVec, \c dg::MHVec, or \c dg::MDVec
 * @sa The pdf <a href="https://www.overleaf.com/read/jjvstccqzcjv" target="_blank">parallel derivative</a> writeup
 */
