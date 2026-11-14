@@ -161,9 +161,15 @@ The number of processes and threads are the CMake cache variables `FELTOR_TEST_M
 The MPI presets pass the Open MPI options `--oversubscribe --bind-to none` through `MPIEXEC_PREFLAGS`; other MPI libraries need their own values.
 Parallel test runs never overload the machine: ctest counts the processes and threads of each test.
 
-A full test of the library runs these 6 workflows. On a 16-thread desktop CPU with one GPU one workflow takes about 3 to 10 minutes from scratch, mostly compilation.
+A full test of the library runs these 6 workflows, one after the other:
+[source,sh]
+----
+tests/run-all-tests.sh 16 # 16 parallel compile jobs and tests (default: all cores); lists the failed presets at the end
+----
+On a 16-thread desktop CPU with one GPU one workflow takes about 3 to 10 minutes from scratch, mostly compilation.
 GitHub's free CI runners have no GPU, so the `test-gpu` and `test-mpi-gpu` workflows must be run locally before a merge into the main branch.
 How the presets are organised and how to write tests is explained in `tests/README.md`.
+
 === Using FELTOR's dg library in CMake
 
 FELTOR contains a library called the *dg-library* (from discontinuous Galerkin). To integrate FELTOR's dg library in your own project via cmake currently the only option is to add it as a submodule i.e. either (i) use https://cmake.org/cmake/help/latest/module/FetchContent.html[FetchContent] directly or (ii) use the cmake package manager https://github.com/cpm-cmake/CPM.cmake[CPM] (our recommendation) or (iii) add feltor as a git submodule and use `add_subdirectory` in your `CMakeLists.txt`. We here show the CPM version. To get started follow the CPM quick start guide to setup the file `cmake/CPM.cmake`. It is also highly recommended to set the `CPM_SOURCE_CACHE` environment variable.

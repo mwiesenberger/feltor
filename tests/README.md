@@ -20,7 +20,7 @@ The messages logged in INFO are printed only when using the `-s` command line op
 
 All functions and global variables in `*t.cpp` programs need to be inline.
 
-There is a `run-all-tests.sh` script that compiles and runs all catch2 tests for all 6 device combinations (cpu, omp, gpu, mpi+cpu, mpi+omp, mpi+gpu).
+The script `run-all-tests.sh` runs the workflow presets `test-<preset>` of all 6 presets (cpu, omp, gpu, mpi-cpu, mpi-omp, mpi-gpu).
 
 ## Running the tests
 
