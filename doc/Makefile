@@ -2,17 +2,23 @@
 ##Packages needed on linux for compilation of doxygen doc
 ##sudo apt install
 
-#doxygen >= 1.10 <= 1.12
-#libjs-mathjax (for nice mathematical formulas)
+#doxygen >= 1.10 (topics.html), tested with 1.12
+#  (doxygen-awesome-css 2.5.0 supports doxygen up to 1.18)
+#(formulas: the pages load MathJax 3 from cdn.jsdelivr.net when viewed,
+#  so nothing needs to be installed; offline they show the raw LaTeX)
 #graphviz (for nice graphical nodes)
 #doxygen-awesome
 
-# Optionally clone https://github.com/jothepro/doxygen-awesome-css (current version 2.3.1)
+# Optionally clone https://github.com/jothepro/doxygen-awesome-css (current version 2.5.0)
 # and use make install
 #
 # We followed doxygen-awesome documentation and use menubar.css for some custom
 # code colors and header.html with some additions to make the menubar and
-# activate doxygen-awesome extensions
+# activate doxygen-awesome extensions. header.html is the default header of
+# doxygen 1.12 (doxygen -w html header.html footer.html style.css) plus the
+# additions marked FELTOR; redo this for a different doxygen version.
+# Settings HTML_EXTRA_FILES, HTML_COPY_CLIPBOARD and HTML_COLORSTYLE below are
+# required by doxygen-awesome (see its README)
 
 # The online documentation is hosted on the https://github.com/mwiesenberger/feltor fork
 # To update the online documentation we use ghp-import with the -o option, such
@@ -82,7 +88,9 @@ dg: exblas.tag geometries.tag matrix.tag
 		echo "HTML_FOOTER = ../../doc/footer.html"; \
 		echo "HTML_EXTRA_STYLESHEET = $(dapath)/doxygen-awesome.css";\
 		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-sidebar-only.css";\
-		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_EXTRA_FILES = $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_COPY_CLIPBOARD = NO";\
+		echo "HTML_COLORSTYLE = LIGHT";\
 		echo "HTML_EXTRA_STYLESHEET += ../../doc/menubar.css";\
 		echo "TAGFILES = ../../doc/exblas.tag=../../exblas/html ../../doc/geometries.tag=../../geometries/html" ../../doc/matrix.tag=../../matrix/html) | doxygen - ;
 
@@ -94,7 +102,9 @@ geometries: dg.tag
 		echo "HTML_FOOTER = ../../doc/footer.html"; \
 		echo "HTML_EXTRA_STYLESHEET = $(dapath)/doxygen-awesome.css";\
 		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-sidebar-only.css";\
-		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_EXTRA_FILES = $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_COPY_CLIPBOARD = NO";\
+		echo "HTML_COLORSTYLE = LIGHT";\
 		echo "HTML_EXTRA_STYLESHEET += ../../doc/menubar.css";\
 		echo "TAGFILES = ../../doc/dg.tag=../../dg/html") | doxygen - ;
 
@@ -106,7 +116,9 @@ matrix: dg.tag
 		echo "HTML_FOOTER = ../../doc/footer.html"; \
 		echo "HTML_EXTRA_STYLESHEET = $(dapath)/doxygen-awesome.css";\
 		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-sidebar-only.css";\
-		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_EXTRA_FILES = $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_COPY_CLIPBOARD = NO";\
+		echo "HTML_COLORSTYLE = LIGHT";\
 		echo "HTML_EXTRA_STYLESHEET += ../../doc/menubar.css";\
 		echo "TAGFILES = ../../doc/dg.tag=../../dg/html") | doxygen - ;
 
@@ -118,7 +130,9 @@ file:
 		echo "HTML_FOOTER = ../../doc/footer.html"; \
 		echo "HTML_EXTRA_STYLESHEET = $(dapath)/doxygen-awesome.css";\
 		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-sidebar-only.css";\
-		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_EXTRA_FILES = $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_COPY_CLIPBOARD = NO";\
+		echo "HTML_COLORSTYLE = LIGHT";\
 		echo "HTML_EXTRA_STYLESHEET += ../../doc/menubar.css";\
 		echo ) | doxygen - ;
 
@@ -130,7 +144,9 @@ exblas:
 		echo "HTML_FOOTER = ../../../../doc/footer.html"; \
 		echo "HTML_EXTRA_STYLESHEET = $(dapath)/doxygen-awesome.css";\
 		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-sidebar-only.css";\
-		echo "HTML_EXTRA_STYLESHEET += $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_EXTRA_FILES = $(dapath)/doxygen-awesome-fragment-copy-button.js";\
+		echo "HTML_COPY_CLIPBOARD = NO";\
+		echo "HTML_COLORSTYLE = LIGHT";\
 		echo "HTML_EXTRA_STYLESHEET += ../../../../doc/menubar.css";\
 		echo ) | doxygen - ;
 
