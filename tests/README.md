@@ -45,9 +45,9 @@ CMake has four kinds of presets. Each kind stands for one step on the command li
 | Kind | Step | Decides | Presets |
 |---|---|---|---|
 | configure | `cmake --preset <name>` | build directory, device and compiler flags, MPI, and which tests are registered | `cpu`, `omp`, `gpu`, `mpi-cpu`, `mpi-omp`, `mpi-gpu` (and `msvc-*` on Windows) |
-| build | `cmake --build --preset <name>` | which targets to compile | `test-<backend>`: `dg_tests`, `dg_benchmarks`, `feltor_projects` |
-| test | `ctest --preset <name>` | how registered tests run: output of failing tests, timeout per test, error if no tests are found | `test-<backend>` |
-| workflow | `cmake --workflow --preset <name>` | only the order of steps; stops at the first failure | `test-<backend>`: configure `<backend>`, build `test-<backend>`, test `test-<backend>` |
+| build | `cmake --build --preset <name>` | which targets to compile | `<backend>`: `dg_tests`, `dg_benchmarks`, `feltor_projects` |
+| test | `ctest --preset <name>` | how registered tests run: output of failing tests, timeout per test, error if no tests are found | `<backend>` |
+| workflow | `cmake --workflow --preset <name>` | only the order of steps; stops at the first failure | `test-<backend>`: configure, build and test `<backend>` |
 
  - Only configure presets define a build. Build and test presets name a configure preset and act on its build directory `build/<backend>`.
  - The test settings `FELTOR_TEST_MPI_RANKS`, `FELTOR_TEST_OMP_THREADS` and `MPIEXEC_PREFLAGS` are cache variables of the configure presets, because they decide which tests are registered; the test presets only decide how the registered tests run. Select tests with `ctest` options such as `-L`/`-LE` (see `README.adoc`).

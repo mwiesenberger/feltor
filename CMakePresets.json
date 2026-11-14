@@ -99,7 +99,7 @@
     ],
     "buildPresets": [
         {
-            "name": "test-cpu",
+            "name": "cpu",
             "configurePreset": "cpu",
             "targets": [
                 "dg_tests",
@@ -108,7 +108,7 @@
             ]
         },
         {
-            "name": "test-omp",
+            "name": "omp",
             "configurePreset": "omp",
             "targets": [
                 "dg_tests",
@@ -117,7 +117,7 @@
             ]
         },
         {
-            "name": "test-gpu",
+            "name": "gpu",
             "configurePreset": "gpu",
             "targets": [
                 "dg_tests",
@@ -126,7 +126,7 @@
             ]
         },
         {
-            "name": "test-mpi-cpu",
+            "name": "mpi-cpu",
             "configurePreset": "mpi-cpu",
             "targets": [
                 "dg_tests",
@@ -135,7 +135,7 @@
             ]
         },
         {
-            "name": "test-mpi-omp",
+            "name": "mpi-omp",
             "configurePreset": "mpi-omp",
             "targets": [
                 "dg_tests",
@@ -144,7 +144,7 @@
             ]
         },
         {
-            "name": "test-mpi-gpu",
+            "name": "mpi-gpu",
             "configurePreset": "mpi-gpu",
             "targets": [
                 "dg_tests",
@@ -155,7 +155,7 @@
     ],
     "testPresets": [
         {
-            "name": "test-cpu",
+            "name": "cpu",
             "configurePreset": "cpu",
             "output": {
                 "outputOnFailure": true
@@ -166,7 +166,7 @@
             }
         },
         {
-            "name": "test-omp",
+            "name": "omp",
             "configurePreset": "omp",
             "output": {
                 "outputOnFailure": true
@@ -177,7 +177,7 @@
             }
         },
         {
-            "name": "test-gpu",
+            "name": "gpu",
             "configurePreset": "gpu",
             "output": {
                 "outputOnFailure": true
@@ -188,7 +188,7 @@
             }
         },
         {
-            "name": "test-mpi-cpu",
+            "name": "mpi-cpu",
             "configurePreset": "mpi-cpu",
             "output": {
                 "outputOnFailure": true
@@ -199,7 +199,7 @@
             }
         },
         {
-            "name": "test-mpi-omp",
+            "name": "mpi-omp",
             "configurePreset": "mpi-omp",
             "output": {
                 "outputOnFailure": true
@@ -210,7 +210,7 @@
             }
         },
         {
-            "name": "test-mpi-gpu",
+            "name": "mpi-gpu",
             "configurePreset": "mpi-gpu",
             "output": {
                 "outputOnFailure": true
@@ -233,11 +233,11 @@
                 },
                 {
                     "type": "build",
-                    "name": "test-cpu"
+                    "name": "cpu"
                 },
                 {
                     "type": "test",
-                    "name": "test-cpu"
+                    "name": "cpu"
                 }
             ]
         },
@@ -252,11 +252,11 @@
                 },
                 {
                     "type": "build",
-                    "name": "test-omp"
+                    "name": "omp"
                 },
                 {
                     "type": "test",
-                    "name": "test-omp"
+                    "name": "omp"
                 }
             ]
         },
@@ -271,11 +271,11 @@
                 },
                 {
                     "type": "build",
-                    "name": "test-gpu"
+                    "name": "gpu"
                 },
                 {
                     "type": "test",
-                    "name": "test-gpu"
+                    "name": "gpu"
                 }
             ]
         },
@@ -290,11 +290,11 @@
                 },
                 {
                     "type": "build",
-                    "name": "test-mpi-cpu"
+                    "name": "mpi-cpu"
                 },
                 {
                     "type": "test",
-                    "name": "test-mpi-cpu"
+                    "name": "mpi-cpu"
                 }
             ]
         },
@@ -309,11 +309,11 @@
                 },
                 {
                     "type": "build",
-                    "name": "test-mpi-omp"
+                    "name": "mpi-omp"
                 },
                 {
                     "type": "test",
-                    "name": "test-mpi-omp"
+                    "name": "mpi-omp"
                 }
             ]
         },
@@ -328,11 +328,11 @@
                 },
                 {
                     "type": "build",
-                    "name": "test-mpi-gpu"
+                    "name": "mpi-gpu"
                 },
                 {
                     "type": "test",
-                    "name": "test-mpi-gpu"
+                    "name": "mpi-gpu"
                 }
             ]
         }

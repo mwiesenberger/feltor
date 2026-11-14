@@ -88,7 +88,7 @@ The tests and benchmarks will be built in `build/X/inc` and the projects in `bui
 The tests can be run from the `feltor` directory using
 [source,sh]
 ----
-ctest --preset test-cpu
+ctest --preset cpu
 # Run all tests in build/cpu, show the output of failing tests
 ----
 A build directory without a preset (e.g. one configured with `cmake -B mybuild`) is tested with `ctest --test-dir mybuild --output-on-failure`, which also works from any directory.
@@ -139,9 +139,9 @@ cmake --workflow --preset test-mpi-omp
 The workflow consists of three steps that can also be run separately, e.g. to repeat only the tests after a change. Here `-j` sets the parallelism directly:
 [source,sh]
 ----
-cmake --preset mpi-omp                      # configure
-cmake --build --preset test-mpi-omp -j 16   # compile all targets
-ctest --preset test-mpi-omp -j 16           # run all tests
+cmake --preset mpi-omp                 # configure
+cmake --build --preset mpi-omp -j 16   # compile all targets
+ctest --preset mpi-omp -j 16           # run all tests
 ----
 The presets register the tests such that
 
@@ -152,10 +152,10 @@ The presets register the tests such that
 Labels select parts of the test suite:
 [source,sh]
 ----
-ctest --preset test-mpi-cpu -LE mpi   # all tests except the multi-process runs
-ctest --preset test-mpi-cpu -L np8    # only the runs with 8 processes
-ctest --preset test-mpi-cpu -R blas   # only tests whose name contains "blas"
-ctest --preset test-mpi-cpu -L doc    # only the documentation check
+ctest --preset mpi-cpu -LE mpi   # all tests except the multi-process runs
+ctest --preset mpi-cpu -L np8    # only the runs with 8 processes
+ctest --preset mpi-cpu -R blas   # only tests whose name contains "blas"
+ctest --preset mpi-cpu -L doc    # only the documentation check
 ----
 The number of processes and threads are the CMake cache variables `FELTOR_TEST_MPI_RANKS` (e.g. `"2;4"`) and `FELTOR_TEST_OMP_THREADS`, which can be changed with `-D` when configuring.
 The MPI presets pass the Open MPI options `--oversubscribe --bind-to none` through `MPIEXEC_PREFLAGS`; other MPI libraries need their own values.
