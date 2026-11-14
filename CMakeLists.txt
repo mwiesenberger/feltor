@@ -114,6 +114,40 @@ if(FELTOR_BUILD_TESTS)
   # Make include(Catch2) available according to
   # https://github.com/catchorg/Catch2/blob/devel/docs/cmake-integration.md
   list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
+
+  # Documentation (options documented in cmake/FeltorDocumentation.cmake)
+  # - test dg_doc_test (label doc): fails on any Doxygen warning; plain HTML in doc-test
+  # - target dg_doc: the dg library documentation as published (doxygen-awesome
+  #   theme, graphviz if found) in doc; warnings are only printed
+  find_package(Doxygen 1.10 OPTIONAL_COMPONENTS dot)
+  if(Doxygen_FOUND)
+    # Theme files only, the repository has no CMake project
+    # https://github.com/jothepro/doxygen-awesome-css#cmake-with-fetchcontent
+    CPMAddPackage(
+      NAME doxygen-awesome-css
+      GITHUB_REPOSITORY jothepro/doxygen-awesome-css
+      VERSION 2.5.0
+      DOWNLOAD_ONLY YES
+    )
+    add_test(NAME dg_doc_test COMMAND ${CMAKE_COMMAND}
+        "-DDOXYGEN=$<TARGET_FILE:Doxygen::doxygen>"
+        "-DFELTOR_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/doc-test"
+        -P "${PROJECT_SOURCE_DIR}/cmake/FeltorDocumentation.cmake")
+    set_tests_properties(dg_doc_test PROPERTIES LABELS doc)
+    add_custom_target(dg_doc COMMAND ${CMAKE_COMMAND}
+        "-DDOXYGEN=$<TARGET_FILE:Doxygen::doxygen>"
+        "-DFELTOR_SOURCE_DIR=${PROJECT_SOURCE_DIR}"
+        "-DOUTPUT_DIR=${PROJECT_BINARY_DIR}/doc"
+        "-DFAIL_ON_WARNINGS=OFF"
+        "-DHAVE_DOT=${Doxygen_dot_FOUND}"
+        "-DDOT_PATH=$<$<BOOL:${Doxygen_dot_FOUND}>:$<TARGET_FILE_DIR:Doxygen::dot>>"
+        "-DAWESOME_DIR=${doxygen-awesome-css_SOURCE_DIR}"
+        -P "${PROJECT_SOURCE_DIR}/cmake/FeltorDocumentation.cmake"
+        VERBATIM COMMENT "Generating the dg library documentation")
+  else()
+    message(STATUS "Doxygen >= 1.10 not found: no dg library documentation (target dg_doc, test dg_doc_test)")
+  endif()
 endif()
 
 

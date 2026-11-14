@@ -135,7 +135,7 @@ export CTEST_PARALLEL_LEVEL=16       # number of parallel tests
 cmake --workflow --preset test-mpi-omp
 # Configure, compile everything and run all tests for mpi-omp
 ----
-`cmake --workflow` accepts no `-j` option, so the number of parallel compile jobs and tests comes from these two environment variables. Without them compilation and tests run one at a time.
+`cmake --workflow` accepts no `-j` option, so the number of parallel compile jobs and tests comes from the two environment variables. Without them compilation and tests run one at a time.
 The workflow consists of three steps that can also be run separately, e.g. to repeat only the tests after a change. Here `-j` sets the parallelism directly:
 [source,sh]
 ----
@@ -147,6 +147,7 @@ The presets register the tests such that
 
 * in the MPI presets every MPI test program additionally runs as a whole with 2, 4, 6 and 8 MPI processes (`mpirun --oversubscribe`, so this works on fewer cores). These tests are named `<target>_np<N>` and carry the labels `mpi` and `np<N>`. Every individual test case also runs on a single process.
 * in the OpenMP presets every test runs with 2 OpenMP threads per process.
+* if Doxygen 1.10 or newer is found, the test `dg_doc_test` (label `doc`) runs Doxygen on the dg library and fails on any Doxygen warning, e.g. an undocumented function. It writes plain HTML to `build/X/doc-test`.
 
 Labels select parts of the test suite:
 [source,sh]
@@ -154,13 +155,14 @@ Labels select parts of the test suite:
 ctest --preset test-mpi-cpu -LE mpi   # all tests except the multi-process runs
 ctest --preset test-mpi-cpu -L np8    # only the runs with 8 processes
 ctest --preset test-mpi-cpu -R blas   # only tests whose name contains "blas"
+ctest --preset test-mpi-cpu -L doc    # only the documentation check
 ----
 The number of processes and threads are the CMake cache variables `FELTOR_TEST_MPI_RANKS` (e.g. `"2;4"`) and `FELTOR_TEST_OMP_THREADS`, which can be changed with `-D` when configuring.
 The MPI presets pass the Open MPI options `--oversubscribe --bind-to none` through `MPIEXEC_PREFLAGS`; other MPI libraries need their own values.
 Parallel test runs never overload the machine: ctest counts the processes and threads of each test.
 
 A full test of the library runs these 6 workflows. On a 16-thread desktop CPU with one GPU one workflow takes about 3 to 10 minutes from scratch, mostly compilation.
-GitHub's free CI runners have no GPU, so the `test-gpu` and `test-mpi-gpu` workflows must be run on your own machine before a merge into the main branch.
+GitHub's free CI runners have no GPU, so the `test-gpu` and `test-mpi-gpu` workflows must be run locally before a merge into the main branch.
 How the presets are organised and how to write tests is explained in `tests/README.md`.
 === Using FELTOR's dg library in CMake
 
@@ -534,10 +536,20 @@ The
 https://mwiesenberger.github.io/feltor/dg/html/topics.html[documentation]
 of the dg library was generated with
 http://www.doxygen.org[Doxygen]. You can generate a local
-version directly from source code. This depends on the `doxygen`,
-`libjs-mathjax`, `graphviz` and `doxygen-awesome` packages. Type `make doc` in
-the folder `path/to/feltor/doc` and open `index.html` (a symbolic link
-to `dg/html/modules.html`) with your favorite browser.
+version directly from source code with the CMake target `dg_doc`, which exists in every build directory if Doxygen 1.10 or newer is found:
+[source,sh]
+----
+cmake --preset cpu                       # any preset
+cmake --build build/cpu --target dg_doc
+# open build/cpu/doc/index.html (a symbolic link to dg/html/topics.html)
+----
+The target prints Doxygen warnings without failing, but note that the test `dg_doc_test` described in <<sec_testsuite>> fails on warnings.
+The documentation uses the https://github.com/jothepro/doxygen-awesome-css[doxygen-awesome] theme, which CMake downloads when configuring (with `-DCPM_doxygen-awesome-css_SOURCE=<dir>` a local copy instead), and draws class graphs if `graphviz` is installed.
+Formulas are rendered by MathJax, which the pages load from the internet when viewed.
+
+The legacy alternative is `make doc` in the folder `path/to/feltor/doc`, which writes the same documentation into that folder (open `index.html`).
+It needs the `doxygen`, `graphviz` and `doxygen-awesome` packages (see the comments in `doc/Makefile`).
+
 Finally, also note the documentations of https://nvidia.github.io/cccl/thrust[thrust].
 
 We maintain tex files in every src folder for
