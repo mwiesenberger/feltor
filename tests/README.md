@@ -37,6 +37,7 @@ cmake --preset gpu -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 ```
 to treat compiler warnings as errors. The setting stays in the cache of `build/gpu`, so later `cmake --preset gpu` calls and the `test-gpu` workflow keep it.
 The presets themselves do not set it, because warnings depend on the compiler and its version, and a build should not fail only because a different compiler warns.
+The CI (`.github/workflows`) configures with it, so on its compilers warnings fail.
 
 ### How the presets in `CMakePresets.json` are organised
 

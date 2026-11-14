@@ -167,7 +167,7 @@ A full test of the library runs these 6 workflows, one after the other:
 tests/run-all-tests.sh 16 # 16 parallel compile jobs and tests (default: all cores); lists the failed presets at the end
 ----
 On a 16-thread desktop CPU with one GPU one workflow takes about 3 to 10 minutes from scratch, mostly compilation.
-GitHub's free CI runners have no GPU, so the `test-gpu` and `test-mpi-gpu` workflows must be run locally before a merge into the main branch.
+The GitHub CI (`.github/workflows`) compiles with warnings as errors. On every push it runs a quick check: it compiles the tests of each preset and runs them on a single process (`quick-test.yaml`). On pull requests it runs the full test of each preset, a build with the non-default options and the documentation check (`full-test.yaml`). GitHub's free CI runners have no GPU, so the CI only compiles the GPU presets, and the `test-gpu` and `test-mpi-gpu` workflows must be run locally before a merge into the main branch.
 How the presets are organised and how to write tests is explained in `tests/README.md`.
 
 === Using FELTOR's dg library in CMake

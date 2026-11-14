@@ -1,0 +1,82 @@
+# Full test suite of pull requests: for each preset compile all targets
+# (tests, benchmarks, projects) with warnings as errors and run all tests,
+# including the runs on several MPI processes (see README.adoc, "Running the
+# test suite"). GPU presets compile only, the runners have no GPU; run the
+# test-gpu and test-mpi-gpu workflow presets locally before merging.
+# Additionally: a build with the non-default options, and the Doxygen check.
+name: Full test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same pull request cancels the running check
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-test:
+    name: full-test (${{ matrix.name }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Ensure that feedback is delivered for all presets
+      fail-fast: false
+      matrix:
+        include:
+          - {name: cpu,     preset: cpu}
+          - {name: omp,     preset: omp}
+          - {name: gpu,     preset: gpu}
+          - {name: mpi-cpu, preset: mpi-cpu}
+          - {name: mpi-omp, preset: mpi-omp}
+          - {name: mpi-gpu, preset: mpi-gpu}
+          # The non-default value of every option
+          - name: cpu-options
+            preset: cpu
+            options: >-
+              -DFELTOR_FILE_WITH_JSONCPP=ON -DFELTOR_FILE_WITH_NETCDF=OFF
+              -DFELTOR_DG_WITH_MATRIX=OFF -DFELTOR_WITH_GLFW=OFF
+
+    env:
+      # nvcc needs up to 4 GB per compile job; the runners have 16 GB
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ contains(matrix.preset, 'gpu') && 2 || 4 }}
+      CTEST_PARALLEL_LEVEL: 4
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: Jimver/cuda-toolkit@v0.2.21
+      if: contains(matrix.preset, 'gpu')
+      with:
+        cuda: '12.5.0'
+        log-file-suffix: '${{ matrix.name }}'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install libglfw3-dev libopenmpi-dev libnetcdf-dev liblapack-dev libboost-dev
+
+    # The test dg_doc_test needs Doxygen >= 1.10 (Ubuntu 24.04 ships 1.9.8);
+    # it is independent of the preset, so only the cpu job runs it
+    - name: Install Doxygen
+      if: matrix.name == 'cpu'
+      run: |
+        curl -sSL https://github.com/doxygen/doxygen/releases/download/Release_1_12_0/doxygen-1.12.0.linux.bin.tar.gz | tar -xz -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/doxygen-1.12.0/bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP/doxygen-1.12.0/bin/doxygen" --version
+
+    # The gpu presets compile for the GPU of the machine (native), which the runners do not have
+    - name: Configure
+      run: >
+        cmake --preset ${{ matrix.preset }}
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        ${{ contains(matrix.preset, 'gpu') && '-DCMAKE_CUDA_ARCHITECTURES=61' || '' }}
+        ${{ matrix.options }}
+
+    - name: Build
+      run: cmake --build --preset ${{ matrix.preset }}
+
+    - name: Test
+      if: ${{ !contains(matrix.preset, 'gpu') }}
+      run: ctest --preset ${{ matrix.preset }}

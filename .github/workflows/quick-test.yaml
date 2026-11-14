@@ -1,0 +1,56 @@
+# Quick check of every push: compile the tests of each preset and run them
+# on a single process (GPU presets compile only, the runners have no GPU).
+# The full test suite runs on pull requests, see full-test.yaml.
+name: Quick test
+
+on:
+  push:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the running check
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Ensure that feedback is delivered for all presets
+      fail-fast: false
+      matrix:
+        preset: [cpu, omp, gpu, mpi-cpu, mpi-omp, mpi-gpu]
+
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      CTEST_PARALLEL_LEVEL: 4
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: Jimver/cuda-toolkit@v0.2.21
+      if: contains(matrix.preset, 'gpu')
+      with:
+        cuda: '12.5.0'
+        log-file-suffix: '${{ matrix.preset }}'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install libglfw3-dev libopenmpi-dev libnetcdf-dev liblapack-dev libboost-dev
+
+    # The gpu presets compile for the GPU of the machine (native), which the runners do not have
+    - name: Configure
+      run: >
+        cmake --preset ${{ matrix.preset }}
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        ${{ contains(matrix.preset, 'gpu') && '-DCMAKE_CUDA_ARCHITECTURES=61' || '' }}
+
+    - name: Build
+      run: cmake --build --preset ${{ matrix.preset }} --target dg_tests
+
+    # -LE mpi: without the runs on several MPI processes
+    - name: Test
+      if: ${{ !contains(matrix.preset, 'gpu') }}
+      run: ctest --preset ${{ matrix.preset }} -LE mpi
