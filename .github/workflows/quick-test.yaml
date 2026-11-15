@@ -1,6 +1,6 @@
 # Quick check of every push: compile the tests of each preset and run them
 # on a single process (GPU presets compile only, the runners have no GPU).
-# The same on Windows with the msvc-cpu preset.
+# The same on Windows with the msvc presets.
 # The full test suite runs on pull requests, see full-test.yaml.
 name: Quick test
 
@@ -65,6 +65,12 @@ jobs:
   quick-test-windows:
     runs-on: windows-latest
 
+    strategy:
+      # Ensure that feedback is delivered for all presets
+      fail-fast: false
+      matrix:
+        preset: [msvc-cpu, msvc-omp]
+
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: 4
       CTEST_PARALLEL_LEVEL: 4
@@ -77,10 +83,10 @@ jobs:
       run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
 
     - name: Configure
-      run: cmake --preset msvc-cpu -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+      run: cmake --preset ${{ matrix.preset }} -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
     - name: Build
-      run: cmake --build --preset msvc-cpu --target dg_tests
+      run: cmake --build --preset ${{ matrix.preset }} --target dg_tests
 
     - name: Test
-      run: ctest --preset msvc-cpu
+      run: ctest --preset ${{ matrix.preset }}
