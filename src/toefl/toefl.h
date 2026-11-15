@@ -134,7 +134,7 @@ void Explicit<G, M, Container>::polarisation( double t,
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
-            for( unsigned u=0; u<3; u++)
+            for( unsigned u=0; u<m_p.num_stages; u++)
                 m_multi_pol[u].set_chi( m_multi_chi[u]);
         }
     }
@@ -145,7 +145,7 @@ void Explicit<G, M, Container>::polarisation( double t,
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
-            for( unsigned u=0; u<3; u++)
+            for( unsigned u=0; u<m_p.num_stages; u++)
                 m_multi_pol[u].set_chi( m_multi_chi[u]);
         }
     }
@@ -158,7 +158,7 @@ void Explicit<G, M, Container>::polarisation( double t,
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
-            for( unsigned u=0; u<3; u++)
+            for( unsigned u=0; u<m_p.num_stages; u++)
                 m_multi_pol[u].set_chi( m_multi_chi[u]);
         }
     }
