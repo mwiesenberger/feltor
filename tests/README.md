@@ -55,7 +55,7 @@ CMake has four kinds of presets. Each kind stands for one step on the command li
  - `inherits` works only between presets of the same kind: `mpi-omp` takes all cache variables of `omp` and adds MPI.
  - The number of parallel jobs is not set in the presets, because it depends on the machine; how to set it is in `README.adoc`.
  - Personal presets belong in an untracked `CMakeUserPresets.json`, which may inherit from the presets in `CMakePresets.json`.
- - The `msvc-*` presets (Windows, Visual Studio) have build, test and workflow presets of the same names, e.g. `test-msvc-cpu`. Visual Studio builds several configurations in one build directory, so their build and test presets select `"configuration": "Release"`. `msvc-mpi-cpu` sets no `MPIEXEC_PREFLAGS`, because the Open MPI options of the Linux presets do not exist for Microsoft MPI.
+ - The `msvc-*` presets (Windows, Visual Studio) have build, test and workflow presets of the same names, e.g. `test-msvc-cpu`. Visual Studio builds several configurations in one build directory, so their build and test presets select `"configuration": "Release"`. There is no MPI preset for Windows (see `README.adoc`).
 
 ## Convert a program to catch
 

@@ -36,7 +36,7 @@ cmake --preset cpu # or gpu, omp, mpi-cpu, mpi-gpu, mpi-omp
 ----
 You may need to install the external dependencies `libnetcdf-dev`, `liblapack-dev` and `libboost-dev` (and `libglfw3-dev` for OpenGL output and `libopenmpi-dev` for MPI support) from your system package manager.
 ____
-On Windows you can use the built-in git client and cmake integration of Visual Studio. It is easiest to use the built-in vcpkg manager to install the `netcdf-c`, `glfw3`, `lapack` and `boost-headers` dependencies.
+On Windows you can use the built-in git client and cmake integration of Visual Studio. It is easiest to use the built-in vcpkg manager to install the `netcdf-c`, `glfw3`, `lapack` and `boost-headers` dependencies. The presets `msvc-cpu` and `msvc-omp` build FELTOR with Visual Studio. MPI is not supported on Windows; use the Linux presets in the Windows Subsystem for Linux (WSL) instead.
 ____
 
 There are 6 presets targeting 6 different hardware architectures. All require the C{plus}{plus}-17 standard. Each preset `X` creates its binary directory `build/X`.

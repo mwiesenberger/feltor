@@ -87,16 +87,6 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "FELTOR_TEST_OMP_THREADS": "2"
             }
-        },
-        {
-            "name": "msvc-mpi-cpu",
-            "displayName": "Multi core MPI on Windows",
-            "binaryDir": "build/mpi-cpu",
-            "inherits": "msvc-cpu",
-            "cacheVariables": {
-                "FELTOR_WITH_MPI": "ON",
-                "FELTOR_TEST_MPI_RANKS": "2;4;6;8"
-            }
         }
     ],
     "buildPresets": [
@@ -167,16 +157,6 @@
         {
             "name": "msvc-omp",
             "configurePreset": "msvc-omp",
-            "configuration": "Release",
-            "targets": [
-                "dg_tests",
-                "dg_benchmarks",
-                "feltor_projects"
-            ]
-        },
-        {
-            "name": "msvc-mpi-cpu",
-            "configurePreset": "msvc-mpi-cpu",
             "configuration": "Release",
             "targets": [
                 "dg_tests",
@@ -267,18 +247,6 @@
         {
             "name": "msvc-omp",
             "configurePreset": "msvc-omp",
-            "configuration": "Release",
-            "output": {
-                "outputOnFailure": true
-            },
-            "execution": {
-                "noTestsAction": "error",
-                "timeout": 600
-            }
-        },
-        {
-            "name": "msvc-mpi-cpu",
-            "configurePreset": "msvc-mpi-cpu",
             "configuration": "Release",
             "output": {
                 "outputOnFailure": true
@@ -439,25 +407,6 @@
                 {
                     "type": "test",
                     "name": "msvc-omp"
-                }
-            ]
-        },
-        {
-            "name": "test-msvc-mpi-cpu",
-            "displayName": "Full test: msvc-mpi-cpu",
-            "description": "Configure, compile all targets and run all tests for msvc-mpi-cpu",
-            "steps": [
-                {
-                    "type": "configure",
-                    "name": "msvc-mpi-cpu"
-                },
-                {
-                    "type": "build",
-                    "name": "msvc-mpi-cpu"
-                },
-                {
-                    "type": "test",
-                    "name": "msvc-mpi-cpu"
                 }
             ]
         }
