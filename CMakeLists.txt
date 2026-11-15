@@ -59,7 +59,7 @@ endif()
 # because vcpkg needs to called before project
 # Or use e.g. vcpkg install --x-feature=netcdf
 if(FELTOR_FILE_WITH_NETCDF)
-    # Installing netcdf from scratch on windows takes about 20 min
+    # Installing netcdf from scratch on windows takes about 6 min (with hdf5 and curl, 4-core GitHub runner, 2026)
     list(APPEND VCPKG_MANIFEST_FEATURES "netcdf")
 endif()
 if(FELTOR_DG_WITH_MATRIX)
@@ -67,7 +67,7 @@ if(FELTOR_DG_WITH_MATRIX)
     list( APPEND VCPKG_MANIFEST_FEATURES "matrix")
 endif()
 if(FELTOR_WITH_GLFW)
-    # Installing glfw from scratch on windows takes about a minute
+    # Installing glfw from scratch on windows takes about 15 s (4-core GitHub runner, 2026)
     list( APPEND VCPKG_MANIFEST_FEATURES "glfw")
 endif()
 

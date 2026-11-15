@@ -61,7 +61,7 @@ jobs:
 
   # Windows with Visual Studio: vcpkg installs NetCDF and GLFW from source
   # during the configure step (no cache), so the step times show the install
-  # times noted in CMakeLists.txt. Without warnings as errors for now.
+  # times noted in CMakeLists.txt.
   quick-test-windows:
     runs-on: windows-latest
 
@@ -77,7 +77,7 @@ jobs:
       run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
 
     - name: Configure
-      run: cmake --preset msvc-cpu
+      run: cmake --preset msvc-cpu -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
     - name: Build
       run: cmake --build --preset msvc-cpu --target dg_tests
