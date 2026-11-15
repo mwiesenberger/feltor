@@ -133,12 +133,12 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     },
     {"Se", " 0.5 ne^2 ",
         []( dg::x::DVec& result, Variables& v) {
-            dg::blas1::pointwiseDot( 1., v.rhs.var(0), v.rhs.var(0), 0., result);
+            dg::blas1::pointwiseDot( 0.5, v.rhs.var(0), v.rhs.var(0), 0., result);
         }
     },
     {"Si", " 0.5 tau_i ni^2",
         []( dg::x::DVec& result, Variables& v) {
-            dg::blas1::pointwiseDot(  v.p.tau, v.rhs.var(1), v.rhs.var(1), 0.,
+            dg::blas1::pointwiseDot(  0.5*v.p.tau, v.rhs.var(1), v.rhs.var(1), 0.,
                     result);
         }
     },
