@@ -46,11 +46,13 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
-    - uses: Jimver/cuda-toolkit@v0.2.21
+    # CUDA of the runner's Ubuntu; its nvcc is set up for a supported host compiler
+    - name: Install CUDA
       if: contains(matrix.preset, 'gpu')
-      with:
-        cuda: '12.5.0'
-        log-file-suffix: '${{ matrix.name }}'
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install nvidia-cuda-toolkit
+        nvcc --version
 
     - name: Install dependencies
       run: |
@@ -65,12 +67,13 @@ jobs:
         sudo apt-get -y install doxygen
         doxygen --version
 
-    # The gpu presets compile for the GPU of the machine (native), which the runners do not have
+    # The gpu presets compile for the GPU of the machine (native), which the runners
+    # do not have; 75 (Turing) is supported by every current CUDA version
     - name: Configure
       run: >
         cmake --preset ${{ matrix.preset }}
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
-        ${{ contains(matrix.preset, 'gpu') && '-DCMAKE_CUDA_ARCHITECTURES=61' || '' }}
+        ${{ contains(matrix.preset, 'gpu') && '-DCMAKE_CUDA_ARCHITECTURES=75' || '' }}
         ${{ matrix.options }}
 
     - name: Build
