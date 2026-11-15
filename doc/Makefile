@@ -65,18 +65,20 @@ exblas.tag:
 		echo "GENERATE_HTML = NO"; \
 		echo "GENERATE_TAGFILE = ../../../../doc/exblas.tag" ) | doxygen - ;
 
-geometries.tag:
+geometries.tag: dg.tag
 	cd ../inc/geometries;  \
 		(cat Doxyfile; \
 		echo "OUTPUT_DIRECTORY = ../../doc/geometries"; \
 		echo "GENERATE_HTML = NO"; \
+		echo "TAGFILES = ../../doc/dg.tag=../../dg/html"; \
 		echo "GENERATE_TAGFILE = ../../doc/geometries.tag" ) | doxygen - ;
 
-matrix.tag:
+matrix.tag: dg.tag
 	cd ../inc/matrix;  \
 		(cat Doxyfile; \
 		echo "OUTPUT_DIRECTORY = ../../doc/matrix"; \
 		echo "GENERATE_HTML = NO"; \
+		echo "TAGFILES = ../../doc/dg.tag=../../dg/html"; \
 		echo "GENERATE_TAGFILE = ../../doc/matrix.tag" ) | doxygen - ;
 
 
