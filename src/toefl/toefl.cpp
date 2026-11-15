@@ -25,11 +25,12 @@ int main( int argc, char* argv[])
 #endif //WITH_MPI
     dg::file::WrappedJsonValue js( dg::file::error::is_throw);
     toefl::Parameters p;
+    std::string inputfile = argc == 1 ? "input/default.json" : argv[1];
     try{
-        js = dg::file::file2Json( argc == 1 ? "input/default.json" : argv[1]);
+        js = dg::file::file2Json( inputfile);
         p = { js};
     } catch( std::exception& e) {
-        DG_RANK0 std::cerr << "ERROR in input file "<<argv[1]<<std::endl;
+        DG_RANK0 std::cerr << "ERROR in input file "<<inputfile<<std::endl;
         DG_RANK0 std::cerr << e.what()<<std::endl;
         dg::abort_program();
     }
@@ -66,6 +67,11 @@ int main( int argc, char* argv[])
             {
                 dg::apply( rhs.gamma_inv(), y0[0], y0[1]);
             }
+            else
+            {
+                DG_RANK0 std::cerr << "ERROR: init flr `"<<flr<<"` not recognized!\n";
+                dg::abort_program();
+            }
         }
     }
     if( p.model == "gravity_local" || p.model == "gravity_global" ||
@@ -82,7 +88,7 @@ int main( int argc, char* argv[])
         tableau = js[ "timestepper"].get( "tableau",
                 "Bogacki-Shampine-4-2-3").asString();
     }catch ( std::exception& error){
-        DG_RANK0 std::cerr << "Error in input file " << argv[1]<< std::endl;
+        DG_RANK0 std::cerr << "Error in input file " << inputfile<< std::endl;
         DG_RANK0 std::cerr << error.what() << std::endl;
         dg::abort_program();
     }
