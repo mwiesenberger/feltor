@@ -147,7 +147,7 @@ The presets register the tests such that
 
 * in the MPI presets every MPI test program additionally runs as a whole with 2, 4, 6 and 8 MPI processes (`mpirun --oversubscribe`, so this works on fewer cores). These tests are named `<target>_np<N>` and carry the labels `mpi` and `np<N>`. Every individual test case also runs on a single process.
 * in the OpenMP presets every test runs with 2 OpenMP threads per process.
-* if Doxygen 1.10 or newer is found, the test `dg_doc_test` (label `doc`) runs Doxygen on the dg library and fails on any Doxygen warning, e.g. an undocumented function. It writes plain HTML to `build/X/doc-test`.
+* if Doxygen 1.12 or newer is found, the test `dg_doc_test` (label `doc`) runs Doxygen on the dg library and fails on any Doxygen warning, e.g. an undocumented function. It writes plain HTML to `build/X/doc-test`.
 
 Labels select parts of the test suite:
 [source,sh]
@@ -542,7 +542,7 @@ The
 https://feltor-dev.github.io/feltor/dg/html/topics.html[documentation]
 of the dg library was generated with
 http://www.doxygen.org[Doxygen]. You can generate a local
-version directly from source code with the CMake target `dg_doc`, which exists in every build directory if Doxygen 1.10 or newer is found:
+version directly from source code with the CMake target `dg_doc`, which exists in every build directory if Doxygen 1.12 or newer is found:
 [source,sh]
 ----
 cmake --preset cpu                       # any preset

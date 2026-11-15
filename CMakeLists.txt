@@ -119,7 +119,7 @@ if(FELTOR_BUILD_TESTS)
   # - test dg_doc_test (label doc): fails on any Doxygen warning; plain HTML in doc-test
   # - target dg_doc: the dg library documentation as published (doxygen-awesome
   #   theme, graphviz if found) in doc; warnings are only printed
-  find_package(Doxygen 1.10 OPTIONAL_COMPONENTS dot)
+  find_package(Doxygen 1.12 OPTIONAL_COMPONENTS dot)
   if(Doxygen_FOUND)
     # Theme files only, the repository has no CMake project
     # https://github.com/jothepro/doxygen-awesome-css#cmake-with-fetchcontent
@@ -146,7 +146,7 @@ if(FELTOR_BUILD_TESTS)
         -P "${PROJECT_SOURCE_DIR}/cmake/FeltorDocumentation.cmake"
         VERBATIM COMMENT "Generating the dg library documentation")
   else()
-    message(STATUS "Doxygen >= 1.10 not found: no dg library documentation (target dg_doc, test dg_doc_test)")
+    message(STATUS "Doxygen >= 1.12 not found: no dg library documentation (target dg_doc, test dg_doc_test)")
   endif()
 endif()
 

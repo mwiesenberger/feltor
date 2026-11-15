@@ -2,7 +2,7 @@
 ##Packages needed on linux for compilation of doxygen doc
 ##sudo apt install
 
-#doxygen >= 1.10 (topics.html), tested with 1.12 and 1.15 (Ubuntu 26.04)
+#doxygen >= 1.12, tested with 1.12 and 1.15 (Ubuntu 26.04); 1.10 reports false warnings
 #  (doxygen-awesome-css 2.5.0 supports doxygen up to 1.18)
 #(formulas: the pages load MathJax 3 from cdn.jsdelivr.net when viewed,
 #  so nothing needs to be installed; offline they show the raw LaTeX)
