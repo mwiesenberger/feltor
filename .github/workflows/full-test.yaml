@@ -57,14 +57,13 @@ jobs:
         sudo apt-get update
         sudo apt-get -y install libglfw3-dev libopenmpi-dev libnetcdf-dev liblapack-dev libboost-dev
 
-    # The test dg_doc_test needs Doxygen >= 1.10 (Ubuntu 24.04 ships 1.9.8);
-    # it is independent of the preset, so only the cpu job runs it
+    # The test dg_doc_test runs with the Doxygen of the runner's Ubuntu (the
+    # version users have); it is independent of the preset, so only the cpu job runs it
     - name: Install Doxygen
       if: matrix.name == 'cpu'
       run: |
-        curl -sSL https://github.com/doxygen/doxygen/releases/download/Release_1_12_0/doxygen-1.12.0.linux.bin.tar.gz | tar -xz -C "$RUNNER_TEMP"
-        echo "$RUNNER_TEMP/doxygen-1.12.0/bin" >> "$GITHUB_PATH"
-        "$RUNNER_TEMP/doxygen-1.12.0/bin/doxygen" --version
+        sudo apt-get -y install doxygen
+        doxygen --version
 
     # The gpu presets compile for the GPU of the machine (native), which the runners do not have
     - name: Configure

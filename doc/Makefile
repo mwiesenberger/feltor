@@ -2,7 +2,7 @@
 ##Packages needed on linux for compilation of doxygen doc
 ##sudo apt install
 
-#doxygen >= 1.10 (topics.html), tested with 1.12
+#doxygen >= 1.10 (topics.html), tested with 1.12 and 1.15 (Ubuntu 26.04)
 #  (doxygen-awesome-css 2.5.0 supports doxygen up to 1.18)
 #(formulas: the pages load MathJax 3 from cdn.jsdelivr.net when viewed,
 #  so nothing needs to be installed; offline they show the raw LaTeX)
@@ -15,7 +15,7 @@
 # We followed doxygen-awesome documentation and use menubar.css for some custom
 # code colors and header.html with some additions to make the menubar and
 # activate doxygen-awesome extensions. header.html is the default header of
-# doxygen 1.12 (doxygen -w html header.html footer.html style.css) plus the
+# doxygen 1.15 (doxygen -w html header.html footer.html style.css) plus the
 # additions marked FELTOR; redo this for a different doxygen version.
 # Settings HTML_EXTRA_FILES, HTML_COPY_CLIPBOARD and HTML_COLORSTYLE below are
 # required by doxygen-awesome (see its README)

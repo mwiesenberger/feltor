@@ -511,7 +511,7 @@ The sheath is then given by
 \f]
  * In order to smoothen the Heaviside function we take
  * \f$\theta_{\alpha/2}\left( 2\pi(b_s - \frac{\alpha}{2}) - \varphi_w(R,Z)\right)\f$
- * and take the set intersection of that region and the ``not wall'' region to
+ * and take the set intersection of that region and the "not wall" region to
  * determine the sheath penalization region:
  * \f[
 \chi_s := \left(1-\chi_w(R,Z,\varphi)\right) \theta_{\alpha/2}\left( 2\pi\left(b_s - \frac{\alpha}{2}\right) - \varphi_w(R,Z)\right)

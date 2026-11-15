@@ -557,7 +557,7 @@ struct aRealTopology
         }
     }
 
-    ///@copydoc contains(const Vector&)const
+    ///@copydoc aRealTopology::contains(const Vector&)const
     template<size_t Md = Nd>
     std::enable_if_t<(Md == 1), bool> contains( real_type x) const
     {
@@ -632,7 +632,7 @@ struct aRealTopology
     ///@param src source
     aRealTopology& operator=(const aRealTopology& src) = default;
 
-    ///@copydoc set(std::array<unsigned,Nd>,std::array<unsigned,Nd>)
+    ///@copydoc aRealTopology::set(std::array<unsigned,Nd>,std::array<unsigned,Nd>)
     virtual void do_set(std::array<unsigned,Nd> new_n, std::array<unsigned,Nd> new_N) = 0;
     ///@copydoc set_pq
     virtual void do_set_pq( std::array<real_type, Nd> new_p, std::array<real_type,Nd> new_q) = 0;
