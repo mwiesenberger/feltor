@@ -116,9 +116,12 @@ inline T doReduce( StdMapTag, const ContainerType& x, T zero, BinaryOp
     //reduce sequentially recursively
     // zero must stay the neutral element in the inner reductions (e.g. MPI)
     T result = zero;
+    // mapped_type instead of decltype(el.second): nvcc 12.4 fails to compile
+    // decltype of the range-for variable in host code
+    using inner_vector = typename ContainerType::mapped_type;
     for( const auto& el : x)
-        result = op( result, doReduce( get_tensor_category<decltype(
-            el.second)>(), el.second, zero, op, unary_op));
+        result = op( result, doReduce( get_tensor_category<inner_vector>(),
+            el.second, zero, op, unary_op));
     return result;
 }
 
