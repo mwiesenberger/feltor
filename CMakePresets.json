@@ -84,7 +84,8 @@
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_CXX_FLAGS": "/arch:AVX2 /O2 /EHsc -D_USE_MATH_DEFINES",
                 "FELTOR_DG_WITH_MATRIX": false,
-                "CMAKE_BUILD_TYPE": "Release"
+                "CMAKE_BUILD_TYPE": "Release",
+                "FELTOR_TEST_OMP_THREADS": "2"
             }
         },
         {
@@ -93,7 +94,8 @@
             "binaryDir": "build/mpi-cpu",
             "inherits": "msvc-cpu",
             "cacheVariables": {
-                "FELTOR_WITH_MPI": "ON"
+                "FELTOR_WITH_MPI": "ON",
+                "FELTOR_TEST_MPI_RANKS": "2;4;6;8"
             }
         }
     ],
@@ -146,6 +148,36 @@
         {
             "name": "mpi-gpu",
             "configurePreset": "mpi-gpu",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "msvc-cpu",
+            "configurePreset": "msvc-cpu",
+            "configuration": "Release",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "msvc-omp",
+            "configurePreset": "msvc-omp",
+            "configuration": "Release",
+            "targets": [
+                "dg_tests",
+                "dg_benchmarks",
+                "feltor_projects"
+            ]
+        },
+        {
+            "name": "msvc-mpi-cpu",
+            "configurePreset": "msvc-mpi-cpu",
+            "configuration": "Release",
             "targets": [
                 "dg_tests",
                 "dg_benchmarks",
@@ -212,6 +244,42 @@
         {
             "name": "mpi-gpu",
             "configurePreset": "mpi-gpu",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "msvc-cpu",
+            "configurePreset": "msvc-cpu",
+            "configuration": "Release",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "msvc-omp",
+            "configurePreset": "msvc-omp",
+            "configuration": "Release",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "timeout": 600
+            }
+        },
+        {
+            "name": "msvc-mpi-cpu",
+            "configurePreset": "msvc-mpi-cpu",
+            "configuration": "Release",
             "output": {
                 "outputOnFailure": true
             },
@@ -333,6 +401,63 @@
                 {
                     "type": "test",
                     "name": "mpi-gpu"
+                }
+            ]
+        },
+        {
+            "name": "test-msvc-cpu",
+            "displayName": "Full test: msvc-cpu",
+            "description": "Configure, compile all targets and run all tests for msvc-cpu",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "msvc-cpu"
+                },
+                {
+                    "type": "build",
+                    "name": "msvc-cpu"
+                },
+                {
+                    "type": "test",
+                    "name": "msvc-cpu"
+                }
+            ]
+        },
+        {
+            "name": "test-msvc-omp",
+            "displayName": "Full test: msvc-omp",
+            "description": "Configure, compile all targets and run all tests for msvc-omp",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "msvc-omp"
+                },
+                {
+                    "type": "build",
+                    "name": "msvc-omp"
+                },
+                {
+                    "type": "test",
+                    "name": "msvc-omp"
+                }
+            ]
+        },
+        {
+            "name": "test-msvc-mpi-cpu",
+            "displayName": "Full test: msvc-mpi-cpu",
+            "description": "Configure, compile all targets and run all tests for msvc-mpi-cpu",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "msvc-mpi-cpu"
+                },
+                {
+                    "type": "build",
+                    "name": "msvc-mpi-cpu"
+                },
+                {
+                    "type": "test",
+                    "name": "msvc-mpi-cpu"
                 }
             ]
         }
