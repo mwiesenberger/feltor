@@ -1,0 +1,55 @@
+# Publish the dg library documentation (target dg_doc) to the GitHub Pages
+# of feltor-dev/feltor, https://feltor-dev.github.io/feltor/, whenever main
+# changes, i.e. after a pull request is merged. Requires Settings -> Pages ->
+# Source "GitHub Actions"; each deployment replaces the whole site.
+name: Publish documentation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write    # deploy to GitHub Pages
+  id-token: write # prove that the deployment comes from this workflow
+
+# Deploy one version after the other, never cancel a running deployment
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Forks do not publish
+    if: github.repository == 'feltor-dev/feltor'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install doxygen graphviz libglfw3-dev libnetcdf-dev liblapack-dev libboost-dev
+        doxygen --version
+
+    - name: Generate documentation
+      run: |
+        cmake --preset cpu
+        cmake --build --preset cpu --target dg_doc
+        # The link to dg/html/topics.html is only for local viewing
+        rm build/cpu/doc/index.html
+
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: build/cpu/doc
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}dg/html/topics.html
+    steps:
+    - id: deployment
+      uses: actions/deploy-pages@v4

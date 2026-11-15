@@ -20,21 +20,9 @@
 # Settings HTML_EXTRA_FILES, HTML_COPY_CLIPBOARD and HTML_COLORSTYLE below are
 # required by doxygen-awesome (see its README)
 
-# The online documentation is hosted on the https://github.com/mwiesenberger/feltor fork
-# To update the online documentation we use ghp-import with the -o option, such
-# that the gh-pages always
-# contains only a single commit (to save space; and the history of documentation
-# is contained in the main branch anyway).
-#```bash
-#pip install ghp-import
-#cd path/to/feltor/doc
-#make clean
-#make doc
-#cd ..
-#ghp-import -n -f -p -o doc
-# # or
-#ghp-import -n -f -p -o --remote=mygithub doc
-#```
+# The online documentation https://feltor-dev.github.io/feltor/ is published
+# automatically after every change of the main branch on feltor-dev/feltor
+# (.github/workflows/publish-doc.yaml); this Makefile is for local builds.
 
 ###
 

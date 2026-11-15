@@ -539,7 +539,7 @@ directory.
 == 2. Documentation
 
 The
-https://mwiesenberger.github.io/feltor/dg/html/topics.html[documentation]
+https://feltor-dev.github.io/feltor/dg/html/topics.html[documentation]
 of the dg library was generated with
 http://www.doxygen.org[Doxygen]. You can generate a local
 version directly from source code with the CMake target `dg_doc`, which exists in every build directory if Doxygen 1.10 or newer is found:
