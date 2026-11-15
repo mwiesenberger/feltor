@@ -107,7 +107,7 @@ else()
   CPMAddPackage(
     NAME nlohmann_json # Use name of the package that appears in "find_package"
     GITHUB_REPOSITORY "nlohmann/json"
-    VERSION 3.11.0 # Update in sync with local package manager
+    VERSION 3.11.3 # Update in sync with local package manager
     SYSTEM ON
     EXCLUDE_FROM_ALL ON
   )
