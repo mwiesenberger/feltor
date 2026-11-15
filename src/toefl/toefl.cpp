@@ -60,7 +60,14 @@ int main( int argc, char* argv[])
         dg::blas1::copy( y0[0], y0[1]);
         if( p.tau != 0)
         {
-            std::string flr = js["init"]["flr"].asString();
+            std::string flr;
+            try{
+                flr = js["init"]["flr"].asString();
+            } catch( std::exception& e) {
+                DG_RANK0 std::cerr << "ERROR in input file "<<inputfile<<std::endl;
+                DG_RANK0 std::cerr << e.what()<<std::endl;
+                dg::abort_program();
+            }
             if( "none" == flr)
                 ;
             else if( "gamma_inv" == flr)

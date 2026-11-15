@@ -293,8 +293,10 @@ This can be controlled via
     // (see next section for information about what is written in there)
     "type"  : "netcdf",
     "tend"  : 4,    // The end time of the simulation
-    "maxout"  : 100, // The number of field outputs after the initial one
-    // (at equal time intervals tend/maxout)
+    "maxout"  : 100, // The number of field outputs after the initial one:
+    // output $u$ is written after the first time step that reaches
+    // $u\cdot$tend/maxout, the last one exactly at tend
+    // (the variable time in the output file holds the times reached)
     "n"  : 3 , // The number of polynomial coefficients in the output file
     "Nx" : 48, // Number of cells in x in the output file
     "Ny" : 48  // Number of cells in y in the output file
