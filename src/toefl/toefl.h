@@ -259,12 +259,12 @@ void Explicit<G, M, Container>::operator()( double t,
             dg::blas1::pointwiseDot( +1., m_binv, m_dxphi[0], 0., m_v[1]);
             m_adv.upwind( -1., m_v[0], m_v[1], y[u], 0., yp[u]);
             // Div ExB velocity
-            dg::blas1::pointwiseDot( m_p.kappa, m_ype[u], m_dyphi[u], 1., yp[u]);
+            dg::blas1::pointwiseDot( m_p.kappa, m_ype[u], m_dyphi[0], 1., yp[u]);
         }
         m_arakawa(y[0], m_phi[1], m_omega);
         dg::blas1::pointwiseDot( 1., m_binv, m_omega, 1., yp[1]);
 
-        dg::blas1::pointwiseDot( m_p.kappa, y[1], m_dyphi[0], 1.,  yp[1]);
+        dg::blas1::pointwiseDot( m_p.kappa, m_ype[0], m_dyphi[1], 1.,  yp[1]);
         // diamagnetic compression
         dg::blas2::gemv( -m_p.kappa, m_centered[1], y[0], 1., yp[1]);
     }
