@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #ifdef WITH_MPI
 #include <mpi.h>
@@ -73,22 +74,23 @@ TEST_CASE( "Derivatives")
         const Vector null2 = dg::evaluate( dg::zero, g2d);
         Vector sol2[] = {dx2d, dy2d, null2, null2};
 
-        // on github there is a slightly different result
-        int64_t binary_gh[] = { 4562611930300282861,4553674328256673277,4567083257206217158,4574111364446550181 };
-#ifdef _MSC_VER
-        int64_t binary[] = { 4562611930300284162,4553674328256669894,4567083257206216601,4574111364446549876};
-#else
-        int64_t binary[] = { 4562611930300281864,4553674328256556132,4567083257206218817,4574111364446550002 };
-#endif //_MSC_VER
-        dg::exblas::udouble res;
+        // The error norms are compared with a relative tolerance, not with a
+        // bit pattern: they depend in the last bits on the math library
+        // (sin, cos in dg::evaluate), the compiler and -march=native (fused
+        // multiply-add), so they differ between machines by up to 3e-11
+        // (Linux, MSVC, GitHub runners). Wrong derivatives change them by far
+        // more. Bitwise reproducibility of the dot products is tested in
+        // blas1_t.cpp and evaluation_t.cpp.
+        const value_t reference[] = { 0.0010775034079693064, 0.00027314872436141045,
+            0.002141010754062506, 0.006471682818867551};
         INFO("TEST 2D: DX, DY, JX, JY");
         auto i = GENERATE( 0,1,2,3);
         Vector error = sol2[i];
         dg::blas2::symv( -1., m2[i], f2d, 1., error);
         dg::blas1::pointwiseDot( error, error, error);
-        value_t norm = sqrt(dg::blas1::dot( w2d, error)); res.d = norm;
-        INFO("Distance "<<i<<" to true solution: "<<norm<<"\t"<<res.i<<"\t"<<binary[i]);
-        CHECK( ((std::abs(res.i - binary[i]) < 2) or (std::abs(res.i - binary_gh[i]) < 2)) );
+        value_t norm = sqrt(dg::blas1::dot( w2d, error));
+        INFO("Distance "<<i<<" to true solution: "<<std::setprecision(17)<<norm<<"\t"<<reference[i]);
+        CHECK( std::abs( norm - reference[i]) < 1e-9*reference[i]);
     }
     SECTION( "Three dimensional")
     {
@@ -113,20 +115,17 @@ TEST_CASE( "Derivatives")
         const Vector dz3d = dg::evaluate( cosz, g3d);
         const Vector null3 = dg::evaluate( dg::zero, g3d);
         Vector sol3[] = {dx3d, dy3d, dz3d, null3, null3, null3};
-        int64_t binary_gh[] = { 4561946736820640320,4553062895410783769,4594213495911299616,4566393134538622288,4573262464593641524,4594304523193682043 };
-#ifdef _MSC_VER
-        int64_t binary[] = { 4561946736820642285,4553062895410778470,4594213495911299616,4566393134538621435,4573262464593641255,4594304523193682043 };
-#else
-        int64_t binary[] = {4561946736820639666,4553062895410573431,4594213495911299616,4566393134538626348,4573262464593641240,4594304523193682043};
-#endif //_MSC_VER
+        // Relative tolerance instead of a bit pattern, see the section "Two dimensional"
+        const value_t reference[] = { 0.0009549125324095269, 0.00024207175418211924,
+            0.14004008010893276, 0.0018974213779342037, 0.005735379567070507,
+            0.14256659472818342};
         INFO("TEST 3D: DX, DY, DZ, JX, JY, JZ");
         auto i = GENERATE( 0,1,2,3,4,5);
-        dg::exblas::udouble res;
         Vector error = sol3[i];
         dg::blas2::symv( -1., m3[i], f3d, 1., error);
-        value_t norm = sqrt(dg::blas2::dot( error, w3d, error)); res.d = norm;
-        INFO("Distance "<<i<<" to true solution: "<<norm<<"\t"<<res.i<<"\t"<<binary[i]);
-        CHECK( ((std::abs(res.i - binary[i]) < 2) or (std::abs(res.i - binary_gh[i]) < 2)) );
+        value_t norm = sqrt(dg::blas2::dot( error, w3d, error));
+        INFO("Distance "<<i<<" to true solution: "<<std::setprecision(17)<<norm<<"\t"<<reference[i]);
+        CHECK( std::abs( norm - reference[i]) < 1e-9*reference[i]);
     }
     SECTION( "Symv captures NaN")
     {
@@ -196,13 +195,8 @@ TEST_CASE( "Derivatives")
         dg::blas1::transform( csol2,csol2, []DG_DEVICE( thrust::complex<double>
             x){ return thrust::complex{x.real(), x.real()};});
         cVector cerror = csol2;
-        int64_t binary_gh = {4562611930300282861};
-#ifdef _MSC_VER
-        int64_t binary = { 4562611930300284162 };
-#else
-        int64_t binary = {4562611930300281864};
-#endif
-        dg::exblas::udouble res;
+        // Relative tolerance instead of a bit pattern, see the section "Two dimensional"
+        const value_t reference = 0.0010775034079693064;
         INFO("TEST 2D: DX");
         dg::blas2::symv( -1., dx2, cf2d, 1., cerror);
         Vector error(w2d);
@@ -210,17 +204,17 @@ TEST_CASE( "Derivatives")
         dg::blas1::transform( cerror,error, []DG_DEVICE( thrust::complex<double>
             x){ return x.real(); });
         dg::blas1::pointwiseDot( error, error, error);
-        value_t norm = sqrt(dg::blas1::dot( w2d, error)); res.d = norm;
-        INFO("Distance to true solution: "<<norm<<"\t"<<res.i<<"\t"<<binary);
-        CHECK( ((std::abs(res.i - binary) < 2) or (std::abs(res.i - binary_gh) < 2)));
+        value_t norm = sqrt(dg::blas1::dot( w2d, error));
+        INFO("Distance to true solution: "<<std::setprecision(17)<<norm<<"\t"<<reference);
+        CHECK( std::abs( norm - reference) < 1e-9*reference);
 
         // Imag part
         dg::blas1::transform( cerror,error, []DG_DEVICE( thrust::complex<double>
             x){ return x.imag(); });
         dg::blas1::pointwiseDot( error, error, error);
-        norm = sqrt(dg::blas1::dot( w2d, error)); res.d = norm;
-        INFO("Distance to true solution: "<<norm<<"\t"<<res.i<<"\t"<<binary);
-        CHECK( ((std::abs(res.i - binary) < 2) or (std::abs(res.i - binary_gh) < 2)));
+        norm = sqrt(dg::blas1::dot( w2d, error));
+        INFO("Distance to true solution: "<<std::setprecision(17)<<norm<<"\t"<<reference);
+        CHECK( std::abs( norm - reference) < 1e-9*reference);
     }
 
 }
