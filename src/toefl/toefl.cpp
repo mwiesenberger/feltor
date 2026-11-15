@@ -20,8 +20,6 @@ int main( int argc, char* argv[])
 {
 #ifdef WITH_MPI
     dg::mpi_init( &argc, &argv);
-    MPI_Comm comm;
-    dg::mpi_init2d( dg::DIR, dg::PER, comm, std::cin, true);
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif //WITH_MPI
@@ -35,6 +33,10 @@ int main( int argc, char* argv[])
         DG_RANK0 std::cerr << e.what()<<std::endl;
         dg::abort_program();
     }
+#ifdef WITH_MPI
+    MPI_Comm comm;
+    dg::mpi_init2d( p.bcx, p.bcy, comm, std::cin, true);
+#endif //WITH_MPI
     DG_RANK0 std::cout << js.toStyledString() << std::endl;
     DG_RANK0 p.display(std::cout);
 
