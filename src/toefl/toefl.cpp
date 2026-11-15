@@ -231,10 +231,11 @@ int main( int argc, char* argv[])
         file.defput_dim( "y", {{"axis", "Y"},
             {"long_name", "y-coordinate in Cartesian system"}},
             grid_out.abscissas(1));
+        // static output is evaluated on the output grid, not interpolated
+        toefl::Variables var_out = { rhs, grid_out, p};
         for( auto& record : toefl::diagnostics2d_static_list)
         {
-            record.function ( resultH, var);
-            dg::blas2::symv( projection, resultH, resultP);
+            record.function ( resultP, var_out);
             file.def_var_as<double>( record.name, {"y","x"}, record.atts);
             file.put_var( record.name, {grid_out}, resultP);
         }
