@@ -83,8 +83,6 @@ Explicit< Geometry, M, Container>::Explicit( const Geometry& grid, const Paramet
 template< class G, class M, class Container>
 void Explicit<G, M, Container>::compute_psi( double t)
 {
-    if(m_p.model == "gravity_local")
-        return;
     //in gyrofluid invert Gamma operator
     if( m_p.model == "local" || m_p.model == "global")
     {
@@ -238,8 +236,8 @@ void Explicit<G, M, Container>::operator()( double t,
         for( unsigned u=0; u<2; u++)
         {
             // ExB advection with updwind scheme
-            dg::blas2::symv(  1., m_centered[0], m_phi[u], 0., m_v[1]);
-            dg::blas2::symv( -1., m_centered[1], m_phi[u], 0., m_v[0]);
+            dg::blas2::symv(  1., m_centered[0], m_phi[0], 0., m_v[1]);
+            dg::blas2::symv( -1., m_centered[1], m_phi[0], 0., m_v[0]);
             m_adv.upwind( -1., m_v[0], m_v[1], y[u], 0., yp[u]);
         }
         // diamagnetic compression
