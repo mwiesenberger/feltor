@@ -1,5 +1,6 @@
 # Quick check of every push: compile the tests of each preset and run them
 # on a single process (GPU presets compile only, the runners have no GPU).
+# The same on Windows with the msvc-cpu preset.
 # The full test suite runs on pull requests, see full-test.yaml.
 name: Quick test
 
@@ -57,3 +58,29 @@ jobs:
     - name: Test
       if: ${{ !contains(matrix.preset, 'gpu') }}
       run: ctest --preset ${{ matrix.preset }} -LE mpi
+
+  # Windows with Visual Studio: vcpkg installs NetCDF and GLFW from source
+  # during the configure step (no cache), so the step times show the install
+  # times noted in CMakeLists.txt. Without warnings as errors for now.
+  quick-test-windows:
+    runs-on: windows-latest
+
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      CTEST_PARALLEL_LEVEL: 4
+
+    steps:
+    - uses: actions/checkout@v5
+
+    # The msvc presets take vcpkg from VCPKG_ROOT; the runner image includes vcpkg
+    - name: Use the runner's vcpkg
+      run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
+    - name: Configure
+      run: cmake --preset msvc-cpu
+
+    - name: Build
+      run: cmake --build --preset msvc-cpu --target dg_tests
+
+    - name: Test
+      run: ctest --preset msvc-cpu
