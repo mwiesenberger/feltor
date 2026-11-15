@@ -72,6 +72,7 @@ struct Parameters
         else if( "gravity_global" == model)
         {
             friction = js["model"]["friction"].asDouble();
+            boussinesq = js["model"]["boussinesq"].asBool();
         }
         else if( "drift_global" == model)
         {

@@ -113,7 +113,7 @@ void Explicit<G, M, Container>::compute_psi( double t)
         dg::blas1::axpby( 0.5, m_uE2, 0., m_phi[1]);
     }
     else if( m_p.model == "gravity_global" )
-        dg::blas1::axpby( 0.5, m_omega, 0., m_phi[1]);
+        dg::blas1::axpby( 0.5, m_uE2, 0., m_phi[1]);
 }
 
 
@@ -139,7 +139,7 @@ void Explicit<G, M, Container>::polarisation( double t,
     else if(m_p.model == "gravity_global" )
     {
         dg::blas1::evaluate( m_chi, dg::equals(), []DG_DEVICE
-                ( double nt){ return (nt+1.); }, y[1]);
+                ( double nt){ return (nt+1.); }, y[0]);
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
@@ -217,8 +217,8 @@ void Explicit<G, M, Container>::operator()( double t,
         // ExB advection with updwind scheme
         dg::blas2::symv( m_centered[0], m_phi[0], m_dxphi[0]);
         dg::blas2::symv( m_centered[1], m_phi[0], m_dyphi[0]);
-        dg::blas1::pointwiseDot( -1., m_binv, m_dyphi[0], 0., m_v[0]);
-        dg::blas1::pointwiseDot( +1., m_binv, m_dxphi[0], 0., m_v[1]);
+        dg::blas1::axpby( -1., m_dyphi[0], 0., m_v[0]);
+        dg::blas1::axpby( +1., m_dxphi[0], 0., m_v[1]);
         for( unsigned u=0; u<2; u++)
         {
             m_adv.upwind( -1., m_v[0], m_v[1], y[u], 0., yp[u]);
