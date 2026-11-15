@@ -149,7 +149,7 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     }
                 }
     },
-    { "drift-global", {
+    { "drift_global", {
     {"n", "Electron density in 2d",
         []( dg::x::DVec& result, Variables& v) {
             dg::blas1::copy( v.rhs.var(0), result);
@@ -199,7 +199,7 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     }
                 }
     },
-    { "gravity-global", {
+    { "gravity_global", {
     {"n", "Electron density in 2d",
         []( dg::x::DVec& result, Variables& v) {
             dg::blas1::copy( v.rhs.var(0), result);
@@ -247,7 +247,7 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     }
                 }
     },
-    { "gravity-local", {
+    { "gravity_local", {
     {"n", "Electron density in 2d",
         []( dg::x::DVec& result, Variables& v) {
             dg::blas1::copy( v.rhs.var(0), result);
