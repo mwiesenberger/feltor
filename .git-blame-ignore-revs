@@ -1,0 +1,8 @@
+# Commits that git blame skips, e.g. whole-file reformatting or line ending
+# changes. GitHub uses this file automatically; locally run once
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# Full hashes only. Merge the branches that add a commit here without
+# squashing, or the hash changes.
+
+# Convert the remaining CRLF files to LF
+6a67136b74c569cde0bd36e383adcc660e2219a8
