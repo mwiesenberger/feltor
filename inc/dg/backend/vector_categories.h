@@ -4,6 +4,8 @@
 #include "matrix_categories.h"
 
 namespace dg{
+///@addtogroup vector_tags
+///@{
 
 //here we introduce the concept of data access
 
@@ -61,9 +63,36 @@ struct MPIVectorTag     : public AnyVectorTag {};
  */
 struct RecursiveVectorTag  : public AnyVectorTag {};
 //struct RecursiveScalarTag : public RecursiveVectorTag {};
+/**
+ * @brief A Recursive Vector of fixed size
+ *
+ * Like \c dg::RecursiveVectorTag, but the number of inner elements is fixed by
+ * the type, so \c dg::construct and \c dg::assign need no size parameter.
+ * @note Example is \c std::array<T,N> where T is not a scalar
+ */
 struct ArrayVectorTag  : public RecursiveVectorTag {};
+/**
+ * @brief A map from keys to inner containers
+ *
+ * The class must typedef \c mapped_type (the inner type), for which <tt>
+ * dg::TensorTraits </tt> must be specialized. The inner elements are
+ * iterated over with range-based for (elements with \c first and \c second
+ * members) and accessed with <tt>at(key)</tt>.
+ * In blas1 functions and \c dg::blas2::dot the keys are those of the first
+ * map argument, in \c dg::blas2::symv those of \c y; accessing a key that
+ * another map argument does not contain throws.
+ * \c dg::assign gives the target the keys of the source.
+ * @note Example is \c std::map<Key,T>
+ */
 struct StdMapTag : public RecursiveVectorTag{};
 
+/**
+ * @brief A Shared Vector of fixed size on the host
+ *
+ * \c dg::construct and \c dg::assign between two such types copy by plain
+ * assignment.
+ * @note Example is \c std::array<T,N> where T is a scalar (with \c dg::SerialTag)
+ */
 struct ArrayScalarTag : public SharedVectorTag {};
 /**
  * @brief Indicate thrust/std - like behaviour
@@ -86,6 +115,7 @@ struct ArrayScalarTag : public SharedVectorTag {};
  *  @note \c thrust::host_vector and \c thrust::device_vector meet these requirements
  */
 struct ThrustVectorTag  : public ArrayScalarTag {};
+///@}
 
 }//namespace dg
 

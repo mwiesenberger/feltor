@@ -2,6 +2,37 @@
 include(CTest)
 include(Catch)
 
+# ============================================
+# Test environment
+#
+# Every TEST_CASE is registered on its own through catch_discover_tests. In an
+# MPI build this runs the test on a single rank without mpirun. The variables
+# below add whole-binary runs under mpirun and fix the number of OpenMP threads.
+
+set(FELTOR_TEST_MPI_RANKS "" CACHE STRING
+    "Semicolon-separated list of rank counts, e.g. \"2;4;6;8\". Each MPI test executable is additionally registered as one test per rank count, launched as a whole through MPIEXEC_EXECUTABLE. Empty: no additional tests.")
+set(FELTOR_TEST_OMP_THREADS "" CACHE STRING
+    "Value of OMP_NUM_THREADS for all tests (every rank in MPI tests) when CCCL_THRUST_DEVICE_SYSTEM is OMP. Empty: inherit from the environment of ctest. Ignored for other devices.")
+
+foreach(np IN LISTS FELTOR_TEST_MPI_RANKS)
+    if( NOT np MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "FELTOR_TEST_MPI_RANKS must contain positive integers, got \"${np}\"")
+    endif()
+endforeach()
+if( NOT FELTOR_TEST_OMP_THREADS STREQUAL "" AND NOT FELTOR_TEST_OMP_THREADS MATCHES "^[1-9][0-9]*$")
+    message(FATAL_ERROR "FELTOR_TEST_OMP_THREADS must be empty or a positive integer, got \"${FELTOR_TEST_OMP_THREADS}\"")
+endif()
+if( FELTOR_WITH_MPI AND NOT FELTOR_TEST_MPI_RANKS STREQUAL "")
+    message( STATUS "MPI tests run additionally with ${FELTOR_TEST_MPI_RANKS} ranks: ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} N ${MPIEXEC_PREFLAGS}")
+endif()
+
+# Number of OpenMP threads per process that tests run with ("" = not set)
+if(CCCL_THRUST_DEVICE_SYSTEM STREQUAL "OMP")
+    set(FELTOR_TEST_THREADS_ "${FELTOR_TEST_OMP_THREADS}")
+else()
+    set(FELTOR_TEST_THREADS_ "")
+endif()
+
 ### @brief Given a src file named test_path (read-only) and a runtime folder create a
 ### target with name target_name (write-only)
 ###
@@ -14,7 +45,15 @@ include(Catch)
 ### @param with_MPI If on, then executable is compiled with MPI
 ### @param target_name (write-only) Contains target name (dg_testfolder_stem or dg_stem) on output
 ###     This allows to link libraries on target_name in calling scope
+### @param RESOURCE_LOCK name (optional keyword argument) ctest never runs two
+###     tests holding the same lock at the same time. Use it for tests that write
+###     files with fixed names into the shared working directory, so that
+###     ctest -j cannot make them overwrite each other's files.
 function(add_dg_test test_path test_folder with_MPI target_name)
+    cmake_parse_arguments(PARSE_ARGV 4 arg "" "RESOURCE_LOCK" "")
+    if( DEFINED arg_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "add_dg_test: unknown arguments ${arg_UNPARSED_ARGUMENTS}")
+    endif()
     if(CCCL_THRUST_DEVICE_SYSTEM STREQUAL "CUDA" OR CCCL_THRUST_DEVICE_SYSTEM STREQUAL "")
         set_source_files_properties("${test_path}" PROPERTIES LANGUAGE CUDA)
     endif()
@@ -65,8 +104,58 @@ function(add_dg_test test_path test_folder with_MPI target_name)
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/inc/${test_folder}"
         )
     endif()
-    # Register the tests with CTest
-    catch_discover_tests(${test_name})
+    # Register the tests with CTest: each TEST_CASE on its own (one rank if MPI)
+    set(test_properties "")
+    if( NOT FELTOR_TEST_THREADS_ STREQUAL "")
+        list(APPEND test_properties
+            ENVIRONMENT "OMP_NUM_THREADS=${FELTOR_TEST_THREADS_}"
+            PROCESSORS ${FELTOR_TEST_THREADS_}
+        )
+    endif()
+    if( DEFINED arg_RESOURCE_LOCK)
+        list(APPEND test_properties RESOURCE_LOCK ${arg_RESOURCE_LOCK})
+    endif()
+    if( test_properties STREQUAL "")
+        catch_discover_tests(${test_name})
+    else()
+        catch_discover_tests(${test_name} PROPERTIES ${test_properties})
+    endif()
+    # Register whole-binary runs for each rank count in FELTOR_TEST_MPI_RANKS
+    if( with_MPI)
+        if( FELTOR_TEST_THREADS_ STREQUAL "")
+            set(num_threads 1)
+        else()
+            set(num_threads ${FELTOR_TEST_THREADS_})
+        endif()
+        foreach(np IN LISTS FELTOR_TEST_MPI_RANKS)
+            add_test(NAME ${test_name}_np${np}
+                COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${np}
+                    ${MPIEXEC_PREFLAGS} $<TARGET_FILE:${test_name}> ${MPIEXEC_POSTFLAGS}
+            )
+            math(EXPR num_procs "${np}*${num_threads}")
+            # PROCESSORS lets ctest -j avoid oversubscribing the machine
+            set_tests_properties(${test_name}_np${np} PROPERTIES
+                PROCESSORS ${num_procs}
+                LABELS "mpi;np${np}"
+            )
+            if( NOT FELTOR_TEST_THREADS_ STREQUAL "")
+                set_tests_properties(${test_name}_np${np} PROPERTIES
+                    ENVIRONMENT "OMP_NUM_THREADS=${FELTOR_TEST_THREADS_}"
+                )
+            endif()
+            set(locks "")
+            if(CCCL_THRUST_DEVICE_SYSTEM STREQUAL "CUDA" OR CCCL_THRUST_DEVICE_SYSTEM STREQUAL "")
+                # All ranks of a node share the GPU(s); run one multi-rank GPU test at a time
+                list(APPEND locks gpu)
+            endif()
+            if( DEFINED arg_RESOURCE_LOCK)
+                list(APPEND locks ${arg_RESOURCE_LOCK})
+            endif()
+            if( NOT locks STREQUAL "")
+                set_tests_properties(${test_name}_np${np} PROPERTIES RESOURCE_LOCK "${locks}")
+            endif()
+        endforeach()
+    endif()
     # Set function output
     set( target_name ${test_name} PARENT_SCOPE)
 endfunction()

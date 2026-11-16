@@ -9,6 +9,7 @@ namespace dg{
  */
 struct IDENTITY
 {
+    ///@copydoc hide_functor_call
     template<class T>
     DG_DEVICE T operator()(T x)const{return x;}
 };
@@ -20,6 +21,7 @@ struct IDENTITY
 ///\f$ y=x\f$
 struct equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -29,6 +31,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y=y+x\f$
 struct plus_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -38,6 +41,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y=y-x\f$
 struct minus_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -47,6 +51,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y=xy\f$
 struct times_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -56,6 +61,7 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///\f$ y = y/x\f$
 struct divides_equals
 {
+    ///@brief Apply the operation of the class description to \c y
     template< class T1, class T2>
 DG_DEVICE void operator()( T1 x, T2& y) const
     {
@@ -208,15 +214,8 @@ template<class BinarySub, class Functor>
 struct Evaluate
 {
     Evaluate( BinarySub sub, Functor g): m_f( sub), m_g( g) {}
-#ifdef __CUDACC__
-// cuda compiler spits out a lot of warnings if
-// e.g. dg::transform is used on host vectors with host function
-// hd_warning_disable is unfortunately undocumented, but let's try
-// If it ever causes trouble we can remove it again
-// it just suppresses compiler warnings:
-// https://stackoverflow.com/questions/55481202/how-to-disable-cuda-host-device-warning-for-just-one-function
-#pragma hd_warning_disable
-#endif
+    // nvcc warns if e.g. dg::transform is used on host vectors with a host function
+DG_NVCC_EXEC_CHECK_DISABLE
     template< class T, class... Ts>
 DG_DEVICE void operator() ( T& y, Ts... xs){
         m_f(m_g(xs...), y);

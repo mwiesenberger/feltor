@@ -4,6 +4,9 @@
 
 namespace dg{
 namespace geo{
+/**
+ * @brief Contains the purely toroidal flux functions
+ */
 namespace toroidal{
 
 ///@addtogroup toroidal
@@ -30,6 +33,9 @@ inline CylindricalFunctorsLvl1 createIpol( )
 ///@}
 
 }//namespace toroidal
+/**
+ * @brief Contains the circular flux functions
+ */
 namespace circular{
 
 ///@addtogroup circular
@@ -71,6 +77,7 @@ struct PsipR : public aCylindricalFunctor<PsipR>
 ///@brief \f[ -2Z/b^2 \f]
 struct PsipZ : public aCylindricalFunctor<PsipZ>
 {
+    /// @param b the length of Z semi-axis
     PsipZ( double b): m_b(b) { }
     double do_compute(double, double Z) const
     {

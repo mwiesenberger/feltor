@@ -66,10 +66,10 @@ struct RealGridX3d;
 template<class real_type>
 struct RealGridX1d
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< value type of abscissas and weights
     /// The host vector type used by host functions like evaluate
     using host_vector = thrust::host_vector<real_type>;
-    using host_grid = RealGridX1d<real_type>;
+    using host_grid = RealGridX1d<real_type>; //!< Associated realisation
     /// @brief number of dimensions : 1
     constexpr static unsigned ndim() {return 1;}
     RealGridX1d() = default;
@@ -94,9 +94,15 @@ struct RealGridX1d
         assert( n != 0 );
         assert( bcx != PER);
     }
+    ///@brief Grid abscissas (the argument is ignored, there is only one axis)
+    ///@return Vector containing the abscissas, see \c aRealTopology::abscissas
     host_vector abscissas(unsigned =0) const { return grid().abscissas(0);}
+    ///@brief Grid weights (the argument is ignored, there is only one axis)
+    ///@return Vector containing the weights, see \c aRealTopology::weights
     host_vector weights(unsigned =0) const { return grid().weights(0);}
+    ///@brief \f$ n N\f$ the total number of points (the argument is ignored, there is only one axis)
     unsigned shape(unsigned =0) const { return grid().shape(0);}
+    ///@copydoc aRealTopology::get_shape()const
     auto get_shape() const { return grid().get_shape();}
     /**
      * @brief left boundary
@@ -183,6 +189,7 @@ struct RealGridX1d
             <<"Boundary conditions in x are: \n"
             <<"    "<<bc2str(bcx_)<<"\n";
     }
+    ///@brief Return a copy without topology
     RealGrid<real_type,1> grid() const{return RealGrid<real_type,1>( x0_, x1_, n_, Nx_, bcx_);}
 
     /**
@@ -255,15 +262,19 @@ struct RealGridX1d
 template<class real_type>
 struct aRealTopologyX2d
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< value type of abscissas and weights
     /// The host vector type used by host functions like evaluate
     using host_vector = thrust::host_vector<real_type>;
-    using host_grid = RealGridX2d<real_type>;
+    using host_grid = RealGridX2d<real_type>; //!< Associated realisation
     /// @brief number of dimensions : 2
     constexpr static unsigned ndim() {return 2;}
+    ///@copydoc aRealTopology::abscissas(unsigned)const
     host_vector abscissas(unsigned u=0) const { return grid().abscissas(u);}
+    ///@copydoc aRealTopology::weights(unsigned)const
     host_vector weights(unsigned u=0) const { return grid().weights(u);}
+    ///@copydoc aRealTopology::shape(unsigned)const
     unsigned shape(unsigned u=0) const { return grid().shape(u);}
+    ///@copydoc aRealTopology::get_shape()const
     auto get_shape() const { return grid().get_shape();}
 
     /**
@@ -539,15 +550,19 @@ struct RealGridX2d : public aRealTopologyX2d<real_type>
 template<class real_type>
 struct aRealTopologyX3d
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< value type of abscissas and weights
     /// The host vector type used by host functions like evaluate
     using host_vector = thrust::host_vector<real_type>;
-    using host_grid = RealGridX3d<real_type>;
+    using host_grid = RealGridX3d<real_type>; //!< Associated realisation
     /// @brief number of dimensions : 3
     constexpr static unsigned ndim() {return 3;}
+    ///@copydoc aRealTopology::abscissas(unsigned)const
     host_vector abscissas(unsigned u=0) const { return grid().abscissas(u);}
+    ///@copydoc aRealTopology::weights(unsigned)const
     host_vector weights(unsigned u=0) const { return grid().weights(u);}
+    ///@copydoc aRealTopology::shape(unsigned)const
     unsigned shape(unsigned u=0) const { return grid().shape(u);}
+    ///@copydoc aRealTopology::get_shape()const
     auto get_shape() const { return grid().get_shape();}
     /**
      * @brief left boundary in x
@@ -814,11 +829,14 @@ struct RealGridX3d : public aRealTopologyX3d<real_type>
 
 ///@addtogroup gridtypes
 ///@{
-using GridX1d       = dg::RealGridX1d<double>;
+///@name Double precision typedefs
+///@{
+using GridX1d       = dg::RealGridX1d<double>; ///< Double precision version of the class template with the \c Real prefix
 using GridX2d       = dg::RealGridX2d<double>;
 using GridX3d       = dg::RealGridX3d<double>;
 using aTopologyX2d  = dg::aRealTopologyX2d<double>;
 using aTopologyX3d  = dg::aRealTopologyX3d<double>;
+///@}
 ///@}
 
 }// namespace dg

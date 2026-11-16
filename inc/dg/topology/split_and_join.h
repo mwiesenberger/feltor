@@ -77,6 +77,7 @@ void assign3dfrom2d( const host_vector& in2d, Container&
 
 #ifdef MPI_VERSION
 
+/// The type of the 2d planes that \c dg::split returns for the MPI vector type \c MPIContainer (a \c dg::View on its data, const if \c MPIContainer is const)
 template<class MPIContainer>
 using get_mpi_view_type =
     std::conditional_t< std::is_const<MPIContainer>::value,

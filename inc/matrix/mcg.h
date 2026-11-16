@@ -249,8 +249,8 @@ template<class Container>
 class MCGFuncEigen
 {
   public:
-    using value_type = dg::get_value_type<Container>;
-    using HVec = dg::HVec;
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
+    using HVec = dg::HVec; //!< host vector type of the tridiagonal matrix and its Eigen decomposition
     ///@brief Allocate nothing, Call \c construct method before usage
     MCGFuncEigen(){}
     /**

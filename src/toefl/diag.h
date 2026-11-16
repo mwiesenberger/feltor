@@ -133,12 +133,12 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     },
     {"Se", " 0.5 ne^2 ",
         []( dg::x::DVec& result, Variables& v) {
-            dg::blas1::pointwiseDot( 1., v.rhs.var(0), v.rhs.var(0), 0., result);
+            dg::blas1::pointwiseDot( 0.5, v.rhs.var(0), v.rhs.var(0), 0., result);
         }
     },
     {"Si", " 0.5 tau_i ni^2",
         []( dg::x::DVec& result, Variables& v) {
-            dg::blas1::pointwiseDot(  v.p.tau, v.rhs.var(1), v.rhs.var(1), 0.,
+            dg::blas1::pointwiseDot(  0.5*v.p.tau, v.rhs.var(1), v.rhs.var(1), 0.,
                     result);
         }
     },
@@ -149,7 +149,7 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     }
                 }
     },
-    { "drift-global", {
+    { "drift_global", {
     {"n", "Electron density in 2d",
         []( dg::x::DVec& result, Variables& v) {
             dg::blas1::copy( v.rhs.var(0), result);
@@ -199,7 +199,7 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     }
                 }
     },
-    { "gravity-global", {
+    { "gravity_global", {
     {"n", "Electron density in 2d",
         []( dg::x::DVec& result, Variables& v) {
             dg::blas1::copy( v.rhs.var(0), result);
@@ -247,7 +247,7 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     }
                 }
     },
-    { "gravity-local", {
+    { "gravity_local", {
     {"n", "Electron density in 2d",
         []( dg::x::DVec& result, Variables& v) {
             dg::blas1::copy( v.rhs.var(0), result);

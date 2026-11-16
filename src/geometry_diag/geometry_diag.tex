@@ -99,7 +99,7 @@ The diagnostics field is a list of flags that can be empty
 \subsection{Magnetic field} \label{sec:geometry_file}
 The json structure of the geometry parameters depends on which expansion for
 $\psi_p$ is chosen. Here, read the documentation of
-\href{https://mwiesenberger.github.io/feltor/geometries/html/group__geom.html#gaa0da1d1c2db65f1f4b28d77307ad238b}{`dg::geo::createMagneticField`} and \cite{Cerfon2010}
+\href{https://feltor-dev.github.io/feltor/geometries/html/group__geom.html#ga936269e34ec47da9bc44346ab9e1888b}{`dg::geo::createMagneticField`} and \cite{Cerfon2010}
 In addition, we have an option to read the geometry parameters either from an external
 file or directly from a field in the input file.
 \begin{minted}[texcomments]{js}
@@ -134,7 +134,7 @@ fiddly task in setting up a simulation.
 \subsubsection{The wall region}\label{sec:wall}
 We refer to the documentation of
 \href{
-https://mwiesenberger.github.io/feltor/geometries/html/group__wall.html#gac47e668c6483d6cebfc9d6c798737b58
+https://feltor-dev.github.io/feltor/geometries/html/group__wall.html#gac47e668c6483d6cebfc9d6c798737b58
 }{dg::geo::createModifiedField} for details on how the magnetic field is modified
 and how a wall region can be setup.
 \begin{minted}[texcomments]{js}
@@ -172,9 +172,9 @@ and how a wall region can be setup.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsubsection{The sheath region}\label{sec:sheath}
-We refer to the documentation of \href{https://mwiesenberger.github.io/feltor/geometries/html/group__wall.html#gad4fce2a87b624a0d4df4c2431706988f}{dg::geo::createSheathRegion}
+We refer to the documentation of \href{https://feltor-dev.github.io/feltor/geometries/html/group__wall.html#ga142938afd77c858f99bd4d215e87bd31}{dg::geo::createSheathRegion}
 and
-\href{https://mwiesenberger.github.io/feltor/geometries/html/structdg_1_1geo_1_1_wall_fieldline_coordinate.html}{dg::geo::WallSheathCoordinate}
+\href{https://feltor-dev.github.io/feltor/geometries/html/structdg_1_1geo_1_1_wall_fieldline_coordinate.html}{dg::geo::WallSheathCoordinate}
 for details on how we setup the sheath and the Sheath coordinates
 \begin{minted}[texcomments]{js}
 "boundary":
@@ -260,7 +260,7 @@ X\_dfs & Dataset & 1 (zeta) & flux surface derivative of quantity X (if "fsa" di
 The O-point and X-point(s) are written as global attributes "opoint" and "xpoint" as $[R_O,Z_O]$ and $[R_X,Z_X]$ (if 2nd X-point exists then $[R^1_X,Z^1_X,R^2_X,Z^2_X]$).
 
 X lies in (search
-\href{https://mwiesenberger.github.io/feltor/geometries/html/modules.html}{documentation} for X for further details)
+\href{https://feltor-dev.github.io/feltor/geometries/html/topics.html}{documentation} for X for further details)
 \begin{minted}[texcomments]{cpp}
     {"Psip", "Flux function", mag.psip()},
     {"PsipR", "Flux function derivative in R", mag.psipR()},

@@ -50,7 +50,7 @@ struct Parameters
     unsigned M, //!< number of coefficients in R
              N; //!< number of coefficients in Z
     std::vector<double> c;  //!< M*N coefficients for the polynomial equilibrium, \c c[i*N+j] corresponds to R^i Z^j;
-    std::string description;
+    std::string description; //!< the geometry of the field, see \c dg::geo::description for valid values
     Parameters() = default;
     /**
      * @brief Construct from Json dataset

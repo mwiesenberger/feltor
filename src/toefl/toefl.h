@@ -83,8 +83,6 @@ Explicit< Geometry, M, Container>::Explicit( const Geometry& grid, const Paramet
 template< class G, class M, class Container>
 void Explicit<G, M, Container>::compute_psi( double t)
 {
-    if(m_p.model == "gravity_local")
-        return;
     //in gyrofluid invert Gamma operator
     if( m_p.model == "local" || m_p.model == "global")
     {
@@ -115,7 +113,7 @@ void Explicit<G, M, Container>::compute_psi( double t)
         dg::blas1::axpby( 0.5, m_uE2, 0., m_phi[1]);
     }
     else if( m_p.model == "gravity_global" )
-        dg::blas1::axpby( 0.5, m_omega, 0., m_phi[1]);
+        dg::blas1::axpby( 0.5, m_uE2, 0., m_phi[1]);
 }
 
 
@@ -134,18 +132,18 @@ void Explicit<G, M, Container>::polarisation( double t,
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
-            for( unsigned u=0; u<3; u++)
+            for( unsigned u=0; u<m_p.num_stages; u++)
                 m_multi_pol[u].set_chi( m_multi_chi[u]);
         }
     }
     else if(m_p.model == "gravity_global" )
     {
         dg::blas1::evaluate( m_chi, dg::equals(), []DG_DEVICE
-                ( double nt){ return (nt+1.); }, y[1]);
+                ( double nt){ return (nt+1.); }, y[0]);
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
-            for( unsigned u=0; u<3; u++)
+            for( unsigned u=0; u<m_p.num_stages; u++)
                 m_multi_pol[u].set_chi( m_multi_chi[u]);
         }
     }
@@ -158,7 +156,7 @@ void Explicit<G, M, Container>::polarisation( double t,
         if( !m_p.boussinesq)
         {
             m_multigrid.project( m_chi, m_multi_chi);
-            for( unsigned u=0; u<3; u++)
+            for( unsigned u=0; u<m_p.num_stages; u++)
                 m_multi_pol[u].set_chi( m_multi_chi[u]);
         }
     }
@@ -219,8 +217,8 @@ void Explicit<G, M, Container>::operator()( double t,
         // ExB advection with updwind scheme
         dg::blas2::symv( m_centered[0], m_phi[0], m_dxphi[0]);
         dg::blas2::symv( m_centered[1], m_phi[0], m_dyphi[0]);
-        dg::blas1::pointwiseDot( -1., m_binv, m_dyphi[0], 0., m_v[0]);
-        dg::blas1::pointwiseDot( +1., m_binv, m_dxphi[0], 0., m_v[1]);
+        dg::blas1::axpby( -1., m_dyphi[0], 0., m_v[0]);
+        dg::blas1::axpby( +1., m_dxphi[0], 0., m_v[1]);
         for( unsigned u=0; u<2; u++)
         {
             m_adv.upwind( -1., m_v[0], m_v[1], y[u], 0., yp[u]);
@@ -238,8 +236,8 @@ void Explicit<G, M, Container>::operator()( double t,
         for( unsigned u=0; u<2; u++)
         {
             // ExB advection with updwind scheme
-            dg::blas2::symv(  1., m_centered[0], m_phi[u], 0., m_v[1]);
-            dg::blas2::symv( -1., m_centered[1], m_phi[u], 0., m_v[0]);
+            dg::blas2::symv(  1., m_centered[0], m_phi[0], 0., m_v[1]);
+            dg::blas2::symv( -1., m_centered[1], m_phi[0], 0., m_v[0]);
             m_adv.upwind( -1., m_v[0], m_v[1], y[u], 0., yp[u]);
         }
         // diamagnetic compression
@@ -261,12 +259,12 @@ void Explicit<G, M, Container>::operator()( double t,
             dg::blas1::pointwiseDot( +1., m_binv, m_dxphi[0], 0., m_v[1]);
             m_adv.upwind( -1., m_v[0], m_v[1], y[u], 0., yp[u]);
             // Div ExB velocity
-            dg::blas1::pointwiseDot( m_p.kappa, m_ype[u], m_dyphi[u], 1., yp[u]);
+            dg::blas1::pointwiseDot( m_p.kappa, m_ype[u], m_dyphi[0], 1., yp[u]);
         }
         m_arakawa(y[0], m_phi[1], m_omega);
         dg::blas1::pointwiseDot( 1., m_binv, m_omega, 1., yp[1]);
 
-        dg::blas1::pointwiseDot( m_p.kappa, y[1], m_dyphi[0], 1.,  yp[1]);
+        dg::blas1::pointwiseDot( m_p.kappa, m_ype[0], m_dyphi[1], 1.,  yp[1]);
         // diamagnetic compression
         dg::blas2::gemv( -m_p.kappa, m_centered[1], y[0], 1., yp[1]);
     }

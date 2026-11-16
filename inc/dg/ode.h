@@ -58,8 +58,8 @@ inline std::string to2str( enum to mode)
 template<class ContainerType>
 struct aTimeloop
 {
-    using value_type = dg::get_value_type<ContainerType>;
-    using container_type = ContainerType;
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
+    using container_type = ContainerType; //!< the type of the vector class in use
 
     /**
      * @brief Integrate a differential equation between given bounds
@@ -171,14 +171,10 @@ struct aTimeloop
     value_type get_dt() const { return do_dt(); }
 
 
-    /**
-    * @brief Abstract copy method that returns a copy of *this on the heap
-    *
-    * @return a copy of *this on the heap
-    * @sa dg::ClonePtr
-    */
+    ///@copydoc hide_clone
     virtual aTimeloop* clone() const=0;
 
+    ///@brief Allow deletion through base class pointer
     virtual ~aTimeloop(){}
     protected:
     ///empty

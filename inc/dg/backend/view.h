@@ -47,12 +47,13 @@ struct View
     //      typename ThrustVector::const_iterator,
     //      typename ThrustVector::iterator>;
     //using const_iterator = typename ThrustVector::const_iterator;
+    /// \c ThrustVector::const_pointer if \c ThrustVector is const, else \c ThrustVector::pointer
     using pointer = std::conditional_t<std::is_const<ThrustVector>::value,
           typename ThrustVector::const_pointer,
           typename ThrustVector::pointer>;
-    using const_pointer = typename ThrustVector::const_pointer;
-    using iterator = pointer;
-    using const_iterator = const_pointer;
+    using const_pointer = typename ThrustVector::const_pointer; //!< \c ThrustVector::const_pointer
+    using iterator = pointer; //!< same as \c pointer
+    using const_iterator = const_pointer; //!< same as \c const_pointer
     ///@brief Initialize empty view
     View( void): m_ptr(), m_size(0){}
 
@@ -148,9 +149,9 @@ struct View
 template<class ThrustVector>
 struct TensorTraits< View<ThrustVector>>
 {
-    using value_type = get_value_type<ThrustVector>;
-    using tensor_category = ThrustVectorTag;
-    using execution_policy = get_execution_policy<ThrustVector>;
+    using value_type = get_value_type<ThrustVector>; //!< see \c dg::TensorTraits
+    using tensor_category = ThrustVectorTag; //!< see \c dg::TensorTraits
+    using execution_policy = get_execution_policy<ThrustVector>; //!< see \c dg::TensorTraits
 };
 
 }//namespace dg

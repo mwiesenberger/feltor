@@ -1,0 +1,13 @@
+# Store text files with LF in the repository and check them out with LF
+# on every system, independent of the user's core.autocrlf setting
+* text=auto eol=lf
+
+# Must stay LF even if the default above is changed
+*.sh  text eol=lf
+
+# No line ending conversion and no textual diff
+*.jpg binary
+*.png binary
+*.pdf binary
+*.nc  binary
+*.zip binary

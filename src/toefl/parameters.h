@@ -52,7 +52,7 @@ struct Parameters
         bcy = dg::str2bc(js["bc"][1].asString());
         model = js["model"].get("type", "global").asString();
         boussinesq = false;
-        tau = friction = 0.;
+        tau = friction = kappa = 0.;
         nu = js["model"]["nu"].asDouble();
         if( "local" == model)
         {
@@ -65,15 +65,16 @@ struct Parameters
             tau = js["model"]["tau"].asDouble();
             boussinesq = js["model"]["boussinesq"].asBool();
         }
-        else if( "gravity-local" == model)
+        else if( "gravity_local" == model)
         {
             friction = js["model"]["friction"].asDouble();
         }
-        else if( "gravity-global" == model)
+        else if( "gravity_global" == model)
         {
             friction = js["model"]["friction"].asDouble();
+            boussinesq = js["model"]["boussinesq"].asBool();
         }
-        else if( "drift-global" == model)
+        else if( "drift_global" == model)
         {
             boussinesq = js["model"]["boussinesq"].asBool();
             kappa = js["model"]["curvature"].asDouble();

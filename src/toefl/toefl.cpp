@@ -20,21 +20,24 @@ int main( int argc, char* argv[])
 {
 #ifdef WITH_MPI
     dg::mpi_init( &argc, &argv);
-    MPI_Comm comm;
-    dg::mpi_init2d( dg::DIR, dg::PER, comm, std::cin, true);
     int rank;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
 #endif //WITH_MPI
     dg::file::WrappedJsonValue js( dg::file::error::is_throw);
     toefl::Parameters p;
+    std::string inputfile = argc == 1 ? "input/default.json" : argv[1];
     try{
-        js = dg::file::file2Json( argc == 1 ? "input/default.json" : argv[1]);
+        js = dg::file::file2Json( inputfile);
         p = { js};
     } catch( std::exception& e) {
-        DG_RANK0 std::cerr << "ERROR in input file "<<argv[1]<<std::endl;
+        DG_RANK0 std::cerr << "ERROR in input file "<<inputfile<<std::endl;
         DG_RANK0 std::cerr << e.what()<<std::endl;
         dg::abort_program();
     }
+#ifdef WITH_MPI
+    MPI_Comm comm;
+    dg::mpi_init2d( p.bcx, p.bcy, comm, std::cin, true);
+#endif //WITH_MPI
     DG_RANK0 std::cout << js.toStyledString() << std::endl;
     DG_RANK0 p.display(std::cout);
 
@@ -57,12 +60,24 @@ int main( int argc, char* argv[])
         dg::blas1::copy( y0[0], y0[1]);
         if( p.tau != 0)
         {
-            std::string flr = js["init"]["flr"].asString();
+            std::string flr;
+            try{
+                flr = js["init"]["flr"].asString();
+            } catch( std::exception& e) {
+                DG_RANK0 std::cerr << "ERROR in input file "<<inputfile<<std::endl;
+                DG_RANK0 std::cerr << e.what()<<std::endl;
+                dg::abort_program();
+            }
             if( "none" == flr)
                 ;
             else if( "gamma_inv" == flr)
             {
                 dg::apply( rhs.gamma_inv(), y0[0], y0[1]);
+            }
+            else
+            {
+                DG_RANK0 std::cerr << "ERROR: init flr `"<<flr<<"` not recognized!\n";
+                dg::abort_program();
             }
         }
     }
@@ -80,7 +95,7 @@ int main( int argc, char* argv[])
         tableau = js[ "timestepper"].get( "tableau",
                 "Bogacki-Shampine-4-2-3").asString();
     }catch ( std::exception& error){
-        DG_RANK0 std::cerr << "Error in input file " << argv[1]<< std::endl;
+        DG_RANK0 std::cerr << "Error in input file " << inputfile<< std::endl;
         DG_RANK0 std::cerr << error.what() << std::endl;
         dg::abort_program();
     }
@@ -231,10 +246,11 @@ int main( int argc, char* argv[])
         file.defput_dim( "y", {{"axis", "Y"},
             {"long_name", "y-coordinate in Cartesian system"}},
             grid_out.abscissas(1));
+        // static output is evaluated on the output grid, not interpolated
+        toefl::Variables var_out = { rhs, grid_out, p};
         for( auto& record : toefl::diagnostics2d_static_list)
         {
-            record.function ( resultH, var);
-            dg::blas2::symv( projection, resultH, resultP);
+            record.function ( resultP, var_out);
             file.def_var_as<double>( record.name, {"y","x"}, record.atts);
             file.put_var( record.name, {grid_out}, resultP);
         }

@@ -69,8 +69,8 @@ template< class Container>
 struct InvSqrtODE
 {
   public:
-    using container_type = Container;
-    using value_type = dg::get_value_type<Container>;
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<Container>; //!< value type of the \c Container class
     InvSqrtODE() {};
 
     /**
@@ -117,6 +117,15 @@ struct InvSqrtODE
             dg::blas1::axpby( *t, x, (1.-*t), y);
         };
     }
+    /**
+     * @brief Set the inverse of the operator \f$ tI + (1-t)A\f$
+     *
+     * The inverse is applied in every call of \c operator() and must
+     * therefore be set before the first call. A typical inverse is a
+     * conjugate gradient solve of \c make_operator().
+     * @param OpInv applied via <tt>dg::blas2::symv( OpInv, x, y)</tt>, it must
+     * invert \f$ tI + (1-t)A\f$ at the current \c time(); a copy is stored
+     */
     template<class MatrixType>
     void set_inverse_operator( const MatrixType& OpInv ) {
         m_Ainv = OpInv;
@@ -177,6 +186,15 @@ InvSqrtODE<Container> make_inv_sqrtodeCG( Matrix& A, const Preconditioner& P,
     return sqrtode;
 }
 
+/**
+ * @brief Right hand side of the square root ODE \f[ \dot{y}= \left[tI + (1-t) T\right]^{-1} (I - T)/2  y \f]
+ * where \f$ T\f$ is a tridiagonal matrix and the inverse is computed directly via \c dg::mat::compute_Tinv_y
+ *
+ * @ingroup matrixfunctionapproximation
+ * @note Solution of ODE: \f$ y(1) = 1/\sqrt{T} y(0)\f$
+ * @param TH tridiagonal matrix on the host (stored by reference so needs to live)
+ * @param copyable a vector of the size of \c TH
+ */
 template< class Matrix, class Container>
 InvSqrtODE<Container> make_inv_sqrtodeTri( const Matrix& TH, const Container&
         copyable)

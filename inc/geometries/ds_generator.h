@@ -94,6 +94,7 @@ struct DSPGenerator : public aGenerator2d
 
     }
 
+    ///@copydoc hide_clone
     virtual DSPGenerator* clone() const override final{return new DSPGenerator(*this);}
 
     private:

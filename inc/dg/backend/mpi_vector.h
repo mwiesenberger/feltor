@@ -120,9 +120,9 @@ struct MPI_Vector
 ///@brief prototypical MPI vector
 template<class container>
 struct TensorTraits<MPI_Vector<container> > {
-    using value_type = get_value_type<container>;
-    using tensor_category = MPIVectorTag;
-    using execution_policy = get_execution_policy<container>;
+    using value_type = get_value_type<container>; //!< see \c dg::TensorTraits
+    using tensor_category = MPIVectorTag; //!< see \c dg::TensorTraits
+    using execution_policy = get_execution_policy<container>; //!< see \c dg::TensorTraits
 };
 ///@}
 

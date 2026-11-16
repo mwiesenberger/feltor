@@ -64,6 +64,10 @@ struct ExponentialStep
     */
     ExponentialStep( const ContainerType& copyable): m_u(copyable)
     { }
+    /**
+     * @brief Return an object of same size as the object used for construction
+     * @return A copyable object; what it contains is undefined, its size is important
+     */
     const ContainerType& copyable()const{ return m_u;}
     /**
     * @brief Advance one step via \f$ u_1 = \exp( A \Delta t) u_0\f$, \f$ t_1 = t_0 + \Delta_t\f$
@@ -140,6 +144,10 @@ struct ExponentialERKStep
             ContainerType& copyable): m_rk(tableau), m_k(m_rk.num_stages(),
                 copyable), m_tmp(copyable), m_u(copyable)
     { }
+    /**
+     * @brief Return an object of same size as the object used for construction
+     * @return A copyable object; what it contains is undefined, its size is important
+     */
     const ContainerType& copyable()const{ return m_tmp;}
 
     /// @brief Advance one step with error estimate

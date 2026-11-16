@@ -25,7 +25,9 @@ struct NC_Error : public std::exception
      */
     NC_Error( int error): m_error( error) {}
 
+    /// The netcdf error code given in the constructor
     int error() const { return m_error;}
+    /// Write access to the netcdf error code
     int& error() { return m_error;}
     /**
      * @brief What string
@@ -47,7 +49,7 @@ struct NC_Error : public std::exception
 };
 
 /**
- * @brief DEPRECATED Empty utitlity class that handles return values of netcdf
+ * @brief Empty utitlity class that handles return values of netcdf
  * functions and throws NC_Error(status) if( status != NC_NOERR)
  *
  * For example
@@ -67,6 +69,7 @@ struct NC_Error : public std::exception
  *
  * This allows for a C++ style error handling of netcdf errors in that the program either terminates if the NC_Error is not caught or does something graceful in a try catch statement.
  * @ingroup legacy
+ * @deprecated See \ref legacy
  */
 struct NC_Error_Handle
 {

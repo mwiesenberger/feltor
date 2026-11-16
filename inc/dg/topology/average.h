@@ -42,8 +42,8 @@ namespace dg{
 template<class IMatrix, class ContainerType>
 struct Average
 {
-    using container_type = ContainerType;
-    using value_type = dg::get_value_type<ContainerType>;
+    using container_type = ContainerType; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
     /// No allocation
     Average() = default;
 

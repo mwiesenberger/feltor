@@ -47,7 +47,6 @@ set(MATRIX_TESTS
 set(MATRIX_BENCHMARKS
   ../../matrix/contours_b.cpp
   ../../matrix/lanczos_b.cpp
-  #../../matrix/lanczos_mpib.cpp
   ../../matrix/matrixfunction_b.cpp
   ../../matrix/matrixprodexp2_b.cpp
   ../../matrix/matrixprodexp_b.cpp
@@ -56,6 +55,11 @@ set(MATRIX_BENCHMARKS
   ../../matrix/polarization_init_b.cpp
   ../../matrix/tensorelliptic2d_b.cpp
   ../../matrix/tridiaginv_b.cpp
+)
+# These can be compiled for MPI as well
+# grep -l WITH_MPI ../../matrix/*_b.cpp | sort
+set(MATRIX_MPI_BENCHMARKS
+  ../../matrix/lanczos_b.cpp
 )
 # These targets need to link to netcdf
 # Test grep "file.h" * in matrix
@@ -124,6 +128,10 @@ endif()
 if(FELTOR_BUILD_BENCHMARKS)
   include(FeltorBenchmarks)
   if( FELTOR_WITH_MPI)
+    foreach(benchmark_path IN LISTS MATRIX_MPI_BENCHMARKS)
+        add_dg_benchmark("${benchmark_path}" "matrix" ON target_name)
+        target_link_libraries( ${target_name} PRIVATE dg_matrix)
+    endforeach()
   else()
     foreach(benchmark_path IN LISTS MATRIX_BENCHMARKS)
         if( "${benchmark_path}" IN_LIST MATRIX_BENCHMARKS_WITH_FILE AND FELTOR_FILE_WITH_NETCDF)

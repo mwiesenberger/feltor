@@ -11,6 +11,8 @@
 #include <sstream>
 #include <string>
 
+/// Expands to <tt> \__FILE__, \__LINE__ </tt>, mainly for the constructor of \c dg::Message
+///@ingroup macros
 #define _ping_ __FILE__, __LINE__
 
 
@@ -31,8 +33,8 @@ class Message
 {
   private:
     std::stringstream sstream_;
-    Message( const Message&); //we can't copy ostreams in C++
-    Message& operator=(const Message&);
+    Message( const Message&) = delete; //we can't copy ostreams in C++
+    Message& operator=(const Message&) = delete;
   public:
     ///construct an empty message
     Message(){}
@@ -50,7 +52,6 @@ class Message
      * @param m puts m into stream
      */
     Message( std::string m){ sstream_<<m;}
-    ~Message(){}
     ///@brief add values to the message stream
     /// @note you can't use \c std::endl or \c std::flush in here
     template<class T>
@@ -95,6 +96,7 @@ class Error : public std::exception
         m = message.str();
     }
 
+    /// @return the same as \c what() as a \c std::string
     std::string get_message( ) const{return m;}
 
 
@@ -116,7 +118,6 @@ class Error : public std::exception
     {
         return m.c_str();
     }
-    virtual ~Error() noexcept {}
 };
 
 
@@ -149,7 +150,6 @@ struct Fail : public Error
      * @return eps
      */
     double epsilon() const { return eps;}
-    virtual ~Fail() noexcept {}
   private:
     double eps;
 };

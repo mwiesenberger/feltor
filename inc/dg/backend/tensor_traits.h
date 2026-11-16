@@ -16,6 +16,37 @@
 // In fact, it is possible to include tensor_traits.h as is and include the specialisation later when it is needed
 
 namespace dg{
+/*!@addtogroup traits
+ *
+ * @anchor dg_tensor_traits_table
+ * The \c dg::TensorTraits specialisations of the dg library define
+ *
+ * | Type | `value_type` | `tensor_category` | `execution_policy` |
+ * |------|--------------|-------------------|--------------------|
+ * | any other type (primary template) | `void` | `dg::NotATensorTag` | `dg::NoPolicyTag` |
+ * | `T` floating point (e.g. `float`, `double`) | `T` | `dg::FloatingPointTag` | `dg::AnyPolicyTag` |
+ * | `T` integral (e.g. `int`, `bool`, `char`) | `T` | `dg::IntegralTag` | `dg::AnyPolicyTag` |
+ * | `std::complex<T>` | `std::complex<T>` | `dg::ComplexTag` | `dg::AnyPolicyTag` |
+ * | `thrust::complex<T>` | `thrust::complex<T>` | `dg::ComplexTag` | `dg::AnyPolicyTag` |
+ * | `thrust::host_vector<T>` | `T` | `dg::ThrustVectorTag` | `dg::SerialTag` |
+ * | `thrust::device_vector<T>` | `T` | `dg::ThrustVectorTag` | `dg::CudaTag`, `dg::OmpTag` or `dg::SerialTag` depending on `THRUST_DEVICE_SYSTEM` |
+ * | `std::vector<T>`, `T` scalar | `T` | `dg::ThrustVectorTag` | `dg::SerialTag` |
+ * | `std::vector<T>`, `T` not scalar | `dg::get_value_type<T>` | `dg::RecursiveVectorTag` | `dg::get_execution_policy<T>` |
+ * | `std::array<T,N>`, `T` scalar | `T` | `dg::ArrayScalarTag` | `dg::SerialTag` |
+ * | `std::array<T,N>`, `T` not scalar | `dg::get_value_type<T>` | `dg::ArrayVectorTag` | `dg::get_execution_policy<T>` |
+ * | `std::map<Key,T>` | `dg::get_value_type<T>` | `dg::StdMapTag` | `dg::get_execution_policy<T>` |
+ * | `dg::View<V>` | `dg::get_value_type<V>` | `dg::ThrustVectorTag` | `dg::get_execution_policy<V>` |
+ * | `dg::MPI_Vector<V>` | `dg::get_value_type<V>` | `dg::MPIVectorTag` | `dg::get_execution_policy<V>` |
+ * | `dg::EllSparseBlockMat<T,V>`, `dg::CooSparseBlockMat<T,V>` | `T` | `dg::SparseBlockMatrixTag` | `dg::get_execution_policy<V<T>>` |
+ * | `dg::SparseMatrix<I,T,V>` | `T` | `dg::SparseMatrixTag` | `dg::SparseMatrix<I,T,V>::policy` |
+ * | `dg::DenseMatrix<V>` | `dg::get_value_type<V>` | `dg::DenseMatrixTag` | `dg::get_execution_policy<V>` |
+ * | `dg::MPISparseBlockMat<V,LI,LO>`, `dg::MPIDistMat<V,LI,LO>` | `dg::get_value_type<LI>` | `dg::MPIMatrixTag` | none |
+ * | `dg::SquareMatrix<T>` | `T` | `dg::SelfMadeMatrixTag` | `dg::SerialTag` |
+ * | `dg::Composite<M>` | `dg::get_value_type<M>` | `dg::SelfMadeMatrixTag` | none |
+ * | `dg::Elliptic1d`, `dg::Elliptic2d`, `dg::Elliptic3d`, `dg::RefinedElliptic`, `dg::GeneralHelmholtz`, `dg::Helmholtz2`, `dg::ChebyshevPreconditioner`, `dg::ModifiedChebyshevPreconditioner`, `dg::LeastSquaresPreconditioner`, `dg::MultiMatrix` with container `V` | `dg::get_value_type<V>` | `dg::SelfMadeMatrixTag` | none |
+ *
+ * "none" means the specialisation does not define the member.
+ */
 ///@addtogroup dispatch
 ///@{
 
@@ -31,20 +62,27 @@ The contained types are
     indicates the type of hardware memory is physically
 allocated on in a vector class and therefore indicates the
 possible parallelization and optimization strategies.
+
+Matrices may omit \c execution_policy (the MPI matrices and most self-made
+matrices do); \c dg::get_execution_policy is then ill-formed for them.
+All specialisations are listed in the \ref dg_tensor_traits_table "TensorTraits table".
 \see \ref dispatch
 */
 template< class Vector, class Enable=void>
 struct TensorTraits
 {
-    using value_type = void;
-    using tensor_category = NotATensorTag;
-    using execution_policy = NoPolicyTag;
+    using value_type = void; //!< see the class description
+    using tensor_category = NotATensorTag; //!< see the class description
+    using execution_policy = NoPolicyTag; //!< see the class description
 };
 
+/// Shortcut for <tt>dg::TensorTraits<std::decay_t<Vector>>::value_type</tt>
 template<class Vector>
 using get_value_type = typename TensorTraits<std::decay_t<Vector>>::value_type;
+/// Shortcut for <tt>dg::TensorTraits<std::decay_t<Vector>>::tensor_category</tt>
 template<class Vector>
 using get_tensor_category = typename TensorTraits< std::decay_t<Vector>>::tensor_category;
+/// Shortcut for <tt>dg::TensorTraits<std::decay_t<Vector>>::execution_policy</tt>
 template<class Vector>
 using get_execution_policy = typename TensorTraits<std::decay_t<Vector>>::execution_policy;
 

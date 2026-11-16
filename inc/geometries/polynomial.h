@@ -59,6 +59,7 @@ struct Psip: public aCylindricalFunctor<Psip>
     std::shared_ptr<Horner2d> m_horner;
 };
 
+/// @brief \f$ \partial_R\psi_p\f$ (see \c Psip)
 struct PsipR: public aCylindricalFunctor<PsipR>
 {
     ///@copydoc Psip::Psip()
@@ -78,6 +79,7 @@ struct PsipR: public aCylindricalFunctor<PsipR>
     double m_R0, m_pp;
     std::shared_ptr<Horner2d> m_horner;
 };
+/// @brief \f$ \partial_R^2\psi_p\f$ (see \c Psip)
 struct PsipRR: public aCylindricalFunctor<PsipRR>
 {
     ///@copydoc Psip::Psip()
@@ -97,6 +99,7 @@ struct PsipRR: public aCylindricalFunctor<PsipRR>
     double m_R0, m_pp;
     std::shared_ptr<Horner2d> m_horner;
 };
+/// @brief \f$ \partial_Z\psi_p\f$ (see \c Psip)
 struct PsipZ: public aCylindricalFunctor<PsipZ>
 {
     ///@copydoc Psip::Psip()
@@ -116,6 +119,7 @@ struct PsipZ: public aCylindricalFunctor<PsipZ>
     double m_R0, m_pp;
     std::shared_ptr<Horner2d> m_horner;
 };
+/// @brief \f$ \partial_Z^2\psi_p\f$ (see \c Psip)
 struct PsipZZ: public aCylindricalFunctor<PsipZZ>
 {
     ///@copydoc Psip::Psip()
@@ -135,6 +139,7 @@ struct PsipZZ: public aCylindricalFunctor<PsipZZ>
     double m_R0, m_pp;
     std::shared_ptr<Horner2d> m_horner;
 };
+/// @brief \f$ \partial_R\partial_Z\psi_p\f$ (see \c Psip)
 struct PsipRZ: public aCylindricalFunctor<PsipRZ>
 {
     ///@copydoc Psip::Psip()
@@ -155,11 +160,21 @@ struct PsipRZ: public aCylindricalFunctor<PsipRZ>
     std::shared_ptr<Horner2d> m_horner;
 };
 
+/**
+ * @brief \f$ \psi_p\f$ and its first and second derivatives
+ * @param gp geometric parameters
+ * @return \c Psip, \c PsipR, \c PsipZ, \c PsipRR, \c PsipRZ, \c PsipZZ
+ */
 inline dg::geo::CylindricalFunctorsLvl2 createPsip( const Parameters& gp)
 {
     return CylindricalFunctorsLvl2( Psip(gp), PsipR(gp), PsipZ(gp),
         PsipRR(gp), PsipRZ(gp), PsipZZ(gp));
 }
+/**
+ * @brief \f$ I = P_I\f$ (constant) and its vanishing derivatives
+ * @param gp geometric parameters
+ * @return \f$ (P_I, 0, 0)\f$
+ */
 inline dg::geo::CylindricalFunctorsLvl1 createIpol( const Parameters& gp)
 {
     return CylindricalFunctorsLvl1( Constant( gp.pi), Constant(0), Constant(0));

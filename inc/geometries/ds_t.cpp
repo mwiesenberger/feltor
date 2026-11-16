@@ -26,7 +26,7 @@ TEST_CASE( "DS")
     INFO( "# Test the parallel derivative DS in cylindrical coordinates for \
 circular flux surfaces with DIR and NEU boundary conditions.");
     std::string method = GENERATE( "dg", "linear", "cubic");
-    unsigned mm = GENERATE( 1, 10);
+    unsigned mm = GENERATE( 1, 4);
     dg::bc bcx = GENERATE( dg::NEU, dg::DIR);
     unsigned n = 3, Nx = 26, Ny = 26, Nz = 20, mx[2] = {mm,mm}, max_iter = 1e4;
 
@@ -58,7 +58,6 @@ circular flux surfaces with DIR and NEU boundary conditions.");
     const dg::x::DVec sol1 = dg::pullback( dg::geo::DssFunction<dg::geo::TestFunctionDirNeu>(mag,ff), g3d);
     const dg::x::DVec sol2 = dg::pullback( dg::geo::DsDivFunction<dg::geo::TestFunctionDirNeu>(mag,ff), g3d);
     const dg::x::DVec sol3 = dg::pullback( dg::geo::DsDivDsFunction<dg::geo::TestFunctionDirNeu>(mag,ff), g3d);
-    const dg::x::DVec sol4 = dg::pullback( dg::geo::OMDsDivDsFunction<dg::geo::TestFunctionDirNeu>(mag,ff), g3d);
     std::vector<std::tuple<std::string, std::array<const dg::x::DVec*,2>, double>> names{
          {"forward",{&fun,&sol0}, 0.21},          {"backward",{&fun,&sol0}, 0.21},
          {"forward2",{&fun,&sol0}, 0.17},         {"backward2",{&fun,&sol0}, 0.17},
@@ -66,7 +65,8 @@ circular flux surfaces with DIR and NEU boundary conditions.");
          {"dss",{&fun,&sol1}, 0.36},              {"dss_bc_along",{&fun,&sol1}, 0.24},
          {"divForward",{&fun,&sol2}, 0.21},       {"divBackward",{&fun,&sol2}, 0.21},
          {"divCentered",{&fun,&sol2}, 0.08},      {"directLap",{&fun,&sol3}, 0.36},
-         {"directLap_bc_along",{&fun,&sol3}, 0.24}//, {"invCenteredLap",{&sol4,&fun}} //inversion may take too long for test
+         {"directLap_bc_along",{&fun,&sol3}, 0.24}
+         // invCenteredLap (solution OMDsDivDsFunction) is not tested: the inversion may take too long
     };
     ///##########################################################///
     //create Fieldaligned object and construct DS from it
@@ -115,7 +115,7 @@ TEST_CASE("Fieldaligned")
     auto bhat = dg::geo::createBHat(mag);
     std::string method = "dg";
     dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>  dsFA(
-            bhat, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 10, 10,
+            bhat, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 4, 4,
             -1, method, false);
     dg::geo::DS<dg::x::aProductGeometry3d, dg::x::IDMatrix, dg::x::DVec>
         ds( dsFA );
@@ -143,7 +143,7 @@ TEST_CASE("Fieldaligned")
     dg::x::DVec zMinus(fun), eMinus(fun), zPlus(fun), ePlus(fun), eZero(fun);
     dg::x::DVec funST(fun);
     dg::geo::Fieldaligned<dg::x::aProductGeometry3d,dg::x::IDMatrix,dg::x::DVec>  dsFAST(
-            bhat, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 10, 10,
+            bhat, g3d, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, 4, 4,
             g3d.hz()/2., method, false);
 
     dsFAST( dg::geo::zeroMinus, fun, zMinus);

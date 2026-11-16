@@ -81,6 +81,13 @@ struct EllSparseBlockMat
     template< class other_real_type, template<class> class Other_Vector>
     friend struct EllSparseBlockMat; // enable copy
 
+    /**
+    * @brief Copy constructor
+    *
+    * The idea is that a device matrix can be constructed by copying a host matrix.
+    * @param src another Matrix (\c real_type must be constructible from
+    * \c other_real_type and \c Vector from \c Other_Vector)
+    */
     template< class other_real_type, template<class> class Other_Vector>
     EllSparseBlockMat( const EllSparseBlockMat<other_real_type, Other_Vector>& src)
     {
@@ -122,6 +129,7 @@ struct EllSparseBlockMat
     {
         launch_multiply_kernel( SerialTag(), alpha, x, beta, y);
     }
+    /// @brief Apply the matrix to a vector on the GPU, same as the \c SerialTag version
     template<class value_type>
     void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type* x, value_type beta, value_type* y) const
     {
@@ -244,6 +252,13 @@ struct CooSparseBlockMat
     template< class other_real_type, template<class> class Other_Vector>
     friend struct CooSparseBlockMat; // enable copy
 
+    /**
+    * @brief Copy constructor
+    *
+    * The idea is that a device matrix can be constructed by copying a host matrix.
+    * @param src another Matrix (\c real_type must be constructible from
+    * \c other_real_type and \c Vector from \c Other_Vector)
+    */
     template< class other_real_type, template<class> class Other_Vector>
     CooSparseBlockMat( const CooSparseBlockMat<other_real_type, Other_Vector>& src)
     {
@@ -307,6 +322,7 @@ struct CooSparseBlockMat
     {
         launch_multiply_kernel( SerialTag(), alpha, x, beta, y);
     }
+    /// @brief Apply the matrix to a vector on the GPU, same as the \c SerialTag version
     template<class value_type>
     void symv(SharedVectorTag, CudaTag, value_type alpha, const value_type** x, value_type beta, value_type* y) const
     {
@@ -516,19 +532,23 @@ void CooSparseBlockMat<real_type, Vector>::display( std::ostream& os, bool show_
 ///@endcond
 ///@addtogroup traits
 ///@{
-template <class T, template<class> class V>
+///@brief Enable \c dg::EllSparseBlockMat as a sparse block matrix
+template <class T,
+template<class> class V>
 struct TensorTraits<EllSparseBlockMat<T, V> >
 {
-    using value_type  = T;
-    using tensor_category = SparseBlockMatrixTag;
-    using execution_policy = dg::get_execution_policy<V<T>>;
+    using value_type  = T; //!< see \c dg::TensorTraits
+    using tensor_category = SparseBlockMatrixTag; //!< see \c dg::TensorTraits
+    using execution_policy = dg::get_execution_policy<V<T>>; //!< see \c dg::TensorTraits
 };
-template <class T, template<class> class V>
+///@brief Enable \c dg::CooSparseBlockMat as a sparse block matrix
+template <class T,
+template<class> class V>
 struct TensorTraits<CooSparseBlockMat<T, V> >
 {
-    using value_type  = T;
-    using tensor_category = SparseBlockMatrixTag;
-    using execution_policy = dg::get_execution_policy<V<T>>;
+    using value_type  = T; //!< see \c dg::TensorTraits
+    using tensor_category = SparseBlockMatrixTag; //!< see \c dg::TensorTraits
+    using execution_policy = dg::get_execution_policy<V<T>>; //!< see \c dg::TensorTraits
 };
 ///@}
 

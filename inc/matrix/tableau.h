@@ -29,8 +29,8 @@ namespace mat{
  */
 template<class real_type>
 struct FunctionalButcherTableau{
-    using value_type = real_type;
-    using function_type = std::function<value_type(value_type)>;
+    using value_type = real_type; //!< type of the coefficients
+    using function_type = std::function<value_type(value_type)>; //!< type of the coefficient functions
     ///No memory allocation
     FunctionalButcherTableau() = default;
     /*! @brief Construct a classic non-embedded tableau
@@ -234,10 +234,10 @@ FunctionalButcherTableau<real_type> hochbruck_3_3_4()
 *  @ingroup exp_int
 */
 enum func_tableau_identifier{
-    EXPLICIT_EULER_1_1, //!
-    MIDPOINT_2_2, //!
-    CLASSIC_4_4,//!
-    HOCHBRUCK_3_3_4
+    EXPLICIT_EULER_1_1, //!< "Euler"
+    MIDPOINT_2_2, //!< "Midpoint-2-2"
+    CLASSIC_4_4,//!< "Runge-Kutta-4-4"
+    HOCHBRUCK_3_3_4 //!< "Hochbruck-3-3-4"
 };
 
 ///@cond
@@ -328,7 +328,7 @@ FunctionalButcherTableau<real_type> func_tableau( std::string name)
 template<class real_type>
 struct ConvertsToFunctionalButcherTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///Of course a FunctionalButcherTableau converts to a FunctionalButcherTableau
     ///Useful if you constructed your very own coefficients
     ConvertsToFunctionalButcherTableau( FunctionalButcherTableau<real_type> tableau): m_t(tableau){}

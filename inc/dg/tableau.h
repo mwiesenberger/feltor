@@ -31,7 +31,7 @@ namespace dg{
  */
 template<class real_type>
 struct ButcherTableau{
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///No memory allocation
     ButcherTableau() = default;
     /*! @brief Construct a classic non-embedded tableau
@@ -179,7 +179,7 @@ struct ButcherTableau{
 template<class real_type>
 struct ShuOsherTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///No memory allocation
     ShuOsherTableau() = default;
     /*! @brief Construct a non-embedded explicit tableau
@@ -1693,7 +1693,7 @@ ButcherTableau<real_type> tableau( std::string name)
 template<class real_type>
 struct ConvertsToButcherTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///Of course a ButcherTableau converts to a ButcherTableau
     ///Useful if you constructed your very own coefficients
     ConvertsToButcherTableau( ButcherTableau<real_type> tableau): m_t(tableau){}
@@ -1741,7 +1741,7 @@ struct ConvertsToButcherTableau
 template<class real_type>
 struct ConvertsToShuOsherTableau
 {
-    using value_type = real_type;
+    using value_type = real_type; //!< type of the coefficients
     ///Of course a ShuOsherTableau converts to a ShuOsherTableau
     ///Useful if you constructed your very own coefficients
     ConvertsToShuOsherTableau( ShuOsherTableau<real_type> tableau): m_t(tableau){}

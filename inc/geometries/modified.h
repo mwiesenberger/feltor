@@ -13,6 +13,13 @@
  *
  * Modified MagneticField objects
  */
+/*!@class hide_mod_parameters
+ * @param predicate P(R,Z) indicates the positions where Psi is to be modified (true) or not (false)
+ * @param psip the flux function to be modified
+ * @param psi0 parameter for dg::PolynomialHeaviside function
+ * @param alpha parameter for dg::PolynomialHeaviside function
+ * @param sign parameter for dg::PolynomialHeaviside function
+ */
 namespace dg
 {
 namespace geo
@@ -37,6 +44,8 @@ namespace mod
  */
 struct Psip: public aCylindricalFunctor<Psip>
 {
+    ///@brief Construct
+    ///@copydetails hide_mod_parameters
     Psip( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, double psi0, double alpha, double sign = -1) :
         m_ipoly( psi0, alpha, sign), m_psip(psip), m_pred(predicate)
     { }
@@ -53,8 +62,12 @@ struct Psip: public aCylindricalFunctor<Psip>
     std::function<double(double,double)> m_psip;
     std::function<bool(double,double)> m_pred;
 };
+/// @brief \f$ \partial_R\psi_{mod}\f$ (see \c Psip)
 struct PsipR: public aCylindricalFunctor<PsipR>
 {
+    ///@brief Construct
+    ///@copydetails hide_mod_parameters
+    ///@param psipR \f$ \partial_R\psi_p\f$
     PsipR( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, std::function<double(double,double)> psipR, double psi0, double alpha, double sign = -1) :
         m_poly( psi0, alpha, sign), m_psip(psip), m_psipR(psipR), m_pred(predicate)
     { }
@@ -72,8 +85,12 @@ struct PsipR: public aCylindricalFunctor<PsipR>
     std::function<double(double,double)> m_psip, m_psipR;
     std::function<bool(double,double)> m_pred;
 };
+/// @brief \f$ \partial_Z\psi_{mod}\f$ (see \c Psip)
 struct PsipZ: public aCylindricalFunctor<PsipZ>
 {
+    ///@brief Construct
+    ///@copydetails hide_mod_parameters
+    ///@param psipZ \f$ \partial_Z\psi_p\f$
     PsipZ( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, std::function<double(double,double)> psipZ, double psi0, double alpha, double sign = -1) :
         m_poly( psi0, alpha, sign), m_psip(psip), m_psipZ(psipZ), m_pred(predicate)
     { }
@@ -92,8 +109,13 @@ struct PsipZ: public aCylindricalFunctor<PsipZ>
     std::function<bool(double,double)> m_pred;
 };
 
+/// @brief \f$ \partial_Z^2\psi_{mod}\f$ (see \c Psip)
 struct PsipZZ: public aCylindricalFunctor<PsipZZ>
 {
+    ///@brief Construct
+    ///@copydetails hide_mod_parameters
+    ///@param psipZ \f$ \partial_Z\psi_p\f$
+    ///@param psipZZ \f$ \partial_Z^2\psi_p\f$
     PsipZZ( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, std::function<double(double,double)> psipZ, std::function<double(double,double)> psipZZ, double psi0, double alpha, double sign = -1) :
         m_poly( psi0, alpha, sign), m_dpoly( psi0, alpha, sign), m_psip(psip), m_psipZ(psipZ), m_psipZZ(psipZZ), m_pred(predicate)
     { }
@@ -114,8 +136,13 @@ struct PsipZZ: public aCylindricalFunctor<PsipZZ>
     std::function<bool(double,double)> m_pred;
 };
 
+/// @brief \f$ \partial_R^2\psi_{mod}\f$ (see \c Psip)
 struct PsipRR: public aCylindricalFunctor<PsipRR>
 {
+    ///@brief Construct
+    ///@copydetails hide_mod_parameters
+    ///@param psipR \f$ \partial_R\psi_p\f$
+    ///@param psipRR \f$ \partial_R^2\psi_p\f$
     PsipRR( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, std::function<double(double,double)> psipR, std::function<double(double,double)> psipRR, double psi0, double alpha, double sign = -1) :
         m_poly( psi0, alpha, sign), m_dpoly( psi0, alpha, sign), m_psip(psip), m_psipR(psipR), m_psipRR(psipRR), m_pred(predicate)
     { }
@@ -135,8 +162,14 @@ struct PsipRR: public aCylindricalFunctor<PsipRR>
     std::function<double(double,double)> m_psip, m_psipR, m_psipRR;
     std::function<bool(double,double)> m_pred;
 };
+/// @brief \f$ \partial_R\partial_Z\psi_{mod}\f$ (see \c Psip)
 struct PsipRZ: public aCylindricalFunctor<PsipRZ>
 {
+    ///@brief Construct
+    ///@copydetails hide_mod_parameters
+    ///@param psipR \f$ \partial_R\psi_p\f$
+    ///@param psipZ \f$ \partial_Z\psi_p\f$
+    ///@param psipRZ \f$ \partial_R\partial_Z\psi_p\f$
     PsipRZ( std::function<bool(double,double)> predicate, std::function<double(double,double)> psip, std::function<double(double,double)> psipR, std::function<double(double,double)> psipZ, std::function<double(double,double)> psipRZ, double psi0, double alpha, double sign = -1) :
         m_poly( psi0, alpha, sign), m_dpoly( psi0, alpha, sign), m_psip(psip), m_psipR(psipR), m_psipZ(psipZ), m_psipRZ(psipRZ), m_pred(predicate)
     { }
@@ -163,11 +196,7 @@ struct PsipRZ: public aCylindricalFunctor<PsipRZ>
  * @copydoc dg::geo::mod::Psip
  *
  * @note This is a helper function used in the implementation of \c dg::geo::createModifiedField
- * @param predicate P(R,Z) indicates the positions where Psi is to be modified (true) or not (false)
- * @param psip the flux function to be modified
- * @param psi0 parameter for dg::PolynomialHeaviside function
- * @param alpha parameter for dg::PolynomialHeaviside function
- * @param sign parameter for dg::PolynomialHeaviside function
+ * @copydetails hide_mod_parameters
  * @sa createModifiedField
  *
  * @return  the modified flux function
@@ -454,6 +483,13 @@ struct SOLRegion
  */
 struct SetCompose : public aCylindricalFunctor<SetCompose>
 {
+    /**
+     * @brief Construct
+     *
+     * @param fct_mod \f$ f\f$
+     * @param fct1 \f$ f_1\f$
+     * @param fct2 \f$ f_2\f$
+     */
     SetCompose( std::function<double(double,double)> fct_mod,
             std::function<double(double,double)> fct1,
             std::function<double(double,double)> fct2) :
@@ -474,6 +510,12 @@ struct SetCompose : public aCylindricalFunctor<SetCompose>
  */
 struct SetUnion : public aCylindricalFunctor<SetUnion>
 {
+    /**
+     * @brief Construct
+     *
+     * @param fct1 \f$ f_1\f$
+     * @param fct2 \f$ f_2\f$
+     */
     SetUnion( std::function<double(double,double)> fct1,
             std::function<double(double,double)> fct2) :
         m_fct1(fct1), m_fct2(fct2)
@@ -494,6 +536,12 @@ struct SetUnion : public aCylindricalFunctor<SetUnion>
  */
 struct SetIntersection : public aCylindricalFunctor<SetIntersection>
 {
+    /**
+     * @brief Construct
+     *
+     * @param fct1 \f$ f_1\f$
+     * @param fct2 \f$ f_2\f$
+     */
     SetIntersection( std::function<double(double,double)> fct1,
             std::function<double(double,double)> fct2) :
         m_fct1(fct1), m_fct2(fct2)
@@ -514,6 +562,7 @@ struct SetIntersection : public aCylindricalFunctor<SetIntersection>
  */
 struct SetNot : public aCylindricalFunctor<SetNot>
 {
+    /// @param fct \f$ f\f$
     SetNot( std::function<double(double,double)> fct) :
         m_fct(fct)
     { }

@@ -34,8 +34,8 @@ all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 %_b: %_b.cpp
 	$(CC) $(OPT) $(CFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) -g
 
-%_mpib: %_mpib.cpp
-	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) $(LAPACKLIB) -g
+%_mpib: %_b.cpp
+	$(MPICC) $(OPT) $(MPICFLAGS) $< -o $@ $(INCLUDE) -DWITH_MPI $(LAPACKLIB) -g
 
 # CATCH2 TESTS
 #

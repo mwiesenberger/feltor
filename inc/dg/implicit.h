@@ -41,7 +41,7 @@ namespace dg{
 template<class ContainerType>
 struct DefaultSolver
 {
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = get_value_type<ContainerType>;//!< value type of vectors
     ///No memory allocation
     DefaultSolver(){}
@@ -97,6 +97,14 @@ struct DefaultSolver
     ///@note The default is \c true
     void set_benchmark( bool benchmark){ m_benchmark = benchmark;}
 
+    /**
+     * @brief Solve \f$ y - \alpha I(t,y) = y^*\f$ for \c y with PCG (\c ys is the initial guess)
+     *
+     * @param alpha \f$ \alpha\f$ (positive)
+     * @param time the time \f$ t\f$
+     * @param y the solution on output
+     * @param ys the right hand side \f$ y^*\f$
+     */
     void operator()( value_type alpha, value_type time, ContainerType& y, const
             ContainerType& ys)
     {

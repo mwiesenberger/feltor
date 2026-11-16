@@ -22,8 +22,8 @@ namespace mat{
 template<class ContainerType>
 struct MatrixSqrt
 {
-    using container_type = ContainerType;
-    using value_type = dg::get_value_type<ContainerType>;
+    using container_type = ContainerType; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
 
     /// Construct empty
     MatrixSqrt() = default;
@@ -145,8 +145,8 @@ struct MatrixSqrt
 template<class ContainerType>
 struct MatrixFunction
 {
-    using container_type = ContainerType;
-    using value_type = dg::get_value_type<ContainerType>;
+    using container_type = ContainerType; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
 
     /// Construct empty
     MatrixFunction() = default;

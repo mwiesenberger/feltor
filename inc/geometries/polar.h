@@ -28,6 +28,7 @@ struct PolarGenerator : public aGenerator2d
     * @param _r_max maximum radius
     */
     PolarGenerator(double _r_min, double _r_max) : r_min(_r_min), r_max(_r_max) {}
+    ///@copydoc hide_clone
     virtual PolarGenerator* clone() const override final{return new PolarGenerator(*this); }
 
     private:
@@ -95,6 +96,7 @@ struct LogPolarGenerator : public aGenerator2d
     * @param _r_max maximum radius
     */
     LogPolarGenerator(double _r_min, double _r_max) : r_min(_r_min), r_max(_r_max) {}
+    ///@copydoc hide_clone
     virtual LogPolarGenerator* clone() const override final{return new LogPolarGenerator(*this); }
 
     private:

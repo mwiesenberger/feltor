@@ -310,7 +310,8 @@ void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_typ
 * @tparam ProductGeometry must be either \c dg::aProductGeometry3d or \c dg::aProductMPIGeometry3d or any derivative
 * @tparam IMatrix The type of the interpolation matrix
     - \c dg::IHMatrix, or \c dg::IDMatrix, \c dg::MIHMatrix, or \c dg::MIDMatrix
-* @tparam container The container-class on which the interpolation matrix operates on
+* @tparam container The container-class on which the interpolation matrix operates on;
+    its value type must be \c double
     - \c dg::HVec, or \c dg::DVec, \c dg::MHVec, or \c dg::MDVec
 * @sa The pdf <a href="https://www.overleaf.com/read/jjvstccqzcjv" target="_blank">parallel derivative</a> writeup
 */
@@ -367,9 +368,11 @@ struct Fieldaligned
         *this = Fieldaligned( std::forward<Params>( ps)...);
     }
 
+    ///@brief The boundary condition \c bcx given in the constructor
     dg::bc bcx()const{
         return m_bcx;
     }
+    ///@brief The boundary condition \c bcy given in the constructor
     dg::bc bcy()const{
         return m_bcy;
     }
@@ -439,6 +442,7 @@ struct Fieldaligned
     */
     void operator()(enum whichMatrix which, const container& in, container& out) const;
 
+    ///@brief The angular distance of the fieldline integration (\c grid.hz() if the \c deltaPhi parameter in the constructor was <= 0)
     double deltaPhi() const{return m_deltaPhi;}
     ///@brief Angular distance between the planes and the boundary in the minus direction, \c deltaPhi() if the boundary is not reached
     ///@return three-dimensional vector

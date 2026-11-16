@@ -54,7 +54,7 @@ template< class ContainerType>
 class ChebyshevIteration
 {
   public:
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = get_value_type<ContainerType>; //!< value type of the ContainerType class
     ///@brief Allocate nothing, Call \c construct method before usage
     ChebyshevIteration() = default;
@@ -219,7 +219,7 @@ class ChebyshevIteration
 template<class Matrix, class ContainerType>
 struct ChebyshevPreconditioner
 {
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = get_value_type<ContainerType>; //!< value type of the ContainerType class
     /**
      * @brief  Construct the k-th Chebyshev Polynomial
@@ -235,6 +235,9 @@ struct ChebyshevPreconditioner
         m_op(op), m_ch( copyable),
         m_ev_min(ev_min), m_ev_max(ev_max), m_degree(degree){}
 
+    ///@brief \f$ y = P x\f$ where \f$ P\f$ is the preconditioner of the class description
+    ///@param x input
+    ///@param y output
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y)
     {
@@ -264,7 +267,7 @@ struct ChebyshevPreconditioner
 template<class Matrix, class ContainerType>
 struct ModifiedChebyshevPreconditioner
 {
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = get_value_type<ContainerType>; //!< value type of the ContainerType class
     /**
      * @brief  Construct the k-th Chebyshev Polynomial approximate
@@ -282,6 +285,9 @@ struct ModifiedChebyshevPreconditioner
         m_op(op), m_ax(copyable), m_z1(m_ax), m_z2(m_ax),
         m_ev_min(ev_min), m_ev_max(ev_max), m_degree(degree){}
 
+    ///@brief \f$ y = P x\f$ where \f$ P\f$ is the preconditioner of the class description
+    ///@param x input
+    ///@param y output
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y)
     {
@@ -333,7 +339,7 @@ struct ModifiedChebyshevPreconditioner
 template<class Matrix, class InnerPreconditioner, class ContainerType>
 struct LeastSquaresPreconditioner
 {
-    using container_type = ContainerType;
+    using container_type = ContainerType; //!< the type of the vector class in use
     using value_type = get_value_type<ContainerType>; //!< value type of the ContainerType class
     /**
      * @brief  Construct k-th Least Squares Polynomial
@@ -353,6 +359,9 @@ struct LeastSquaresPreconditioner
     ///@return A copyable object; what it contains is undefined, its size is important
     const ContainerType& copyable()const{ return m_z;}
 
+    ///@brief \f$ y = P x\f$ where \f$ P\f$ is the preconditioner of the class description
+    ///@param x input
+    ///@param y output
     template<class ContainerType0, class ContainerType1>
     void symv( const ContainerType0& x, ContainerType1& y)
     {

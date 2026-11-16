@@ -418,12 +418,13 @@ class SquareMatrix
 };
 
 ///@ingroup traits
+///@brief Enable \c dg::SquareMatrix as a self-made matrix
 template<class T>
 struct TensorTraits<SquareMatrix<T>>
 {
-    using value_type  = T;
-    using execution_policy = SerialTag;
-    using tensor_category = SelfMadeMatrixTag;
+    using value_type  = T; //!< see \c dg::TensorTraits
+    using execution_policy = SerialTag; //!< see \c dg::TensorTraits
+    using tensor_category = SelfMadeMatrixTag; //!< see \c dg::TensorTraits
 };
 
 

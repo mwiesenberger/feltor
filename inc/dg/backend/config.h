@@ -95,10 +95,16 @@ inline constexpr bool nccl_mpi = false;
 } // namespace dg
 
 //%%%%%%%%%%%%%%%Define DG_DEVICE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-///@brief Expands to \__host__ \__device__ if compiled with nvcc else is empty
+// Documented in dg_doc.h
 #define DG_DEVICE
 #ifdef __CUDACC__
 #undef DG_DEVICE
 #define DG_DEVICE __host__ __device__
+#endif
+// Documented in dg_doc.h
+#if defined(__CUDACC__) && defined(__NVCC__)
+#define DG_NVCC_EXEC_CHECK_DISABLE _Pragma("nv_exec_check_disable")
+#else
+#define DG_NVCC_EXEC_CHECK_DISABLE
 #endif
 #include "fma.h"

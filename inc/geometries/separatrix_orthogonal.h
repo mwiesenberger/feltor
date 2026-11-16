@@ -131,6 +131,7 @@ struct SimpleOrthogonalX : public aGeneratorX2d
         dg::geo::orthogonal::detail::InitialX initX(psi_, xX, yX);
         initX.find_initial(psi_0, R0_, Z0_);
     }
+    ///@copydoc hide_clone
     virtual SimpleOrthogonalX* clone()const override final{return new SimpleOrthogonalX(*this);}
     private:
     bool isConformal()const{return false;}
@@ -212,6 +213,7 @@ struct SeparatrixOrthogonal : public aGeneratorX2d
         f0_ = sep_.get_f();
         psi_0_=psi_0;
     }
+    ///@copydoc hide_clone
     virtual SeparatrixOrthogonal* clone()const override final{return new SeparatrixOrthogonal(*this);}
     private:
     bool isConformal()const{return false;}
@@ -368,6 +370,7 @@ struct SeparatrixOrthogonalAdaptor : public aGenerator2d
             double xX, double yX, double x0, double y0, int firstline, bool verbose = false, double fx = 0 ):
             m_fx(fx),
             m_sep( psi, chi, psi_0, xX, yX, x0, y0, firstline, verbose) { }
+    ///@copydoc hide_clone
     virtual SeparatrixOrthogonalAdaptor* clone() const override final{return new SeparatrixOrthogonalAdaptor(*this);}
     private:
     virtual double do_width() const override final{

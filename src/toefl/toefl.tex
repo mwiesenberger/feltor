@@ -18,26 +18,33 @@
 \end{abstract}
 \tableofcontents
 
-\section{Compilation and useage}
-The program toefl.cpp can be compiled three ways with
+\section{Compilation and usage}
+The program toefl.cpp is the CMake target \texttt{toefl\_toefl}
 \begin{verbatim}
-make <toefl toefl_hpc toefl_mpi> device = <cpu omp gpu>
+cmake --preset <cpu omp gpu mpi-cpu mpi-omp mpi-gpu>
+cmake --build build/<preset> --target toefl_toefl
 \end{verbatim}
+which writes the executable \texttt{build/<preset>/src/toefl/toefl}.
 Run with
 \begin{verbatim}
-path/to/toefl/toefl input.json
-path/to/toefl/toefl_hpc input.json output.nc
-echo np_x np_y | mpirun -n np_x*np_y path/to/toefl/toefl_mpi\
-    input.json output.nc
+path/to/toefl input.json [output.nc]
+echo np_x np_y | mpirun -n np_x*np_y path/to/toefl input.json [output.nc]
 \end{verbatim}
-All programs write performance informations to std::cout.
-The first is for shared memory systems (CPU/OpenMP/GPU) and opens a terminal window with life simulation results.
- The
-second is shared memory systems and uses serial netcdf
-to write results to a file.
-For distributed
-memory systems (MPI+CPU/OpenMP/GPU) the program expects the distribution of processes in the
-x and y directions as command line input parameters. Also there serial netcdf is used.
+Without arguments the program reads \texttt{input/default.json}; without an
+output file name it writes \texttt{toefl.nc}.
+All file names are relative to the current working directory, not to the
+build directory, and the glfw output also reads \texttt{window\_params.json}
+from there. For example, from the folder \texttt{src/toefl} of the
+repository
+\begin{verbatim}
+../../build/cpu/src/toefl/toefl input/default.json
+\end{verbatim}
+The program writes performance information to std::cout.
+The input file chooses the output (Section~\ref{sec:output}): netcdf writes
+results to a file, glfw opens a window with live simulation results. glfw is
+only available without MPI and if FELTOR\_WITH\_GLFW is ON (the default).
+With MPI the program reads the distribution of processes in the x and y
+directions from std::cin.
 
 \section{The input file}
 Input file format: \href{https://en.wikipedia.org/wiki/JSON}{json}
@@ -116,8 +123,8 @@ This model is chosen in the input file via
 \begin{minted}[texcomments]{js}
 "model":
 {
-    "type"  : "gravity-local",
-    "friction" : 0 // $\eta$
+    "type"  : "gravity_local",
+    "friction" : 0, // $\eta$
     "nu" : 1e-9
 }
 \end{minted}
@@ -135,8 +142,9 @@ This model is chosen in the input file via
 \begin{minted}[texcomments]{js}
 "model":
 {
-    "type"  : "gravity-global",
-    "friction" : 0 // $\eta$
+    "type"  : "gravity_global",
+    "boussinesq" : false, // or true
+    "friction" : 0, // $\eta$
     "nu" : 1e-9
 }
 \end{minted}
@@ -164,7 +172,7 @@ This model is chosen in the input file via
 \begin{minted}[texcomments]{js}
 "model":
 {
-    "type"  : "drift-global",
+    "type"  : "drift_global",
     "boussinesq" : false, // or true
     "curvature" : 0.0005, // $\kappa$
     "nu" : 1e-9
@@ -238,14 +246,16 @@ The boundary conditions are the same for all fields.
 \begin{minted}[texcomments]{js}
 "bc" : ["DIR", "PER"]
 \end{minted}
+The boundary conditions must not be periodic in both directions: then the
+potential is determined only up to a constant and the polarisation solver
+fails.
 
 \subsection{Elliptic solvers}
 We discretize all elliptic operators with a local dG method (LDG).  In order to
 solve the elliptic equations we chose a multigrid scheme (nested iterations in
 combination with conjugate gradient solves on each plane). The accuaracies for
-the polarization equation can be chosen for each stage separately, while for
-the Helmholtz type equations (the gamma operators) only
-one accuracy can be set (they typically are quite fast to solve):
+the polarization equation and for the Helmholtz type equations (the gamma
+operators) can be chosen for each stage separately:
 \begin{minted}[texcomments]{js}
 "elliptic":
 {
@@ -256,18 +266,18 @@ one accuracy can be set (they typically are quite fast to solve):
     // polarisation equation. The second number is a multiplicative
     // factor for the accuracy on the second grid in a multigrid scheme, the
     // third for the third grid and so on:
-    // $\eps_0 = \eps_{pol,0}$, $\eps_i = \eps_{pol,i} \eps_{pol,0}$  for $i>1$.
+    // $\eps_0 = \eps_{pol,0}$, $\eps_i = \eps_{pol,i} \eps_{pol,0}$  for $i\geq 1$.
     // Tuning those factors is a major performance tuning oppourtunity!!
     // For saturated turbulence the suggested values are [1e-6, 2000, 100].
-    "eps_gamma" : [1e-10,1,1] // Accuracy requirement of Gamma operator
-    "direction" : "forward", // Direction of the Laplacian: forward or centered
+    "eps_gamma" : [1e-10,1,1], // Accuracies of the Gamma operator, as for the polarisation
+    "direction" : "forward" // Direction of the Laplacian: forward or centered
 }
 \end{minted}
 \begin{tcolorbox}[title=Note]
     We use solutions from previous time steps to extrapolate an initial guess
     and use a diagonal preconditioner
 \end{tcolorbox}
-\section{Output}
+\section{Output} \label{sec:output}
 Our program can either write results directly to screen using the glfw library
 or write results to disc using netcdf.
 This can be controlled via
@@ -276,22 +286,26 @@ This can be controlled via
 {
     // Use glfw to display results in a window while computing (requires to
     // compile with the glfw3 library)
-    "type"  : "glfw"
+    "type"  : "glfw",
     "itstp"  : 4, // The number of steps between refreshing field plots
 
     // Use netcdf to write results into a file (filename given on command line)
     // (see next section for information about what is written in there)
-    "type"  : "netcdf"
-    "tend"  : 4,    // The number of steps between outputs of 2d fields
-    "maxout"  : 100, // The total number of field outputs
+    "type"  : "netcdf",
+    "tend"  : 4,    // The end time of the simulation
+    "maxout"  : 100, // The number of field outputs after the initial one:
+    // output $u$ is written after the first time step that reaches
+    // $u\cdot$tend/maxout, the last one exactly at tend
+    // (the variable time in the output file holds the times reached)
     "n"  : 3 , // The number of polynomial coefficients in the output file
     "Nx" : 48, // Number of cells in x in the output file
     "Ny" : 48  // Number of cells in y in the output file
 }
 \end{minted}
 The number of points in the output file can be lower (or higher) than the number of
-grid points used for the calculation. The points will be interpolated from the
-computational grid.
+grid points used for the calculation. The time dependent fields are
+interpolated from the computational grid, the coordinates and weights are
+evaluated on the output grid.
 \subsection{Netcdf file}
 Output file format: netcdf-4/hdf5
 
@@ -354,7 +368,7 @@ with
 \begin{align}
     \mathcal M &= \ne \\
     \vec j_{n,s} &= \ne \vec v_E + \vec v_\kappa \\
-     \Lambda_\ne &= -\nu_\perp \Delta_\perp^2 \ne
+     \Lambda_\ne &= \nu_\perp \Delta_\perp \ne
 \end{align}
 With vanishing flux on the boundaries and zero viscosity we have
 \begin{align}
@@ -391,7 +405,7 @@ The energy current density and diffusion are
       \left(\tau_i \ln \ni + \psi_{i} \right)\ni\left(
   \vec u_E^i + \vec u_\kappa \right) \right]
   , \\
-    \Lambda_\mathcal{E} :=  &+ \left( ( 1+\ln \ne) - \phi\right)(\nu_\perp \Delta_\perp \ne)+ \left( ( 1+\ln \ni) + \psi\right)(\nu_\perp \Delta_\perp \ni)
+    \Lambda_\mathcal{E} :=  &+ \left( ( 1+\ln \ne) - \phi\right)(\nu_\perp \Delta_\perp \ne)+ \left( \tau_i( 1+\ln \ni) + \psi\right)(\nu_\perp \Delta_\perp \ni)
     \label{eq:energy_diffusion}
 \end{align}
 where in the energy flux $\vec j_{\mathcal E}$
@@ -417,9 +431,9 @@ The energy current density and diffusion are
   \left(\tau_s \ln \ne + \psi_s \right)\ne\left(
   \vec u_E + \vec u_\kappa \right) \right]
   , \\
-    \Lambda_\mathcal{E} :=  &+ \left( ( 1+\ln \ne) - \phi\right)(\nu_\perp \Delta_\perp \ne)
-    + \left( \tau_i( 1+\ln \ni) + \psi\right)(\nu_\perp \Delta_\perp \ni)
-    \label{eq:energy_diffusion}
+    \Lambda_\mathcal{E} :=  &+ \left( \ne - \phi\right)(\nu_\perp \Delta_\perp \ne)
+    + \left( \tau_i \ni + \psi\right)(\nu_\perp \Delta_\perp \ni)
+    \label{eq:energy_diffusion_delta}
 \end{align}
 where in the energy flux $\vec j_{\mathcal E}$
 we neglect terms  containing time derivatives

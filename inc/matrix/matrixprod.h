@@ -46,8 +46,8 @@ namespace mat{
 template<class ContainerType>
 struct ProductMatrixFunction
 {
-    using container_type = ContainerType;
-    using value_type = dg::get_value_type<ContainerType>;
+    using container_type = ContainerType; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
     /// Construct empty
     ProductMatrixFunction() = default;
 
@@ -426,7 +426,18 @@ struct ProductMatrixFunction
 template<class Geometry, class Matrix, class ComplexContainer>
 struct CauchyMatrixProduct
 {
+    /// No memory allocation
     CauchyMatrixProduct() = default;
+    /**
+     * @brief Construct the multigrid solver
+     *
+     * @param lm_eps Maximum allowed absolute error of the %Cauchy contour
+     * integral; the Levenberg-Marquardt optimization chooses the nodes and
+     * weights such that the error stays below \c lm_eps
+     * @param grid the grid on which the matrix function is computed
+     * @param stages number of grids in the \c dg::MultigridCG2d (see \c multigrid())
+     * @param adjoint initial value of the adjoint parameter (see \c set_adjoint)
+     */
     CauchyMatrixProduct( double lm_eps, const Geometry& grid, unsigned stages, bool adjoint = true )
     : m_eps( lm_eps),
     m_multi( grid, stages),

@@ -11,6 +11,7 @@ namespace mat {
 template < class T = double>
 struct BESSELI0
 {
+    ///@brief No parameters
     BESSELI0( ) {}
     /**
      * @brief return \f$ f(x) = I_0 (x)\f$ with \f$I_0\f$ the zeroth order modified Bessel function
@@ -33,8 +34,10 @@ struct BESSELI0
 template< class T = double >
 struct BesselJ
 {
+    /// @param n order of the Bessel function
     BesselJ(unsigned n): m_n(n) {}
 
+    /// @return \f$ J_n(x)\f$
     T operator() ( T x) const
     {
         return boost::math::cyl_bessel_j(m_n, x);
@@ -51,8 +54,10 @@ struct BesselJ
 template< class T = double >
 struct LaguerreL
 {
+    /// @param n order of the Laguerre polynomial
     LaguerreL(unsigned n): m_n(n) {}
 
+    /// @return \f$ L_n(x)\f$
     T operator() ( T x) const
     {
         return boost::math::laguerre(m_n, x);
@@ -74,6 +79,7 @@ struct LaguerreL
 template < class T = double>
 struct GAMMA0
 {
+    ///@brief No parameters
     GAMMA0( ) {}
     /**
      * @brief return \f$ f(x) = I_0 (x) exp(x) \f$ with \f$I_0\f$ the zeroth order modified Bessel function
@@ -187,6 +193,8 @@ struct GyrolagK
      */
     GyrolagK(unsigned n, T a = T(1)): m_n (n), m_a(a) {}
 
+    /// @return \f$ f(x)\f$
+    DG_NVCC_EXEC_CHECK_DISABLE
     DG_DEVICE
     T operator()(T x) const {
         // Factorials overflow int32 for n>12
@@ -203,6 +211,8 @@ struct GyrolagK
             return (x*m_a)*(x*m_a)*(x*m_a)*exp( -x*m_a)/6.0;
         return pow(x*m_a,m_n)/T(fact[m_n])*exp(-x*m_a);
     }
+    /// @return \f$ f(xy)\f$
+    DG_NVCC_EXEC_CHECK_DISABLE
     DG_DEVICE
     T operator()(T x, T y) const { return this->operator()(x*y); }
 
@@ -214,17 +224,27 @@ struct GyrolagK
 /**
  * @brief \f$ f(x) = \frac{e^{-ax} (ax)^n ( n - ax)}{xn!} \f$
  *
+ * The derivative of \c GyrolagK, \f$ f(x,y) \equiv f(xy) \f$
  * @tparam T value type (can be complex)
  */
 template<class T = double>
 struct DGyrolagK
 {
+    /**
+     * @brief Construct
+     * @param n order cannot be greater than 12
+     * @param a prefactor of x
+     */
     DGyrolagK(unsigned n, T a = T(1)): m_n (n), m_a(a), m_kn(n,a), m_knm(n-1,a) {}
+    /// @return \f$ f(x)\f$
+    DG_NVCC_EXEC_CHECK_DISABLE
     T  DG_DEVICE operator()(T x) const {
         if( m_n == 0)
             return-m_a*exp(-x*m_a);
         return m_a*(m_knm(x) - m_kn(x));
     }
+    /// @return \f$ f(xy)\f$
+    DG_NVCC_EXEC_CHECK_DISABLE
     T  DG_DEVICE operator()(T x, T y) const { return this->operator()(x*y); }
 
     private:

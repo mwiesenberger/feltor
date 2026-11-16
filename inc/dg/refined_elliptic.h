@@ -26,10 +26,10 @@ template < class Geometry,class IMatrix, class Matrix, class Container>
 class RefinedElliptic
 {
     public:
-    using geometry_type = Geometry;
-    using matrix_type = Matrix;
-    using container_type = Container;
-    using value_type = get_value_type<Container>;
+    using geometry_type = Geometry; //!< the type of the grid
+    using matrix_type = Matrix; //!< the type of the derivative matrices
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = get_value_type<Container>; //!< value type of the \c Container class
     /**
      * @brief Construct from a coarse and a fine grid
      *

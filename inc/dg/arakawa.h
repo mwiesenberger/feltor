@@ -33,10 +33,10 @@ namespace dg
 template< class Geometry, class Matrix, class Container >
 struct ArakawaX
 {
-    using geometry_type = Geometry;
-    using matrix_type = Matrix;
-    using container_type = Container;
-    using value_type = get_value_type<Container>;
+    using geometry_type = Geometry; //!< the type of the grid
+    using matrix_type = Matrix; //!< the type of the derivative matrices
+    using container_type = Container; //!< the type of the vector class in use
+    using value_type = get_value_type<Container>; //!< value type of the \c Container class
     ArakawaX() = default;
     /**
      * @brief Create Arakawa on a grid
@@ -81,6 +81,16 @@ struct ArakawaX
     void operator()( const ContainerType0& lhs, const ContainerType1& rhs, ContainerType2& result){
         return this->operator()( 1., lhs, rhs, 0., result);
     }
+    /**
+     * @brief Compute Poisson bracket \f$ r = \alpha [f,g] + \beta r\f$
+     *
+     * @param alpha scalar
+     * @param lhs left hand side \f$ f\f$ in x-space
+     * @param rhs right hand side \f$ g\f$ in x-space
+     * @param beta scalar
+     * @param result \f$ r\f$, Poisson's bracket in x-space
+     * @tparam ContainerTypes must be usable with \c Container in \ref dispatch
+     */
     template<class ContainerType0, class ContainerType1, class ContainerType2>
     void operator()( value_type alpha, const ContainerType0& lhs, const ContainerType1& rhs, value_type beta, ContainerType2& result);
     /**

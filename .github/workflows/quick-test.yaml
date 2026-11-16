@@ -1,0 +1,92 @@
+# Quick check of every push: compile the tests of each preset and run them
+# on a single process (GPU presets compile only, the runners have no GPU).
+# The same on Windows with the msvc presets.
+# The full test suite runs on pull requests, see full-test.yaml.
+name: Quick test
+
+on:
+  push:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the running check
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Ensure that feedback is delivered for all presets
+      fail-fast: false
+      matrix:
+        preset: [cpu, omp, gpu, mpi-cpu, mpi-omp, mpi-gpu]
+
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      CTEST_PARALLEL_LEVEL: 4
+
+    steps:
+    - uses: actions/checkout@v5
+
+    # CUDA of the runner's Ubuntu; its nvcc is set up for a supported host compiler
+    - name: Install CUDA
+      if: contains(matrix.preset, 'gpu')
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install nvidia-cuda-toolkit
+        nvcc --version
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install libglfw3-dev libopenmpi-dev libnetcdf-dev liblapack-dev libboost-dev
+
+    # The gpu presets compile for the GPU of the machine (native), which the runners
+    # do not have; 75 (Turing) is supported by every current CUDA version
+    - name: Configure
+      run: >
+        cmake --preset ${{ matrix.preset }}
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        ${{ contains(matrix.preset, 'gpu') && '-DCMAKE_CUDA_ARCHITECTURES=75' || '' }}
+
+    - name: Build
+      run: cmake --build --preset ${{ matrix.preset }} --target dg_tests
+
+    # -LE mpi: without the runs on several MPI processes
+    - name: Test
+      if: ${{ !contains(matrix.preset, 'gpu') }}
+      run: ctest --preset ${{ matrix.preset }} -LE mpi
+
+  # Windows with Visual Studio: vcpkg installs NetCDF and GLFW from source
+  # during the configure step (no cache), so the step times show the install
+  # times noted in CMakeLists.txt.
+  quick-test-windows:
+    runs-on: windows-latest
+
+    strategy:
+      # Ensure that feedback is delivered for all presets
+      fail-fast: false
+      matrix:
+        preset: [msvc-cpu, msvc-omp]
+
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      CTEST_PARALLEL_LEVEL: 4
+
+    steps:
+    - uses: actions/checkout@v5
+
+    # The msvc presets take vcpkg from VCPKG_ROOT; the runner image includes vcpkg
+    - name: Use the runner's vcpkg
+      run: echo "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" >> $env:GITHUB_ENV
+
+    - name: Configure
+      run: cmake --preset ${{ matrix.preset }} -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+
+    - name: Build
+      run: cmake --build --preset ${{ matrix.preset }} --target dg_tests
+
+    - name: Test
+      run: ctest --preset ${{ matrix.preset }}

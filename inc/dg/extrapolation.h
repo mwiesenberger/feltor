@@ -91,8 +91,8 @@ GPU-ACCELERATED INCOMPRESSIBLE FLOW SOLVER (2021)</a>. This means it works for m
 template<class ContainerType0, class ContainerType1>
 struct LeastSquaresExtrapolation
 {
-    using value_type = get_value_type<ContainerType0>;
-    using container_type = ContainerType0;
+    using value_type = get_value_type<ContainerType0>; //!< value type of the \c ContainerType0 class
+    using container_type = ContainerType0; //!< the type of the vector class in use
     LeastSquaresExtrapolation( ){ m_counter = 0; }
     /*! @brief Set maximum number of vectors and allocate memory
      * @param max maximum of vectors to use for fit
@@ -224,8 +224,8 @@ struct LeastSquaresExtrapolation
 template<class ContainerType, class real_type = dg::get_value_type<ContainerType>> // The real_type is if ContainerType is complex
 struct Extrapolation
 {
-    using value_type = real_type;
-    using container_type = ContainerType;
+    using value_type = real_type; //!< real type of the time and the coefficients (also for complex \c ContainerType)
+    using container_type = ContainerType; //!< the type of the vector class in use
     /*! @brief Leave values uninitialized
      */
     Extrapolation( ){ m_counter = 0; }
@@ -495,11 +495,13 @@ struct Extrapolation
     const ContainerType& head()const{
         return m_x[0];
     }
-    ///DEPRECATED write access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@brief write access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@deprecated
     ContainerType& tail(){
         return m_x[m_max-1];
     }
-    ///DEPRECATED read access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@brief read access to tail value ( the one that will be deleted in the next update, undefined if max==0)
+    ///@deprecated
     const ContainerType& tail()const{
         return m_x[m_max-1];
     }

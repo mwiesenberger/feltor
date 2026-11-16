@@ -1001,8 +1001,8 @@ inline bool is_divisable( float a, float b, float eps = 1e-6)
 template<class ContainerType>
 struct SinglestepTimeloop : public aTimeloop<ContainerType>
 {
-    using container_type = ContainerType;
-    using value_type = dg::get_value_type<ContainerType>;
+    using container_type = ContainerType; //!< the type of the vector class in use
+    using value_type = dg::get_value_type<ContainerType>; //!< value type of the \c ContainerType class
     /// no allocation
     SinglestepTimeloop( ) = default;
 
@@ -1079,6 +1079,7 @@ struct SinglestepTimeloop : public aTimeloop<ContainerType>
         this->integrate( t0, u0, t1, u1);
     }
 
+    ///@copydoc hide_clone
     virtual SinglestepTimeloop* clone() const{ return new
         SinglestepTimeloop(*this);}
     private:

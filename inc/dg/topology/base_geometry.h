@@ -56,7 +56,7 @@ struct aRealGeometry2d : public aRealTopology<real_type,2>
     std::vector<thrust::host_vector<real_type> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealGeometry2d* clone()const=0;
     ///allow deletion through base class pointer
     virtual ~aRealGeometry2d() = default;
@@ -136,7 +136,7 @@ struct aRealGeometry3d : public aRealTopology<real_type,3>
     std::vector<thrust::host_vector<real_type> > map()const{
         return do_compute_map();
     }
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealGeometry3d* clone()const=0;
     ///allow deletion through base class pointer
     virtual ~aRealGeometry3d() = default;
@@ -195,7 +195,7 @@ struct aRealProductGeometry3d : public aRealGeometry3d<real_type>
     }
     ///allow deletion through base class pointer
     virtual ~aRealProductGeometry3d() = default;
-    ///Geometries are cloneable
+    ///@copydoc hide_clone
     virtual aRealProductGeometry3d* clone()const=0;
     protected:
     using aRealGeometry3d<real_type>::aRealGeometry3d;
@@ -234,7 +234,7 @@ struct RealCartesianGrid2d: public dg::aRealGeometry2d<real_type>
      */
     RealCartesianGrid2d( const dg::RealGrid2d<real_type>& g):
         dg::aRealGeometry2d<real_type>(std::array{g.gx(), g.gy()}){}
-    /// Enable ClonePtr
+    ///@copydoc hide_clone
     virtual RealCartesianGrid2d<real_type>* clone()const override final{
         return new RealCartesianGrid2d<real_type>(*this);
     }
@@ -256,7 +256,7 @@ struct RealCartesianGrid2d: public dg::aRealGeometry2d<real_type>
 template<class real_type>
 struct RealCartesianGrid3d: public dg::aRealProductGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCartesianGrid2d<real_type>;
+    using perpendicular_grid = RealCartesianGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCartesianGrid3d() = default;
     ///@copydoc hide_grid_parameters3d
     ///@copydoc hide_bc_parameters3d
@@ -280,7 +280,7 @@ struct RealCartesianGrid3d: public dg::aRealProductGeometry3d<real_type>
      */
     RealCartesianGrid3d( const dg::RealGrid3d<real_type>& g):
         dg::aRealProductGeometry3d<real_type>(std::array{g.gx(), g.gy(), g.gz()}){}
-    /// Enable ClonePtr
+    ///@copydoc hide_clone
     virtual RealCartesianGrid3d* clone()const override final{
         return new RealCartesianGrid3d(*this);
     }
@@ -306,7 +306,7 @@ struct RealCartesianGrid3d: public dg::aRealProductGeometry3d<real_type>
 template<class real_type>
 struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
 {
-    using perpendicular_grid = RealCartesianGrid2d<real_type>;
+    using perpendicular_grid = RealCartesianGrid2d<real_type>; //!< the type of the grid returned by \c perp_grid()
     RealCylindricalGrid3d() = default;
     ///@copydoc hide_grid_parameters3d
     ///@copydoc hide_bc_parameters3d
@@ -325,7 +325,7 @@ struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
      */
     RealCylindricalGrid3d( RealGrid1d<real_type> gx, RealGrid1d<real_type> gy, RealGrid1d<real_type> gz):
         dg::aRealProductGeometry3d<real_type>(std::array{gx,gy,gz}){}
-    ///Enable ClonePtr
+    ///@copydoc hide_clone
     virtual RealCylindricalGrid3d* clone()const override final{
         return new RealCylindricalGrid3d(*this);
     }
@@ -356,22 +356,44 @@ struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
 ///@}
 
 //TODO With C++17 class type inference we could rethink these?
+/*!@addtogroup gridtypes
+ *
+ * @anchor dg_geometry_typedefs_table
+ * The geometry typedefs (in \c dg and \c dg::x) expand to
+ *
+ * | Name | without MPI | with MPI |
+ * |------|-------------|----------|
+ * | `dg::x::aGeometry2d` | `dg::aGeometry2d` = `dg::aRealGeometry2d<double>` | `dg::aMPIGeometry2d` = `dg::aRealMPIGeometry2d<double>` |
+ * | `dg::x::aGeometry3d` | `dg::aGeometry3d` = `dg::aRealGeometry3d<double>` | `dg::aMPIGeometry3d` = `dg::aRealMPIGeometry3d<double>` |
+ * | `dg::x::aProductGeometry3d` | `dg::aProductGeometry3d` = `dg::aRealProductGeometry3d<double>` | `dg::aProductMPIGeometry3d` = `dg::aRealProductMPIGeometry3d<double>` |
+ * | `dg::x::CartesianGrid2d` | `dg::CartesianGrid2d` = `dg::RealCartesianGrid2d<double>` | `dg::CartesianMPIGrid2d` = `dg::RealCartesianMPIGrid2d<double>` |
+ * | `dg::x::CartesianGrid3d` | `dg::CartesianGrid3d` = `dg::RealCartesianGrid3d<double>` | `dg::CartesianMPIGrid3d` = `dg::RealCartesianMPIGrid3d<double>` |
+ * | `dg::x::CylindricalGrid3d` | `dg::CylindricalGrid3d` = `dg::RealCylindricalGrid3d<double>` | `dg::CylindricalMPIGrid3d` = `dg::RealCylindricalMPIGrid3d<double>` |
+ *
+ * For the topologies see the \ref dg_grid_typedefs_table "grid typedefs table".
+ */
 ///@addtogroup gridtypes
 ///@{
-using aGeometry2d           = dg::aRealGeometry2d<double>;
+///@name Geometry typedefs
+///@{
+using aGeometry2d           = dg::aRealGeometry2d<double>; ///< see the \ref dg_geometry_typedefs_table "geometry typedefs table"
 using aGeometry3d           = dg::aRealGeometry3d<double>;
 using aProductGeometry3d    = dg::aRealProductGeometry3d<double>;
 using CartesianGrid2d       = dg::RealCartesianGrid2d<double>;
 using CartesianGrid3d       = dg::RealCartesianGrid3d<double>;
 using CylindricalGrid3d     = dg::RealCylindricalGrid3d<double>;
+///@}
 #ifndef MPI_VERSION
 namespace x{
-using aGeometry2d           = aGeometry2d           ;
+///@name Typedefs for platform independent code
+///@{
+using aGeometry2d           = aGeometry2d           ; ///< see the \ref dg_geometry_typedefs_table "geometry typedefs table"
 using aGeometry3d           = aGeometry3d           ;
 using aProductGeometry3d    = aProductGeometry3d    ;
 using CartesianGrid2d       = CartesianGrid2d       ;
 using CartesianGrid3d       = CartesianGrid3d       ;
 using CylindricalGrid3d     = CylindricalGrid3d     ;
+///@}
 }//namespace x
 #endif //MPI_VERSION
 

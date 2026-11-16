@@ -1,36 +1,30 @@
 #!/bin/bash
-# This script runs all tests on a local machine. It should be executed from
-# time to time because the automated tests on github do not run e.g. for
-# multi-GPU systems
+# Full test of the library: run the CMake workflow preset test-<preset> for
+# all 6 presets, i.e. configure, compile all targets and run all tests in
+# build/<preset> (see README.adoc, "Running the test suite").
+# Run before pull-requests, because the CI on github cannot run the GPU tests.
+#
+# Usage: tests/run-all-tests.sh [jobs]
+#   jobs  number of parallel compile jobs and parallel tests
+#         (default: number of cores, nproc)
 
-for dir in ../inc/dg/backend ../inc/dg/topology ../inc/dg ../inc/file ../inc/geometries ../inc/matrix
+jobs=${1:-$(nproc)}
+if ! [[ "$jobs" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Usage: $0 [jobs], jobs must be a positive integer, got \"$jobs\"" >&2
+    exit 2
+fi
+# cmake --workflow has no -j option
+export CMAKE_BUILD_PARALLEL_LEVEL=$jobs
+export CTEST_PARALLEL_LEVEL=$jobs
+
+cd "$(dirname "$0")/.." || exit 1 # The presets live in the feltor directory
+failed=""
+for preset in cpu omp gpu mpi-cpu mpi-omp mpi-gpu
 do
-    current=$(pwd)
-    cd $dir
-    echo "##############################################################"
-    echo "GO TO DIRECTORY" $dir
-    for dev in cpu gpu omp
-    do
-        echo "#########################"
-        echo "DIRECTORY" $dir "TEST DEVICE" $dev
-        make clean # Delete leftovers from previous tests
-        make tests -j 4 device=$dev
-        ./tests
-        make mpi-tests -j 4 device=$dev
-        for num in 1 2 3 4 6 8
-        do
-            if [[ "$dev" == "omp" ]];
-            then
-                export OMP_NUM_THREADS=1
-            fi
-            mpirun -n $num --oversubscribe ./mpi-tests
-        done
-        make clean
-        echo "#########################"
-    done
-    cd $current
-    echo "##############################################################"
-    echo
+    cmake --workflow --preset test-$preset || failed="$failed $preset"
 done
-# Clean this directory
-rm *.o
+if [ -n "$failed" ]; then
+    echo "Failed presets:$failed"
+    exit 1
+fi
+echo "All presets passed"

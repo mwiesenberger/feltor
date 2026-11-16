@@ -709,12 +709,14 @@ void print( const Sparse& m, std::ostream& out = std::cout )
 
 ///@addtogroup traits
 ///@{
-template <class I, class T, template<class> class V>
+///@brief Enable \c dg::SparseMatrix as a sparse matrix
+template <class I, class T,
+template<class> class V>
 struct TensorTraits<SparseMatrix<I, T, V> >
 {
-    using value_type  = T;
-    using tensor_category = SparseMatrixTag;
-    using execution_policy = typename SparseMatrix<I,T,V>::policy;
+    using value_type  = T; //!< see \c dg::TensorTraits
+    using tensor_category = SparseMatrixTag; //!< see \c dg::TensorTraits
+    using execution_policy = typename SparseMatrix<I,T,V>::policy; //!< see \c dg::TensorTraits
 };
 ///@}
 }//namespace dg

@@ -319,7 +319,9 @@ struct Hector : public aGenerator2d
      * @return  orthogonal zeta, eta grid
      */
     const dg::geo::CurvilinearGrid2d& internal_grid() const {return m_g2d;}
+    ///@copydoc hide_clone
     virtual Hector* clone() const override final{return new Hector(*this);}
+    ///@brief True if the generated coordinates are conformal
     bool isConformal() const {return m_conformal;}
     private:
     virtual double do_width() const override final {return m_lu;}
