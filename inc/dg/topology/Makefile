@@ -46,6 +46,7 @@ filter_mpit\
 stencil_mpit\
 interpolation_mpit\
 random_mpit\
+reproducibility_mpit\
 mpi_projection_t\
 
 #all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
@@ -65,6 +66,10 @@ mpi_average_t.$(device).o: average_t.cpp average.h
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 # There is no mpi_geometry.h
 mpi_geometry_t.$(device).o: geometry_t.cpp geometry.h mpi_base_geometry.h
+	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
+
+# There is no reproducibility.h
+reproducibility_mpit.$(device).o: reproducibility_mpit.cpp mpi_projection.h
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 
 %_mpit.$(device).o: %_mpit.cpp %.h

@@ -237,6 +237,7 @@ set(DG_MPI_TESTS
   topology/interpolation_mpit.cpp
   topology/mpi_grid_mpit.cpp
   topology/random_mpit.cpp
+  topology/reproducibility_mpit.cpp
   topology/stencil_mpit.cpp
 )
 
