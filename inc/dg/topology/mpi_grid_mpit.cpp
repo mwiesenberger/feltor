@@ -73,6 +73,24 @@ TEST_CASE( "MPI Grid")
             CHECK( gIdx == i);
         }
     }
+    SECTION( "Boundary conditions do not depend on the communicator")
+    {
+        // comm is periodic, the new one is not
+        MPI_Comm commNP = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
+        dg::MPIGrid2d gNP( {0.,0.}, {1.,1.}, {nx,ny}, {Nx,Ny},
+            {dg::PER, dg::PER}, dg::mpi_cart_split_as<2>(commNP));
+        CHECK( gNP.bcx() == dg::PER);
+        gNP.set_bcs( {dg::DIR, dg::NEU});
+        CHECK( gNP.bcx() == dg::DIR);
+        CHECK( gNP.bcy() == dg::NEU);
+        CHECK( gNP.local().bcy() == dg::NEU);
+        g2d.set_bcs( {dg::DIR, dg::NEU});
+        CHECK( g2d.bcx() == dg::DIR);
+        CHECK( g2d.local().bcx() == dg::DIR);
+        gNP.set_bcs( {dg::PER, dg::PER});
+        CHECK( gNP.bcx() == dg::PER);
+        CHECK( gNP.local().bcy() == dg::PER);
+    }
     SECTION( "Shape is global")
     {
         std::array<unsigned,2> shape = { nx*Nx, ny*Ny};

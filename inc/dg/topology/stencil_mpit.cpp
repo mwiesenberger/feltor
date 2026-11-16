@@ -18,12 +18,11 @@ TEST_CASE( "MPI stencil")
     int rank, size;
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
     MPI_Comm_size( MPI_COMM_WORLD, &size);
-    MPI_Comm comm2dPER = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {1,1});
-    MPI_Comm comm2d    = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
+    // The periodicity of the communicator does not need to match bc
+    MPI_Comm comm2d = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {0,0});
     auto bc = GENERATE( dg::DIR, dg::NEU, dg::PER);
     INFO( "Boundary "<<dg::bc2str( bc));
-    dg::MPIGrid2d g2d( 0,lx, 0,ly, 3, 40, 20, bc, bc, bc == dg::PER ? comm2dPER :
-        comm2d);
+    dg::MPIGrid2d g2d( 0,lx, 0,ly, 3, 40, 20, bc, bc, comm2d);
     const auto w2d = dg::create::weights( g2d);
 
     // We just test that MPI Version does the same as serial version
