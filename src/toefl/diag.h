@@ -11,6 +11,7 @@ struct Variables
     Explicit<dg::x::CartesianGrid2d, dg::x::DMatrix, dg::x::DVec>& rhs;
     const dg::x::CartesianGrid2d& grid;
     const Parameters& p;
+    dg::x::DVec temp; // work space; must not alias the output
 };
 
 // time - independent output (only called once)
@@ -60,14 +61,14 @@ dg::file::LongNameAttribute>>> diagnostics2d_list = {
     },
     {"lapNe", "+Delta ne",
         []( dg::x::DVec& result, Variables& v) {
-            dg::blas1::axpby( 1., v.rhs.var(0), -1., 1., result);
-            dg::blas2::gemv( -1., v.rhs.laplacianM(), result, 0., result);
+            dg::blas1::axpby( 1., v.rhs.var(0), -1., 1., v.temp);
+            dg::blas2::gemv( -1., v.rhs.laplacianM(), v.temp, 0., result);
         }
     },
     {"lapNi", "+Delta ni",
         []( dg::x::DVec& result, Variables& v) {
-            dg::blas1::axpby( 1., v.rhs.var(1), -1., 1., result);
-            dg::blas2::gemv( -1., v.rhs.laplacianM(), result, 0., result);
+            dg::blas1::axpby( 1., v.rhs.var(1), -1., 1., v.temp);
+            dg::blas2::gemv( -1., v.rhs.laplacianM(), v.temp, 0., result);
         }
     },
     {"lapPhi", "+Delta Phi",
