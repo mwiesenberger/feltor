@@ -233,11 +233,18 @@ void spmv_gpu_kernel(
 )
 {
     CusparseErrorHandle err;
-    // cusparseSpMV needs y aligned to 16 bytes (a misaligned y gives
-    // cudaErrorMisalignedAddress). A View into a larger vector, e.g. one
-    // plane of a 3d vector with an odd number of points per plane, need not
-    // be, so then we compute in an aligned temporary
+    // cuSPARSE documents that y need only be aligned to its value type, but
+    // the cusparseSpMV of CUDA < 12.3 and of CUDA 12.4 gives
+    // cudaErrorMisalignedAddress (or invalid memory accesses) if y is not
+    // aligned to 16 bytes (CUDA Toolkit release notes: resolved in 12.3,
+    // known issue in 12.4, resolved in 12.5). A View into a larger vector,
+    // e.g. one plane of a 3d vector with an odd number of points per plane,
+    // need not be, so with these versions we compute in an aligned temporary
+#if (CUDART_VERSION >= 12030 && CUDART_VERSION < 12040) || CUDART_VERSION >= 12050
+    constexpr bool aligned = true;
+#else
     const bool aligned = reinterpret_cast<std::uintptr_t>( y_ptr) % 16 == 0;
+#endif
     C2* y_spmv = y_ptr;
     if( not aligned)
     {
