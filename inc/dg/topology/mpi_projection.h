@@ -19,8 +19,9 @@ namespace dg
  * indices to a row distributed MPI matrix
  *
 @code{.cpp}
+    // local_points are the coordinates of the points on this process
     dg::IHMatrix_t<real_type> mat = dg::create::interpolation(
-        g_new.local(), g_old.global(), method);
+        local_points, g_old.global(), g_old.get_bc(), method);
     // mat is row distributed
     // mat has local row and global column indices
     auto mpi_mat = dg::make_mpi_matrix(  mat, g_old);
@@ -145,8 +146,9 @@ dg::MIHMatrix_t<real_type> make_mpi_matrix(
  * calling process to the process where it belongs to.  This can be used to
  * convert a column distributed matrix to a row-distributed matrix as in
  * @code{.cpp}
-    dg::IHMatrix_t<real_type> mat = dg::create::projection(
-        g_new.global(), g_old.local(), method);
+    // local_points are the coordinates of the points of g_old on this process
+    dg::IHMatrix_t<real_type> mat = dg::create::interpolation(
+        local_points, g_new.global(), g_new.get_bc(), method).transpose();
     // mat is column distributed
     // mat has global rows and local column indices
     dg::convertLocal2GlobalCols( mat, g_old);
@@ -221,8 +223,9 @@ dg::IHMatrix_t<real_type> convertGlobal2LocalRows( const
  *
  * Simply call policy.local2globalIdx for every column index
  * @code{.cpp}
-    dg::IHMatrix_t<real_type> mat = dg::create::projection(
-        g_new.global(), g_old.local(), method);
+    // local_points are the coordinates of the points of g_old on this process
+    dg::IHMatrix_t<real_type> mat = dg::create::interpolation(
+        local_points, g_new.global(), g_new.get_bc(), method).transpose();
     // mat is column distributed
     // mat has global rows and local column indices
     dg::convertLocal2GlobalCols( mat, g_old);
@@ -266,6 +269,22 @@ void convertLocal2GlobalCols( dg::IHMatrix_t<real_type>& local, const Conversion
 
 namespace create
 {
+///@cond
+namespace detail
+{
+// The local parts of the (binary exact) abscissas of an MPI grid
+template<class MPITopology>
+auto local_abscissas( const MPITopology& g)
+{
+    auto abs = g.get_abscissas();
+    std::array<typename MPITopology::host_vector::container_type,
+        MPITopology::ndim()> local;
+    for( unsigned u=0; u<MPITopology::ndim(); u++)
+        local[u] = abs[u].data();
+    return local;
+}
+}//namespace detail
+///@endcond
 
 ///@addtogroup interpolation
 //
@@ -276,8 +295,9 @@ template<class MPITopology, typename = std::enable_if_t<dg::is_vector_v<
 dg::MIHMatrix_t<typename MPITopology::value_type> interpolation( const MPITopology&
         g_new, const MPITopology& g_old, std::string method = "dg")
 {
-    dg::IHMatrix_t<typename MPITopology::value_type> mat = dg::create::interpolation(
-        g_new.local(), g_old.global(), method);
+    // g_new.local().abscissas() is not binary exact; the MPI abscissas are
+    auto mat = detail::interpolation_tensor( detail::local_abscissas( g_new),
+        g_old.global(), method);
     return make_mpi_matrix(  mat, g_old);
 }
 // This is now dg::create::prolongation
@@ -297,8 +317,12 @@ template<class MPITopology, typename = std::enable_if_t<dg::is_vector_v<
 dg::MIHMatrix_t<typename MPITopology::value_type> projection( const MPITopology&
         g_new, const MPITopology& g_old, std::string method = "dg")
 {
-    dg::IHMatrix_t<typename MPITopology::value_type> mat = dg::create::projection(
-        g_new.global(), g_old.local(), method);
+    // Same as the shared memory projection( g_new.global(), g_old.local())
+    // but with the binary exact MPI abscissas and weights of g_old
+    auto mat = detail::interpolation_tensor( detail::local_abscissas( g_old),
+        g_new.global(), method).transpose();
+    detail::scale_projection( mat, dg::create::inv_weights( g_new.global()),
+        dg::create::weights( g_old).data());
     convertLocal2GlobalCols( mat, g_old);
     auto mat_loc = convertGlobal2LocalRows( mat, g_new);
     return make_mpi_matrix(  mat_loc, g_old);

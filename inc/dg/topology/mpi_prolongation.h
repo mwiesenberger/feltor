@@ -53,8 +53,18 @@ dg::MIHMatrix_t<typename MPITopology::value_type> projection(
     for( unsigned u=0; u<Md; u++)
         comms[u] = g_old.comm(axes[u]);
     MPI_Comm new_comm = dg::mpi_cart_kron( comms);
-    dg::IHMatrix_t<real_type> mat = dg::create::projection(
-        axes, g_old.local()); // local rows, global cols
+    // Same as dg::create::projection( axes, g_old.local()) but with the
+    // binary exact weights of the MPI grid (local rows, global cols)
+    constexpr size_t Nd = MPITopology::ndim();
+    std::array<unsigned,Nd-Md> remains = detail::complement( g_old, axes);
+    std::array<RealMPIGrid<real_type,1>,Nd-Md> gs;
+    for( unsigned u=0; u<Nd-Md; u++)
+        gs[u] = g_old.grid( remains[u]);
+    RealMPIGrid<real_type, Nd-Md> g_new(gs);
+    dg::IHMatrix_t<real_type> mat = dg::create::prolongation(
+        g_old.local(), axes).transpose();
+    detail::scale_projection( mat, dg::create::inv_weights( g_new).data(),
+        dg::create::weights( g_old).data());
     return {  mat, new_comm };
 }
 }//namespace create

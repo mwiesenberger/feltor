@@ -283,6 +283,13 @@ struct aRealMPITopology
     /*!
      * @brief The local grid as a shared memory grid
      * @return Local grid
+     * @attention The local grid computes its spacing \c h(), abscissas and
+     * weights from its own boundaries \c p() and \c q(). These are in
+     * general **not binary identical** to the corresponding local parts of
+     * the abscissas and weights of the \c global() grid. Use \c abscissas()
+     * and \c weights() of this MPI grid (and \c dg::evaluate and \c
+     * dg::create::weights with this MPI grid) when binary reproducibility
+     * between MPI and shared memory results is required.
      */
     const RealGrid<real_type,Nd>& local() const {return m_l;}
     /*!

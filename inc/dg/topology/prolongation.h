@@ -163,16 +163,9 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> projection(
     for( unsigned u=0; u<Nd-Md; u++)
         gs[u] = g_old.grid( remains[u]);
     RealGrid<real_type, Nd-Md> g_new(gs);
-    auto w_old = dg::create::weights( g_old);
-    auto v_new = dg::create::inv_weights( g_new);
     auto project = prolongation( g_old, axes).transpose();
-    for( unsigned row=0; row<project.num_rows(); row++)
-        for ( int jj = project.row_offsets()[row]; jj < project.row_offsets()[row+1]; jj++)
-        {
-            int col = project.column_indices()[jj];
-            // Note that w_old is multiplied before v_new (keeps results backwards reproducible)
-            project.values()[jj] = v_new[row] * ( project.values()[jj]* w_old[col]);
-        }
+    detail::scale_projection( project, dg::create::inv_weights( g_new),
+        dg::create::weights( g_old));
     return project;
 }
 ///@}
