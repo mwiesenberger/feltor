@@ -341,3 +341,60 @@ TEST_CASE( "SinglestepTimeloop")
     CHECK( u1 == u0);
 }
 
+
+TEST_CASE( "SinglestepTimeloop reset starts a new initial value problem")
+{
+    // Problem B starts at the end time of problem A, where the stepper would
+    // re-use the last stage of A without reset (dt = 0.25 so that the steps
+    // land exactly on the end time of A)
+    using Vec = std::array<double,2>;
+    auto rhs = []( double t, const Vec& y, Vec& yp){
+        yp[0] = y[1];
+        yp[1] = -y[0] + sin(t);
+    };
+    const Vec uA{ 1., 0.}, uB{ 0.3, 0.7};
+    const double tA = 0., tB = 1., tB_end = 2., dt = 0.25;
+    Vec end, endB, fresh;
+    SECTION( "Runge-Kutta steppers")
+    {
+        // FSAL and non-FSAL tableau
+        std::string name = GENERATE( as<std::string>{}, "Dormand-Prince-7-4-5",
+                "Runge-Kutta-4-4");
+        INFO( "Tableau "<<name);
+        dg::SinglestepTimeloop<Vec> loop( dg::RungeKutta<Vec>( name, uA), rhs, dt);
+        loop.integrate( tA, uA, tB, end);
+        loop.reset();
+        loop.integrate( tB, uB, tB_end, endB);
+        dg::SinglestepTimeloop<Vec>( dg::RungeKutta<Vec>( name, uA), rhs,
+            dt).integrate( tB, uB, tB_end, fresh);
+        CHECK( endB == fresh);
+    }
+    SECTION( "Shu-Osher stepper")
+    {
+        // coefficients 1/2 so that the steps land exactly on the end time
+        dg::IdentityFilter id;
+        dg::SinglestepTimeloop<Vec> loop( dg::ShuOsher<Vec>( "SSPRK-2-2", uA),
+            std::tie( rhs, id), dt);
+        loop.integrate( tA, uA, tB, end);
+        loop.reset();
+        loop.integrate( tB, uB, tB_end, endB);
+        dg::SinglestepTimeloop<Vec>( dg::ShuOsher<Vec>( "SSPRK-2-2", uA),
+            std::tie( rhs, id), dt).integrate( tB, uB, tB_end, fresh);
+        CHECK( endB == fresh);
+    }
+    SECTION( "Step function with reset function")
+    {
+        unsigned resets = 0;
+        dg::SinglestepTimeloop<double> loop( []( double t0, const double& y0,
+            double& t1, double& y1, double dtt){ t1 = t0 + dtt; y1 = y0;}, dt,
+            [&resets](){ resets++;});
+        double y = 0.;
+        loop.reset();
+        loop.reset(); // a second reset before integrate resets once
+        CHECK( resets == 0); // reset is applied in the next integrate
+        loop.integrate( tA, 1., tB, y);
+        CHECK( resets == 1);
+        loop.integrate( tB, y, tB_end, y);
+        CHECK( resets == 1);
+    }
+}

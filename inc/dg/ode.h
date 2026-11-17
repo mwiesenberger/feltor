@@ -69,7 +69,8 @@ struct aTimeloop
      * forcing the last timestep to land on t1 exactly.
      * @note This function is re-entrant, i.e. if you integrate from t0 to t1
      * and then from t1 to t2 the timestepper does not need to re-initialize on
-     * the second call
+     * the second call. To start a new initial value problem call \c reset
+     * first.
      * @param t0 initial time
      * @param u0 initial value at \c t0
      * @param t1 end time
@@ -127,7 +128,8 @@ struct aTimeloop
      * @endcode
      * @note This function is re-entrant, i.e. if you integrate from t0 to t1
      * and then from t1 to t2 the timestepper does not need to re-initialize on
-     * the second call
+     * the second call. To start a new initial value problem call \c reset
+     * first.
      * @param t0 (read-write) initial time on entry; on exit it is the value to
      * where the ode is actually integrated, corresponding to \c u1
      * @param u0 initial value at \c t0
@@ -170,6 +172,21 @@ struct aTimeloop
      */
     value_type get_dt() const { return do_dt(); }
 
+    /**
+     * @brief Start a new initial value problem
+     *
+     * Consecutive calls to \c integrate continue the same solution: the
+     * timestepper may re-use what it stored in the previous call, for example
+     * the last stage of a Runge-Kutta method, the step size history of an
+     * adaptive controller or the history of a multistep method. If the next
+     * call to \c integrate does not continue the previous one (its \c u0 is
+     * not the result of the previous call), call \c reset first. Then the
+     * result of the next call depends only on its arguments and the
+     * construction parameters, not on earlier calls (state that the ODE
+     * functor keeps itself is not reset).
+     */
+    void reset(){ do_reset(); }
+
 
     ///@copydoc hide_clone
     virtual aTimeloop* clone() const=0;
@@ -188,6 +205,7 @@ struct aTimeloop
     virtual void do_integrate(value_type& t0, const container_type& u0,
             value_type t1, container_type& u1, enum to mode) const = 0;
     virtual value_type do_dt() const = 0;
+    virtual void do_reset() = 0;
 
 
 };

@@ -213,3 +213,38 @@ TEST_CASE( "AdaptiveTimeloop")
         CHECK_THROWS_AS( loop.integrate( t, u0, 1., u1, dg::to::exact), dg::Error);
     }
 }
+
+TEST_CASE( "AdaptiveTimeloop reset starts a new initial value problem")
+{
+    // Without reset the step size controller of problem B remembers the steps
+    // of problem A (and the stepper its last stage if B starts where A ends)
+    using Vec = std::array<double,2>;
+    RHS rhs( 0.2, 1.0, 0.9);
+    const Vec uA{ 1., 0.}, uB{ 0.3, 0.7};
+    double tB = GENERATE( 0., 1.);
+    INFO( "Problem B starts at "<<tB);
+    Vec end, endB, fresh;
+    dg::AdaptiveTimeloop<Vec> loop( dg::Adaptive<dg::ERKStep<Vec>>(
+        "Dormand-Prince-7-4-5", uA), rhs, dg::pid_control, dg::fast_l2norm,
+        1e-6, 1e-10);
+    const dg::AdaptiveTimeloop<Vec> loop0( loop); // copy of the fresh loop
+    loop.integrate( 0., uA, 1., end);
+    SECTION( "integrate")
+    {
+        loop.reset();
+        loop.integrate( tB, uB, tB+1., endB);
+        dg::AdaptiveTimeloop<Vec>( loop0).integrate( tB, uB, tB+1., fresh);
+        CHECK( endB == fresh);
+    }
+    SECTION( "integrate_in_domain")
+    {
+        struct Everywhere{ bool contains( const Vec&) const { return true;}};
+        double tB_end = tB+1., tB_end_fresh = tB+1.;
+        loop.reset();
+        loop.integrate_in_domain( tB, uB, tB_end, endB, 0., Everywhere(), 1e-6);
+        dg::AdaptiveTimeloop<Vec> fresh_loop( loop0);
+        fresh_loop.integrate_in_domain( tB, uB, tB_end_fresh, fresh, 0.,
+            Everywhere(), 1e-6);
+        CHECK( endB == fresh);
+    }
+}
