@@ -222,12 +222,15 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         grid_magnetic->set( grid_transform->n() < 3 ? 4 : 7, grid_magnetic->Nx(), grid_magnetic->Ny());
         global_grid_magnetic = grid_magnetic->global_geometry();
         ///%%%%%%%%%%Set starting points and integrate field lines%%%%%%%%%%%//
+        // The start points must be binary identical to the shared memory
+        // ones, so we take them from the MPI grid and not from its local grid
+        std::array<thrust::host_vector<double>,2> start{
+            dg::evaluate( dg::cooX2d, *grid_transform).data(),
+            dg::evaluate( dg::cooY2d, *grid_transform).data()};
         detail::integrate_all_fieldlines2d( vec, *global_grid_magnetic,
-                grid_transform->local(), yp_trafo, vol2d0.data(), hbp, in_boxp,
-                deltaPhi, eps);
+                start, yp_trafo, vol2d0.data(), hbp, in_boxp, deltaPhi, eps);
         detail::integrate_all_fieldlines2d( vec, *global_grid_magnetic,
-                grid_transform->local(), ym_trafo, vol2d0.data(), hbm, in_boxm,
-                -deltaPhi, eps);
+                start, ym_trafo, vol2d0.data(), hbm, in_boxm, -deltaPhi, eps);
         if( benchmark)
         {
             t.toc();
@@ -845,10 +848,12 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
     dg::MHVec tempP = dg::evaluate( dg::zero, *g2d), tempM( tempP);
     std::vector<dg::MHVec>  plus2d(Nz, tempP), minus2d(plus2d), result(plus2d);
     dg::MHVec init2d = dg::pullback( binary, *g2d);
+    // The start points must be binary identical to the shared memory ones,
+    // so we take them from the MPI grid and not from its local grid
     std::array<dg::HVec,3> yy0{
-        dg::evaluate( dg::cooX2d, g2d->local()),
-        dg::evaluate( dg::cooY2d, g2d->local()),
-        dg::evaluate( dg::zero, g2d->local())}, yy1(yy0), xx0( yy0), xx1(yy0); //s
+        dg::evaluate( dg::cooX2d, *g2d).data(),
+        dg::evaluate( dg::cooY2d, *g2d).data(),
+        dg::evaluate( dg::zero, *g2d).data()}, yy1(yy0), xx0( yy0), xx1(yy0); //s
     dg::geo::detail::DSFieldCylindrical3 cyl_field(vec);
     double deltaPhi = grid.hz();
     double phiM0 = 0., phiP0 = 0.;

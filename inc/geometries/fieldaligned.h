@@ -147,7 +147,7 @@ struct DSField
 template<class real_type>
 void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
     const dg::aRealGeometry2d<real_type>& grid_field,
-    const dg::aRealTopology2d<real_type>& grid_evaluate,
+    const std::array<thrust::host_vector<real_type>,2>& start,
     std::array<thrust::host_vector<real_type>,3>& yp,
     const thrust::host_vector<double>& vol0,
     thrust::host_vector<real_type>& yp2b,
@@ -155,13 +155,9 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
     real_type deltaPhi, real_type eps)
 {
     //grid_field contains the global geometry for the field and the boundaries
-    //grid_evaluate contains the points to actually integrate
-    std::array<thrust::host_vector<real_type>,3> y{
-        dg::evaluate( dg::cooX2d, grid_evaluate),
-        dg::evaluate( dg::cooY2d, grid_evaluate),
-        vol0
-    };
-    yp.fill(dg::evaluate( dg::zero, grid_evaluate));
+    //start contains the x and y coordinates of the points to actually integrate
+    std::array<thrust::host_vector<real_type>,3> y{ start[0], start[1], vol0};
+    yp.fill(thrust::host_vector<real_type>( start[0].size(), 0.));
     //construct field on high polynomial grid, then integrate it
     dg::geo::detail::DSField field;
     if( !dynamic_cast<const dg::CartesianGrid2d*>( &grid_field))
@@ -169,7 +165,7 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
 
     //field in case of cartesian grid
     dg::geo::detail::DSFieldCylindrical4 cyl_field(vec);
-    const unsigned size = grid_evaluate.size();
+    const unsigned size = start[0].size();
     dg::Adaptive<dg::ERKStep<std::array<real_type,3>>> adapt(
             "Dormand-Prince-7-4-5", std::array<real_type,3>{0,0,0});
     dg::AdaptiveTimeloop< std::array<real_type,3>> odeint;
@@ -193,7 +189,7 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
         odeint.integrate( 0, coords, phi1, coordsP);
         yp[0][i] = coordsP[0], yp[1][i] = coordsP[1], yp[2][i] = coordsP[2];
     }
-    yp2b.assign( grid_evaluate.size(), deltaPhi); //allocate memory for output
+    yp2b.assign( size, deltaPhi); //allocate memory for output
     in_boxp.resize( yp2b.size());
     //Now integrate again but this time find the boundary distance
     for( unsigned i=0; i<size; i++)
@@ -210,6 +206,23 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
             yp2b[i] = phi1;
         }
     }
+}
+
+//grid_evaluate contains the points to actually integrate
+template<class real_type>
+void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
+    const dg::aRealGeometry2d<real_type>& grid_field,
+    const dg::aRealTopology2d<real_type>& grid_evaluate,
+    std::array<thrust::host_vector<real_type>,3>& yp,
+    const thrust::host_vector<double>& vol0,
+    thrust::host_vector<real_type>& yp2b,
+    thrust::host_vector<bool>& in_boxp,
+    real_type deltaPhi, real_type eps)
+{
+    integrate_all_fieldlines2d( vec, grid_field, std::array{
+        dg::evaluate( dg::cooX2d, grid_evaluate),
+        dg::evaluate( dg::cooY2d, grid_evaluate)}, yp, vol0, yp2b, in_boxp,
+        deltaPhi, eps);
 }
 
 // Add non-overlapping matrices from row blocks
