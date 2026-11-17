@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include "dg/algorithm.h"
 #include "fieldaligned.h"
 #include "dg/backend/timer.h"
@@ -8,6 +9,53 @@ namespace dg{
 namespace geo{
 
 ///@cond
+namespace detail
+{
+// The global vector of the local parts local on all processes of g
+inline thrust::host_vector<double> gather_global(
+    const thrust::host_vector<double>& local,
+    const dg::aRealMPITopology2d<double>& g)
+{
+    // every process gathers every global index
+    thrust::host_vector<std::array<int,2>> gather_map( g.size());
+    for( unsigned k=0; k<g.size(); k++)
+        g.global2localIdx( k, gather_map[k][1], gather_map[k][0]);
+    thrust::host_vector<int> bufferIdx;
+    dg::MPIGather<thrust::host_vector> mpi_gather( gather_map, bufferIdx,
+        g.communicator());
+    thrust::host_vector<double> buffer( mpi_gather.buffer_size()),
+        global( g.size());
+    mpi_gather.global_gather_init( local, buffer);
+    mpi_gather.global_gather_wait( buffer);
+    for( unsigned k=0; k<g.size(); k++)
+        global[k] = buffer[bufferIdx[k]];
+    return global;
+}
+// The rows of a matrix with global rows that belong to the local part of g
+// (the column indices remain global)
+inline dg::IHMatrix local_rows( const dg::IHMatrix& global_rows,
+    const dg::aRealMPITopology2d<double>& g)
+{
+    int rank;
+    MPI_Comm_rank( g.communicator(), &rank);
+    unsigned num_rows = g.local().size();
+    thrust::host_vector<int> row_offsets( num_rows+1, 0), cols;
+    thrust::host_vector<double> values;
+    for( unsigned i=0; i<num_rows; i++)
+    {
+        int gIdx = 0;
+        g.local2globalIdx( i, rank, gIdx);
+        for( int jj = global_rows.row_offsets()[gIdx];
+            jj < global_rows.row_offsets()[gIdx+1]; jj++)
+        {
+            cols.push_back( global_rows.column_indices()[jj]);
+            values.push_back( global_rows.values()[jj]);
+        }
+        row_offsets[i+1] = cols.size();
+    }
+    return { num_rows, global_rows.num_cols(), row_offsets, cols, values};
+}
+}//namespace detail
 
 template <class ProductMPIGeometry, class MIMatrix, class LocalContainer>
 struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
@@ -237,99 +285,44 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
             if(rank==0) std::cout << "# DS: Fieldline integration took: "<<t.diff()<<"\n";
             t.tic();
         }
-        // Assemble minus, zero and plus through sub-grids
-        // The idea for the sub-grids is that the fine interpolation matrix takes
-        // up a large chunk of memory which can be avoided by sub-dividing the
-        // fine grid along its rows
-        dg::IHMatrix local_plus, local_zero, local_minus;
-        dg::IHMatrix interpolate, zero_interpolate, projection;
-        for( unsigned sub = 0; sub < grid_transform->local().Ny(); sub++)
+        // Assemble the rows of the cell rows that our rows need exactly as
+        // the shared memory version does: with the global grid, the global
+        // end points and all cells in x
+        std::array<thrust::host_vector<double>,3> yp_global, ym_global;
+        for( unsigned i=0; i<2; i++)
         {
-            dg::RealGrid2d<double> grid_fine_sub( grid_transform->local());
-            grid_fine_sub = dg::RealGrid2d<double>(
-                grid_fine_sub.x0(),
-                grid_fine_sub.x1(),
-                grid_fine_sub.y0() + sub*grid_fine_sub.hy(),
-                // Fix: construction bug The local right boundary should be the same as the global right boundary
-                sub == grid_transform->local().Ny()-1 ? grid_fine_sub.y1() :
-                    grid_fine_sub.y0() + (sub+1)*grid_fine_sub.hy(),
-                grid_fine_sub.n(), grid_fine_sub.Nx(), 1,
-                grid_fine_sub.bcx(), grid_fine_sub.bcy());
-
-            // We only need grid_fine_local and grid_equidist_global:
-            // multiplying cell numbers on an MPI grid would redistribute
-            // points for non-equipartition. So we make them RealGrid
-            dg::RealGrid2d<double> grid_equidist_global( grid_transform->global()) ;
-            grid_equidist_global.set( 1, grid_equidist_global.shape(0), grid_equidist_global.shape(1));
-            if( fine_m == "equi")
-                grid_fine_sub.set( 1, grid_fine_sub.shape(0), grid_fine_sub.shape(1));
-            grid_fine_sub.multiplyCellNumbers((double)mx, (double)my);
-            std::array<thrust::host_vector<double>,3> yp, ym;
-            dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
-            dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
-            // interpolate matrix is same in all sub the rows just shift ...
-            unsigned shift = grid_transform->local().shape(0) * grid_transform->n();
-            unsigned global_shift = grid_transform->global().shape(0) * grid_transform->n();
-            if( sub <= 1 || sub >= grid_transform->local().Ny() - 2 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
-            {
-                interpolate = dg::create::interpolation( Xf, Yf,
-                    grid_transform->local(), dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
-                zero_interpolate = dg::create::interpolation( Xf, Yf,
-                    inter_m == "dg" ? grid_transform->global() :
-                    grid_equidist_global, bcx, bcy, inter_m);
-            }
-            else
-            {
-                dg::blas1::plus( interpolate.column_indices(), shift);
-                dg::blas1::plus( zero_interpolate.column_indices(), global_shift);
-            }
-
-            yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
-            ym = yp;
-            for( int i=0; i<2; i++)
-            {
-                dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
-                dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
-            }
-            ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-            if( sub <= 1 || sub >= grid_transform->local().Ny() -2 )
-            {
-                if( project_m == "dg")
-                {
-                    // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
-                    projection = dg::create::projection( grid_transform->global(), grid_fine_sub);
-                }
-                else
-                {
-                    projection =
-                        dg::create::projection( grid_equidist_global, grid_fine_sub, project_m);
-                }
-            }
-            else
-            {
-                // how to add to rows in csr formatted matrix:
-                projection.row_offsets().insert( projection.row_offsets().begin(),
-                    global_shift, 0);
-                projection.row_offsets().erase( projection.row_offsets().end() -
-                    global_shift, projection.row_offsets().end());
-            }
-
-            std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
-            std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
-            std::array<dg::IHMatrix*,3> result{ &local_plus, &local_zero, &local_minus};
-            dg::IHMatrix subresult;
-
-            for( unsigned u=0; u<3; u++)
-            {
-                if( u == 1)
-                    subresult = projection*zero_interpolate;
-                else
-                    subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
-                        inter_m == "dg" ? grid_transform->global() :
-                        grid_equidist_global, bcx, bcy, inter_m);
-                detail::add_from_sub( *result[u], subresult, project_m);
-            }
+            yp_global[i] = detail::gather_global( yp_trafo[i], *grid_transform);
+            ym_global[i] = detail::gather_global( ym_trafo[i], *grid_transform);
         }
+        const dg::RealGrid2d<double> global_trafo = grid_transform->global();
+        // our cell rows ...
+        int rank2d, gIdx = 0;
+        MPI_Comm_rank( grid_transform->communicator(), &rank2d);
+        grid_transform->local2globalIdx( 0, rank2d, gIdx);
+        const unsigned Ny = global_trafo.Ny(), first_row = gIdx /
+            global_trafo.shape(0) / global_trafo.n();
+        std::set<unsigned> cell_rows;
+        for( unsigned sub = 0; sub < grid_transform->local().Ny(); sub++)
+            cell_rows.insert( first_row + sub);
+        // ... and for the linear projection the neighbouring rows, whose fine
+        // points also project onto our cell rows
+        if( project_m == "linear")
+        {
+            unsigned last_row = first_row + grid_transform->local().Ny() - 1;
+            if( first_row > 0)
+                cell_rows.insert( first_row - 1);
+            else if( global_trafo.bcy() == dg::PER)
+                cell_rows.insert( Ny - 1);
+            if( last_row < Ny - 1)
+                cell_rows.insert( last_row + 1);
+            else if( global_trafo.bcy() == dg::PER)
+                cell_rows.insert( 0);
+        }
+        dg::IHMatrix local_plus, local_zero, local_minus;
+        detail::FieldalignedStrips strips( global_trafo, bcx, bcy, mx, my,
+            inter_m, project_m, fine_m, yp_global, ym_global);
+        for( unsigned sub : cell_rows) // in increasing order
+            strips.add( sub, local_plus, local_zero, local_minus);
         if( benchmark)
         {
             t.toc();
@@ -342,8 +335,8 @@ struct Fieldaligned< ProductMPIGeometry, MIMatrix, MPI_Vector<LocalContainer> >
         std::array<MIHMatrix*,3> resultT{ &plusT, &zero, &minusT};
         for( unsigned u=0; u<3; u++)
         {
-            // important! only convert after addition (else the addition is wrong for linear projection)
-            *input[u] = dg::convertGlobal2LocalRows( *input[u], *grid_transform);
+            // Select local rows; their column indices remain global, as make_mpi_matrix expects
+            *input[u] = detail::local_rows( *input[u], *grid_transform);
             *result[u] = dg::make_mpi_matrix( *input[u], *grid_transform);
             if( make_adjoint and  u != 1)
             {

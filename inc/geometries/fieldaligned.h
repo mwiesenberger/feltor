@@ -396,7 +396,10 @@ struct FieldalignedStrips
     * e.g. the \c periodify function.
     * @param grid The grid on which to integrate fieldlines.
     * In MPI every process must own at least one plane, i.e. \c grid.Nz() must
-    * be at least the number of processes in z (checked: throws \c dg::Error)
+    * be at least the number of processes in z (checked: throws \c dg::Error).
+    * Every process assembles the interpolation matrices for complete rows of
+    * cells in x, so distributing \c grid in x does not reduce the time to
+    * construct the matrices; prefer to distribute it in z and y.
     * @param bcx This parameter is passed on to \c dg::create::interpolation(const thrust::host_vector<real_type>&,const thrust::host_vector<real_type>&,const aRealTopology2d<real_type>&,dg::bc,dg::bc,std::string) (see there for more details)
     * function and deterimens what happens when the endpoint of the fieldline integration leaves the domain boundaries of \c grid. Note that \c bcx and \c grid.bcx() have to be either both periodic or both not periodic.
     * @param bcy analogous to \c bcx, applies to y direction
