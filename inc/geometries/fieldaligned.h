@@ -180,8 +180,12 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
         odeint = dg::AdaptiveTimeloop<std::array<real_type,3>>( adapt,
                 field, dg::pid_control, dg::fast_l2norm, eps, 1e-10);
 
+    // Every fieldline is a new initial value problem (reset), so that it does
+    // not depend on which fieldlines were integrated before (e.g. on other
+    // processes)
     for( unsigned i=0; i<size; i++)
     {
+        odeint.reset();
         std::array<real_type,3> coords{y[0][i],y[1][i],y[2][i]}, coordsP;
         //x,y,s
         real_type phi1 = deltaPhi;
@@ -198,6 +202,7 @@ void integrate_all_fieldlines2d( const dg::geo::CylindricalVectorLvl1& vec,
         in_boxp[i] = grid_field.contains( std::array{yp[0][i], yp[1][i]}) ? true : false;
         if( false == in_boxp[i])
         {
+            odeint.reset();
             //x,y,s
             real_type phi1 = deltaPhi;
             odeint.integrate_in_domain( 0., coords, phi1, coordsP, 0., (const
@@ -1342,6 +1347,9 @@ thrust::host_vector<double> fieldaligned_evaluate(
                         1e-10);
                 for( unsigned i=0; i<g2d->size(); i++)
                 {
+                    // Every fieldline is a new initial value problem (reset),
+                    // so that it does not depend on the other fieldlines
+                    odeint.reset();
                     // minus direction needs positive integration!
                     double phiM1 = phiM0 + deltaPhi;
                     std::array<double,3>
@@ -1353,6 +1361,7 @@ thrust::host_vector<double> fieldaligned_evaluate(
                     tempM[i] = binary( yy1[0][i], yy1[1][i]);
 
                     // plus direction needs negative integration!
+                    odeint.reset();
                     double phiP1 = phiP0 - deltaPhi;
                     coords0 = std::array<double,3>{xx0[0][i],xx0[1][i],xx0[2][i]};
                     odeint.integrate_in_domain( phiP0, coords0, phiP1, coords1,

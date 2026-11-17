@@ -868,6 +868,9 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
                     cyl_field, dg::pid_control, dg::fast_l2norm, eps, 1e-10);
                 for( unsigned i=0; i<g2d->local().size(); i++)
                 {
+                    // Every fieldline is a new initial value problem (reset),
+                    // so that it does not depend on the other fieldlines
+                    odeint.reset();
                     // minus direction needs positive integration!
                     double phiM1 = phiM0 + deltaPhi;
                     std::array<double,3>
@@ -879,6 +882,7 @@ MPI_Vector<thrust::host_vector<double>> fieldaligned_evaluate(
                     tempM.data()[i] = binary( yy1[0][i], yy1[1][i]);
 
                     // plus direction needs negative integration!
+                    odeint.reset();
                     double phiP1 = phiP0 - deltaPhi;
                     coords0 = std::array<double,3>{xx0[0][i],xx0[1][i],xx0[2][i]};
                     odeint.integrate_in_domain( phiP0, coords0, phiP1,
