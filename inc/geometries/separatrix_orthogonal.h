@@ -84,6 +84,8 @@ void computeX_rzy( const CylindricalFunctorsLvl1& psi,
         if( nodeX0!= 0)
         {
             begin[0] = R_init[1], begin[1] = Z_init[1];
+            // a new curve that starts where the previous one ended
+            odeint.reset();
             odeint.integrate_steps( 2.*M_PI, begin, y_vec[nodeX1], end, steps);
             r[nodeX1] = end[0], z[nodeX1] = end[1];
         }
