@@ -253,6 +253,135 @@ void add_from_sub( dg::IHMatrix_t<real_type>& mat, const dg::IHMatrix_t<real_typ
     return;
 }
 
+// Assembles the plus, zero and minus matrices through sub-grids: each
+// sub-grid is the fine grid of one row of cells (all cells in x) of grid.
+// The idea for the sub-grids is that the fine interpolation matrix takes up
+// a large chunk of memory which can be avoided by sub-dividing the fine grid
+// along its rows. The shared memory version adds the rows of all cell rows,
+// the MPI version only those of the cell rows its own rows need; since the
+// rows of each cell row do not depend on which other cell rows are added,
+// both versions get binary identical rows
+struct FieldalignedStrips
+{
+    // grid is the global grid in the plane, yp and ym the global end points
+    // of the fieldlines (only the first two components are used)
+    FieldalignedStrips( const dg::RealGrid2d<double>& grid, dg::bc bcx,
+        dg::bc bcy, unsigned mx, unsigned my, std::string inter_m,
+        std::string project_m, std::string fine_m,
+        const std::array<thrust::host_vector<double>,3>& yp,
+        const std::array<thrust::host_vector<double>,3>& ym):
+        m_g( grid), m_bcx( bcx), m_bcy( bcy), m_mx( mx), m_my( my),
+        m_inter_m( inter_m), m_project_m( project_m), m_fine_m( fine_m),
+        m_yp( yp), m_ym( ym)
+    {
+        // We do not need metric of grid_equidist or of grid_fine
+        m_equidist = m_g;
+        m_equidist.set( 1, m_g.shape(0), m_g.shape(1));
+    }
+    // Add the rows of cell row sub to plus, zero and minus
+    // (the cell rows must be added in increasing order)
+    void add( unsigned sub, dg::IHMatrix& plus, dg::IHMatrix& zero,
+        dg::IHMatrix& minus)
+    {
+        dg::RealGrid2d<double> grid_fine_sub = fine_sub( sub);
+        dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
+        dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
+        // interpolate matrix is same in all sub the rows just shift ...
+        // (shifted from the matrix of cell row 1)
+        unsigned shift = sub > 1 ? (sub-1)*m_g.shape(0)*m_g.n() : 0;
+        dg::IHMatrix interpolate, zero_interpolate, projection;
+        if( sub <= 1 || sub >= m_g.Ny() - 2 || m_g.n() < 3) // in latter case boundary conditions could destroy invariance
+            make_interpolate( Xf, Yf, interpolate, zero_interpolate);
+        else
+        {
+            if( m_interpolate1.num_rows() == 0)
+            {
+                dg::RealGrid2d<double> grid_fine_1 = fine_sub( 1);
+                make_interpolate( dg::evaluate( dg::cooX2d, grid_fine_1),
+                    dg::evaluate( dg::cooY2d, grid_fine_1),
+                    m_interpolate1, m_zero_interpolate1);
+            }
+            interpolate = m_interpolate1;
+            zero_interpolate = m_zero_interpolate1;
+            dg::blas1::plus( interpolate.column_indices(), shift);
+            dg::blas1::plus( zero_interpolate.column_indices(), shift);
+        }
+        std::array<thrust::host_vector<double>,3> yp, ym;
+        yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
+        ym = yp;
+        for( int i=0; i<2; i++) //only R and Z get interpolated
+        {
+            dg::blas2::symv( interpolate, m_yp[i], yp[i]);
+            dg::blas2::symv( interpolate, m_ym[i], ym[i]);
+        }
+        ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
+        if( sub <= 1 || sub >= m_g.Ny() -2 )
+            projection = make_projection( grid_fine_sub);
+        else
+        {
+            if( m_projection1.num_rows() == 0)
+                m_projection1 = make_projection( fine_sub( 1));
+            projection = m_projection1;
+            // how to add to rows in csr formatted matrix:
+            projection.row_offsets().insert( projection.row_offsets().begin(),
+                shift, 0);
+            projection.row_offsets().erase( projection.row_offsets().end() -
+                shift, projection.row_offsets().end());
+        }
+        std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
+        std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
+        std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
+        dg::IHMatrix subresult;
+
+        for( unsigned u=0; u<3; u++)
+        {
+            if( u == 1)
+                subresult = projection*zero_interpolate;
+            else
+                subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
+                    m_inter_m == "dg" ? m_g : m_equidist, m_bcx, m_bcy, m_inter_m);
+            add_from_sub( *result[u], subresult, m_project_m);
+        }
+    }
+    private:
+    dg::RealGrid2d<double> fine_sub( unsigned sub) const
+    {
+        dg::RealGrid2d<double> grid_fine_sub(
+            m_g.x0(),
+            m_g.x1(),
+            m_g.y0() + sub*m_g.hy(),
+            // Fix: construction bug The local right boundary should be the same as the global right boundary
+            sub == m_g.Ny()-1 ? m_g.y1() : m_g.y0() + (sub+1)*m_g.hy(),
+            m_g.n(), m_g.Nx(), 1, m_g.bcx(), m_g.bcy());
+        if( m_fine_m == "equi")
+            grid_fine_sub.set( 1, grid_fine_sub.shape(0), grid_fine_sub.shape(1));
+        grid_fine_sub.multiplyCellNumbers((double)m_mx, (double)m_my);
+        return grid_fine_sub;
+    }
+    void make_interpolate( const dg::HVec& Xf, const dg::HVec& Yf,
+        dg::IHMatrix& interpolate, dg::IHMatrix& zero_interpolate) const
+    {
+        interpolate = dg::create::interpolation( Xf, Yf, m_g, dg::NEU,
+            dg::NEU, m_g.n() < 3 ? "cubic" : "dg");
+        zero_interpolate = dg::create::interpolation( Xf, Yf,
+            m_inter_m == "dg" ? m_g : m_equidist, m_bcx, m_bcy, m_inter_m);
+    }
+    dg::IHMatrix make_projection( const dg::RealGrid2d<double>& grid_fine_sub) const
+    {
+        // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
+        if( m_project_m == "dg")
+            return dg::create::projection( m_g, grid_fine_sub);
+        return dg::create::projection( m_equidist, grid_fine_sub, m_project_m);
+    }
+    dg::RealGrid2d<double> m_g, m_equidist;
+    dg::bc m_bcx, m_bcy;
+    unsigned m_mx, m_my;
+    std::string m_inter_m, m_project_m, m_fine_m;
+    const std::array<thrust::host_vector<double>,3>& m_yp, & m_ym;
+    // The matrices of cell row 1, from which the inner cell rows are shifted
+    dg::IHMatrix m_interpolate1, m_zero_interpolate1, m_projection1;
+};
+
 }//namespace detail
 ///@endcond
 
@@ -684,92 +813,11 @@ Fieldaligned<Geometry, IMatrix, container>::Fieldaligned(
         std::cout << "# DS: Fieldline integration took: "<<t.diff()<<"\n";
         t.tic();
     }
-    // Assemble minus, zero and plus through sub-grids
-    // The idea for the sub-grids is that the fine interpolation matrix takes
-    // up a large chunk of memory which can be avoided by sub-dividing the
-    // fine grid along its rows
     dg::IHMatrix plus, zero, minus;
-    dg::IHMatrix interpolate, zero_interpolate, projection;
+    detail::FieldalignedStrips strips( dg::RealGrid2d<double>(*grid_transform),
+        bcx, bcy, mx, my, inter_m, project_m, fine_m, yp_trafo, ym_trafo);
     for( unsigned sub = 0; sub < grid_transform->Ny(); sub++)
-    {
-        dg::RealGrid2d<double> grid_fine_sub(
-            grid_transform->x0(),
-            grid_transform->x1(),
-            grid_transform->y0() + sub*grid_transform->hy(),
-            // Fix: construction bug The local right boundary should be the same as the global right boundary
-            sub == grid_transform->Ny()-1 ? grid_transform->y1() :
-                grid_transform->y0() + (sub+1)*grid_transform->hy(),
-            grid_transform->n(), grid_transform->Nx(), 1,
-            grid_transform->bcx(), grid_transform->bcy());
-        // We do not need metric of grid_equidist or of grid_fine
-        dg::RealGrid2d<double> grid_equidist( *grid_transform) ;
-        grid_equidist.set( 1, grid_transform->shape(0), grid_transform->shape(1));
-        if( fine_m == "equi")
-            grid_fine_sub.set( 1, grid_fine_sub.shape(0), grid_fine_sub.shape(1));
-        grid_fine_sub.multiplyCellNumbers((double)mx, (double)my);
-        std::array<thrust::host_vector<double>,3> yp, ym;
-        dg::HVec Xf = dg::evaluate(  dg::cooX2d, grid_fine_sub);
-        dg::HVec Yf = dg::evaluate(  dg::cooY2d, grid_fine_sub);
-        // interpolate matrix is same in all sub the rows just shift ...
-        unsigned shift = grid_transform->shape(0) * grid_transform->n();
-        if( sub <= 1 || sub >= grid_transform->Ny() - 2 || grid_transform->n() < 3) // in latter case boundary conditions could destroy invariance
-        {
-            interpolate = dg::create::interpolation( Xf, Yf,
-                *grid_transform, dg::NEU, dg::NEU, grid_transform->n() < 3 ? "cubic" : "dg");
-            zero_interpolate = dg::create::interpolation( Xf, Yf,
-                inter_m == "dg" ? dg::RealGrid2d<double>(*grid_transform) :
-                grid_equidist, bcx, bcy, inter_m);
-        }
-        else
-        {
-            dg::blas1::plus( interpolate.column_indices(), shift);
-            dg::blas1::plus( zero_interpolate.column_indices(), shift);
-        }
-        yp.fill(dg::evaluate( dg::zero, grid_fine_sub));
-        ym = yp;
-        for( int i=0; i<2; i++) //only R and Z get interpolated
-        {
-            dg::blas2::symv( interpolate, yp_trafo[i], yp[i]);
-            dg::blas2::symv( interpolate, ym_trafo[i], ym[i]);
-        }
-        ///%%%%%%%%%%%%%%%%Create interpolation and projection%%%%%%%%%%%%%%//
-        if( sub <= 1 || sub >= grid_transform->Ny() -2 )
-        {
-            if( project_m == "dg")
-            {
-                // Note that it is possible to project onto a bigger grid, the corresponding rows are just empty
-                projection = dg::create::projection( *grid_transform, grid_fine_sub);
-            }
-            else
-            {
-                projection = dg::create::projection( grid_equidist,
-                    grid_fine_sub, project_m);
-            }
-        }
-        else
-        {
-            // how to add to rows in csr formatted matrix:
-            projection.row_offsets().insert( projection.row_offsets().begin(),
-                shift, 0);
-            projection.row_offsets().erase( projection.row_offsets().end() -
-                shift, projection.row_offsets().end());
-        }
-        std::array<dg::HVec*,3> xcomp{ &yp[0], &Xf, &ym[0]};
-        std::array<dg::HVec*,3> ycomp{ &yp[1], &Yf, &ym[1]};
-        std::array<dg::IHMatrix*,3> result{ &plus, &zero, &minus};
-        dg::IHMatrix subresult;
-
-        for( unsigned u=0; u<3; u++)
-        {
-            if( u == 1)
-                subresult = projection*zero_interpolate;
-            else
-                subresult = projection*dg::create::interpolation( *xcomp[u], *ycomp[u],
-                    inter_m == "dg" ? dg::RealGrid2d<double>(*grid_transform) :
-                    grid_equidist, bcx, bcy, inter_m);
-            detail::add_from_sub( *result[u], subresult, project_m);
-        }
-    }
+        strips.add( sub, plus, zero, minus);
     // 26.9.25: It turns out that directly sandwiching the interpolation
     // matrices minus,zero,plus with B^{-1} I B makes the average number of
     // non-zeros per row explode (for n=3 from 9 to up to 50 - 75!). Therefore
