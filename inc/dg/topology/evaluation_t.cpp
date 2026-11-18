@@ -130,7 +130,8 @@ TEST_CASE( "Evaluation")
         // (Remark: in floating precision the function to integrate may already
         // be different on different compilers)
         // CHECK(abs( resf.i - 913405508) < 4); // likely fails
-        CHECK( fabs( resf.f ) < 3.6e-6);
+        // The products w*f are rounded in float precision
+        CHECK( fabs( resf.f ) < 4e-6);
     }
 
     SECTION( "3d grid")

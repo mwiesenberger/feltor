@@ -7,6 +7,7 @@
 #include "blas1_serial.h"
 #include "exblas/exdot_omp.h"
 #include "exblas/fpedot_omp.h"
+#include "../subroutines.h" // dg::Product
 namespace dg
 {
 namespace blas1
@@ -38,9 +39,9 @@ inline std::vector<int64_t> doDot_dispatch( OmpTag, int * status, unsigned size,
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
     if(size<MIN_DOT_SIZE)
-        exblas::exdot_cpu( size, x_ptr,y_ptr, &h_superacc[0], status);
+        exblas::exsum_cpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
     else
-        exblas::exdot_omp( size, x_ptr,y_ptr, &h_superacc[0], status);
+        exblas::exsum_omp( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
     return h_superacc;
 }
 template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3>
@@ -49,9 +50,9 @@ inline std::vector<int64_t> doDot_dispatch( OmpTag, int* status, unsigned size,
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
     if(size<MIN_DOT_SIZE)
-        exblas::exdot_cpu( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status);
+        exblas::exsum_cpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr, z_ptr);
     else
-        exblas::exdot_omp( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status);
+        exblas::exsum_omp( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr, z_ptr);
     return h_superacc;
 }
 

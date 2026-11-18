@@ -6,6 +6,7 @@
 #include "exceptions.h"
 #include "exblas/exdot_cuda.cuh"
 #include "exblas/fpedot_cuda.cuh"
+#include "../subroutines.h" // dg::Product
 namespace dg
 {
 struct equals; // defined in subroutines.h
@@ -25,13 +26,13 @@ inline std::vector<int64_t> doDot_dispatch( CudaTag, int* status, unsigned
     size, PointerOrValue1 x_ptr, PointerOrValue2 y_ptr)
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    exblas::exdot_gpu( size, x_ptr,y_ptr, &h_superacc[0], status );
+    exblas::exsum_gpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
     return h_superacc;
 }
 template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3>
 inline std::vector<int64_t> doDot_dispatch( CudaTag, int* status, unsigned size, PointerOrValue1 x_ptr, PointerOrValue2 y_ptr, PointerOrValue3 z_ptr) {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    exblas::exdot_gpu( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status);
+    exblas::exsum_gpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr, z_ptr);
     return h_superacc;
 }
 

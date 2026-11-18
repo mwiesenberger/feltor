@@ -46,8 +46,7 @@ std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Vector
     const get_value_type<Vector2>* y_ptr = &y;
     //since we only accumulate up to two values (multiplication and rest) reduce the size of the FPE
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    exblas::exdot_cpu<const get_value_type<Vector1>*, const
-        get_value_type<Vector2>*, 2>( 1, x_ptr,y_ptr, &h_superacc[0], status) ;
+    exblas::exsum_cpu<2>( 1, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
 
     return h_superacc;
 }

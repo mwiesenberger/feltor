@@ -7,6 +7,7 @@
 #include "execution_policy.h"
 #include "exblas/exdot_serial.h"
 #include "exblas/fpedot_serial.h"
+#include "../subroutines.h" // dg::Product
 
 namespace dg
 {
@@ -26,7 +27,7 @@ inline std::vector<int64_t> doDot_dispatch( SerialTag, int* status, unsigned siz
     PointerOrValue1 x_ptr, PointerOrValue2 y_ptr)
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    exblas::exdot_cpu( size, x_ptr,y_ptr, &h_superacc[0], status) ;
+    exblas::exsum_cpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
     return h_superacc;
 }
 template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3>
@@ -34,7 +35,7 @@ inline std::vector<int64_t> doDot_dispatch( SerialTag, int* status, unsigned siz
     PointerOrValue1 x_ptr, PointerOrValue2 y_ptr, PointerOrValue3 z_ptr)
 {
     std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    exblas::exdot_cpu( size, x_ptr,y_ptr,z_ptr, &h_superacc[0], status) ;
+    exblas::exsum_cpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr, z_ptr);
     return h_superacc;
 }
 

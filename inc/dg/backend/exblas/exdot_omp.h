@@ -88,23 +88,24 @@ inline void Reduction(unsigned int tid, unsigned int tnum, std::vector<std::atom
     }
 }
 
-template<typename CACHE, typename PointerOrValue1, typename PointerOrValue2>
-void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, bool* err) {
-    // OpenMP sum+reduction
+// Exact sum of f( x_0[i], x_1[i], ...) into h_superacc
+// Each thread vectorises like ExSUMFPE_cpu (see there why that matters)
+template<size_t NBFPE, class Functor, class ...PointerOrValues>
+void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues ...xs) {
     int const linesize = 16;    // * sizeof(int32_t)
     int maxthreads = omp_get_max_threads();
     std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
     std::vector<std::atomic<int32_t>> ready(maxthreads * linesize); // value-initialized to 0
     std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
-    #pragma omp parallel
+    // Each thread calls its own copy of f
+    #pragma omp parallel firstprivate(f)
     {
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();
 
-        CACHE cache(&acc[tid*BIN_COUNT]);
-
 #ifndef EXBLAS_WITHOUT_VCL
+        FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> > cache(&acc[tid*BIN_COUNT]);
         int l = ((tid * int64_t(N)) / tnum) & ~7ul; // & ~7ul == round down to multiple of 8
         int r = ((((tid+1) * int64_t(N)) / tnum) & ~7ul) - 1;
 
@@ -112,120 +113,33 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, int64_t* h_superacc, 
 #ifndef _MSC_VER
             asm ("# myloop");
 #endif
-            //vcl::Vec8d r1 ;
-            //vcl::Vec8d x  = TwoProductFMA(make_vcl_vec8d(a,i), make_vcl_vec8d(b,i), r1);
-            vcl::Vec8d x  = make_vcl_vec8d(a,i)*make_vcl_vec8d(b,i);
-            //MW: check sanity of input
+            double tmp[8];
+            for( int k=0; k<8; k++)
+                tmp[k] = (double)f( get_element(xs,i+k)...);
+            vcl::Vec8d x  = vcl::Vec8d().load( tmp);
             vcl::Vec8db finite = vcl::is_finite( x);
             if( !vcl::horizontal_and( finite) ) error[tid] = true;
-
             cache.Accumulate(x);
-            //cache.Accumulate(r1); //MW: exact product but halfs the speed
         }
         if( tid+1==tnum && r != N-1) {
             r+=1;
             //accumulate remainder
-            //vcl::Vec8d r1;
-            //vcl::Vec8d x  = TwoProductFMA(make_vcl_vec8d(a,r,N-r), make_vcl_vec8d(b,r,N-r), r1);
-            vcl::Vec8d x  = make_vcl_vec8d(a,r,N-r)*make_vcl_vec8d(b,r,N-r);
-
-            //MW: check sanity of input
+            double tmp[8];
+            for( int k=0; k<N-r; k++)
+                tmp[k] = (double)f( get_element(xs,r+k)...);
+            vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp);
             vcl::Vec8db finite = vcl::is_finite( x);
             if( !vcl::horizontal_and( finite) ) error[tid] = true;
             cache.Accumulate(x);
-            //cache.Accumulate(r1);
         }
 #else// EXBLAS_WITHOUT_VCL
+        FPExpansionVect<double, NBFPE, FPExpansionTraits<true> > cache(&acc[tid*BIN_COUNT]);
         int l = ((tid * int64_t(N)) / tnum);
         int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;
         for(int i = l; i <= r; i++) {
-            //double r1;
-            //double x = TwoProductFMA(get_element(a,i),get_element(b,i),r1);
-            double x = (double)get_element(a,i)*(double)get_element(b,i);
+            double x = (double)f( get_element(xs,i)...);
             if( !std::isfinite(x) ) error[tid] = true;
             cache.Accumulate(x);
-            //cache.Accumulate(r1);
-        }
-#endif// EXBLAS_WITHOUT_VCL
-        cache.Flush();
-        int imin=IMIN, imax=IMAX;
-        Normalize(&acc[tid*BIN_COUNT], imin, imax);
-
-        Reduction(tid, tnum, ready, acc, linesize);
-    }
-    for( int i=IMIN; i<=IMAX; i++)
-        h_superacc[i] = acc[i];
-    for ( int i=0; i<maxthreads; i++)
-        if( error[i] == true) *err = true;
-}
-
-template<typename CACHE, typename PointerOrValue1, typename PointerOrValue2, typename PointerOrValue3>
-void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, int64_t* h_superacc, bool* err) {
-    // OpenMP sum+reduction
-    int const linesize = 16;    // * sizeof(int32_t) (MW avoid false sharing?)
-    int maxthreads = omp_get_max_threads();
-    std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
-    std::vector<std::atomic<int32_t>> ready(maxthreads * linesize); // value-initialized to 0
-    std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
-
-    #pragma omp parallel
-    {
-        unsigned int tid = omp_get_thread_num();
-        unsigned int tnum = omp_get_num_threads();
-
-        CACHE cache(&acc[tid*BIN_COUNT]);
-
-#ifndef EXBLAS_WITHOUT_VCL
-        int l = ((tid * int64_t(N)) / tnum) & ~7ul;// & ~7ul == round down to multiple of 8
-        int r = ((((tid+1) * int64_t(N)) / tnum) & ~7ul) - 1;
-
-        for(int i = l; i < r; i+=8) {
-#ifndef _MSC_VER
-            asm ("# myloop");
-#endif
-            //vcl::Vec8d r1 , r2, cvec = vcl::Vec8d().load(c+i);
-            //vcl::Vec8d x  = TwoProductFMA(vcl::Vec8d().load(a+i), vcl::Vec8d().load(b+i), r1);
-            //vcl::Vec8d x2 = TwoProductFMA(x , cvec, r2);
-            //vcl::Vec8d x1  = vcl::mul_add(vcl::Vec8d().load(a+i),vcl::Vec8d().load(b+i), 0);
-            //vcl::Vec8d x2  = vcl::mul_add( x1                   ,vcl::Vec8d().load(c+i), 0);
-            vcl::Vec8d x1  = make_vcl_vec8d(a,i)*make_vcl_vec8d(b,i);
-            vcl::Vec8d x2  =  x1                *make_vcl_vec8d(c,i);
-            vcl::Vec8db finite = vcl::is_finite( x2);
-            if( !vcl::horizontal_and( finite) ) error[tid] = true;
-            cache.Accumulate(x2);
-            //cache.Accumulate(r2);
-            //x2 = TwoProductFMA(r1, cvec, r2);
-            //cache.Accumulate(x2);
-            //cache.Accumulate(r2);
-        }
-        if( tid+1 == tnum && r != N-1) {
-            r+=1;
-            //accumulate remainder
-            //vcl::Vec8d r1 , r2, cvec = vcl::Vec8d().load_partial(N-r, c+r);
-            //vcl::Vec8d x  = TwoProductFMA(vcl::Vec8d().load_partial(N-r, a+r), vcl::Vec8d().load_partial(N-r,b+r), r1);
-            //vcl::Vec8d x2 = TwoProductFMA(x , cvec, r2);
-            //vcl::Vec8d x1  = vcl::mul_add(vcl::Vec8d().load_partial(N-r, a+r),vcl::Vec8d().load_partial(N-r,b+r), 0);
-            //vcl::Vec8d x2  = vcl::mul_add( x1                   ,vcl::Vec8d().load_partial(N-r,c+r), 0);
-            vcl::Vec8d x1  = make_vcl_vec8d(a,r,N-r)*make_vcl_vec8d(b,r,N-r);
-            vcl::Vec8d x2  =  x1                    *make_vcl_vec8d(c,r,N-r);
-            vcl::Vec8db finite = vcl::is_finite( x2);
-            if( !vcl::horizontal_and( finite) ) error[tid] = true;
-            cache.Accumulate(x2);
-            //cache.Accumulate(r2);
-            //x2 = TwoProductFMA(r1, cvec, r2);
-            //cache.Accumulate(x2);
-            //cache.Accumulate(r2);
-        }
-#else// EXBLAS_WITHOUT_VCL
-        int l = ((tid * int64_t(N)) / tnum);
-        int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;
-        for(int i = l; i <= r; i++) {
-            //double x1 = a[i]*b[i];
-            //double x2 = x1*c[i];
-            double x1 = (double)get_element(a,i)*(double)get_element(b,i);
-            double x2 = x1*(double)get_element(c,i);
-            if( !std::isfinite(x2) ) error[tid] = true;
-            cache.Accumulate(x2);
         }
 #endif// EXBLAS_WITHOUT_VCL
         cache.Flush();
@@ -242,36 +156,13 @@ void ExDOTFPE(int N, PointerOrValue1 a, PointerOrValue2 b, PointerOrValue3 c, in
 }//namespace cpu
 ///@endcond
 
-///@brief OpenMP parallel version of exact triple dot product
-///@copydoc hide_exdot2
+///@brief OpenMP parallel version of exact sum
+///@copydoc hide_exsum
 ///@copydoc hide_hostacc
-template<class PointerOrValue1, class PointerOrValue2, size_t NBFPE=8>
-void exdot_omp(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t* h_superacc, int* status){
-    static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
-    static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
+template<size_t NBFPE=8, class Functor, class ...PointerOrValues>
+void exsum_omp(unsigned size, int64_t* h_superacc, int* status, Functor f, PointerOrValues ...xs){
     bool error = false;
-#ifndef EXBLAS_WITHOUT_VCL
-    cpu::ExDOTFPE<cpu::FPExpansionVect<vcl::Vec8d, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, h_superacc, &error);
-#else
-    cpu::ExDOTFPE<cpu::FPExpansionVect<double, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, h_superacc, &error);
-#endif//EXBLAS_WITHOUT_VCL
-    *status = 0;
-    if( error ) *status = 1;
-}
-///@brief OpenMP parallel version of exact triple dot product
-///@copydoc hide_exdot3
-///@copydoc hide_hostacc
-template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3, size_t NBFPE=8>
-void exdot_omp(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t* h_superacc, int* status) {
-    static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
-    static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
-    static_assert( has_floating_value<PointerOrValue3>::value, "PointerOrValue3 needs to be T or T* with T one of (const) float or (const) double");
-    bool error = false;
-#ifndef EXBLAS_WITHOUT_VCL
-    cpu::ExDOTFPE<cpu::FPExpansionVect<vcl::Vec8d, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, x3_ptr, h_superacc, &error);
-#else
-    cpu::ExDOTFPE<cpu::FPExpansionVect<double, NBFPE, cpu::FPExpansionTraits<true> > >((int)size,x1_ptr,x2_ptr, x3_ptr, h_superacc, &error);
-#endif//EXBLAS_WITHOUT_VCL
+    cpu::ExSUMFPE<NBFPE>( (int)size, h_superacc, &error, f, xs...);
     *status = 0;
     if( error ) *status = 1;
 }

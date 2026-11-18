@@ -33,13 +33,14 @@ namespace gpu{
 //In the first kernel each block produces exactly one superacc (because threads within a block can be synchronized and shared memory lives for a block )
 //the second kernel reduces all superaccs from the first kernel (because we need a global synchronization, which is induced by separate kernel launches)
 
-template<unsigned NBFPE, unsigned WARP_COUNT, class PointerOrValue1, class PointerOrValue2>
+// Exact sum of f( x_0[i], x_1[i], ...): each block writes one superacc
+template<unsigned NBFPE, unsigned WARP_COUNT, class Functor, class ...PointerOrValues>
 __global__ void ExDOT(
     int64_t *d_PartialSuperaccs,
-    PointerOrValue1 d_a,
-    PointerOrValue2 d_b,
     const unsigned NbElements,
-    volatile bool* error
+    volatile bool* error,
+    Functor f,
+    PointerOrValues ...xs
 ) {
     __shared__ int64_t l_sa[WARP_COUNT * BIN_COUNT]; //shared variables live for a thread block (39 rows, 16 columns!)
     int64_t *l_workingBase = l_sa + (threadIdx.x & (WARP_COUNT - 1)); //the bitwise & with 15 is a modulo operation: threadIdx.x % 16
@@ -51,10 +52,7 @@ __global__ void ExDOT(
     //Read data from global memory and scatter it to sub-superaccs
     double a[NBFPE] = {0.0};
     for(unsigned pos = blockIdx.x*blockDim.x+threadIdx.x; pos < NbElements; pos += gridDim.x*blockDim.x) {
-        //double r = 0.0;
-        //double x = TwoProductFMA(get_element(d_a,pos), get_element(d_b,pos), &r);
-        double x = (double)get_element(d_a,pos)*(double)get_element(d_b,pos);
-        //we do not accumulate the rest of this multiplication
+        double x = (double)f( get_element(xs,pos)...);
 
         //Check if the input is sane
         if( !isfinite(x) ) *error = true;
@@ -74,26 +72,8 @@ __global__ void ExDOT(
                 a[i] = 0.0;
             }
         }
-
-        //if (r != 0.0) {//add the rest r in the same manner
-        //    #pragma unroll
-        //    for(unsigned i = 0; i != NBFPE; ++i) {
-        //        double s;
-        //        a[i] = KnuthTwoSum(a[i], r, &s);
-        //        r = s;
-        //    }
-        //    if (r != 0.0) {
-        //        Accumulate(l_workingBase, r, WARP_COUNT);
-        //        // Flush FPEs to superaccs
-        //        #pragma unroll
-        //        for(unsigned i = 0; i != NBFPE; ++i) {
-        //            Accumulate(l_workingBase, a[i], WARP_COUNT);
-        //            a[i] = 0.0;
-        //        }
-        //    }
-        //}
     }
-    //Flush FPEs to superaccs
+	//Flush FPEs to superaccs
     #pragma unroll
     for(unsigned i = 0; i != NBFPE; ++i)
         Accumulate(l_workingBase, a[i], WARP_COUNT);
@@ -107,138 +87,6 @@ __global__ void ExDOT(
     }
     __syncthreads();
 
-    if (pos < BIN_COUNT) {
-        int64_t sum = 0;
-
-        for(unsigned i = 0; i < WARP_COUNT; i++)
-            sum += l_sa[pos * WARP_COUNT + i];
-
-        d_PartialSuperaccs[blockIdx.x * BIN_COUNT + pos] = sum;
-    }
-
-    __syncthreads();
-    if (pos == 0) {
-        int imin = IMIN, imax = IMAX;
-        Normalize(&d_PartialSuperaccs[blockIdx.x * BIN_COUNT], imin, imax);
-    }
-}
-
-template<unsigned NBFPE, unsigned WARP_COUNT, class PointerOrValue1, class PointerOrValue2, class PointerOrValue3>
-__global__ void ExDOT(
-    int64_t *d_PartialSuperaccs,
-    PointerOrValue1 d_a,
-    PointerOrValue2 d_b,
-    PointerOrValue3 d_c,
-    const unsigned NbElements,
-    volatile bool *error
-) {
-    __shared__ int64_t l_sa[WARP_COUNT * BIN_COUNT]; //shared variables live for a thread block (39 rows, 16 columns!)
-    int64_t *l_workingBase = l_sa + (threadIdx.x & (WARP_COUNT - 1)); //the bitwise & with 15 is a modulo operation: threadIdx.x % 16
-    //Initialize superaccs
-    for (unsigned i = 0; i < BIN_COUNT; i++)
-        l_workingBase[i * WARP_COUNT] = 0;
-    __syncthreads(); //syncs all threads in a block (but not across blocks)
-
-    //Read data from global memory and scatter it to sub-superaccs
-    double a[NBFPE] = {0.0};
-    for(unsigned pos = blockIdx.x*blockDim.x+threadIdx.x; pos < NbElements; pos += gridDim.x*blockDim.x) {
-        //double x2 = d_a[pos]*d_c[pos]*d_b[pos];
-        //double r  = 0.0, r2 = 0.0;
-        //double x  = TwoProductFMA(d_a[pos], d_b[pos], &r);
-        //double x2 = TwoProductFMA(x , d_c[pos], &r2);
-        double x1 = (double)get_element(d_a,pos)*(double)get_element(d_b,pos);
-        double x2 = x1                          *(double)get_element(d_c,pos);
-
-        //Check if the input is sane
-        if( !isfinite(x2) ) *error = true;
-
-        if( x2 != 0.0 ) {//accumulate x2
-            #pragma unroll
-            for(unsigned i = 0; i != NBFPE; ++i) {
-                double s;
-                a[i] = KnuthTwoSum(a[i], x2, &s);
-                x2 = s;
-            }
-            if (x2 != 0.0) {
-                Accumulate(l_workingBase, x2, WARP_COUNT);
-                // Flush FPEs to superaccs
-                #pragma unroll
-                for(unsigned i = 0; i != NBFPE; ++i) {
-                    Accumulate(l_workingBase, a[i], WARP_COUNT);
-                    a[i] = 0.0;
-                }
-            }
-        }
-        //if (r2 != 0.0) {//add the rest r2
-        //    #pragma unroll
-        //    for(unsigned i = 0; i != NBFPE; ++i) {
-        //        double s;
-        //        a[i] = KnuthTwoSum(a[i], r2, &s);
-        //        r2 = s; //error was here r = s
-        //    }
-        //    if (r2 != 0.0) { //error was here r != 0.0
-        //        Accumulate(l_workingBase, r2, WARP_COUNT);
-        //        // Flush FPEs to superaccs
-        //        #pragma unroll
-        //        for(unsigned i = 0; i != NBFPE; ++i) {
-        //            Accumulate(l_workingBase, a[i], WARP_COUNT);
-        //            a[i] = 0.0;
-        //        }
-        //    }
-        //}
-
-        //if (r != 0.0) {//add the rest r*c in the same manner
-        //    r2 = 0.0;
-        //    x2 = TwoProductFMA(r , d_c[pos], &r2);
-        //    if( x2 != 0.0) {//accumulate x2
-        //        #pragma unroll
-        //        for(unsigned i = 0; i != NBFPE; ++i) {
-        //            double s;
-        //            a[i] = KnuthTwoSum(a[i], x2, &s);
-        //            x2 = s;
-        //        }
-        //        if (x2 != 0.0) {
-        //            Accumulate(l_workingBase, x2, WARP_COUNT);
-        //            // Flush FPEs to superaccs
-        //            #pragma unroll
-        //            for(unsigned i = 0; i != NBFPE; ++i) {
-        //                Accumulate(l_workingBase, a[i], WARP_COUNT);
-        //                a[i] = 0.0;
-        //            }
-        //        }
-        //    }
-        //    if (r2 != 0.0) {//add the rest r2
-        //        #pragma unroll
-        //        for(unsigned i = 0; i != NBFPE; ++i) {
-        //            double s;
-        //            a[i] = KnuthTwoSum(a[i], r2, &s);
-        //            r2 = s; //error was here r = s
-        //        }
-        //        if (r2 != 0.0) { //error was here r != 0.0
-        //            Accumulate(l_workingBase, r2, WARP_COUNT);
-        //            // Flush FPEs to superaccs
-        //            #pragma unroll
-        //            for(unsigned i = 0; i != NBFPE; ++i) {
-        //                Accumulate(l_workingBase, a[i], WARP_COUNT);
-        //                a[i] = 0.0;
-        //            }
-        //        }
-        //    }
-        //}
-    }
-	//Flush FPEs to superaccs
-    #pragma unroll
-    for(unsigned i = 0; i != NBFPE; ++i)
-        Accumulate(l_workingBase, a[i], WARP_COUNT);
-    __syncthreads();
-
-    //Merge sub-superaccs into work-group partial-accumulator ( ATTENTION: PartialSuperacc is transposed!)
-    unsigned pos = threadIdx.x;
-    if(pos<WARP_COUNT){
-            int imin = IMIN, imax = IMAX;
-            Normalize(l_workingBase, imin, imax, WARP_COUNT);
-        }
-    __syncthreads();
     if (pos < BIN_COUNT) {
         int64_t sum = 0;
 
@@ -390,47 +238,22 @@ inline void finish_exdot( const HostResult* result, int64_t* h_superacc, int* st
 }//namespace gpu
 ///@endcond
 
-///@brief GPU version of exact dot product
-///@copydoc hide_exdot2
+///@brief GPU version of exact sum
+///@copydoc hide_exsum
 ///@copydoc hide_hostacc
 ///@copydoc hide_gpu_static_buffer
-template<class PointerOrValue1, class PointerOrValue2, size_t NBFPE=3>
+template<size_t NBFPE=3, class Functor, class ...PointerOrValues>
 __host__
-void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, int64_t* h_superacc, int* status)
+void exsum_gpu(unsigned size, int64_t* h_superacc, int* status, Functor f, PointerOrValues ...xs)
 {
-    static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
-    static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
-    static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, PointerOrValue1, PointerOrValue2, unsigned, volatile bool*)>(
-        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, PointerOrValue1, PointerOrValue2>),
+    static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, unsigned, volatile bool*, Functor, PointerOrValues...)>(
+        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, Functor, PointerOrValues...>),
         gpu::EXDOT_BLOCK_THREADS, 0, gpu::MAX_PARTIAL_SUPERACCS);
     int64_t *d_PartialSuperaccs = gpu::partial_superaccs( max_blocks);
     const unsigned blocks = gpu::num_exdot_blocks( size, max_blocks);
     gpu::HostResult *result = gpu::host_result();
     result->error = false;
-    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<blocks, gpu::EXDOT_BLOCK_THREADS>>>( d_PartialSuperaccs, x1_ptr, x2_ptr, size, &result->error);
-    gpu::merge_partial_superaccs( d_PartialSuperaccs, blocks, result->superacc);
-    gpu::finish_exdot( result, h_superacc, status);
-}
-
-///@brief GPU version of exact dot product
-///@copydoc hide_exdot3
-///@copydoc hide_hostacc
-///@copydoc hide_gpu_static_buffer
-template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3, size_t NBFPE=3>
-__host__
-void exdot_gpu(unsigned size, PointerOrValue1 x1_ptr, PointerOrValue2 x2_ptr, PointerOrValue3 x3_ptr, int64_t* h_superacc, int* status)
-{
-    static_assert( has_floating_value<PointerOrValue1>::value, "PointerOrValue1 needs to be T or T* with T one of (const) float or (const) double");
-    static_assert( has_floating_value<PointerOrValue2>::value, "PointerOrValue2 needs to be T or T* with T one of (const) float or (const) double");
-    static_assert( has_floating_value<PointerOrValue3>::value, "PointerOrValue3 needs to be T or T* with T one of (const) float or (const) double");
-    static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, PointerOrValue1, PointerOrValue2, PointerOrValue3, unsigned, volatile bool*)>(
-        gpu::ExDOT<NBFPE, gpu::WARP_COUNT, PointerOrValue1, PointerOrValue2, PointerOrValue3>),
-        gpu::EXDOT_BLOCK_THREADS, 0, gpu::MAX_PARTIAL_SUPERACCS);
-    int64_t *d_PartialSuperaccs = gpu::partial_superaccs( max_blocks);
-    const unsigned blocks = gpu::num_exdot_blocks( size, max_blocks);
-    gpu::HostResult *result = gpu::host_result();
-    result->error = false;
-    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<blocks, gpu::EXDOT_BLOCK_THREADS>>>( d_PartialSuperaccs, x1_ptr, x2_ptr, x3_ptr, size, &result->error);
+    gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<blocks, gpu::EXDOT_BLOCK_THREADS>>>( d_PartialSuperaccs, size, &result->error, f, xs...);
     gpu::merge_partial_superaccs( d_PartialSuperaccs, blocks, result->superacc);
     gpu::finish_exdot( result, h_superacc, status);
 }
