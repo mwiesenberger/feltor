@@ -77,7 +77,11 @@ DG_DEVICE void operator()( T1 x, T2& y) const
 ///@brief \f$ y = \sum_i x_i \f$
 struct Sum
 {
-    ///@brief \f[ \sum_i x_i \f]
+    /**
+     * @brief \f[ \sum_i x_i \f]
+     *
+     * The sum is evaluated from right to left, i.e. \f$ x_0 + (x_1 + ( \dots + x_{n-1}))\f$
+     */
     template< class T1, class ...Ts>
 DG_DEVICE auto operator()( T1 x, Ts... rest) const
     {
@@ -104,7 +108,11 @@ DG_DEVICE auto sum( T1 x1) const
 ///@brief \f$ y = \prod_i x_i \f$
 struct Product
 {
-    ///@brief \f[ \prod_i x_i \f]
+    /**
+     * @brief \f[ \prod_i x_i \f]
+     *
+     * The product is evaluated from left to right, i.e. \f$ ((x_0 x_1) x_2) \dots\f$
+     */
     template< class T1, class ...Ts>
 DG_DEVICE auto operator()( T1 x, Ts... rest) const
     {
@@ -112,10 +120,10 @@ DG_DEVICE auto operator()( T1 x, Ts... rest) const
         return prod(x, rest...);
     }
     private:
-    template< class T1, class ...Ts>
-DG_DEVICE auto prod( T1 x, Ts... rest) const
+    template< class T1, class T2, class ...Ts>
+DG_DEVICE auto prod( T1 x, T2 y, Ts... rest) const
     {
-        return x * prod( rest...);
+        return prod( x * y, rest...);
     }
 
     template<class T1>
@@ -128,7 +136,12 @@ DG_DEVICE auto prod( T1 x1) const
 ///@brief \f$ y = \sum_i a_i x_i \f$
 struct PairSum
 {
-    ///@brief \f[ \sum_i a_i x_i \f]
+    /**
+     * @brief \f[ \sum_i a_i x_i \f]
+     *
+     * The sum is evaluated from right to left with fused multiply-adds, i.e.
+     * \f$ \mathrm{fma}( a_0, x_0, \mathrm{fma}( a_1, x_1, \dots a_{n-1} x_{n-1}))\f$
+     */
     template< class T1, class T2, class ...Ts>
 DG_DEVICE auto operator()( T1 a, T2 x, Ts... rest) const
     {
@@ -150,7 +163,13 @@ DG_DEVICE auto sum( T1 alpha, T2 x) const
 ///@brief \f$ y = \sum_i a_i x_i y_i \f$
 struct TripletSum
 {
-    ///@brief \f[ \sum_i \alpha_i x_i y_i \f]
+    /**
+     * @brief \f[ \sum_i \alpha_i x_i y_i \f]
+     *
+     * The sum is evaluated from right to left with fused multiply-adds, i.e.
+     * \f$ \mathrm{fma}( \alpha_0 x_0, y_0, \mathrm{fma}( \alpha_1 x_1, y_1,
+     * \dots (\alpha_{n-1} x_{n-1}) y_{n-1}))\f$
+     */
     template< class T0, class T1, class T2, class ...Ts>
 DG_DEVICE auto operator()( T0 a, T1 x1, T2 y1, Ts... rest) const
     {
@@ -178,7 +197,13 @@ DG_DEVICE auto sum( T0 alpha, T1 x, T2 y) const
 ///@brief \f$ y = \sum_i b_i x_i + b_0 y,\quad \tilde y = \sum_i \tilde b_i x_i + \tilde b_0 y \f$
 struct EmbeddedPairSum
 {
-    ///@brief \f$ y = \sum_i b_i x_i + b_0 y,\quad \tilde y = \sum_i \tilde b_i x_i + \tilde b_0 y \f$
+    /**
+     * @brief \f$ y = \sum_i b_i x_i + b_0 y,\quad \tilde y = \sum_i \tilde b_i x_i + \tilde b_0 y \f$
+     *
+     * The sums are evaluated from left to right with fused multiply-adds, i.e.
+     * \f$ y \leftarrow b_0 y\f$ followed by \f$ y \leftarrow \mathrm{fma}( b_i, x_i, y)\f$
+     * for \f$ i = 1, 2, \dots\f$ (and the same for \f$ \tilde y\f$)
+     */
     template< class T1, class ...Ts>
 DG_DEVICE void operator()( T1& y, T1& yt, T1 b, T1 bt, Ts... rest) const
     {

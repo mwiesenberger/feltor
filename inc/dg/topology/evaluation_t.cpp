@@ -165,7 +165,7 @@ TEST_CASE( "Evaluation")
         INFO( "Square normalized 3D norm "<<std::setw(6)<<norm3d);
         INFO( "Correct square norm is    "<<std::setw(6)<<solution3d);
         INFO( "Relative 3d error is      "<<(norm3d-solution3d)/solution3d);
-        CHECK( abs( res.i - 4746764681002108278) < 2);
+        CHECK( abs( res.i - 4746764681002108276) < 2);
     }
 }
 

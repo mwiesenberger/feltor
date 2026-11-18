@@ -32,6 +32,19 @@ TEST_CASE("Basic Functors")
     }
 }
 
+TEST_CASE( "Product multiplies from left to right")
+{
+    // For these values the order of multiplication changes the result
+    double x = 0.1, y = 0.2, z = 0.3, w = 0.4;
+    REQUIRE( (x*y)*z != x*(y*z));
+    CHECK( dg::Product()( x, y, z) == (x*y)*z);
+    CHECK( dg::Product()( x, y, z, w) == ((x*y)*z)*w);
+    CHECK( dg::Product()( x, y) == x*y);
+    CHECK( dg::Product()( x) == x);
+    // The result type follows the usual promotion of x*y
+    CHECK( std::is_same_v<decltype( dg::Product()( 0.1f, 2, 0.3)), double>);
+}
+
 TEST_CASE( "Horner")
 {
     SECTION("Horner1d")
