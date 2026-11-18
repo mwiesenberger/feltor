@@ -40,6 +40,28 @@ dg::SparseMatrix< int, real_type, thrust::host_vector> diagonal( const thrust::h
     return { size, size, A_row_offsets, A_column_indices, A_values};
 }
 
+///@cond
+namespace detail
+{
+// Turn the transposed interpolation matrix into the projection
+// P_ij = v_new_i I^T_ij w_old_j; the MPI version passes the local part of the
+// binary exact MPI weights for w_old
+template<class real_type>
+void scale_projection( dg::SparseMatrix< int, real_type, thrust::host_vector>& project,
+    const thrust::host_vector<real_type>& v_new,
+    const thrust::host_vector<real_type>& w_old)
+{
+    for( unsigned row=0; row<project.num_rows(); row++)
+        for ( int jj = project.row_offsets()[row]; jj < project.row_offsets()[row+1]; jj++)
+        {
+            int col = project.column_indices()[jj];
+            // Note that w_old is multiplied before v_new (keeps results backwards reproducible)
+            project.values()[jj] = v_new[row] * ( project.values()[jj]* w_old[col]);
+        }
+}
+}//namespace detail
+///@endcond
+
 
 /**
  * @brief Create a projection between two grids
@@ -96,16 +118,9 @@ dg::SparseMatrix< int, real_type, thrust::host_vector> projection(
     //                   <<g_old.n(u)<<" new n: "<<g_new.n(u)<<"\n");
     //}
     //form the adjoint
-    auto w_old = dg::create::weights( g_old);
-    auto v_new = dg::create::inv_weights( g_new);
     auto project = interpolation( g_old, g_new, method).transpose();
-    for( unsigned row=0; row<project.num_rows(); row++)
-        for ( int jj = project.row_offsets()[row]; jj < project.row_offsets()[row+1]; jj++)
-        {
-            int col = project.column_indices()[jj];
-            // Note that w_old is multiplied before v_new (keeps results backwards reproducible)
-            project.values()[jj] = v_new[row] * ( project.values()[jj]* w_old[col]);
-        }
+    detail::scale_projection( project, dg::create::inv_weights( g_new),
+        dg::create::weights( g_old));
     return project;
 }
 

@@ -91,6 +91,13 @@ I coo2csr( unsigned num_rows, const I& coo)
  * particular not in the \c dg::blas2::symv function. This means that in
  * <tt>dg::blas2::symv( A, x, y)</tt> if \c y contains a NaN or Inf on input,
  * it may or may not contain NaN or Inf on output
+ * @attention On the GPU the matrix-vector multiplication is **not binary
+ * reproducible** with the CPU and OpenMP versions, and an MPI distributed matrix
+ * (\c dg::MIDMatrix) is not binary reproducible with the corresponding shared
+ * memory matrix: \c cusparse does not define the order in which it sums the
+ * entries of a row and the order depends on the matrix. The results usually
+ * differ by a few units in the last place. On the CPU and with OpenMP the
+ * entries of a row are summed in the order in which they are stored.
  *
  * @tparam Index The index type (on GPU must be either \c int or \c long)
  * @tparam Value The value type (on GPU must be either \c float or \c double)

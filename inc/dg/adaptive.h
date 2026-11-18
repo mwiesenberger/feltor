@@ -154,6 +154,9 @@ struct Tolerance
   a container of the size that is later used in \c step
   (it does not matter what values \c copyable contains, but its size is important;
   the \c step method can only be called with vectors of this size)
+  The <tt> void reset(); </tt> member (only needed if \c Adaptive::reset is
+  used, e.g. by \c dg::AdaptiveTimeloop) must make the next \c step independent
+  of previous steps (see \c dg::ERKStep::reset)
  */
 
 //%%%%%%%%%%%%%%%%%%%Adaptive%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -364,11 +367,23 @@ struct Adaptive
     const value_type& get_error( ) const{
         return m_eps0;
     }
-    private:
-    void reset_history(){
-        m_eps1 = m_eps2 = 1.;
-        m_dt1 = m_dt2 = 0.;
+    /**
+     * @brief Start a new initial value problem
+     *
+     * Forget the errors and step sizes of previous steps, which the control
+     * function uses to suggest the next step size, and call
+     * <tt>stepper().reset()</tt>. Without \c reset the step sizes of a new
+     * problem depend on the steps of the previous one. Call \c reset before
+     * a step that does not continue the previous one.
+     * @note The counters \c nsteps() and \c nfailed() are not changed
+     */
+    void reset(){
+        m_failed = false;
+        m_eps0 = m_eps1 = m_eps2 = 1.;
+        m_dt0 = m_dt1 = m_dt2 = 0.;
+        m_stepper.reset();
     }
+    private:
     bool m_failed = false;
     unsigned m_nfailed = 0;
     unsigned m_nsteps = 0;
@@ -522,11 +537,26 @@ struct AdaptiveTimeloop : public aTimeloop<ContainerType>
     };
     dg::AdaptiveTimeloop<Vec>  timeloop(step);
        @endcode
+     * @param reset_step If not empty, called as <tt> reset_step() </tt>
+     * before the first call to \c step after the member function \c reset()
+     * of this timeloop was called. It has to make \c step forget everything
+     * it kept from earlier steps, for example the stored last stage of a
+     * Runge-Kutta method (as \c dg::ERKStep::reset does). If empty,
+     * \c reset() has no effect on \c step.
      */
     AdaptiveTimeloop( std::function<void (value_type, const ContainerType&,
-                value_type&, ContainerType&, value_type&)> step)  :
-        m_step(step){
-            m_dt_current = 0.;
+                value_type&, ContainerType&, value_type&)> step,
+                std::function<void()> reset_step = {})
+    {
+        m_step = [step, reset_step]( bool reset, value_type t0,
+            const ContainerType& y0, value_type& t1, ContainerType& y1,
+            value_type& dt)
+        {
+            if( reset && reset_step)
+                reset_step();
+            step( t0, y0, t1, y1, dt);
+        };
+        m_dt_current = 0.;
     }
     /*!
      * @brief Bind the step function of a \c dg::Adaptive object
@@ -559,11 +589,13 @@ struct AdaptiveTimeloop : public aTimeloop<ContainerType>
         //https://vittorioromeo.info/index/blog/capturing_perfectly_forwarded_objects_in_lambdas.html
 
         m_step = [=, cap = std::tuple<Adaptive, ODE>(std::forward<Adaptive>(adapt),
-                std::forward<ODE>(ode))  ]( auto t0, const auto& y0, auto& t,
-                auto& y, auto& dt) mutable
+                std::forward<ODE>(ode))  ]( bool reset, auto t0,
+                const auto& y0, auto& t, auto& y, auto& dt) mutable
         {
-            std::get<0>(cap).step( std::get<1>(cap), t0, y0, t, y, dt, control, norm,
-                    rtol, atol, reject_limit);
+            if( reset)
+                std::get<0>(cap).reset();
+            std::get<0>(cap).step( std::get<1>(cap), t0, y0, t, y, dt,
+                control, norm, rtol, atol, reject_limit);
         };
         m_dt_current = 0.;
     }
@@ -631,10 +663,22 @@ struct AdaptiveTimeloop : public aTimeloop<ContainerType>
     private:
     virtual void do_integrate(value_type& t0, const container_type& u0,
             value_type t1, container_type& u1, enum to mode) const;
-    std::function<void( value_type, const ContainerType&, value_type&,
+    // If the first parameter is true, the stepper is reset before the step
+    // (the stepper lives only in this function, so that copies of the
+    // timeloop do not share it)
+    std::function<void( bool, value_type, const ContainerType&, value_type&,
             ContainerType&, value_type&)> m_step;
     virtual value_type do_dt( ) const { return m_dt_current;}
+    virtual void do_reset( ) { m_reset = true; m_dt_current = 0.;}
+    // Advance (t, u) in place by one step; if reset() was called since the
+    // last step, reset the stepper first
+    void do_step( value_type& t, ContainerType& u, value_type& dt) const
+    {
+        m_step( m_reset, t, u, t, u, dt);
+        m_reset = false;
+    }
     mutable value_type m_dt_current ; // omg mutable exists !? write even if const
+    mutable bool m_reset = false; // reset before the next step
 };
 
 ///@cond
@@ -669,7 +713,7 @@ void AdaptiveTimeloop<ContainerType>::do_integrate(
             dt_current = deltaT;
         // Compute a step and error
         try{
-            m_step( t_current, u1, t_current, u1, dt_current);
+            do_step( t_current, u1, dt_current);
         }catch ( dg::Error& e)
         {
             e.append( dg::Message(_ping_) << "Error in AdaptiveTimeloop::integrate");
@@ -722,7 +766,7 @@ void AdaptiveTimeloop<ContainerType>::integrate_in_domain(
             dt_current = t1-t_current;
         // Compute a step and error
         try{
-            m_step( t_current, current, t_current, current, dt_current);
+            do_step( t_current, current, dt_current);
         }catch ( dg::Error& e)
         {
             e.append( dg::Message(_ping_) << "Error in AdaptiveTimeloop::integrate");
@@ -753,7 +797,7 @@ void AdaptiveTimeloop<ContainerType>::integrate_in_domain(
                 // However, there are cases when this is not true so we need to
                 // explicitly check!!
                 // t_current = t0, current = last (inside)
-                m_step( t_current, current, t_current, current, dt_current);
+                do_step( t_current, current, dt_current);
                 if( failed == t_current)
                 {
                     dt_current = (t1-t0)/4.;

@@ -570,6 +570,37 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
     dg::View<const host_vector> vz( z.data(), z.size());
     return interpolation( std::vector{vx,vy,vz}, g, {bcx,bcy,bcz}, method);
 }
+///@cond
+namespace detail
+{
+// Interpolation to the tensor product of the points abs_new[0] x abs_new[1] x ...
+// The MPI version passes the binary exact abscissas of the MPI grid
+template<class host_vector, class real_type, size_t Nd>
+dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation_tensor(
+    const std::array<host_vector,Nd>& abs_new,
+    const aRealTopology<real_type,Nd>& g_old, std::string method)
+{
+    std::array<dg::SparseMatrix<int,real_type,thrust::host_vector>,Nd> axes;
+    for( unsigned u=0; u<Nd; u++)
+    {
+        if( method == "dg")
+        {
+            axes[u] = detail::interpolation1d( dg::xspace, abs_new[u],
+                g_old.grid(u), g_old.bc(u));
+        }
+        else
+        {
+            axes[u] = detail::interpolation1d( abs_new[u],
+                g_old.abscissas(u), g_old.bc(u), g_old.p(u), g_old.q(u),
+                method);
+        }
+    }
+    for( unsigned u=1; u<Nd; u++)
+        axes[0] = dg::tensorproduct( axes[u], axes[0]);
+    return axes[0];
+}
+}//namespace detail
+///@endcond
 /**
  * @brief Create interpolation between two grids
  *
@@ -605,25 +636,7 @@ dg::SparseMatrix<int, real_type, thrust::host_vector> interpolation(
             std::cerr << "ERROR: New grid boundary number "<<u<<" with value q "<<g_new.q(u)<<" lies outside old grid "<<g_old.q(u)<<" "<<g_old.q(u)-g_new.q(u)<<"\n";
         assert( g_new.q(u) <= g_old.q(u));
     }
-    std::array<dg::SparseMatrix<int,real_type,thrust::host_vector>,Nd> axes;
-    for( unsigned u=0; u<Nd; u++)
-    {
-        if( method == "dg")
-        {
-            axes[u] = detail::interpolation1d( dg::xspace, g_new.abscissas(u),
-                g_old.grid(u), g_old.bc(u));
-        }
-        else
-        {
-            axes[u] = detail::interpolation1d( g_new.abscissas(u),
-                g_old.abscissas(u), g_old.bc(u), g_old.p(u), g_old.q(u),
-                method);
-        }
-    }
-    for( unsigned u=1; u<Nd; u++)
-        axes[0] = dg::tensorproduct( axes[u], axes[0]);
-    return axes[0];
-
+    return detail::interpolation_tensor( g_new.get_abscissas(), g_old, method);
 }
 ///@}
 

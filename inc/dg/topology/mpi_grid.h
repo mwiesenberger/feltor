@@ -19,7 +19,6 @@
 //     * device independent code
 //     * @param u axis number
 //     */
-//     TODO I think it does not matter which boundary condition the communicator has!?
 namespace dg
 {
 
@@ -69,7 +68,9 @@ struct RealMPIGrid;
  * among the participating processes (such that some have one cell more or less
  * than others).  We have \f[ N_u = \sum_{r=0}^{s-1} N_{ur}\f] The number of
  * polynomial coefficients and the boundary condition is the same for all
- * processes of an axis.  Each axis among processes is thus
+ * processes of an axis. The periodicity of the Cartesian communicator is not
+ * used and need not match the boundary conditions of the grid.
+ * Each axis among processes is thus
  * \f[
  * [p_u,q_u] = [p_{u0}, q_{u0}],[p_{u1}, q_{u1}],...,[p_{us-1}, q_{us-1}]
  * \f]
@@ -282,6 +283,13 @@ struct aRealMPITopology
     /*!
      * @brief The local grid as a shared memory grid
      * @return Local grid
+     * @attention The local grid computes its spacing \c h(), abscissas and
+     * weights from its own boundaries \c p() and \c q(). These are in
+     * general **not binary identical** to the corresponding local parts of
+     * the abscissas and weights of the \c global() grid. Use \c abscissas()
+     * and \c weights() of this MPI grid (and \c dg::evaluate and \c
+     * dg::create::weights with this MPI grid) when binary reproducibility
+     * between MPI and shared memory results is required.
      */
     const RealGrid<real_type,Nd>& local() const {return m_l;}
     /*!
@@ -722,23 +730,6 @@ struct aRealMPITopology
             m_l = { p, q, m_g.get_n(), N, m_g.get_bc()};
         }
     }
-    void check_periods( std::array<dg::bc, Nd> bc) const
-    {
-        if constexpr ( Nd > 0) // avoid zero sized array warnings
-        {
-            int rank, dims[Nd], periods[Nd], coords[Nd];
-            mpi_cart_get( m_comm, Nd, dims, periods, coords);
-            MPI_Comm_rank( m_comm, &rank);
-            if( rank == 0)
-            {
-                for( unsigned u=0; u<Nd; u++)
-                {
-                    if( bc[u] == dg::PER) assert( periods[u] == true);
-                    else assert( periods[u] == false);
-                }
-            }
-        }
-    }
     std::vector<unsigned> partition( unsigned N, unsigned r) const
     {
         // Divide N points as equally as possible among participants r
@@ -782,7 +773,6 @@ void aRealMPITopology<real_type,Nd>::do_set_pq( std::array<real_type, Nd> x0, st
 template<class real_type,size_t Nd>
 void aRealMPITopology<real_type,Nd>::do_set( std::array<dg::bc, Nd> bcs)
 {
-    check_periods( bcs);
     m_g.set_bcs( bcs);
     m_l.set_bcs( bcs);
 }

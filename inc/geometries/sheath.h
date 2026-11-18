@@ -159,6 +159,8 @@ struct WallFieldlineCoordinate : public aCylindricalFunctor<WallFieldlineCoordin
                         1e-10); // using 1e-10 instead of eps may cost 10% of performance but is what we also use in Fieldaligned
                 odeint.integrate_in_domain( 0., coords, phiP, coordsP, 0.,
                         m_domain, m_eps);
+                // the minus direction is a new initial value problem
+                odeint.reset();
                 odeint.integrate_in_domain( 0., coords, phiM, coordsM, 0.,
                         m_domain, m_eps);
             }catch (std::exception& e)

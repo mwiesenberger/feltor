@@ -2,6 +2,8 @@
 
 #ifdef WITH_MPI
 #include <mpi.h>
+#include <cstring>
+#include <cmath>
 #endif
 
 #include "dg/algorithm.h"
@@ -373,3 +375,117 @@ TEST_CASE( "Fieldaligned construction")
             -1, method, false);
     CHECK(true);
 }
+
+#ifdef WITH_MPI
+// The MPI Fieldaligned must give bitwise the same results as the shared
+// memory Fieldaligned on the global grid on the same backend, for any
+// number of ranks and any domain decomposition. On the GPU cuSPARSE does not
+// define its order of summation, so there the results are checked against a
+// bound in units in the last place (ulp)
+
+// Compare the local MPI result with the expected local values: the
+// differences may be at most max_ulp units in the last place of the largest
+// expected value on this rank (0 means bitwise equal). A different order of
+// summation changes a sum by a few ulp of its largest terms, which can be
+// many ulp of a small result
+static void check_ulp( std::string what, const dg::HVec& local,
+    const dg::HVec& expected, unsigned max_ulp)
+{
+    int rank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    double max_value = 0;
+    for( unsigned i=0; i<expected.size(); i++)
+        max_value = std::max( max_value, fabs( expected[i]));
+    const double ulp = std::nextafter( max_value, 2*max_value+1) - max_value;
+    unsigned mismatches = 0;
+    double worst = 0;
+    for( unsigned i=0; i<local.size(); i++)
+    {
+        if( std::memcmp( &local[i], &expected[i], sizeof(double)) != 0)
+            mismatches++;
+        worst = std::max( worst, fabs( local[i] - expected[i])/ulp);
+    }
+    INFO( what<<" on rank "<<rank<<": "<<mismatches<<" of "<<local.size()
+        <<" values differ, at most by "<<worst<<" ulp of the largest value "
+        <<max_value<<" (allowed "<<max_ulp<<")");
+    CHECK( worst <= max_ulp);
+}
+
+// cuSPARSE: maximum difference between the MPI and the shared memory
+// products (measured at most 6 ulp of the largest value)
+#if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
+static const unsigned spmv_max_ulp = 16;
+#else
+static const unsigned spmv_max_ulp = 0;
+#endif
+
+TEST_CASE( "MPI Fieldaligned agrees with shared memory Fieldaligned")
+{
+    int size;
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    // Distribute the ranks in the plane only, in z only, or in all directions
+    std::array<int,3> dims = GENERATE( std::array<int,3>{0,0,1},
+        std::array<int,3>{1,1,0}, std::array<int,3>{0,0,0});
+    // n < 3 interpolates the fieldline end points with cubic polynomials
+    unsigned n = GENERATE( 2, 3);
+    std::string method = GENERATE( "dg", "linear-nearest", "dg-linear",
+        "linear-equi");
+    INFO( "Number of ranks "<<size<<", dims "<<dims[0]<<" "<<dims[1]<<" "
+        <<dims[2]<<", n "<<n<<", method "<<method);
+    MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD,
+        {dims[0], dims[1], dims[2]}, {0,0,1});
+    // The cell numbers are not multiples of the number of ranks, so that
+    // the local grids have different sizes; 8 planes so that every process
+    // has one with up to 8 processes in z; mx and my are multiples of n as
+    // the projection methods other than dg require
+    const unsigned Nx = 7, Ny = 11, Nz = 8, mx = 2*n, my = 2*n;
+    dg::CylindricalMPIGrid3d g( R_0-a, R_0+a, -a, a, 0, 2.*M_PI, n, Nx, Ny, Nz,
+        dg::NEU, dg::NEU, dg::PER, comm);
+    dg::CylindricalGrid3d g_global( R_0-a, R_0+a, -a, a, 0, 2.*M_PI, n, Nx, Ny,
+        Nz, dg::NEU, dg::NEU, dg::PER);
+    auto bhat = dg::geo::createBHat( dg::geo::createCircularField( R_0, 20., a));
+
+    dg::geo::Fieldaligned<dg::aProductMPIGeometry3d, dg::MIDMatrix, dg::MDVec>
+        fa( bhat, g, dg::NEU, dg::NEU, dg::geo::NoLimiter(), 1e-8, mx, my,
+            -1, method, false);
+    dg::geo::Fieldaligned<dg::aProductGeometry3d, dg::IDMatrix, dg::DVec>
+        fa_global( bhat, g_global, dg::NEU, dg::NEU, dg::geo::NoLimiter(),
+            1e-8, mx, my, -1, method, false);
+
+    auto local_part = [&]( const dg::DVec& global){
+        return dg::global2local( dg::HVec( global), g).data();
+    };
+    // Fieldline integration
+    check_ulp( "hbp", fa.hbp().data(), local_part( fa_global.hbp()), 0);
+    check_ulp( "hbm", fa.hbm().data(), local_part( fa_global.hbm()), 0);
+    check_ulp( "sqrtGp", fa.sqrtGp().data(), local_part( fa_global.sqrtGp()), 0);
+    check_ulp( "sqrtGm", fa.sqrtGm().data(), local_part( fa_global.sqrtGm()), 0);
+    check_ulp( "bphiP", fa.bphiP().data(), local_part( fa_global.bphiP()), 0);
+    check_ulp( "bphiM", fa.bphiM().data(), local_part( fa_global.bphiM()), 0);
+    // Fieldline integration in fieldaligned_evaluate
+    auto binary = []( double R, double Z){ return sin( R)*cos( 3.*Z) + 2.;};
+    auto unary = []( double s){ return exp( -s*s);};
+    check_ulp( "fieldaligned_evaluate", dg::geo::fieldaligned_evaluate( g,
+        bhat, binary, unary, 0, 2).data(), local_part( dg::DVec(
+        dg::geo::fieldaligned_evaluate( g_global, bhat, binary, unary, 0, 2))),
+        0);
+    // evaluate applies the interpolation matrices
+    check_ulp( "evaluate", fa.evaluate( binary, unary, 0, 2).data(),
+        local_part( fa_global.evaluate( binary, unary, 0, 2)), spmv_max_ulp);
+    // Interpolation matrices
+    dg::HVec global_f = dg::evaluate( []( double R, double Z, double phi){
+        return sin( R)*cos( 3.*Z)*(1.5 + sin( phi)) + 1e-3*cos( 13.*R*Z);},
+        g_global);
+    dg::MDVec f = dg::global2local( global_f, g), result( f);
+    dg::DVec gf = global_f, gresult( gf);
+    for( auto which : { dg::geo::einsPlus, dg::geo::einsMinus,
+        dg::geo::einsPlusT, dg::geo::einsMinusT, dg::geo::zeroPlus,
+        dg::geo::zeroMinus})
+    {
+        INFO( "Matrix "<<which);
+        fa( which, f, result);
+        fa_global( which, gf, gresult);
+        check_ulp( "matrix", result.data(), local_part( gresult), spmv_max_ulp);
+    }
+}
+#endif //WITH_MPI

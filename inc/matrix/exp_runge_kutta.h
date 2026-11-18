@@ -69,6 +69,9 @@ struct ExponentialStep
      * @return A copyable object; what it contains is undefined, its size is important
      */
     const ContainerType& copyable()const{ return m_u;}
+    /// @brief Start a new initial value problem (does nothing: \c
+    /// ExponentialStep stores nothing from one step to the next)
+    void reset(){}
     /**
     * @brief Advance one step via \f$ u_1 = \exp( A \Delta t) u_0\f$, \f$ t_1 = t_0 + \Delta_t\f$
     *
@@ -149,6 +152,9 @@ struct ExponentialERKStep
      * @return A copyable object; what it contains is undefined, its size is important
      */
     const ContainerType& copyable()const{ return m_tmp;}
+    /// @brief Start a new initial value problem: the next \c step computes
+    /// all stages afresh (see \c dg::ERKStep::reset)
+    void reset(){ m_t1 = 1e300;}
 
     /// @brief Advance one step with error estimate
     ///@copydetails step(const std::tuple<ExplicitRHS,MatrixFunction>&,value_type,const ContainerType&,value_type&,ContainerType&,value_type)

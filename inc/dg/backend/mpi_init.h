@@ -252,6 +252,7 @@ inline MPI_Comm mpi_cart_create( MPI_Comm comm_old, std::vector<int> dims,
  *  .
  *
  * @param bcs if <tt>bcs[u]==dg::PER</tt> then the communicator is periodic in that dimension
+ * (dg grids do not use the periodicity, see \c dg::aRealMPITopology)
  * @param is Input stream rank 0 reads \c bcs.size() parameters (\c np[u])
  * @param comm_old input communicator (handle) (parameter used in \c MPI_Cart_create)
  * @param reorder (parameter used in \c MPI_Cart_create); most MPI libraries

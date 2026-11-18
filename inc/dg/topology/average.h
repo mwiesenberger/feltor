@@ -36,6 +36,13 @@ namespace dg{
  * element (does
  * not know about geometry)
  *
+ * @attention With MPI, if an averaged direction is distributed among more
+ * than one process, the result is **not binary reproducible** with the shared
+ * memory result or between different distributions: the partial sums of the
+ * processes are added with \c MPI_Allreduce, in an order the MPI library
+ * chooses. The results usually differ by a few units in the last place. If
+ * the averaged directions are not distributed, the result is binary
+ * reproducible (except on the GPU, see \c dg::SparseMatrix).
  * @snippet topology/average_t.cpp doxygen
  * @ingroup average
  */

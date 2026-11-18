@@ -148,6 +148,8 @@ int main( int argc, char* argv[])
         {
             double phi1 = phi0 + deltaPhi;
             std::array<double,3> coords0{yy0[0][i],yy0[1][i],yy0[2][i]}, coords1;
+            // every fieldline is a new initial value problem
+            odeint.reset();
             odeint.integrate_in_domain( phi0, coords0, phi1, coords1, 0., g2d, eps);
             yy1[0][i] = coords1[0], yy1[1][i] = coords1[1], yy1[2][i] = coords1[2];
             //now write into right place in RR ...
@@ -172,6 +174,8 @@ int main( int argc, char* argv[])
         {
             double phi1 = phi0 - deltaPhi;
             std::array<double,3> coords0{yy0[0][i],yy0[1][i],yy0[2][i]}, coords1;
+            // every fieldline is a new initial value problem
+            odeint.reset();
             odeint.integrate_in_domain( phi0, coords0, phi1, coords1, 0., g2d, eps);
             yy1[0][i] = coords1[0], yy1[1][i] = coords1[1], yy1[2][i] = coords1[2];
             //now write into right place in RR ...

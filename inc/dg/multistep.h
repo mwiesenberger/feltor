@@ -671,9 +671,27 @@ struct MultistepTimeloop : public aTimeloop<ContainerType>
      *
      * @param step Called in the timeloop as <tt> step( t0, u1) </tt>. Has to advance the ode in-place by \c dt
      * @param dt The constant timestep. Can be set later with \c set_dt. Can be negative.
+     * @param init If not empty, called as <tt> init( t0, u0) </tt> before
+     * the first call to \c step after the member function \c reset() of this
+     * timeloop was called, with the \c t0 and \c u0 of that step. It has to
+     * make \c step start a new solution at \c (t0,u0) that does not use the
+     * steps before. For example \c dg::ExplicitMultistep::init sets the new
+     * starting point; the following calls to \c step then build up a new
+     * history of previous steps with a Runge-Kutta method. If empty,
+     * \c reset() has no effect on \c step.
      */
     MultistepTimeloop( std::function<void ( value_type&, ContainerType&)>
-            step, value_type dt ) : m_step(step), m_dt(dt){}
+            step, value_type dt,
+            std::function<void( value_type, const ContainerType&)> init = {})
+        : m_dt(dt)
+    {
+        m_step = [step, init]( bool reset, value_type& t, ContainerType& y)
+        {
+            if( reset && init)
+                init( t, y);
+            step( t, y);
+        };
+    }
     /**
      * @brief Initialize and bind the step function of a Multistep stepper
      *
@@ -700,8 +718,10 @@ struct MultistepTimeloop : public aTimeloop<ContainerType>
     {
         stepper.init( ode, t0, u0, dt);
         m_step = [=, cap = std::tuple<Stepper, ODE>(std::forward<Stepper>(stepper),
-                std::forward<ODE>(ode))  ]( auto& t, auto& y) mutable
+                std::forward<ODE>(ode))  ]( bool reset, auto& t, auto& y) mutable
         {
+            if( reset)
+                std::get<0>(cap).init( std::get<1>(cap), t, y, dt);
             std::get<0>(cap).step( std::get<1>(cap), t, y);
         };
         m_dt = dt;
@@ -721,9 +741,21 @@ struct MultistepTimeloop : public aTimeloop<ContainerType>
     private:
     virtual void do_integrate(value_type& t0, const container_type& u0,
             value_type t1, container_type& u1, enum to mode) const;
-    std::function<void ( value_type&, ContainerType&)> m_step;
+    // If the first parameter is true, the stepper is re-initialized with
+    // (t, y) before the step (the stepper lives only in this function, so
+    // that copies of the timeloop do not share it)
+    std::function<void ( bool, value_type&, ContainerType&)> m_step;
     virtual value_type do_dt( ) const { return m_dt;}
+    virtual void do_reset( ) { m_reset = true;}
+    // Advance (t, u) in place by one step; if reset() was called since the
+    // last step, re-initialize the stepper with (t, u) first
+    void do_step( value_type& t, ContainerType& u) const
+    {
+        m_step( m_reset, t, u);
+        m_reset = false;
+    }
     value_type m_dt;
+    mutable bool m_reset = false; // re-initialize before the next step
 };
 
 ///@cond
@@ -743,7 +775,7 @@ void MultistepTimeloop<ContainerType>::do_integrate(
     {
         unsigned N = (unsigned)round((t_end - t_begin)/m_dt);
         for( unsigned i=0; i<N; i++)
-            m_step( t_begin, end);
+            do_step( t_begin, end);
         t_begin = t_end; // remove the accumulated round-off
         return;
     }
@@ -754,7 +786,7 @@ void MultistepTimeloop<ContainerType>::do_integrate(
                     <<m_dt<<" has to integer divide the interval "<<t_end-t_begin);
         unsigned N = (unsigned)floor( (t_end-t_begin)/m_dt);
         for( unsigned i=0; i<N+1; i++)
-            m_step( t_begin, end);
+            do_step( t_begin, end);
     }
 }
 ///@endcond

@@ -192,10 +192,23 @@ struct ERKStep
     ///@copydoc hide_copyable
     const ContainerType& copyable()const{ return m_ferk.copyable();}
 
-    ///All subsequent calls to \c step method will ignore the first same as last property (useful if you want to implement an operator splitting)
+    /// All subsequent calls to \c step compute the first stage afresh
+    /// instead of re-using it from the previous step (as if \c reset() was
+    /// called before every step; useful for an operator splitting, where \c u
+    /// changes between the steps)
     void ignore_fsal(){ m_ferk.ignore_fsal();}
     ///All subsequent calls to \c step method will enable the check for the first same as last property
     void enable_fsal(){ m_ferk.enable_fsal();}
+    /**
+     * @brief Start a new initial value problem
+     *
+     * The next call to \c step computes all stages afresh. Without \c reset
+     * the next \c step re-uses the first stage of the previous step if its
+     * \c t0 equals \c t1 of the previous step, whatever its \c u0 is.
+     * Call \c reset before a step that does not continue the previous one.
+     * Unlike \c ignore_fsal() this affects only the next step.
+     */
+    void reset(){ m_ferk.reset();}
 
     /// @brief Advance one step with error estimate
     ///@copydetails step(ExplicitRHS&,value_type,const ContainerType&,value_type&,ContainerType&,value_type)
@@ -223,14 +236,18 @@ struct ERKStep
     * (e.g. Dormand-Prince or Bogacki-Shampine) have the property that the last
     * value k_s of a timestep is the same as the first value k_0 of the next
     * timestep. This means that we can save one call to the right hand side.
-    * This property is automatically activated if \c tableau.isFsal() returns
-    * \c true and \c t0 equals \c t1 of the last call to \c step. You can
-    * deactivate it by calling the \c ignore_fsal() method, which is useful for
-    * splitting methods but increases the number of rhs calls by 1.
+    * For other tableaus \c step evaluates k_0 of the next timestep at
+    * \c (t1,u1) at its end (see the note above). In both cases the
+    * next \c step re-uses this k_0 if its \c t0 equals \c t1 of the last
+    * call to \c step. You can deactivate this once with \c reset() or for all
+    * subsequent steps with \c ignore_fsal(), which is useful for splitting
+    * methods but increases the number of rhs calls by 1.
     * @attention On the rare occasion where you want to change the type of \c ExplicitRHS
     * from one step to the next the fsal property is interpreted wrongly and will
     * lead to wrong results. You will need to either re-construct the object or
-    * set the ignore_fsal property before the next step.
+    * set the ignore_fsal property before the next step. The same holds if the
+    * next step does not continue from \c (t1,u1) of this step; then call
+    * \c reset() before it.
     */
     template<class ExplicitRHS>
     void step( ExplicitRHS& rhs, value_type t0, const ContainerType& u0, value_type&
@@ -306,10 +323,12 @@ struct FilteredERKStep
     ///@copydoc hide_copyable
     const ContainerType& copyable()const{ return m_k[0];}
 
-    ///All subsequent calls to \c step method will ignore the first same as last property (useful if you want to implement an operator splitting)
+    ///@copydoc ERKStep::ignore_fsal()
     void ignore_fsal(){ m_ignore_fsal = true;}
     ///All subsequent calls to \c step method will enable the check for the first same as last property
     void enable_fsal(){ m_ignore_fsal = false;}
+    ///@copydoc ERKStep::reset()
+    void reset(){ m_t1 = 1e300;}
 
     /// @brief Advance one step with error estimate
     ///@copydetails ERKStep::step(ExplicitRHS&,value_type,const ContainerType&,value_type&,ContainerType&,value_type)
@@ -486,6 +505,8 @@ struct ARKStep
     }
     ///@copydoc hide_copyable
     const ContainerType& copyable()const{ return m_kI[0];}
+    ///@copydoc ERKStep::reset()
+    void reset(){ m_t1 = 1e300;}
 
     /**
     * @brief Advance one step
@@ -655,6 +676,9 @@ struct DIRKStep
     }
     ///@copydoc hide_copyable
     const ContainerType& copyable()const{ return m_kI[0];}
+    /// @brief Start a new initial value problem (does nothing: \c DIRKStep
+    /// stores nothing from one step to the next)
+    void reset(){}
 
     /**
     * @brief Advance one step with error estimate
@@ -868,6 +892,8 @@ struct ShuOsher
     }
     ///@copydoc hide_copyable
     const ContainerType& copyable()const{ return m_u[0];}
+    ///@copydoc ERKStep::reset()
+    void reset(){ m_t1 = 1e300;}
 
     /**
     * @brief Advance one step
@@ -1011,10 +1037,27 @@ struct SinglestepTimeloop : public aTimeloop<ContainerType>
      *
      * @param step Called in the timeloop as <tt> step( t0, u1, t0, u1, dt) </tt>. Has to advance the ode in-place by \c dt
      * @param dt The constant timestep. Can be set later with \c set_dt. Can be negative.
+     * @param reset_step If not empty, called as <tt> reset_step() </tt>
+     * before the first call to \c step after the member function \c reset()
+     * of this timeloop was called. It has to make \c step forget everything
+     * it kept from earlier steps, for example the stored last stage of a
+     * Runge-Kutta method (as \c dg::ERKStep::reset does). If empty,
+     * \c reset() has no effect on \c step.
      */
     SinglestepTimeloop( std::function<void ( value_type, const ContainerType&,
-                value_type&, ContainerType&, value_type)> step, value_type dt = 0 )
-        : m_step(step), m_dt(dt){}
+                value_type&, ContainerType&, value_type)> step, value_type dt = 0,
+                std::function<void()> reset_step = {})
+        : m_dt(dt)
+    {
+        m_step = [step, reset_step]( bool reset, value_type t0,
+            const ContainerType& y0, value_type& t1, ContainerType& y1,
+            value_type dtt)
+        {
+            if( reset && reset_step)
+                reset_step();
+            step( t0, y0, t1, y1, dtt);
+        };
+    }
 
     /**
      * @brief Bind the step function of a single step stepper
@@ -1035,9 +1078,11 @@ struct SinglestepTimeloop : public aTimeloop<ContainerType>
     {
         // Open/Close Principle (OCP) Software entities should be open for extension but closed for modification
         m_step = [=, cap = std::tuple<Stepper, ODE>(std::forward<Stepper>(stepper),
-                std::forward<ODE>(ode))  ]( auto t0, const auto& y0, auto& t1, auto& y1,
-                auto dtt) mutable
+                std::forward<ODE>(ode))  ]( bool reset, auto t0,
+                const auto& y0, auto& t1, auto& y1, auto dtt) mutable
         {
+            if( reset)
+                std::get<0>(cap).reset();
             std::get<0>(cap).step( std::get<1>(cap), t0, y0, t1, y1, dtt);
         };
         m_dt = dt;
@@ -1084,10 +1129,22 @@ struct SinglestepTimeloop : public aTimeloop<ContainerType>
         SinglestepTimeloop(*this);}
     private:
     virtual void do_integrate(value_type& t0, const container_type& u0, value_type t1, container_type& u1, enum to mode) const;
-    std::function<void ( value_type, const ContainerType&, value_type&,
+    // If the first parameter is true, the stepper is reset before the step
+    // (the stepper lives only in this function, so that copies of the
+    // timeloop do not share it)
+    std::function<void ( bool, value_type, const ContainerType&, value_type&,
             ContainerType&, value_type)> m_step;
     virtual value_type do_dt( ) const { return m_dt;}
+    virtual void do_reset( ) { m_reset = true;}
+    // Advance (t, u) in place by one step; if reset() was called since the
+    // last step, reset the stepper first
+    void do_step( value_type& t, ContainerType& u, value_type dt) const
+    {
+        m_step( m_reset, t, u, t, u, dt);
+        m_reset = false;
+    }
     value_type m_dt;
+    mutable bool m_reset = false; // reset before the next step
 };
 
 ///@cond
@@ -1107,22 +1164,22 @@ void SinglestepTimeloop<ContainerType>::do_integrate(
     {
         unsigned N = (unsigned)round((t_end - t_begin)/m_dt);
         for( unsigned i=0; i<N; i++)
-            m_step( t_begin, end, t_begin, end, m_dt);
+            do_step( t_begin, end, m_dt);
         t_begin = t_end; // remove the accumulated round-off
     }
     else
     {
         unsigned N = (unsigned)floor( (t_end-t_begin)/m_dt);
         for( unsigned i=0; i<N; i++)
-            m_step( t_begin, end, t_begin, end, m_dt);
+            do_step( t_begin, end, m_dt);
         if( dg::to::exact == mode)
         {
             value_type dt_final = t_end - t_begin;
-            m_step( t_begin, end, t_begin, end, dt_final);
+            do_step( t_begin, end, dt_final);
             t_begin = t_end; // remove the accumulated round-off
         }
         else
-            m_step( t_begin, end, t_begin, end, m_dt);
+            do_step( t_begin, end, m_dt);
     }
     return;
 }

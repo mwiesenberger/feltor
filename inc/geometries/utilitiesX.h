@@ -267,6 +267,8 @@ void computeX_rzy(FpsiX fpsi, FieldRZYRYZY fieldRZYRYZY,
             begin[0] = R_0[1], begin[1] = Z_0[1];
             fieldRZYRYZY.initialize( begin[0], begin[1], begin[2], begin[3]);
             unsigned i=nodeX1;
+            // a new curve that starts where the previous one ended
+            odeint.reset();
             odeint.integrate_steps( 2.*M_PI, begin, y_vec[i], end, steps);
             r[i] = end[0], z[i] = end[1], yr[i] = end[2], yz[i] = end[3];
             fieldRZYRYZY.derive(r[i], z[i], xr[i], xz[i]);

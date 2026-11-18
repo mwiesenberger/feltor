@@ -107,7 +107,7 @@ int main( int argc, char* argv[])
 
     ////////////////////////////////////////////////////////////////////
 
-    toefl::Variables var = { rhs, grid, p};
+    toefl::Variables var = { rhs, grid, p, rhs.var(0)};
     // trigger first computation of potential
     {
         DG_RANK0 std::cout<< "First potential\n";
@@ -247,7 +247,7 @@ int main( int argc, char* argv[])
             {"long_name", "y-coordinate in Cartesian system"}},
             grid_out.abscissas(1));
         // static output is evaluated on the output grid, not interpolated
-        toefl::Variables var_out = { rhs, grid_out, p};
+        toefl::Variables var_out = { rhs, grid_out, p, {}};
         for( auto& record : toefl::diagnostics2d_static_list)
         {
             record.function ( resultP, var_out);

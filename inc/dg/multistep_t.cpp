@@ -324,3 +324,42 @@ TEST_CASE( "MultistepTimeloop")
     CHECK( t == 1.);
 }
 
+
+TEST_CASE( "MultistepTimeloop reset starts a new initial value problem")
+{
+    // Without reset the multistep method continues from the history of
+    // problem A and ignores the initial value of problem B
+    const double nu = 0.01, dt = 0.05;
+    const std::array<double,2> uA = solution( 0., nu), uB{ 0.3, 0.7};
+    double tB = GENERATE( 0., 1.);
+    INFO( "Problem B starts at "<<tB);
+    FullImplicit full( nu);
+    std::array<double,2> end, endB, fresh;
+    SECTION( "Multistep stepper")
+    {
+        dg::MultistepTimeloop<std::array<double,2>> loop(
+            dg::ExplicitMultistep<std::array<double,2>>( "AB-3-3", uA), full,
+            0., uA, dt);
+        loop.integrate( 0., uA, 1., end);
+        loop.reset();
+        loop.integrate( tB, uB, tB+1., endB);
+        dg::MultistepTimeloop<std::array<double,2>>(
+            dg::ExplicitMultistep<std::array<double,2>>( "AB-3-3", uA), full,
+            tB, uB, dt).integrate( tB, uB, tB+1., fresh);
+        CHECK( endB == fresh);
+    }
+    SECTION( "Step function with init function")
+    {
+        double t_init = -1., y_init = -1.;
+        dg::MultistepTimeloop<double> loop( []( double& t, double&){ t += 0.1;},
+            0.1, [&]( double t0, const double& y0){ t_init = t0; y_init = y0;});
+        double t = 0., y = 0.;
+        loop.integrate( t, 1., 1., y, dg::to::exact);
+        CHECK( t_init == -1.); // no init without reset
+        loop.reset();
+        t = tB;
+        loop.integrate( t, 2., tB+1., y, dg::to::exact);
+        CHECK( t_init == tB);
+        CHECK( y_init == 2.);
+    }
+}

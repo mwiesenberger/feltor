@@ -70,7 +70,6 @@ struct RealCurvilinearMPIGrid2d : public dg::aRealMPIGeometry2d<real_type>
     }
     virtual void do_set(std::array<dg::bc,2> new_bc) override final
     {
-        // TODO Do we change MPI periodic topology when we change bcs
         dg::aRealMPITopology2d<real_type>::do_set( new_bc);
     }
     virtual void do_set_pq(std::array<real_type,2>, std::array<real_type,2>) override final
