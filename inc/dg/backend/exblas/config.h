@@ -11,6 +11,8 @@
 #include <cmath>
 #include <cassert>
 #include <type_traits>
+#include <complex>
+#include <thrust/complex.h>
 ////////////////////////////////////////////////////////////////////////
 //nvcc does not compile the avx512 instruction set, so do not include it
 #ifdef __NVCC__
@@ -78,18 +80,37 @@ static constexpr int IMAX           = BIN_COUNT-1; //!< last index in a superacc
 static constexpr double DELTASCALE = double(1ull << DIGITS); //!< Assumes KRX>0
 
 ///@cond
+#ifdef __CUDACC__
+#define EXBLAS_HOST_DEVICE __host__ __device__
+#else
+#define EXBLAS_HOST_DEVICE
+#endif
+// The exact sums accumulate every real component of a value into its own
+// superaccumulator: K = 1 for float and double, K = 2 (real and imaginary
+// part) for complex numbers
 template<class T>
 struct ValueTraits
 {
-    using value_type = T;
+    static constexpr unsigned K = 1;
+    EXBLAS_HOST_DEVICE static double get( T x, unsigned) { return double(x);}
 };
-template<class T>
-struct ValueTraits<T*>
+template<class real>
+struct ValueTraits<std::complex<real>>
 {
-    using value_type = T;
+    static constexpr unsigned K = 2;
+    static double get( std::complex<real> x, unsigned c) { return c == 0 ? double(x.real()) : double(x.imag());}
 };
-template<class U>
-using has_floating_value = std::conditional_t< std::is_floating_point<typename ValueTraits<U>::value_type>::value, std::true_type, std::false_type>;
+template<class real>
+struct ValueTraits<thrust::complex<real>>
+{
+    static constexpr unsigned K = 2;
+    EXBLAS_HOST_DEVICE static double get( thrust::complex<real> x, unsigned c) { return c == 0 ? double(x.real()) : double(x.imag());}
+};
+// The type of the values of Functor in exsum_cpu, exsum_omp and exsum_gpu;
+// they fill ValueTraits<return_type<Functor, PointerOrValues...>>::K superaccumulators
+template<class Functor, class ...PointerOrValues>
+using return_type = std::decay_t<std::invoke_result_t<Functor,
+    std::remove_pointer_t<PointerOrValues>...>>;
 ///@endcond
 
 }//namespace exblas

@@ -33,7 +33,8 @@ namespace gpu{
 //In the first kernel each block produces exactly one superacc (because threads within a block can be synchronized and shared memory lives for a block )
 //the second kernel reduces all superaccs from the first kernel (because we need a global synchronization, which is induced by separate kernel launches)
 
-// Exact sum of f( x_0[i], x_1[i], ...): each block writes one superacc
+// Exact sum of f( x_0[i], x_1[i], ...): each block writes one superacc per
+// component c of the values of f, at d_PartialSuperaccs[ (c*gridDim.x+blockIdx.x)*BIN_COUNT]
 template<unsigned NBFPE, unsigned WARP_COUNT, class Functor, class ...PointerOrValues>
 __global__ void ExDOT(
     int64_t *d_PartialSuperaccs,
@@ -42,64 +43,80 @@ __global__ void ExDOT(
     Functor f,
     PointerOrValues ...xs
 ) {
-    __shared__ int64_t l_sa[WARP_COUNT * BIN_COUNT]; //shared variables live for a thread block (39 rows, 16 columns!)
+    using value_type = return_type<Functor, PointerOrValues...>;
+    constexpr unsigned K = ValueTraits<value_type>::K;
+    __shared__ int64_t l_sa[K * WARP_COUNT * BIN_COUNT]; //shared variables live for a thread block (39 rows, 16 columns per component!)
     int64_t *l_workingBase = l_sa + (threadIdx.x & (WARP_COUNT - 1)); //the bitwise & with 15 is a modulo operation: threadIdx.x % 16
     //Initialize superaccs
-    for (unsigned i = 0; i < BIN_COUNT; i++)
+    for (unsigned i = 0; i < K*BIN_COUNT; i++)
         l_workingBase[i * WARP_COUNT] = 0;
     __syncthreads(); //syncs all threads in a block (but not across blocks)
 
     //Read data from global memory and scatter it to sub-superaccs
-    double a[NBFPE] = {0.0};
+    double a[K][NBFPE] = {{0.0}};
     for(unsigned pos = blockIdx.x*blockDim.x+threadIdx.x; pos < NbElements; pos += gridDim.x*blockDim.x) {
-        double x = (double)f( get_element(xs,pos)...);
-
-        //Check if the input is sane
-        if( !isfinite(x) ) *error = true;
-
+        value_type v = f( get_element(xs,pos)...);
         #pragma unroll
-        for(unsigned i = 0; i != NBFPE; ++i) {
-            double s;
-            a[i] = KnuthTwoSum(a[i], x, &s);
-            x = s;
-        }
-        if (x != 0.0) {
-            Accumulate(l_workingBase, x, WARP_COUNT);
-            // Flush FPEs to superaccs
+        for( unsigned c=0; c<K; c++)
+        {
+            int64_t* base = l_workingBase + c*WARP_COUNT*BIN_COUNT;
+            double x = ValueTraits<value_type>::get( v, c);
+
+            //Check if the input is sane
+            if( !isfinite(x) ) *error = true;
+
             #pragma unroll
             for(unsigned i = 0; i != NBFPE; ++i) {
-                Accumulate(l_workingBase, a[i], WARP_COUNT);
-                a[i] = 0.0;
+                double s;
+                a[c][i] = KnuthTwoSum(a[c][i], x, &s);
+                x = s;
+            }
+            if (x != 0.0) {
+                Accumulate(base, x, WARP_COUNT);
+                // Flush FPEs to superaccs
+                #pragma unroll
+                for(unsigned i = 0; i != NBFPE; ++i) {
+                    Accumulate(base, a[c][i], WARP_COUNT);
+                    a[c][i] = 0.0;
+                }
             }
         }
     }
 	//Flush FPEs to superaccs
     #pragma unroll
+    for( unsigned c=0; c<K; c++)
+    #pragma unroll
     for(unsigned i = 0; i != NBFPE; ++i)
-        Accumulate(l_workingBase, a[i], WARP_COUNT);
+        Accumulate(l_workingBase + c*WARP_COUNT*BIN_COUNT, a[c][i], WARP_COUNT);
     __syncthreads();
 
     //Merge sub-superaccs into work-group partial-accumulator ( ATTENTION: PartialSuperacc is transposed!)
     unsigned pos = threadIdx.x;
     if(pos < WARP_COUNT) {
-        int imin = IMIN, imax = IMAX;
-        Normalize( l_workingBase, imin, imax, WARP_COUNT);
+        for( unsigned c=0; c<K; c++)
+        {
+            int imin = IMIN, imax = IMAX;
+            Normalize( l_workingBase + c*WARP_COUNT*BIN_COUNT, imin, imax, WARP_COUNT);
+        }
     }
     __syncthreads();
 
     if (pos < BIN_COUNT) {
-        int64_t sum = 0;
+        for( unsigned c=0; c<K; c++)
+        {
+            int64_t sum = 0;
 
-        for(unsigned i = 0; i < WARP_COUNT; i++)
-            sum += l_sa[pos * WARP_COUNT + i];
+            for(unsigned i = 0; i < WARP_COUNT; i++)
+                sum += l_sa[(c*BIN_COUNT + pos) * WARP_COUNT + i];
 
-        d_PartialSuperaccs[blockIdx.x * BIN_COUNT + pos] = sum;
+            d_PartialSuperaccs[(c*gridDim.x + blockIdx.x) * BIN_COUNT + pos] = sum;
+        }
     }
 
     __syncthreads();
-    if (pos == 0) {
+    if (pos < K) {
         int imin = IMIN, imax = IMAX;
-        Normalize(&d_PartialSuperaccs[blockIdx.x * BIN_COUNT], imin, imax);
+        Normalize(&d_PartialSuperaccs[(pos*gridDim.x + blockIdx.x) * BIN_COUNT], imin, imax);
     }
 }
 
@@ -117,14 +134,17 @@ static constexpr unsigned MERGE_SIZE            = 64;  //# of superaccs a block 
 static constexpr unsigned MERGE_BLOCK_THREADS   = 64;  //we need minimum 39 of those
 static constexpr unsigned MAX_PARTIAL_SUPERACCS = MERGE_SIZE*MERGE_SIZE; //what the two merge kernels can handle
 
+// The partial superaccs of component blockIdx.y start at d_PartialSuperaccs + blockIdx.y*stride
 template<unsigned MERGE>
 __global__
 void ExDOTComplete(
      int64_t *d_PartialSuperaccs,
-     const unsigned count
+     const unsigned count,
+     const unsigned stride
 ) {
     unsigned lid = threadIdx.x;
     unsigned gid = blockIdx.x;
+    d_PartialSuperaccs += blockIdx.y*stride;
 
     if (lid < BIN_COUNT) { //every block sums its assigned superaccs
         int64_t sum = 0;
@@ -149,9 +169,12 @@ __global__
 void ExDOTCompleteFinal(
      int64_t *d_PartialSuperaccs,
      int64_t *d_superacc,
-     const unsigned count // at most MERGE_SIZE
+     const unsigned count, // at most MERGE_SIZE
+     const unsigned stride
 ) {
     unsigned lid = threadIdx.x;
+    d_PartialSuperaccs += blockIdx.y*stride;
+    d_superacc += blockIdx.y*BIN_COUNT;
     if (lid < BIN_COUNT) {
         int64_t sum = 0;
 
@@ -187,16 +210,18 @@ inline int64_t* partial_superaccs( unsigned count)
 // With at most MERGE_SIZE blocks one kernel is enough, which saves a kernel
 // launch. With num_exdot_blocks that is the case up to
 // MERGE_SIZE*EXDOT_BLOCK_THREADS*MIN_ITEMS_PER_THREAD = 131072 elements
-inline void merge_partial_superaccs( int64_t* d_partial, unsigned blocks, int64_t* superacc)
+// all num_components components are merged in the same kernels (blockIdx.y)
+inline void merge_partial_superaccs( int64_t* d_partial, unsigned blocks, int64_t* superacc, unsigned num_components)
 {
+    const unsigned stride = blocks*BIN_COUNT;
     if( blocks <= MERGE_SIZE)
     {
-        ExDOTCompleteFinal<1><<<1, MERGE_BLOCK_THREADS>>>( d_partial, superacc, blocks);
+        ExDOTCompleteFinal<1><<<dim3(1,num_components), MERGE_BLOCK_THREADS>>>( d_partial, superacc, blocks, stride);
         return;
     }
     unsigned groups = blocks/MERGE_SIZE + (blocks%MERGE_SIZE != 0);
-    ExDOTComplete<MERGE_SIZE><<<groups, MERGE_BLOCK_THREADS>>>( d_partial, blocks);
-    ExDOTCompleteFinal<MERGE_SIZE><<<1, MERGE_BLOCK_THREADS>>>( d_partial, superacc, groups);
+    ExDOTComplete<MERGE_SIZE><<<dim3(groups,num_components), MERGE_BLOCK_THREADS>>>( d_partial, blocks, stride);
+    ExDOTCompleteFinal<MERGE_SIZE><<<dim3(1,num_components), MERGE_BLOCK_THREADS>>>( d_partial, superacc, groups, stride);
 }
 
 // The result of a dot product. It lives in pinned host memory, so that the
@@ -210,7 +235,7 @@ inline void merge_partial_superaccs( int64_t* d_partial, unsigned blocks, int64_
 // pinned memory from a kernel or writing large vectors to it is slow.
 struct HostResult
 {
-    int64_t superacc[BIN_COUNT];
+    int64_t superacc[2*BIN_COUNT]; // room for the two components of complex numbers
     volatile bool error; // only written by the kernels for NaN or Inf
 };
 
@@ -228,10 +253,10 @@ inline HostResult* host_result()
 }
 
 // Wait for the launched kernels and copy their result
-inline void finish_exdot( const HostResult* result, int64_t* h_superacc, int* status)
+inline void finish_exdot( const HostResult* result, int64_t* h_superacc, unsigned num_components, int* status)
 {
     wait_for_kernels();
-    std::copy_n( result->superacc, BIN_COUNT, h_superacc);
+    std::copy_n( result->superacc, num_components*BIN_COUNT, h_superacc);
     *status = result->error ? 1 : 0;
 }
 
@@ -249,13 +274,15 @@ void exsum_gpu(unsigned size, int64_t* h_superacc, int* status, Functor f, Point
     static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, unsigned, volatile bool*, Functor, PointerOrValues...)>(
         gpu::ExDOT<NBFPE, gpu::WARP_COUNT, Functor, PointerOrValues...>),
         gpu::EXDOT_BLOCK_THREADS, 0, gpu::MAX_PARTIAL_SUPERACCS);
-    int64_t *d_PartialSuperaccs = gpu::partial_superaccs( max_blocks);
+    constexpr unsigned K = ValueTraits<return_type<Functor, PointerOrValues...>>::K;
+    static_assert( K <= 2, "HostResult has room for two superaccumulators");
+    int64_t *d_PartialSuperaccs = gpu::partial_superaccs( K*max_blocks);
     const unsigned blocks = gpu::num_exdot_blocks( size, max_blocks);
     gpu::HostResult *result = gpu::host_result();
     result->error = false;
     gpu::ExDOT<NBFPE, gpu::WARP_COUNT><<<blocks, gpu::EXDOT_BLOCK_THREADS>>>( d_PartialSuperaccs, size, &result->error, f, xs...);
-    gpu::merge_partial_superaccs( d_PartialSuperaccs, blocks, result->superacc);
-    gpu::finish_exdot( result, h_superacc, status);
+    gpu::merge_partial_superaccs( d_PartialSuperaccs, blocks, result->superacc, K);
+    gpu::finish_exdot( result, h_superacc, K, status);
 }
 
 }//namespace exblas

@@ -92,10 +92,18 @@ inline void Reduction(unsigned int tid, unsigned int tnum, std::vector<std::atom
 // Each thread vectorises like ExSUMFPE_cpu (see there why that matters)
 template<size_t NBFPE, class Functor, class ...PointerOrValues>
 void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues ...xs) {
+    using value_type = return_type<Functor, PointerOrValues...>;
+    constexpr unsigned K = ValueTraits<value_type>::K; // one superaccumulator per component
     int const linesize = 16;    // * sizeof(int32_t)
     int maxthreads = omp_get_max_threads();
-    std::vector<int64_t> acc(maxthreads*BIN_COUNT,0);
-    std::vector<std::atomic<int32_t>> ready(maxthreads * linesize); // value-initialized to 0
+    // per component: the superaccumulators of all threads and their progress
+    std::array<std::vector<int64_t>, K> acc;
+    std::array<std::vector<std::atomic<int32_t>>, K> ready;
+    for( unsigned c=0; c<K; c++)
+    {
+        acc[c].assign( maxthreads*BIN_COUNT, 0);
+        ready[c] = std::vector<std::atomic<int32_t>>( maxthreads * linesize); // value-initialized to 0
+    }
     std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
     // Each thread calls its own copy of f
@@ -103,9 +111,11 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
     {
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();
+        auto thread_acc = [&acc, tid]( size_t c){ return &acc[c][tid*BIN_COUNT];};
 
 #ifndef EXBLAS_WITHOUT_VCL
-        FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> > cache(&acc[tid*BIN_COUNT]);
+        using Cache = FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> >;
+        auto cache = make_caches<Cache>( thread_acc, std::make_index_sequence<K>());
         int l = ((tid * int64_t(N)) / tnum) & ~7ul; // & ~7ul == round down to multiple of 8
         int r = ((((tid+1) * int64_t(N)) / tnum) & ~7ul) - 1;
 
@@ -113,43 +123,66 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
 #ifndef _MSC_VER
             asm ("# myloop");
 #endif
-            double tmp[8];
+            double tmp[K][8];
             for( int k=0; k<8; k++)
-                tmp[k] = (double)f( get_element(xs,i+k)...);
-            vcl::Vec8d x  = vcl::Vec8d().load( tmp);
-            vcl::Vec8db finite = vcl::is_finite( x);
-            if( !vcl::horizontal_and( finite) ) error[tid] = true;
-            cache.Accumulate(x);
+            {
+                value_type v = f( get_element(xs,i+k)...);
+                for( unsigned c=0; c<K; c++)
+                    tmp[c][k] = ValueTraits<value_type>::get( v, c);
+            }
+            for( unsigned c=0; c<K; c++)
+            {
+                vcl::Vec8d x  = vcl::Vec8d().load( tmp[c]);
+                vcl::Vec8db finite = vcl::is_finite( x);
+                if( !vcl::horizontal_and( finite) ) error[tid] = true;
+                cache[c].Accumulate(x);
+            }
         }
         if( tid+1==tnum && r != N-1) {
             r+=1;
             //accumulate remainder
-            double tmp[8];
+            double tmp[K][8];
             for( int k=0; k<N-r; k++)
-                tmp[k] = (double)f( get_element(xs,r+k)...);
-            vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp);
-            vcl::Vec8db finite = vcl::is_finite( x);
-            if( !vcl::horizontal_and( finite) ) error[tid] = true;
-            cache.Accumulate(x);
+            {
+                value_type v = f( get_element(xs,r+k)...);
+                for( unsigned c=0; c<K; c++)
+                    tmp[c][k] = ValueTraits<value_type>::get( v, c);
+            }
+            for( unsigned c=0; c<K; c++)
+            {
+                vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp[c]);
+                vcl::Vec8db finite = vcl::is_finite( x);
+                if( !vcl::horizontal_and( finite) ) error[tid] = true;
+                cache[c].Accumulate(x);
+            }
         }
 #else// EXBLAS_WITHOUT_VCL
-        FPExpansionVect<double, NBFPE, FPExpansionTraits<true> > cache(&acc[tid*BIN_COUNT]);
+        using Cache = FPExpansionVect<double, NBFPE, FPExpansionTraits<true> >;
+        auto cache = make_caches<Cache>( thread_acc, std::make_index_sequence<K>());
         int l = ((tid * int64_t(N)) / tnum);
         int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;
         for(int i = l; i <= r; i++) {
-            double x = (double)f( get_element(xs,i)...);
-            if( !std::isfinite(x) ) error[tid] = true;
-            cache.Accumulate(x);
+            value_type v = f( get_element(xs,i)...);
+            for( unsigned c=0; c<K; c++)
+            {
+                double x = ValueTraits<value_type>::get( v, c);
+                if( !std::isfinite(x) ) error[tid] = true;
+                cache[c].Accumulate(x);
+            }
         }
 #endif// EXBLAS_WITHOUT_VCL
-        cache.Flush();
-        int imin=IMIN, imax=IMAX;
-        Normalize(&acc[tid*BIN_COUNT], imin, imax);
-
-        Reduction(tid, tnum, ready, acc, linesize);
+        for( unsigned c=0; c<K; c++)
+        {
+            cache[c].Flush();
+            int imin=IMIN, imax=IMAX;
+            Normalize(thread_acc(c), imin, imax);
+        }
+        for( unsigned c=0; c<K; c++)
+            Reduction(tid, tnum, ready[c], acc[c], linesize);
     }
+    for( unsigned c=0; c<K; c++)
     for( int i=IMIN; i<=IMAX; i++)
-        h_superacc[i] = acc[i];
+        h_superacc[c*BIN_COUNT+i] = acc[c][i];
     for ( int i=0; i<maxthreads; i++)
         if( error[i] == true) *err = true;
 }

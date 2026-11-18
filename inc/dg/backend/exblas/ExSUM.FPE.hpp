@@ -16,6 +16,8 @@
 #ifndef EXSUM_FPE_HPP_
 #define EXSUM_FPE_HPP_
 #include <algorithm> // std::fill
+#include <array>
+#include <utility> // std::index_sequence
 #include "accumulate.h"
 
 namespace dg
@@ -136,6 +138,13 @@ void FPExpansionVect<T,N,TRAITS>::FlushVector(T x) const
     // TODO: update status, handle Inf/Overflow/NaN cases
     // TODO: make it work for other values of 4
     exblas::cpu::Accumulate(superacc, x);
+}
+
+// One cache per component of a value, the I-th one flushes to acc(I)
+template<class Cache, class AccPointer, size_t ...I>
+std::array<Cache, sizeof...(I)> make_caches( AccPointer acc, std::index_sequence<I...>)
+{
+    return {{ Cache( acc(I))...}};
 }
 
 }//namespace cpu
