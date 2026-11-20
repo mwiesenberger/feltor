@@ -124,19 +124,11 @@ struct Average
     void operator() (const ContainerType& src, ContainerType& res, bool extend
             = true)
     {
-        // Optimization note: Notice tmp is smaller than src so
-        // blas1 functions do not matter so much performance wise
-        // Remove possible NaN in tmp (because symv does not do it)
-        // (This must be done to remove potential NaN from previous computations,
-        // otherwise the class can be "infected" with NaN)
-        dg::blas1::copy( 0., m_tmp);
         // m_average in MPI has the "allreduce" distribution!
         dg::blas2::symv( m_average, src, m_tmp);
         dg::blas1::scal( m_tmp, m_area_inv);
         if( extend )
         {
-            //  Remove possible NaN in res
-            dg::blas1::copy( 0., res);
             dg::blas2::symv( m_prolongation, m_tmp, res);
         }
         else

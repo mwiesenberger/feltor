@@ -16,7 +16,7 @@ namespace detail
 // x_j of a group of consecutive rows coalesced into shared memory, then one
 // thread per row runs the chain. A row with more than CSR_GPU_NNZ_PER_BLOCK
 // entries gets a block of its own and is summed in chunks of that size, again
-// in the order of the CPU.
+// in the order of the CPU. As on the CPU y is not read for beta == 0.
 //
 // The row blocks and the coalesced loads are CSR-stream from J. L. Greathouse
 // and M. Daga, "Efficient Sparse Matrix-Vector Multiplication on GPUs using
@@ -110,7 +110,7 @@ __global__ void spmv_csr_stream_kernel( const int* RESTRICT row_blocks,
                 value_type temp = 0;
                 for( int k = b; k < e; k++)
                     temp = DG_FMA( s_ax[k], s_x[k], temp);
-                y_ptr[i] = DG_FMA( beta, y_ptr[i], temp);
+                y_ptr[i] = beta == value_type(0) ? temp : DG_FMA( beta, y_ptr[i], temp);
             }
         }
     }
@@ -137,7 +137,8 @@ __global__ void spmv_csr_stream_kernel( const int* RESTRICT row_blocks,
             __syncthreads();
         }
         if( threadIdx.x == 0)
-            y_ptr[r0] = beta == value_type(1) ? temp : DG_FMA( beta, y_ptr[r0], temp);
+            y_ptr[r0] = beta == value_type(1) || beta == value_type(0) ? temp
+                : DG_FMA( beta, y_ptr[r0], temp);
     }
 }
 

@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <cmath>
 #include <random>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -361,6 +362,34 @@ TEMPLATE_TEST_CASE( "SpMV on device is bitwise equal to host", "", float, double
     dg::blas2::symv( alpha, dA, dx, beta, dy);
     std::vector<T> y_host( y.begin(), y.end()), y_device( dy.begin(), dy.end());
     CHECK( y_device == y_host);
+}
+
+TEST_CASE( "SpMV with beta 0 removes NaN and Inf in y")
+{
+    // Row 0 is short, row 1 long (2000 entries), row 2 empty
+    unsigned num_rows = 3, num_cols = 2000;
+    std::vector<int> rows = {0,2,2002,2002}, cols = {0,1};
+    for( unsigned k=0; k<num_cols; k++)
+        cols.push_back( k);
+    std::vector<double> vals( cols.size(), 1.);
+    dg::SparseMatrix<int,double,thrust::host_vector> A( num_rows, num_cols, rows, cols, vals);
+    dg::SparseMatrix<int,double,thrust::device_vector> dA( A);
+    thrust::host_vector<double> x( num_cols, 1.), y( num_rows);
+    y[0] = std::nan(""), y[1] = INFINITY, y[2] = -INFINITY;
+    thrust::device_vector<double> dx( x), dy( y), dy2( y);
+    dg::blas2::symv( 2., A, x, 0., y);
+    CHECK( std::vector<double>( y.begin(), y.end()) == std::vector<double>{ 4, 4000, 0});
+    dg::blas2::symv( 2., dA, dx, 0., dy);
+    y = dy;
+    CHECK( std::vector<double>( y.begin(), y.end()) == std::vector<double>{ 4, 4000, 0});
+    dg::blas2::symv( dA, dx, dy2);
+    y = dy2;
+    CHECK( std::vector<double>( y.begin(), y.end()) == std::vector<double>{ 2, 2000, 0});
+    // with beta 1 a NaN is kept
+    dy[0] = std::nan("");
+    dg::blas2::symv( 1., dA, dx, 1., dy);
+    y = dy;
+    CHECK( std::isnan( y[0]));
 }
 
 TEST_CASE("Documentation")

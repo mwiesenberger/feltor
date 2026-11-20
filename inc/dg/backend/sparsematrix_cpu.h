@@ -215,7 +215,8 @@ void spmv_cpu_kernel(
                 temp = DG_FMA( alpha*A_val[jj], x_ptr[j], temp);
             }
 
-            y_ptr[i] = DG_FMA( beta, y_ptr[i], temp);
+            // y is not read for beta == 0, so NaN or Inf in y are removed
+            y_ptr[i] = beta == value_type(0) ? temp : DG_FMA( beta, y_ptr[i], temp);
         }
     }
 }
