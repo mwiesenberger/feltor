@@ -3,7 +3,7 @@
 #include "backend/tensor_traits.h"
 #include "backend/tensor_traits_std.h"
 #include "backend/tensor_traits_thrust.h"
-#include "backend/blas2_dispatch_scalar.h"
+#include "blas1.h"
 #include "backend/blas2_dispatch_shared.h"
 #include "backend/blas2_sparseblockmat.h"
 #include "backend/blas2_selfmade.h"
@@ -12,7 +12,6 @@
 #include "backend/blas2_dispatch_mpi.h"
 #endif //MPI_VERSION
 #include "backend/blas2_dispatch_vector.h"
-#include "backend/blas2_dispatch_map.h"
 
 
 /*!@file

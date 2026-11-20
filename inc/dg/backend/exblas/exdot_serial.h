@@ -85,7 +85,7 @@ void ExSUMFPE_cpu(int N, int64_t* acc, bool* error, Functor f, PointerOrValues .
     using value_type = get_result_type<Functor, PointerOrValues...>;
     constexpr unsigned K = ValueTraits<value_type>::K; // one superaccumulator per component
 #ifndef EXBLAS_WITHOUT_VCL
-    using Cache = FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> >;
+    using Cache = FPExpansionVect<vcl::Vec8d, NBFPE>;
     auto cache = make_caches<Cache>( [acc]( size_t k){ return acc + k*BIN_COUNT;},
         std::make_index_sequence<K>());
     int r = (( int64_t(N) ) & ~7ul);
@@ -126,7 +126,7 @@ void ExSUMFPE_cpu(int N, int64_t* acc, bool* error, Functor f, PointerOrValues .
         }
     }
 #else// EXBLAS_WITHOUT_VCL
-    using Cache = FPExpansionVect<double, NBFPE, FPExpansionTraits<true> >;
+    using Cache = FPExpansionVect<double, NBFPE>;
     auto cache = make_caches<Cache>( [acc]( size_t k){ return acc + k*BIN_COUNT;},
         std::make_index_sequence<K>());
     for(int i = 0; i < N; i++) {

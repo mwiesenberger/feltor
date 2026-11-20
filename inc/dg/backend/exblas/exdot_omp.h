@@ -109,7 +109,7 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
         auto thread_acc = [&acc, tid]( size_t k){ return &acc[k][tid*BIN_COUNT];};
 
 #ifndef EXBLAS_WITHOUT_VCL
-        using Cache = FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> >;
+        using Cache = FPExpansionVect<vcl::Vec8d, NBFPE>;
         auto cache = make_caches<Cache>( thread_acc, std::make_index_sequence<K>());
         int l = ((tid * int64_t(N)) / tnum) & ~7ul; // & ~7ul == round down to multiple of 8
         int r = ((((tid+1) * int64_t(N)) / tnum) & ~7ul) - 1;
@@ -152,7 +152,7 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
             }
         }
 #else// EXBLAS_WITHOUT_VCL
-        using Cache = FPExpansionVect<double, NBFPE, FPExpansionTraits<true> >;
+        using Cache = FPExpansionVect<double, NBFPE>;
         auto cache = make_caches<Cache>( thread_acc, std::make_index_sequence<K>());
         int l = ((tid * int64_t(N)) / tnum);
         int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;

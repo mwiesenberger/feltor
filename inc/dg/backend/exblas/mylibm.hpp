@@ -38,14 +38,9 @@ inline double myrint(double x)
 #ifndef EXBLAS_WITHOUT_VCL
 #if defined( __GNUG__) || defined( _MSC_VER)
     // Workaround gcc bug 51033
-    //_mm_round_sd(_mm_undefined_pd(), _mm_set_sd(x));
-    //__m128d undefined;
-    //r.v = _mm_round_sd(_mm_setzero_pd(), _mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT);
-    //r.v = _mm_round_sd(undefined, _mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT);
     return _mm_cvtsd_f64( _mm_round_pd(_mm_set_sd(x), _MM_FROUND_TO_NEAREST_INT));
 #else
     double r;
-    //asm("roundsd $0, %1, %0" : "=x" (r) : "x" (x));
     asm(EXBLAS_ASM_BEGIN "roundsd %0, %1, 0" EXBLAS_ASM_END : "=x" (r) : "x" (x));
     return r;
 #endif
@@ -148,10 +143,8 @@ inline int64_t xadd(int64_t & memref, int64_t x, unsigned char & of)
 
 #ifndef EXBLAS_WITHOUT_VCL
 inline bool horizontal_or(vcl::Vec8d const & a) {
-    //return _mm512_movemask_pd(a) != 0;
     vcl::Vec8db p = a != 0;
     return vcl::horizontal_or( p);
-    //return !_mm512_testz_pd(p, p);
 }
 #else
 inline bool horizontal_or( const double & a){

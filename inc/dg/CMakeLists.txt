@@ -17,9 +17,7 @@ set(DG_HEADERS
   backend/blas1_omp.h
   backend/blas1_serial.h
   backend/blas2_densematrix.h
-  backend/blas2_dispatch_map.h
   backend/blas2_dispatch_mpi.h
-  backend/blas2_dispatch_scalar.h
   backend/blas2_dispatch_shared.h
   backend/blas2_dispatch_vector.h
   backend/blas2_selfmade.h

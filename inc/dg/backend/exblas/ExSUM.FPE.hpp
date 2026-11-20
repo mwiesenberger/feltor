@@ -28,30 +28,12 @@ namespace cpu
 {
 
 /**
- * \struct FPExpansionTraits
- * \ingroup lowlevel
- * \brief This struct is meant to specify optimization or other technique used
- */
-template<bool EX=false, bool FLUSHHI=false, bool H2SUM=false, bool CRF=false, bool CSWAP=false, bool B2SUM=true, bool SORT=false, bool VICT=false>
-struct FPExpansionTraits
-{
-    static bool constexpr EarlyExit = EX;
-    static bool constexpr FlushHi = FLUSHHI;
-    static bool constexpr Horz2Sum = H2SUM;
-    static bool constexpr CheckRangeFirst = CRF;
-    static bool constexpr ConditionalSwap = CSWAP;
-    static bool constexpr Biased2Sum = B2SUM;
-    static bool constexpr Sort = SORT;
-    static bool constexpr Victimcache = VICT;
-};
-
-/**
  * \struct FPExpansionVect
  * \ingroup lowlevel
  * \brief This struct is meant to introduce functionality for working with
  *  floating-point expansions in conjuction with superaccumulators
  */
-template<typename T, int N, typename TRAITS=FPExpansionTraits<false,false> >
+template<typename T, int N>
 struct FPExpansionVect
 {
     /**
@@ -73,7 +55,6 @@ struct FPExpansionVect
 
 private:
     void FlushVector(T x) const;
-    static T twosum(T a, T b, T & s);
 
     int64_t* superacc;
 
@@ -83,60 +64,41 @@ private:
 #else
     T a[N] __attribute__((aligned(64)));
 #endif
-    T victim;
 };
 
-template<typename T, int N, typename TRAITS>
-FPExpansionVect<T,N,TRAITS>::FPExpansionVect(int64_t * sa) :
-    superacc(sa),
-    victim(0)
+template<typename T, int N>
+FPExpansionVect<T,N>::FPExpansionVect(int64_t * sa) :
+    superacc(sa)
 {
     std::fill(a, a + N, 0);
 }
 
-template<typename T, int N, typename TRAITS>
-void FPExpansionVect<T,N,TRAITS>::Accumulate(T x)
+template<typename T, int N>
+void FPExpansionVect<T,N>::Accumulate(T x)
 {
-    // Experimental
-    if(TRAITS::CheckRangeFirst && horizontal_or(abs(x) < abs(a[N-1]))) {
-        FlushVector(x);
-        return;
-    }
     T s;
     for(unsigned int i = 0; i != N; ++i) {
-        a[i] = twosum(a[i], x, s);
+        a[i] = KnuthTwoSum(a[i], x, s);
         x = s;
-        if(TRAITS::EarlyExit && i != 0 && !horizontal_or(x)) return;
+        // Early exit once the rounding error is zero
+        if(i != 0 && !horizontal_or(x)) return;
     }
-    if(TRAITS::EarlyExit || horizontal_or(x)) {
-        FlushVector(x);
-    }
+    FlushVector(x);
 }
 
-template<typename T, int N, typename TRAITS>
-T FPExpansionVect<T,N,TRAITS>::twosum(T a, T b, T & s)
-{
-	return KnuthTwoSum(a, b, s);
-}
-
-template<typename T, int N, typename TRAITS>
-void FPExpansionVect<T,N,TRAITS>::Flush()
+template<typename T, int N>
+void FPExpansionVect<T,N>::Flush()
 {
     for(unsigned int i = 0; i != N; ++i)
     {
         FlushVector(a[i]);
         a[i] = 0;
     }
-    if(TRAITS::Victimcache) {
-        FlushVector(victim);
-    }
 }
 
-template<typename T, int N, typename TRAITS> inline
-void FPExpansionVect<T,N,TRAITS>::FlushVector(T x) const
+template<typename T, int N> inline
+void FPExpansionVect<T,N>::FlushVector(T x) const
 {
-    // TODO: update status, handle Inf/Overflow/NaN cases
-    // TODO: make it work for other values of 4
     exblas::cpu::Accumulate(superacc, x);
 }
 

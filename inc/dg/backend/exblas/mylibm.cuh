@@ -30,7 +30,6 @@ __device__ inline int64_t xadd( int64_t &sa, int64_t x, unsigned char &of) {
     // OF and SF  -> carry=1
     // OF and !SF -> carry=-1
     // !OF        -> carry=0
-    //int64_t y = atom_add(sa, x);
     int64_t y = atomicAdd(&sa, x);
     // since the value sa->superacc[i] can be changed by another work item
     // (unsigned addition: signed overflow is undefined)

@@ -62,9 +62,6 @@ inline unsigned max_active_blocks( Kernel kernel, int threads_per_block,
     unsigned blocks = std::max( prop.multiProcessorCount*blocks_per_sm, 1);
     return std::min( blocks, limit);
 }
-///////////////////////////////////////////////////////////////////////////
-//********* Here, the change from float to double happens ***************//
-///////////////////////////////////////////////////////////////////////////
 template<class T>
 __device__
 inline T get_element( T x, int i){
@@ -94,13 +91,6 @@ inline double get_result( thrust::complex<real> x, unsigned k){
 ////////////////////////////////////////////////////////////////////////////////
 // Auxiliary functions
 ////////////////////////////////////////////////////////////////////////////////
-__device__
-inline double TwoProductFMA(double a, double b, double *d) {
-    double p = a * b;
-    *d = __fma_rn(a, b, -p);
-    return p;
-}
-
 // The compiler may fuse a product with a following sum (-fmad=true is the
 // default), so with an inlined product a + b would not be the rounded sum of
 // a and the rounded b and the error term would be wrong. The _rn functions are
@@ -123,7 +113,6 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x, int stride =
     // accumulation and carry propagation can happen in any order,
     // as long as addition is atomic
     // only constraint is: never forget an overflow bit
-    //assert(i >= 0 && i < BIN_COUNT);
     unsigned char overflow;
     int64_t carry = x;
     int64_t carrybit;
@@ -148,7 +137,6 @@ inline void AccumulateWord( int64_t *accumulator, int i, int64_t x, int stride =
 
         ++i;
         if (i >= BIN_COUNT){
-            //status = Overflow;
             return;
         }
         oldword = xadd(accumulator[i * stride], carry, overflow);
@@ -168,7 +156,6 @@ inline void Accumulate( int64_t* accumulator, double x, int stride = 1) { //tran
     if (x == 0)
         return;
     //MW: This assert does not help very much in finding out where the nan originates
-    //assert( !std::isnan(x) && "Detected NaN in dot product!!");
 
     int e;
     frexp(x, &e); //extract the exponent of x (lies in -1024;1023 ?)
