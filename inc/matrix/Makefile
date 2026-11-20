@@ -46,10 +46,10 @@ $(CATCH).$(device).o: $(CATCH).cpp
 	$(CC) $(OPT) $(CFLAGS) -c $< -o $@ -g $(INCLUDE)
 
 %_t: $(CATCH).$(device).o %_t.$(device).o
-	$(CC) $(OPT) -o $@ $^ -lCatch2 $(SPARSELIB) $(LAPACKLIB)
+	$(CC) $(OPT) -o $@ $^ -lCatch2 $(LAPACKLIB)
 
 tests: $(CATCH).$(device).o $(addsuffix .$(device).o,$(TARGETS))
-	$(CC) -o $@ $^ -lCatch2 $(SPARSELIB) $(LAPACKLIB)
+	$(CC) -o $@ $^ -lCatch2 $(LAPACKLIB)
 
 .PHONY: clean doc
 

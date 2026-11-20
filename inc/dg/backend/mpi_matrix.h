@@ -557,7 +557,8 @@ struct MPIDistMat
             //        m_o.num_rows, m_scatter, m_o.row_offsets,
             //        m_o.column_indices, m_o.values, recv_buffer, y.data());
             // parallel_for is quite slow for ds_mpit because 50 entries per row
-            // TODO Find out if cuSparse can do that and how fast
+            // TODO A variant of the SparseMatrix kernels that adds each row
+            // sum to y[m_scatter[i]] would save the comp_buffer round trip
         }
     }
 
