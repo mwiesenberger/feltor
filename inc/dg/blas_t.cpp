@@ -291,6 +291,90 @@ TEST_CASE( "Exact dot product")
     }
 }
 
+TEST_CASE( "vdot is exactly rounded")
+{
+    // Each group of 7 values sums to 1 but needs 4 well separated components:
+    // 2^300 + 2^200 + 2^100 + 1 - 2^300 - 2^200 - 2^100
+    // (a floating point expansion of size 3 drops the 1)
+    // Sizes are multiples of 7, so that all groups are complete, and test the
+    // remainder of the vectorized loop (multiples of 8) and the OpenMP
+    // version (size >= 4096)
+    int ranks = 1;
+#ifdef WITH_MPI
+    MPI_Comm_size( MPI_COMM_WORLD, &ranks);
+#endif
+    unsigned size = GENERATE( 7u, 14u, 21u, 4095u, 4102u, 5005u);
+    INFO( "Local size "<<size<<" on "<<ranks<<" ranks");
+    const std::array<int,7> exponent = { 300, 200, 100, 0, 300, 200, 100};
+    thrust::host_vector<double> h_v( size), h_w( size, 1.);
+    unsigned ones = 0;
+    for( unsigned i=0; i<size; i++)
+    {
+        h_v[i] = ldexp( i%7 < 4 ? 1. : -1., exponent[i%7]);
+        if( i%7 == 3)
+            ones++;
+    }
+    const double sol = double( ones*ranks);
+    auto v = make_x_vector<dg::DVec>( h_v);
+    auto w = make_x_vector<dg::DVec>( h_w);
+    SECTION( "double")
+    {
+        CHECK( dg::blas1::vdot( dg::Product(), v, w) == sol);
+        CHECK( dg::blas1::vdot( dg::Product(), w, v, w) == sol);
+        CHECK( dg::blas1::vdot( []DG_DEVICE( double x){ return x;}, v) == sol);
+    }
+    SECTION( "Recursive")
+    {
+        std::array<dg::x::DVec, 2> rv{ v, v}, rw{ w, w};
+        CHECK( dg::blas1::vdot( dg::Product(), rv, rw) == 2*sol);
+        CHECK( dg::blas1::vdot( dg::Product(), rv, 1.) == 2*sol);
+    }
+    SECTION( "complex")
+    {
+        thrust::host_vector<thrust::complex<double>> h_cv( size);
+        for( unsigned i=0; i<size; i++)
+            h_cv[i] = thrust::complex<double>( h_v[i], -h_v[i]);
+        auto cv = make_x_vector<dg::cDVec>( h_cv);
+        CHECK( dg::blas1::vdot( dg::Product(), w, cv) ==
+                thrust::complex<double>( sol, -sol));
+        CHECK( dg::blas1::dot( w, cv) == thrust::complex<double>( sol, -sol));
+    }
+    SECTION( "float")
+    {
+        // Same structure within the float range: 2^90 + 2^60 + 2^30 + 1 - ...
+        thrust::host_vector<float> h_fv( size);
+        for( unsigned i=0; i<size; i++)
+            h_fv[i] = ldexpf( i%7 < 4 ? 1.f : -1.f, exponent[i%7]*3/10);
+        auto fv = make_x_vector<dg::fDVec>( h_fv);
+        CHECK( dg::blas1::vdot( []DG_DEVICE( float x){ return x;}, fv) ==
+                float( sol));
+    }
+}
+
+TEST_CASE( "dot equals the exactly rounded sum of the rounded products")
+{
+    // dot( x, y) = sum_i fl(x_i y_i) and dot( x, m, y) = sum_i fl( fl(x_i
+    // m_i) y_i), rounded once; this is what vdot( dg::Product(), ...) computes
+    unsigned size = GENERATE( 5u, 5003u);
+    INFO( "Local size "<<size);
+    thrust::host_vector<double> h_x( size), h_m( size), h_y( size);
+    for( unsigned i=0; i<size; i++)
+    {
+        // wide exponent range and both signs
+        h_x[i] = sin( 1.1*i)*exp( 0.3*(i%101));
+        h_m[i] = cos( 0.7*i)*exp( -0.2*(i%53));
+        h_y[i] = sin( 0.3*i+1.)*exp( 0.1*(i%37));
+    }
+    auto x = make_x_vector<dg::DVec>( h_x), m = make_x_vector<dg::DVec>( h_m),
+         y = make_x_vector<dg::DVec>( h_y), p = x;
+    dg::blas1::evaluate( p, dg::equals(), dg::Product(), x, y);
+    CHECK( dg::blas1::dot( x, y) == dg::blas1::dot( p, 1.));
+    CHECK( dg::blas1::vdot( dg::Product(), x, y) == dg::blas1::dot( p, 1.));
+    dg::blas1::evaluate( p, dg::equals(), dg::Product(), x, m, y);
+    CHECK( dg::blas2::dot( x, m, y) == dg::blas1::dot( p, 1.));
+    CHECK( dg::blas1::vdot( dg::Product(), x, m, y) == dg::blas1::dot( p, 1.));
+}
+
 TEST_CASE( "Dot of subnormal numbers")
 {
     // Subnormal sums are exact in double precision as well
@@ -338,6 +422,15 @@ TEST_CASE( "Dot throws on NaN or Inf")
     CHECK( hasnan);
     CHECK_THROWS_AS( dg::blas1::dot( v, v), dg::Error);
     CHECK_THROWS_AS( dg::blas2::dot( v, 1., v), dg::Error);
+    // In vectors of containers a later finite element must not hide an
+    // earlier non-finite one
+    auto w = make_x_vector<dg::DVec>( thrust::host_vector<double>( size, 1.));
+    std::vector<dg::x::DVec> rv{ v, w};
+    CHECK_THROWS_AS( dg::blas1::dot( rv, rv), dg::Error);
+    CHECK_THROWS_AS( dg::blas2::dot( rv, 1., rv), dg::Error);
+    CHECK_THROWS_AS( dg::blas2::dot( rv, w, rv), dg::Error);
+    std::map<std::string, dg::x::DVec> mv{ {"a", v}, {"b", w}};
+    CHECK_THROWS_AS( dg::blas1::dot( mv, mv), dg::Error);
 }
 TEST_CASE( "DenseMatrix gemv")
 {

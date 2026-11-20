@@ -36,18 +36,14 @@ inline void doDot_fpe( AnyScalarTag, std::array<T,N>& fpe, Functor f,
         fpe[u] = T(0);
 }
 
-template< class Vector1, class Vector2>
-std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Vector2& y, AnyScalarTag)
+template< class Functor, class ...ContainerTypes>
+inline std::vector<int64_t> doDot_superacc( AnyScalarTag, int* status, Functor f,
+    const ContainerTypes& ...xs)
 {
-    //both Vectors are scalars
-    static_assert( std::is_convertible_v<get_value_type<Vector1>, double>, "We only support double precision dot products at the moment!");
-    static_assert( std::is_convertible_v<get_value_type<Vector2>, double>, "We only support double precision dot products at the moment!");
-    const get_value_type<Vector1>* x_ptr = &x;
-    const get_value_type<Vector2>* y_ptr = &y;
-    //since we only accumulate up to two values (multiplication and rest) reduce the size of the FPE
-    std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    exblas::exsum_cpu<2>( 1, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
-
+    //all are scalars: the sum has a single term, so a small FPE suffices
+    constexpr unsigned K = exblas::ValueTraits<get_result_type<Functor, ContainerTypes...>>::K;
+    std::vector<int64_t> h_superacc(K*exblas::BIN_COUNT);
+    exblas::exsum_cpu<2>( 1, &h_superacc[0], status, f, xs...);
     return h_superacc;
 }
 

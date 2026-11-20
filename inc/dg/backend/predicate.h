@@ -48,12 +48,14 @@ get_idx(T&&, Ts&&... ts) {
     return get_idx<index-1>(std::forward<Ts>(ts)...);
 }
 
-//find first instance of a type that fulfills a predicate or false_type if non is found
-template<template <typename> class Predicate, class Default, class T, class... Ts>
-using find_if_t = typename detail::find_if_impl<Predicate,0, Default, T, Ts...>::type;
+//find first instance of a type that fulfills a predicate or Default if none is found
+//(Ts must contain at least one type; a single pack makes it usable with
+//pack expansions, which cannot fill a non-pack alias parameter)
+template<template <typename> class Predicate, class Default, class... Ts>
+using find_if_t = typename detail::find_if_impl<Predicate,0, Default, Ts...>::type;
 //find the corresponding element's index in the parameter pack
-template<template <typename> class Predicate, class Default, class T, class... Ts>
-using find_if_v = std::integral_constant<unsigned, detail::find_if_impl<Predicate,0, Default, T, Ts...>::value>;
+template<template <typename> class Predicate, class Default, class... Ts>
+using find_if_v = std::integral_constant<unsigned, detail::find_if_impl<Predicate,0, Default, Ts...>::value>;
 ///@endcond
 
 /////////////////////////////////////////////////////////////////////////////////

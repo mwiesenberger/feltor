@@ -75,6 +75,21 @@ __device__
 inline T get_element( T* x, int i){
 	return *(x+i);
 }
+// The k-th real component of a value that the exact sums accumulate in the
+// k-th superaccumulator (see ValueTraits)
+__device__
+inline double get_result( double x, unsigned){
+    return x;
+}
+__device__
+inline double get_result( float x, unsigned){
+    return double(x);
+}
+template<class real>
+__device__
+inline double get_result( thrust::complex<real> x, unsigned k){
+    return k == 0 ? double(x.real()) : double(x.imag());
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Auxiliary functions

@@ -7,7 +7,6 @@
 #include "blas1_serial.h"
 #include "exblas/exdot_omp.h"
 #include "exblas/fpedot_omp.h"
-#include "../subroutines.h" // dg::Product
 namespace dg
 {
 namespace blas1
@@ -18,41 +17,25 @@ namespace detail
 // on a 6 core i5-14400F. 512 slowed none of the measured kernels there, while
 // 4096 made expensive functors and stencils slower.
 constexpr int MIN_SIZE=512;
-// A dot is cheap compared to its parallel region and tree reduction. Serial is
-// faster up to at least this size (measured on a 6 core i5-14400F only; the
-// crossover is at about 8000-16000 there and depends on the machine)
-constexpr int MIN_DOT_SIZE=4096;
 
 template<class T, size_t N, class Functor, class ...PointerOrValues>
 inline void doDot_fpe_dispatch( OmpTag, unsigned size, std::array<T,N>& fpe,
     Functor f, PointerOrValues ...xs_ptr)
 {
-    if(size<MIN_DOT_SIZE)
+    if(size<exblas::MIN_OMP_SIZE)
         exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
     else
         exblas::fpedot_omp<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
 }
 
-template<class PointerOrValue1, class PointerOrValue2>
+// The superaccumulators of the exact sum of f( xs[i]...)
+template<class Functor, class ...PointerOrValues>
 inline std::vector<int64_t> doDot_dispatch( OmpTag, int * status, unsigned size,
-    PointerOrValue1 x_ptr, PointerOrValue2 y_ptr)
+    Functor f, PointerOrValues ...xs)
 {
-    std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    if(size<MIN_DOT_SIZE)
-        exblas::exsum_cpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
-    else
-        exblas::exsum_omp( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr);
-    return h_superacc;
-}
-template<class PointerOrValue1, class PointerOrValue2, class PointerOrValue3>
-inline std::vector<int64_t> doDot_dispatch( OmpTag, int* status, unsigned size,
-    PointerOrValue1 x_ptr, PointerOrValue2 y_ptr, PointerOrValue3 z_ptr)
-{
-    std::vector<int64_t> h_superacc(exblas::BIN_COUNT);
-    if(size<MIN_DOT_SIZE)
-        exblas::exsum_cpu( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr, z_ptr);
-    else
-        exblas::exsum_omp( size, &h_superacc[0], status, dg::Product(), x_ptr, y_ptr, z_ptr);
+    constexpr unsigned K = exblas::ValueTraits<exblas::get_result_type<Functor, PointerOrValues...>>::K;
+    std::vector<int64_t> h_superacc(K*exblas::BIN_COUNT);
+    exblas::exsum_omp( size, &h_superacc[0], status, f, xs...);
     return h_superacc;
 }
 

@@ -149,27 +149,24 @@ inline void doDot_fpe( RecursiveVectorTag, std::array<T,N>& fpe, Functor f,
 }
 
 
-template< class Vector1, class Vector2>
-inline std::vector<int64_t> doDot_superacc( int* status, const Vector1& x1, const Vector2& x2, RecursiveVectorTag)
+template< class Functor, class ...ContainerTypes>
+inline std::vector<int64_t> doDot_superacc( RecursiveVectorTag, int* status, Functor f,
+    const ContainerTypes& ...xs)
 {
     //find out which one is the RecursiveVector and determine size
-    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, Vector1, Vector1, Vector2>::value;
-    auto size = get_idx<vector_idx>(x1,x2).size();
-    std::vector<int64_t> acc( exblas::BIN_COUNT, (int64_t)0);
-    for( unsigned i=0; i<size; i++)
+    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, std::tuple_element_t<0, std::tuple<ContainerTypes...>>, ContainerTypes...>::value;
+    auto size = get_idx<vector_idx>(xs...).size();
+    constexpr unsigned K = exblas::ValueTraits<get_result_type<Functor, ContainerTypes...>>::K;
+    std::vector<int64_t> acc( K*exblas::BIN_COUNT, (int64_t)0);
+    *status = 0;
+    for( unsigned u=0; u<size; u++)
     {
-        std::vector<int64_t> temp = doDot_superacc( status,
-            do_get_vector_element(x1,i,get_tensor_category<Vector1>()),
-            do_get_vector_element(x2,i,get_tensor_category<Vector2>()));
-        int imin = exblas::IMIN, imax = exblas::IMAX;
-        exblas::cpu::Normalize( &(temp[0]), imin, imax);
-        for( int k=exblas::IMIN; k<=exblas::IMAX; k++)
-            acc[k] += temp[k];
-        if( (i+1)%128 == 0)
-        {
-            imin = exblas::IMIN, imax = exblas::IMAX;
-            exblas::cpu::Normalize( &(acc[0]), imin, imax);
-        }
+        int status_u = 0;
+        std::vector<int64_t> temp = doDot_superacc( &status_u, f,
+            do_get_vector_element(xs, u, get_tensor_category<ContainerTypes>())...);
+        exblas::cpu::AddSuperaccs( acc.data(), temp.data(), K);
+        if( status_u != 0)
+            *status = status_u;
     }
     return acc;
 }

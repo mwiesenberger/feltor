@@ -26,6 +26,7 @@
 
 #include "accumulate.h"
 #include "ExSUM.FPE.hpp"
+#include "exdot_serial.h"
 #include <omp.h>
 
 namespace dg
@@ -51,13 +52,7 @@ inline void ReductionStep(int step, int64_t * acc1, int64_t * acc2,
         _mm_pause();
 #endif//EXBLAS_WITHOUT_VCL
     }
-    int imin = IMIN, imax = IMAX;
-    Normalize( acc1, imin, imax);
-    imin = IMIN, imax = IMAX;
-    Normalize( acc2, imin, imax);
-    for(int i = IMIN; i <= IMAX; ++i) {
-        acc1[i] += acc2[i];
-    }
+    AddSuperaccs( acc1, acc2, 1);
 }
 
 /**
@@ -92,17 +87,17 @@ inline void Reduction(unsigned int tid, unsigned int tnum, std::vector<std::atom
 // Each thread vectorises like ExSUMFPE_cpu (see there why that matters)
 template<size_t NBFPE, class Functor, class ...PointerOrValues>
 void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues ...xs) {
-    using value_type = return_type<Functor, PointerOrValues...>;
+    using value_type = get_result_type<Functor, PointerOrValues...>;
     constexpr unsigned K = ValueTraits<value_type>::K; // one superaccumulator per component
     int const linesize = 16;    // * sizeof(int32_t)
     int maxthreads = omp_get_max_threads();
     // per component: the superaccumulators of all threads and their progress
     std::array<std::vector<int64_t>, K> acc;
     std::array<std::vector<std::atomic<int32_t>>, K> ready;
-    for( unsigned c=0; c<K; c++)
+    for( unsigned k=0; k<K; k++)
     {
-        acc[c].assign( maxthreads*BIN_COUNT, 0);
-        ready[c] = std::vector<std::atomic<int32_t>>( maxthreads * linesize); // value-initialized to 0
+        acc[k].assign( maxthreads*BIN_COUNT, 0);
+        ready[k] = std::vector<std::atomic<int32_t>>( maxthreads * linesize); // value-initialized to 0
     }
     std::vector<int> error( maxthreads, false); // not vector<bool>: threads write concurrently
 
@@ -111,7 +106,7 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
     {
         unsigned int tid = omp_get_thread_num();
         unsigned int tnum = omp_get_num_threads();
-        auto thread_acc = [&acc, tid]( size_t c){ return &acc[c][tid*BIN_COUNT];};
+        auto thread_acc = [&acc, tid]( size_t k){ return &acc[k][tid*BIN_COUNT];};
 
 #ifndef EXBLAS_WITHOUT_VCL
         using Cache = FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> >;
@@ -124,36 +119,36 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
             asm ("# myloop");
 #endif
             double tmp[K][8];
-            for( int k=0; k<8; k++)
+            for( int j=0; j<8; j++)
             {
-                value_type v = f( get_element(xs,i+k)...);
-                for( unsigned c=0; c<K; c++)
-                    tmp[c][k] = ValueTraits<value_type>::get( v, c);
+                value_type v = f( get_element(xs,i+j)...);
+                for( unsigned k=0; k<K; k++)
+                    tmp[k][j] = get_result( v, k);
             }
-            for( unsigned c=0; c<K; c++)
+            for( unsigned k=0; k<K; k++)
             {
-                vcl::Vec8d x  = vcl::Vec8d().load( tmp[c]);
+                vcl::Vec8d x  = vcl::Vec8d().load( tmp[k]);
                 vcl::Vec8db finite = vcl::is_finite( x);
                 if( !vcl::horizontal_and( finite) ) error[tid] = true;
-                cache[c].Accumulate(x);
+                cache[k].Accumulate(x);
             }
         }
         if( tid+1==tnum && r != N-1) {
             r+=1;
             //accumulate remainder
             double tmp[K][8];
-            for( int k=0; k<N-r; k++)
+            for( int j=0; j<N-r; j++)
             {
-                value_type v = f( get_element(xs,r+k)...);
-                for( unsigned c=0; c<K; c++)
-                    tmp[c][k] = ValueTraits<value_type>::get( v, c);
+                value_type v = f( get_element(xs,r+j)...);
+                for( unsigned k=0; k<K; k++)
+                    tmp[k][j] = get_result( v, k);
             }
-            for( unsigned c=0; c<K; c++)
+            for( unsigned k=0; k<K; k++)
             {
-                vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp[c]);
+                vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp[k]);
                 vcl::Vec8db finite = vcl::is_finite( x);
                 if( !vcl::horizontal_and( finite) ) error[tid] = true;
-                cache[c].Accumulate(x);
+                cache[k].Accumulate(x);
             }
         }
 #else// EXBLAS_WITHOUT_VCL
@@ -163,37 +158,54 @@ void ExSUMFPE(int N, int64_t* h_superacc, bool* err, Functor f, PointerOrValues 
         int r = ((((tid+1) * int64_t(N)) / tnum) ) - 1;
         for(int i = l; i <= r; i++) {
             value_type v = f( get_element(xs,i)...);
-            for( unsigned c=0; c<K; c++)
+            for( unsigned k=0; k<K; k++)
             {
-                double x = ValueTraits<value_type>::get( v, c);
+                double x = get_result( v, k);
                 if( !std::isfinite(x) ) error[tid] = true;
-                cache[c].Accumulate(x);
+                cache[k].Accumulate(x);
             }
         }
 #endif// EXBLAS_WITHOUT_VCL
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
-            cache[c].Flush();
+            cache[k].Flush();
             int imin=IMIN, imax=IMAX;
-            Normalize(thread_acc(c), imin, imax);
+            Normalize(thread_acc(k), imin, imax);
         }
-        for( unsigned c=0; c<K; c++)
-            Reduction(tid, tnum, ready[c], acc[c], linesize);
+        for( unsigned k=0; k<K; k++)
+            Reduction(tid, tnum, ready[k], acc[k], linesize);
     }
-    for( unsigned c=0; c<K; c++)
+    for( unsigned k=0; k<K; k++)
     for( int i=IMIN; i<=IMAX; i++)
-        h_superacc[c*BIN_COUNT+i] = acc[c][i];
+        h_superacc[k*BIN_COUNT+i] = acc[k][i];
     for ( int i=0; i<maxthreads; i++)
         if( error[i] == true) *err = true;
 }
 }//namespace cpu
 ///@endcond
 
+/*! @brief The size below which \c exsum_omp calls the serial \c exsum_cpu
+ *
+ * An exact sum is cheap compared to the parallel region and the tree
+ * reduction of the superaccumulators. Serial is faster up to at least this
+ * size (measured on a 6 core i5-14400F only; the crossover is at about
+ * 8000-16000 there and depends on the machine)
+ */
+constexpr unsigned MIN_OMP_SIZE = 4096;
+
 ///@brief OpenMP parallel version of exact sum
 ///@copydoc hide_exsum
 ///@copydoc hide_hostacc
+///@note Sizes smaller than \c exblas::MIN_OMP_SIZE are summed serially with \c exsum_cpu
 template<size_t NBFPE=8, class Functor, class ...PointerOrValues>
 void exsum_omp(unsigned size, int64_t* h_superacc, int* status, Functor f, PointerOrValues ...xs){
+    static_assert( ValueTraits<get_result_type<Functor, PointerOrValues...>>::K > 0,
+        "The values of f must be float, double or complex numbers of these");
+    if( size < MIN_OMP_SIZE)
+    {
+        exsum_cpu<NBFPE>( size, h_superacc, status, f, xs...);
+        return;
+    }
     bool error = false;
     cpu::ExSUMFPE<NBFPE>( (int)size, h_superacc, &error, f, xs...);
     *status = 0;

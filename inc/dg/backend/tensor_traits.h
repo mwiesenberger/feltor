@@ -85,6 +85,11 @@ using get_tensor_category = typename TensorTraits< std::decay_t<Vector>>::tensor
 /// Shortcut for <tt>dg::TensorTraits<std::decay_t<Vector>>::execution_policy</tt>
 template<class Vector>
 using get_execution_policy = typename TensorTraits<std::decay_t<Vector>>::execution_policy;
+/// The type of <tt>f( x0[i], x1[i], ...)</tt> for containers \c x0, \c x1,
+/// ... of types \c ContainerTypes, i.e. <tt>std::decay_t<std::invoke_result_t<Functor,
+/// dg::get_value_type<ContainerTypes>...>></tt>
+template<class Functor, class ...ContainerTypes>
+using get_result_type = std::decay_t<std::invoke_result_t<Functor, get_value_type<ContainerTypes>...>>;
 
 ///@}
 

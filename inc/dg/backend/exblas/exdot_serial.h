@@ -82,11 +82,11 @@ namespace cpu{
 // slower than computing a product on vcl::Vec8d
 template<size_t NBFPE, class Functor, class ...PointerOrValues>
 void ExSUMFPE_cpu(int N, int64_t* acc, bool* error, Functor f, PointerOrValues ...xs) {
-    using value_type = return_type<Functor, PointerOrValues...>;
+    using value_type = get_result_type<Functor, PointerOrValues...>;
     constexpr unsigned K = ValueTraits<value_type>::K; // one superaccumulator per component
 #ifndef EXBLAS_WITHOUT_VCL
     using Cache = FPExpansionVect<vcl::Vec8d, NBFPE, FPExpansionTraits<true> >;
-    auto cache = make_caches<Cache>( [acc]( size_t c){ return acc + c*BIN_COUNT;},
+    auto cache = make_caches<Cache>( [acc]( size_t k){ return acc + k*BIN_COUNT;},
         std::make_index_sequence<K>());
     int r = (( int64_t(N) ) & ~7ul);
     for(int i = 0; i < r; i+=8) {
@@ -94,53 +94,53 @@ void ExSUMFPE_cpu(int N, int64_t* acc, bool* error, Functor f, PointerOrValues .
         asm ("# myloop");
 #endif
         double tmp[K][8];
-        for( int k=0; k<8; k++)
+        for( int j=0; j<8; j++)
         {
-            value_type v = f( get_element(xs,i+k)...);
-            for( unsigned c=0; c<K; c++)
-                tmp[c][k] = ValueTraits<value_type>::get( v, c);
+            value_type v = f( get_element(xs,i+j)...);
+            for( unsigned k=0; k<K; k++)
+                tmp[k][j] = get_result( v, k);
         }
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
-            vcl::Vec8d x  = vcl::Vec8d().load( tmp[c]);
+            vcl::Vec8d x  = vcl::Vec8d().load( tmp[k]);
             vcl::Vec8db finite = vcl::is_finite( x);
             if( !vcl::horizontal_and( finite) ) *error = true;
-            cache[c].Accumulate(x);
+            cache[k].Accumulate(x);
         }
     }
     if( r != N) {
         //accumulate remainder
         double tmp[K][8];
-        for( int k=0; k<N-r; k++)
+        for( int j=0; j<N-r; j++)
         {
-            value_type v = f( get_element(xs,r+k)...);
-            for( unsigned c=0; c<K; c++)
-                tmp[c][k] = ValueTraits<value_type>::get( v, c);
+            value_type v = f( get_element(xs,r+j)...);
+            for( unsigned k=0; k<K; k++)
+                tmp[k][j] = get_result( v, k);
         }
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
-            vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp[c]);
+            vcl::Vec8d x  = vcl::Vec8d().load_partial( N-r, tmp[k]);
             vcl::Vec8db finite = vcl::is_finite( x);
             if( !vcl::horizontal_and( finite) ) *error = true;
-            cache[c].Accumulate(x);
+            cache[k].Accumulate(x);
         }
     }
 #else// EXBLAS_WITHOUT_VCL
     using Cache = FPExpansionVect<double, NBFPE, FPExpansionTraits<true> >;
-    auto cache = make_caches<Cache>( [acc]( size_t c){ return acc + c*BIN_COUNT;},
+    auto cache = make_caches<Cache>( [acc]( size_t k){ return acc + k*BIN_COUNT;},
         std::make_index_sequence<K>());
     for(int i = 0; i < N; i++) {
         value_type v = f( get_element(xs,i)...);
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
-            double x = ValueTraits<value_type>::get( v, c);
+            double x = get_result( v, k);
             if( !std::isfinite(x) ) *error = true;
-            cache[c].Accumulate(x);
+            cache[k].Accumulate(x);
         }
     }
 #endif// EXBLAS_WITHOUT_VCL
-    for( unsigned c=0; c<K; c++)
-        cache[c].Flush();
+    for( unsigned k=0; k<K; k++)
+        cache[k].Flush();
 }
 }//namespace cpu
 ///@endcond
@@ -189,7 +189,8 @@ void ExSUMFPE_cpu(int N, int64_t* acc, bool* error, Functor f, PointerOrValues .
  * where \c return_type is \c float, \c double or a complex number of these (\c
  * std::complex or \c thrust::complex). float values in return_type are
  * converted to \c double when added to the superaccumulator.  \c f must be
- * callable on the device in use.
+ * callable on the device in use. If \c return_type is complex then
+ * \c h_superacc must have room for 2 superaccumulators
  * @tparam PointerOrValues each must be a value \c T or a pointer <tt> T* </tt>
  * or <tt> const T* </tt> with T convertible to the respective argument type
  * of \c f. If it is a pointer type, then we iterate through the pointed data
@@ -206,7 +207,8 @@ void ExSUMFPE_cpu(int N, int64_t* acc, bool* error, Functor f, PointerOrValues .
 ///@copydoc hide_hostacc
 template<size_t NBFPE=8, class Functor, class ...PointerOrValues>
 void exsum_cpu(unsigned size, int64_t* h_superacc, int* status, Functor f, PointerOrValues ...xs){
-    constexpr unsigned K = ValueTraits<return_type<Functor, PointerOrValues...>>::K;
+    constexpr unsigned K = ValueTraits<get_result_type<Functor, PointerOrValues...>>::K;
+    static_assert( K > 0, "The values of f must be float, double or complex numbers of these");
     for( unsigned i=0; i<K*exblas::BIN_COUNT; i++)
         h_superacc[i] = 0;
     bool error = false;

@@ -36,6 +36,7 @@ namespace blas2{
 ///@cond
 namespace detail{
 
+// The superaccumulators of dg::blas2::dot( x, m, y)
 template< class ContainerType1, class MatrixType, class ContainerType2>
 inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x, const MatrixType& m, const ContainerType2& y)
 {
@@ -50,7 +51,10 @@ inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x
             dg::is_scalar_or_same_base_category<ContainerType1, vector_category>::value &&
             dg::is_scalar_or_same_base_category<ContainerType2, vector_category>::value,
         "All container types must be either Scalar or have compatible Vector categories (AnyVector or Same base class)!");
-    return doDot_superacc( status, x, m, y, get_tensor_category<MatrixType>(), vector_category());
+    if constexpr( dg::is_scalar_or_same_base_category<MatrixType, vector_category>::value)
+        return dg::blas1::detail::doDot_superacc( status, dg::Product(), x, m, y);
+    else // x and y are vectors of containers and m is not
+        return doDot_superacc( vector_category(), status, x, m, y);
 }
 
 }//namespace detail
@@ -98,9 +102,8 @@ inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x
 template< class ContainerType1, class MatrixType, class ContainerType2>
 inline auto dot( const ContainerType1& x, const MatrixType& m, const ContainerType2& y)
 {
-    if constexpr (std::is_floating_point_v<get_value_type<ContainerType1>> &&
-                  std::is_floating_point_v<get_value_type<MatrixType>>   &&
-                  std::is_floating_point_v<get_value_type<ContainerType2>>)
+    using T = dg::get_result_type<dg::Product, ContainerType1, MatrixType, ContainerType2>;
+    if constexpr( exblas::ValueTraits<T>::K > 0) // float, double or complex
     {
         int status = 0;
         std::vector<int64_t> acc = dg::blas2::detail::doDot_superacc( &status,
@@ -108,7 +111,7 @@ inline auto dot( const ContainerType1& x, const MatrixType& m, const ContainerTy
         if( status != 0)
             throw dg::Error(dg::Message(_ping_)<<"dg::blas2::dot failed "
                 <<"since one of the inputs contains NaN or Inf");
-        return exblas::cpu::Round(acc.data());
+        return exblas::cpu::Round<T>( acc.data());
     }
     else
     {

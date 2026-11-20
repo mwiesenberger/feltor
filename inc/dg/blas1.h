@@ -57,7 +57,7 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
  * NaN or Inf from y while \c dg::blas1::copy( 0, y ) does.
  */
 
-/*! @brief \f$ \sum_i f(x_{0i}, x_{1i}, ...)\f$ Extended Precision transform reduce
+/*! @brief \f$ \sum_i f(x_{0i}, x_{1i}, ...)\f$ Exact transform reduce
  *
  * This routine computes \f[ \sum_i f(x_{0i}, x_{1i}, ...)\f]
  * @copydoc hide_iterations
@@ -67,15 +67,36 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
  * or
  * @snippet{trimleft} blas1_t.cpp vcdot
  * @note The main motivator for this version of \c dot is that it works for complex numbers.
- * @attention if one of the input vectors contains \c Inf or \c NaN or the
- * product of the input numbers reaches \c Inf or \c Nan then the behaviour
- * is undefined and the function may throw. See @ref dg::ISNFINITE and @ref
- * dg::ISNSANE in that case
- * @note This implementation does **not guarantee binary reproducible** results.
- * The sum is computed with **extended precision** and the result is rounded
- * to the nearest double precision number.
- * This is possible with the help of an adapted version of the \c dg::exblas library and
- * works for single and double precision.
+ * @attention if one of the input vectors contains \c Inf or \c NaN or a
+ * value of \c f is \c Inf or \c Nan then the behaviour is undefined and
+ * the function may throw. See @ref dg::ISNFINITE and @ref dg::ISNSANE in
+ * that case
+ * @note If the values of \c f are \c float, \c double or complex numbers of
+ * these, the sum is computed **exactly** (with the help of an adapted version
+ * of the \c dg::exblas library) and then rounded to the nearest \c double
+ * (real and imaginary part separately), which is then converted to the value
+ * type of \c f. The result is thus independent of the order of summation and
+ * **binary reproducible** across numbers of threads, MPI decompositions and
+ * backends, provided the values of \c f are (see below). Integral values are
+ * summed exactly in their own type. For all other value types the sum is
+ * computed in extended precision and is not binary reproducible.
+ * @attention Only the sum is exact; the values of \c f are computed as
+ * written in \c f. A program computes them always in the same way, so the
+ * result is binary reproducible across numbers of threads and MPI
+ * decompositions in any case. However, the values of \c f are bitwise
+ * identical on different backends (or with different compilers) only if \c f
+ * contains
+ *  - no transcendental functions like \c exp, \c log, \c sin or \c pow:
+ *  their implementations differ between CUDA and the math library of the host
+ *  (unlike the basic arithmetic operations and \c sqrt, which are correctly
+ *  rounded)
+ *  - no expressions like <tt> a*b+c </tt>, which compilers may contract into
+ *  a fused multiply-add in different places on different backends (e.g. \c
+ *  gcc with \c -march=native and \c nvcc do so by default). Use \c
+ *  DG_FMA(a,b,c) to fix the rounding instead. This includes the product of
+ *  two complex numbers, which \c dg::Product computes with explicit fused
+ *  multiply-adds.
+ *  .
 
  * @tparam Functor signature: <tt> value_type_g operator()( value_type_x0, value_type_x1, ...) </tt>
  * @attention \c Functor must be callable on the device in use. In particular,
@@ -91,13 +112,23 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
  */
 template<class Functor, class ContainerType, class ...ContainerTypes>
 auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
-    std::invoke_result_t<Functor, dg::get_value_type<ContainerType>, dg::get_value_type<ContainerTypes>...>
+    dg::get_result_type<Functor, ContainerType, ContainerTypes...>
 {
     // The reason it is called vdot and not dot is because of the amgiuity when vdot is called
     // with two arguments
-    using T = std::invoke_result_t<Functor, dg::get_value_type<ContainerType>, dg::get_value_type<ContainerTypes>...>;
+    using T = dg::get_result_type<Functor, ContainerType, ContainerTypes...>;
 
-    if constexpr( std::is_integral_v<T>) // e.g. T = int
+    if constexpr( exblas::ValueTraits<T>::K > 0) // float, double or complex
+    {
+        int status = 0;
+        std::vector<int64_t> acc = dg::blas1::detail::doDot_superacc( &status,
+            f, x, xs...);
+        if( status != 0)
+            throw dg::Error(dg::Message(_ping_)<<"dg::blas1::vdot failed "
+                <<"since one of the inputs contains NaN or Inf");
+        return exblas::cpu::Round<T>( acc.data());
+    }
+    else if constexpr( std::is_integral_v<T>) // e.g. T = int
     {
         std::array<T, 1> fpe;
         dg::blas1::detail::doDot_fpe( fpe, f, x, xs ...);
@@ -154,21 +185,7 @@ auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
 template< class ContainerType1, class ContainerType2>
 inline auto dot( const ContainerType1& x, const ContainerType2& y)
 {
-    if constexpr (std::is_floating_point_v<get_value_type<ContainerType1>> &&
-                  std::is_floating_point_v<get_value_type<ContainerType2>>)
-    {
-        int status = 0;
-        std::vector<int64_t> acc = dg::blas1::detail::doDot_superacc( &status,
-            x,y);
-        if( status != 0)
-            throw dg::Error(dg::Message(_ping_)<<"dg::blas1::dot failed "
-                <<"since one of the inputs contains NaN or Inf");
-        return exblas::cpu::Round(acc.data());
-    }
-    else
-    {
-        return dg::blas1::vdot( dg::Product(), x, y);
-    }
+    return dg::blas1::vdot( dg::Product(), x, y);
 }
 
 
@@ -636,18 +653,22 @@ inline void doDot_fpe( std::array<T,N>& fpe, Functor f,
 
 }
 
-template< class ContainerType1, class ContainerType2>
-inline std::vector<int64_t> doDot_superacc( int * status, const ContainerType1& x, const ContainerType2& y)
+// The superaccumulators of the exact sum of f( x[i], xs[i]...): one for real
+// values of f, two (real and imaginary part) for complex values
+// status is 1 if a value of f was NaN or Inf, else 0
+template< class Functor, class ...ContainerTypes>
+inline std::vector<int64_t> doDot_superacc( int* status, Functor f,
+    const ContainerTypes& ...xs)
 {
-    static_assert( ( dg::is_vector_v<ContainerType1> && dg::is_vector_v<ContainerType2>),
+    static_assert( ( dg::is_vector_v<ContainerTypes> && ...),
         "All container types must have a vector data layout (AnyVector)!");
-    using vector_type = find_if_t<dg::is_not_scalar, ContainerType1, ContainerType1, ContainerType2>;
+    using vector_type = find_if_t<dg::is_not_scalar, std::tuple_element_t<0, std::tuple<ContainerTypes...>>, ContainerTypes...>;
     using tensor_category  = get_tensor_category<vector_type>;
-    static_assert( ( dg::is_scalar_or_same_base_category<ContainerType1, tensor_category>::value
-                  && dg::is_scalar_or_same_base_category<ContainerType2, tensor_category>::value),
+    static_assert( ( dg::is_scalar_or_same_base_category<ContainerTypes, tensor_category>::value && ...),
         "All container types must be either Scalar or have compatible Vector categories (AnyVector or Same base class)!");
-    return doDot_superacc( status, x, y, tensor_category());
+    return doDot_superacc( tensor_category(), status, f, xs ...);
 }
+
 
 }//namespace detail
 ///@endcond

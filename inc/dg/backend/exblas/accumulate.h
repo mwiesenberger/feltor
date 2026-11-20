@@ -66,6 +66,22 @@ template<class T>
 inline T get_element( T* x, int i){
 	return *(x+i);
 }
+// The k-th real component of a value that the exact sums accumulate in the
+// k-th superaccumulator (see ValueTraits)
+inline double get_result( double x, unsigned){
+    return x;
+}
+inline double get_result( float x, unsigned){
+    return double(x);
+}
+template<class real>
+inline double get_result( std::complex<real> x, unsigned k){
+    return k == 0 ? double(x.real()) : double(x.imag());
+}
+template<class real>
+inline double get_result( thrust::complex<real> x, unsigned k){
+    return k == 0 ? double(x.real()) : double(x.imag());
+}
 ////////////////////////////////////////////////////////////////////////////////
 // Auxiliary functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -286,6 +302,29 @@ inline bool Normalize( int64_t *accumulator, int& imin, int& imax) {
     return carry_in < 0;
 }
 
+/**
+* @brief Add superaccumulators: \c acc+=x
+*
+* Both are normalized first, so that the sum of their words cannot overflow
+* @param acc pointer to \c num_superacc*BIN_COUNT 64 bit integers on the CPU
+* (\c num_superacc superaccumulators stored one after the other)
+* @param x pointer to \c num_superacc*BIN_COUNT 64 bit integers on the CPU
+* (overwritten with its normalized form)
+* @param num_superacc number of superaccumulators in \c acc and \c x
+*/
+inline void AddSuperaccs( int64_t* acc, int64_t* x, unsigned num_superacc)
+{
+    for( unsigned k=0; k<num_superacc; k++)
+    {
+        int imin = IMIN, imax = IMAX;
+        Normalize( acc + k*BIN_COUNT, imin, imax);
+        imin = IMIN, imax = IMAX;
+        Normalize( x + k*BIN_COUNT, imin, imax);
+        for( int i=IMIN; i<=IMAX; i++)
+            acc[k*BIN_COUNT+i] += x[k*BIN_COUNT+i];
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Rounding functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -294,57 +333,77 @@ inline bool Normalize( int64_t *accumulator, int& imin, int& imax) {
 /**
 * @brief Convert a superaccumulator to the nearest double precision number (CPU version)
 *
-* @param accumulator a pointer to at least \c BIN_COUNT 64 bit integers on the CPU (representing the superaccumulator)
-* @return the double precision number nearest to the superaccumulator
+* @tparam T \c double (the default), \c float or a complex number of these
+* (\c std::complex or \c thrust::complex). A \c float is the \c double
+* result converted to \c float. A complex number is made of the results of
+* two superaccumulators, the one of the real part first, as \c exsum_cpu, \c
+* exsum_omp and \c exsum_gpu write them.
+* @param accumulator a pointer to at least \c BIN_COUNT 64 bit integers on
+* the CPU (representing the superaccumulator), or \c 2*BIN_COUNT for complex
+* \c T (normalized on output)
+* @return the double precision number nearest to the superaccumulator,
+* converted to \c T
 */
-inline double Round( int64_t * accumulator) {
-    int imin = IMIN;
-    int imax = IMAX;
-    bool negative = Normalize(accumulator, imin, imax);
-
-    // Find leading word
-    int i;
-    // Skip zeroes
-    for(i = imax; i >= imin && accumulator[i] == 0; --i) {
-        // MW: note that i >= imin has to come *before* accumulator[i]
-        // else it is possible that accumulator[-1] is accessed
+template<class T = double>
+inline T Round( int64_t * accumulator) {
+    if constexpr( ValueTraits<T>::K == 2)
+    {
+        using real = typename T::value_type;
+        return T( real( Round<double>( accumulator)),
+                  real( Round<double>( accumulator + BIN_COUNT)));
     }
-    if (negative) {
-        // Skip ones
-        for(; i >= imin && (accumulator[i] & ((1ll << DIGITS) - 1)) == ((1ll << DIGITS) - 1); --i) {
+    else if constexpr( !std::is_same_v<T, double>)
+        return T( Round<double>( accumulator));
+    else
+    {
+        int imin = IMIN;
+        int imax = IMAX;
+        bool negative = Normalize(accumulator, imin, imax);
+
+        // Find leading word
+        int i;
+        // Skip zeroes
+        for(i = imax; i >= imin && accumulator[i] == 0; --i) {
+            // MW: note that i >= imin has to come *before* accumulator[i]
+            // else it is possible that accumulator[-1] is accessed
         }
-    }
-    if (i < 0) {
-        return 0.0;
-    }
+        if (negative) {
+            // Skip ones
+            for(; i >= imin && (accumulator[i] & ((1ll << DIGITS) - 1)) == ((1ll << DIGITS) - 1); --i) {
+            }
+        }
+        if (i < 0) {
+            return 0.0;
+        }
 
-    int64_t hiword = negative ? ((1ll << DIGITS) - 1) - accumulator[i] : accumulator[i];
-    double rounded = (double)hiword;
-    double hi = ldexp(rounded, (i - F_WORDS) * DIGITS);
-    if (i == 0) {
-        return negative ? -hi : hi;  // Correct rounding achieved
-    }
-    hiword -= std::llrint(rounded);
-    double mid = ldexp((double) hiword, (i - F_WORDS) * DIGITS);
+        int64_t hiword = negative ? ((1ll << DIGITS) - 1) - accumulator[i] : accumulator[i];
+        double rounded = (double)hiword;
+        double hi = ldexp(rounded, (i - F_WORDS) * DIGITS);
+        if (i == 0) {
+            return negative ? -hi : hi;  // Correct rounding achieved
+        }
+        hiword -= std::llrint(rounded);
+        double mid = ldexp((double) hiword, (i - F_WORDS) * DIGITS);
 
-    // Compute sticky
-    int64_t sticky = 0;
-    for (int j = imin; j != i - 1; ++j) {
-        sticky |= negative ? ((1ll << DIGITS) - accumulator[j]) : accumulator[j];
-    }
+        // Compute sticky
+        int64_t sticky = 0;
+        for (int j = imin; j != i - 1; ++j) {
+            sticky |= negative ? ((1ll << DIGITS) - accumulator[j]) : accumulator[j];
+        }
 
-    int64_t loword = negative ? ((1ll << DIGITS) - accumulator[i - 1]) : accumulator[i - 1];
-    loword |= !!sticky;
-    double lo = ldexp((double) loword, (i - 1 - F_WORDS) * DIGITS);
+        int64_t loword = negative ? ((1ll << DIGITS) - accumulator[i - 1]) : accumulator[i - 1];
+        loword |= !!sticky;
+        double lo = ldexp((double) loword, (i - 1 - F_WORDS) * DIGITS);
 
-    // Now add3(hi, mid, lo)
-    // No overlap, we have already normalized
-    if (mid != 0) {
-        lo = cpu::OddRoundSumNonnegative(mid, lo);
+        // Now add3(hi, mid, lo)
+        // No overlap, we have already normalized
+        if (mid != 0) {
+            lo = cpu::OddRoundSumNonnegative(mid, lo);
+        }
+        // Final rounding
+        hi = hi + lo;
+        return negative ? -hi : hi;
     }
-    // Final rounding
-    hi = hi + lo;
-    return negative ? -hi : hi;
 }
 
 }//namespace cpu

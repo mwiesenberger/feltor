@@ -18,19 +18,25 @@ namespace dg{
 ///@cond
 namespace detail
 {
+// The explicit fused multiply-adds make the values bitwise identical on all
+// backends (a compiler may contract a*b+c*d into an fma in different places)
 struct NORM
 {
     template<class T, class Z>
     DG_DEVICE
-    auto operator()( T w, Z z) {
-        return w*norm(z);} // returns floating point
+    auto operator()( T w, Z z) { // returns floating point
+        if constexpr( std::is_floating_point_v<Z>)
+            return w*(z*z);
+        else
+            return w*DG_FMA( z.real(), z.real(), z.imag()*z.imag());
+    }
 };
 struct DOT
 {
     template<class Z0, class T, class Z1>
     DG_DEVICE
     auto operator()( Z0 z0, T w, Z1 z1) { // returns floating point
-        return w*(z0.real()*z1.real() + z0.imag()*z1.imag());
+        return w*DG_FMA( z0.real(), z1.real(), z0.imag()*z1.imag());
     }
 };
 } // namespace detail

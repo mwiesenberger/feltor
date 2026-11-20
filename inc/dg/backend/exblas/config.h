@@ -80,36 +80,40 @@ static constexpr int IMAX           = BIN_COUNT-1; //!< last index in a superacc
 static constexpr double DELTASCALE = double(1ull << DIGITS); //!< Assumes KRX>0
 
 ///@cond
-#ifdef __CUDACC__
-#define EXBLAS_HOST_DEVICE __host__ __device__
-#else
-#define EXBLAS_HOST_DEVICE
-#endif
 // The exact sums accumulate every real component of a value into its own
 // superaccumulator: K = 1 for float and double, K = 2 (real and imaginary
-// part) for complex numbers
+// part) for complex numbers of these and K = 0 for all types they cannot
+// accumulate; get_result in accumulate.h and accumulate.cuh returns the
+// components
 template<class T>
 struct ValueTraits
 {
+    static constexpr unsigned K = 0;
+};
+template<>
+struct ValueTraits<float>
+{
     static constexpr unsigned K = 1;
-    EXBLAS_HOST_DEVICE static double get( T x, unsigned) { return double(x);}
+};
+template<>
+struct ValueTraits<double>
+{
+    static constexpr unsigned K = 1;
 };
 template<class real>
 struct ValueTraits<std::complex<real>>
 {
-    static constexpr unsigned K = 2;
-    static double get( std::complex<real> x, unsigned c) { return c == 0 ? double(x.real()) : double(x.imag());}
+    static constexpr unsigned K = ValueTraits<real>::K == 1 ? 2 : 0;
 };
 template<class real>
 struct ValueTraits<thrust::complex<real>>
 {
-    static constexpr unsigned K = 2;
-    EXBLAS_HOST_DEVICE static double get( thrust::complex<real> x, unsigned c) { return c == 0 ? double(x.real()) : double(x.imag());}
+    static constexpr unsigned K = ValueTraits<real>::K == 1 ? 2 : 0;
 };
 // The type of the values of Functor in exsum_cpu, exsum_omp and exsum_gpu;
-// they fill ValueTraits<return_type<Functor, PointerOrValues...>>::K superaccumulators
+// they fill ValueTraits<get_result_type<Functor, PointerOrValues...>>::K superaccumulators
 template<class Functor, class ...PointerOrValues>
-using return_type = std::decay_t<std::invoke_result_t<Functor,
+using get_result_type = std::decay_t<std::invoke_result_t<Functor,
     std::remove_pointer_t<PointerOrValues>...>>;
 ///@endcond
 

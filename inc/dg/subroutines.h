@@ -1,8 +1,35 @@
 #pragma once
+#include <complex>
+#include <thrust/complex.h>
 #include "dg/topology/functions.h"
 #include "dg/backend/config.h"
 
 namespace dg{
+///@cond
+namespace detail
+{
+// x*y, where the product of two complex numbers uses explicit fused
+// multiply-adds: a compiler may contract a*b+c*d into an fma in different
+// places on different backends, which breaks bitwise reproducibility
+template<class T0, class T1>
+DG_DEVICE auto multiply( T0 x, T1 y)
+{
+    return x*y;
+}
+template<class T>
+DG_DEVICE thrust::complex<T> multiply( thrust::complex<T> x, thrust::complex<T> y)
+{
+    return { DG_FMA( -x.imag(), y.imag(), x.real()*y.real()),
+             DG_FMA(  x.imag(), y.real(), x.real()*y.imag())};
+}
+template<class T>
+std::complex<T> multiply( std::complex<T> x, std::complex<T> y)
+{
+    return { DG_FMA( -x.imag(), y.imag(), x.real()*y.real()),
+             DG_FMA(  x.imag(), y.real(), x.real()*y.imag())};
+}
+}//namespace detail
+///@endcond
 /**
  * @brief \f$ f(x) = x\f$
  * @ingroup basics
@@ -112,6 +139,9 @@ struct Product
      * @brief \f[ \prod_i x_i \f]
      *
      * The product is evaluated from left to right, i.e. \f$ ((x_0 x_1) x_2) \dots\f$
+     * The product of two complex numbers is computed with explicit fused
+     * multiply-adds, \f$ (a+ib)(c+id) = \mathrm{fma}(-b, d, ac) + i\,\mathrm{fma}(b, c, ad)\f$,
+     * so that it is bitwise identical on all backends
      */
     template< class T1, class ...Ts>
 DG_DEVICE auto operator()( T1 x, Ts... rest) const
@@ -123,7 +153,7 @@ DG_DEVICE auto operator()( T1 x, Ts... rest) const
     template< class T1, class T2, class ...Ts>
 DG_DEVICE auto prod( T1 x, T2 y, Ts... rest) const
     {
-        return prod( x * y, rest...);
+        return prod( detail::multiply( x, y), rest...);
     }
 
     template<class T1>

@@ -85,22 +85,22 @@ void doDot_fpe( MPIVectorTag, std::array<T,N>& fpe, Functor f, const ContainerTy
             exblas::cpu::Accumulate( reduction[u*N+k], fpe);
 }
 
-template< class Vector1, class Vector2>
-std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Vector2& y, MPIVectorTag)
+template< class Functor, class ...ContainerTypes>
+inline std::vector<int64_t> doDot_superacc( MPIVectorTag, int* status, Functor f,
+    const ContainerTypes& ...xs)
 {
     //find out which one is the MPIVector and determine category
-    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, Vector1, Vector1, Vector2>::value;
-    //mpi_assert( x,y);
-    //local compuation
-    std::vector<int64_t> acc = doDot_superacc( status,
-        do_get_data(x,get_tensor_category<Vector1>()),
-        do_get_data(y,get_tensor_category<Vector2>()));
-    std::vector<int64_t> receive(exblas::BIN_COUNT, (int64_t)0);
+    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, std::tuple_element_t<0, std::tuple<ContainerTypes...>>, ContainerTypes...>::value;
+    //local computation
+    std::vector<int64_t> acc = doDot_superacc( status, f,
+        do_get_data(xs, get_tensor_category<ContainerTypes>())...);
+    const unsigned K = acc.size()/exblas::BIN_COUNT;
+    std::vector<int64_t> receive( acc.size(), (int64_t)0);
     //get communicator from MPIVector
-    auto comm = get_idx<vector_idx>(x,y).communicator();
+    auto comm = get_idx<vector_idx>(xs...).communicator();
     MPI_Comm comm_mod, comm_red;
     dg::exblas::mpi_reduce_communicator( comm, &comm_mod, &comm_red);
-    exblas::reduce_mpi_cpu( 1, acc.data(), receive.data(), status, comm, comm_mod, comm_red);
+    exblas::reduce_mpi_cpu( K, acc.data(), receive.data(), status, comm, comm_mod, comm_red);
     return receive;
 }
 

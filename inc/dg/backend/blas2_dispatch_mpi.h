@@ -15,65 +15,6 @@ inline void parallel_for( Stencil f, unsigned N, ContainerType&& x, ContainerTyp
 namespace detail
 {
 
-template< class Vector1, class Matrix, class Vector2 >
-inline std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Matrix& m, const Vector2& y, AnyScalarTag, MPIVectorTag)
-{
-    //find out which one is the MPIVector and determine category
-    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, Vector1, Vector1, Vector2>::value;
-    //dg::blas1::detail::mpi_assert( x,y);
-    //local computation
-    std::vector<int64_t> acc = doDot_superacc( status,
-        do_get_data(x, get_tensor_category<Vector1>()), m,
-        do_get_data(y, get_tensor_category<Vector2>()));
-    std::vector<int64_t> receive(exblas::BIN_COUNT, (int64_t)0);
-    //get communicator from MPIVector
-    auto comm = get_idx<vector_idx>(x,y).communicator();
-    MPI_Comm comm_mod, comm_red;
-    dg::exblas::mpi_reduce_communicator( comm, &comm_mod, &comm_red);
-    exblas::reduce_mpi_cpu( 1, acc.data(), receive.data(), status, comm, comm_mod, comm_red);
-    return receive;
-}
-template< class Vector1, class Matrix, class Vector2 >
-inline std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Matrix& m, const Vector2& y, MPIVectorTag, MPIVectorTag)
-{
-    //dg::blas1::detail::mpi_assert( m,x);
-    //dg::blas1::detail::mpi_assert( m,y);
-    //local computation
-    std::vector<int64_t> acc = doDot_superacc( status,
-        do_get_data(x, get_tensor_category<Vector1>()),
-        m.data(),
-        do_get_data(y, get_tensor_category<Vector2>()));
-    std::vector<int64_t> receive(exblas::BIN_COUNT, (int64_t)0);
-    MPI_Comm comm_mod, comm_red;
-    dg::exblas::mpi_reduce_communicator( m.communicator(), &comm_mod, &comm_red);
-    exblas::reduce_mpi_cpu( 1, acc.data(), receive.data(), status,
-        m.communicator(), comm_mod, comm_red);
-
-    return receive;
-}
-template< class Vector1, class Matrix, class Vector2>
-inline std::vector<int64_t> doDot_superacc( int* status, const Vector1& x, const Matrix& m, const Vector2& y, MPIVectorTag, RecursiveVectorTag)
-{
-    //find out which one is the RecursiveVector and determine category
-    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, Vector1, Vector1, Vector2>::value;
-    auto size = get_idx<vector_idx>(x,y).size();
-    std::vector<std::vector<int64_t>> acc( size);
-    for( unsigned i=0; i<size; i++)
-        acc[i] = doDot_superacc( status,
-            do_get_vector_element(x,i,get_tensor_category<Vector1>()), m,
-            do_get_vector_element(y,i,get_tensor_category<Vector2>()));
-    for( unsigned i=1; i<size; i++)
-    {
-        int imin = exblas::IMIN, imax = exblas::IMAX;
-        exblas::cpu::Normalize( &(acc[0][0]), imin, imax);
-        imin = exblas::IMIN, imax = exblas::IMAX;
-        exblas::cpu::Normalize( &(acc[i][0]), imin, imax);
-        for( int k=exblas::IMIN; k<=exblas::IMAX; k++)
-            acc[0][k] += acc[i][k];
-    }
-    return acc[0];
-}
-
 template< class Matrix1, class Matrix2>
 inline void doTransfer( const Matrix1& m1, Matrix2& m2, AnyMatrixTag, MPIMatrixTag)
 {

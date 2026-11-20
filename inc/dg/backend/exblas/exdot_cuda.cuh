@@ -34,7 +34,7 @@ namespace gpu{
 //the second kernel reduces all superaccs from the first kernel (because we need a global synchronization, which is induced by separate kernel launches)
 
 // Exact sum of f( x_0[i], x_1[i], ...): each block writes one superacc per
-// component c of the values of f, at d_PartialSuperaccs[ (c*gridDim.x+blockIdx.x)*BIN_COUNT]
+// component k of the values of f, at d_PartialSuperaccs[ (k*gridDim.x+blockIdx.x)*BIN_COUNT]
 template<unsigned NBFPE, unsigned WARP_COUNT, class Functor, class ...PointerOrValues>
 __global__ void ExDOT(
     int64_t *d_PartialSuperaccs,
@@ -43,7 +43,7 @@ __global__ void ExDOT(
     Functor f,
     PointerOrValues ...xs
 ) {
-    using value_type = return_type<Functor, PointerOrValues...>;
+    using value_type = get_result_type<Functor, PointerOrValues...>;
     constexpr unsigned K = ValueTraits<value_type>::K;
     __shared__ int64_t l_sa[K * WARP_COUNT * BIN_COUNT]; //shared variables live for a thread block (39 rows, 16 columns per component!)
     int64_t *l_workingBase = l_sa + (threadIdx.x & (WARP_COUNT - 1)); //the bitwise & with 15 is a modulo operation: threadIdx.x % 16
@@ -57,10 +57,10 @@ __global__ void ExDOT(
     for(unsigned pos = blockIdx.x*blockDim.x+threadIdx.x; pos < NbElements; pos += gridDim.x*blockDim.x) {
         value_type v = f( get_element(xs,pos)...);
         #pragma unroll
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
-            int64_t* base = l_workingBase + c*WARP_COUNT*BIN_COUNT;
-            double x = ValueTraits<value_type>::get( v, c);
+            int64_t* base = l_workingBase + k*WARP_COUNT*BIN_COUNT;
+            double x = get_result( v, k);
 
             //Check if the input is sane
             if( !isfinite(x) ) *error = true;
@@ -68,7 +68,7 @@ __global__ void ExDOT(
             #pragma unroll
             for(unsigned i = 0; i != NBFPE; ++i) {
                 double s;
-                a[c][i] = KnuthTwoSum(a[c][i], x, &s);
+                a[k][i] = KnuthTwoSum(a[k][i], x, &s);
                 x = s;
             }
             if (x != 0.0) {
@@ -76,40 +76,40 @@ __global__ void ExDOT(
                 // Flush FPEs to superaccs
                 #pragma unroll
                 for(unsigned i = 0; i != NBFPE; ++i) {
-                    Accumulate(base, a[c][i], WARP_COUNT);
-                    a[c][i] = 0.0;
+                    Accumulate(base, a[k][i], WARP_COUNT);
+                    a[k][i] = 0.0;
                 }
             }
         }
     }
 	//Flush FPEs to superaccs
     #pragma unroll
-    for( unsigned c=0; c<K; c++)
+    for( unsigned k=0; k<K; k++)
     #pragma unroll
     for(unsigned i = 0; i != NBFPE; ++i)
-        Accumulate(l_workingBase + c*WARP_COUNT*BIN_COUNT, a[c][i], WARP_COUNT);
+        Accumulate(l_workingBase + k*WARP_COUNT*BIN_COUNT, a[k][i], WARP_COUNT);
     __syncthreads();
 
     //Merge sub-superaccs into work-group partial-accumulator ( ATTENTION: PartialSuperacc is transposed!)
     unsigned pos = threadIdx.x;
     if(pos < WARP_COUNT) {
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
             int imin = IMIN, imax = IMAX;
-            Normalize( l_workingBase + c*WARP_COUNT*BIN_COUNT, imin, imax, WARP_COUNT);
+            Normalize( l_workingBase + k*WARP_COUNT*BIN_COUNT, imin, imax, WARP_COUNT);
         }
     }
     __syncthreads();
 
     if (pos < BIN_COUNT) {
-        for( unsigned c=0; c<K; c++)
+        for( unsigned k=0; k<K; k++)
         {
             int64_t sum = 0;
 
             for(unsigned i = 0; i < WARP_COUNT; i++)
-                sum += l_sa[(c*BIN_COUNT + pos) * WARP_COUNT + i];
+                sum += l_sa[(k*BIN_COUNT + pos) * WARP_COUNT + i];
 
-            d_PartialSuperaccs[(c*gridDim.x + blockIdx.x) * BIN_COUNT + pos] = sum;
+            d_PartialSuperaccs[(k*gridDim.x + blockIdx.x) * BIN_COUNT + pos] = sum;
         }
     }
 
@@ -274,7 +274,8 @@ void exsum_gpu(unsigned size, int64_t* h_superacc, int* status, Functor f, Point
     static const unsigned max_blocks = gpu::max_active_blocks( static_cast<void(*)(int64_t*, unsigned, volatile bool*, Functor, PointerOrValues...)>(
         gpu::ExDOT<NBFPE, gpu::WARP_COUNT, Functor, PointerOrValues...>),
         gpu::EXDOT_BLOCK_THREADS, 0, gpu::MAX_PARTIAL_SUPERACCS);
-    constexpr unsigned K = ValueTraits<return_type<Functor, PointerOrValues...>>::K;
+    constexpr unsigned K = ValueTraits<get_result_type<Functor, PointerOrValues...>>::K;
+    static_assert( K > 0, "The values of f must be float, double or complex numbers of these");
     static_assert( K <= 2, "HostResult has room for two superaccumulators");
     int64_t *d_PartialSuperaccs = gpu::partial_superaccs( K*max_blocks);
     const unsigned blocks = gpu::num_exdot_blocks( size, max_blocks);
