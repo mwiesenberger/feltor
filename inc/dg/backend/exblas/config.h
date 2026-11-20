@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cassert>
 #include <type_traits>
+#include "bit_cast.h"
 #include <complex>
 #include <thrust/complex.h>
 ////////////////////////////////////////////////////////////////////////
@@ -78,6 +79,7 @@ static constexpr int BIN_COUNT     =  F_WORDS+E_WORDS; //!< size of superaccumul
 static constexpr int IMIN           = 0; //!< first index in a superaccumulator
 static constexpr int IMAX           = BIN_COUNT-1; //!< last index in a superaccumulator
 static constexpr double DELTASCALE = double(1ull << DIGITS); //!< Assumes KRX>0
+
 
 ///@cond
 // The exact sums accumulate every real component of a value into its own

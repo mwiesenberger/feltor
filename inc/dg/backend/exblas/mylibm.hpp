@@ -17,7 +17,6 @@
 #ifndef MYLIBM_HPP_INCLUDED
 #define MYLIBM_HPP_INCLUDED
 
-#include <cstring> // std::memcpy
 #include "config.h"
 
 namespace dg
@@ -49,25 +48,11 @@ inline double myrint(double x)
 #endif//EXBLAS_WITHOUT_VCL
 }
 
-// Reinterpret the bits of a double; unlike type punning with a union,
-// std::memcpy is well-defined in C++ and compiles to a register move
-inline uint64_t double_as_uint64(double x)
-{
-    uint64_t i;
-    std::memcpy( &i, &x, sizeof(i));
-    return i;
-}
-inline double uint64_as_double(uint64_t i)
-{
-    double x;
-    std::memcpy( &x, &i, sizeof(x));
-    return x;
-}
 
 inline int exponent(double x)
 {
     // simpler frexp
-    uint64_t e = ((double_as_uint64(x) >> 52) & 0x7ff) - 0x3ff;
+    uint64_t e = ((bit_cast<uint64_t>(x) >> 52) & 0x7ff) - 0x3ff;
     return e;
 }
 
@@ -75,13 +60,13 @@ inline int exponent(double x)
 inline double myldexp(double x, int e)
 {
     // Scale x by e
-    uint64_t i = double_as_uint64(x);
+    uint64_t i = bit_cast<uint64_t>(x);
     // Subnormal numbers have no implicit leading bit, so adding to the
     // exponent bits does not scale them
     if( EXBLAS_UNLIKELY( (i & 0x7ff0000000000000ull) == 0))
         return std::ldexp( x, e);
     i += (uint64_t)e << 52;
-    return uint64_as_double(i);
+    return bit_cast<double>(i);
 }
 
 // Assumptions: th>tl>=0, no overlap between th and tl
@@ -89,12 +74,12 @@ inline double OddRoundSumNonnegative(double th, double tl)
 {
     // Adapted from:
     // Sylvie Boldo, and Guillaume Melquiond. "Emulation of a FMA and correctly rounded sums: proved algorithms using rounding to odd." IEEE Transactions on Computers, 57, no. 4 (2008): 462-471.
-    uint64_t thdb = double_as_uint64( th + tl);
+    uint64_t thdb = bit_cast<uint64_t>( th + tl);
     // - if the mantissa of th is odd, there is nothing to do
     // - otherwise, round up as both tl and th are positive
     // in both cases, this means setting the msb to 1 when tl>0
     thdb |= (tl != 0.0);
-    return uint64_as_double( thdb);
+    return bit_cast<double>( thdb);
 }
 
 #ifdef THREADSAFE //MW: we don't define this anywhere?

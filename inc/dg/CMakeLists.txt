@@ -27,6 +27,7 @@ set(DG_HEADERS
   backend/densematrix.h
   backend/exblas/accumulate.cuh
   backend/exblas/accumulate.h
+  backend/exblas/bit_cast.h
   backend/exblas/config.h
   backend/exblas/exblas.h
   backend/exblas/exdot_cuda.cuh

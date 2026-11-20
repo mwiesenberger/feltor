@@ -30,6 +30,7 @@ namespace dg
 namespace exblas{
 
 /*! @brief Utility union to display all bits of a double (using <a href="https://en.wikipedia.org/wiki/Type_punning">type-punning</a>)
+@deprecated Use <tt>dg::exblas::bit_cast<int64_t></tt>
 @warning Reading the member that was not written last is undefined behaviour
 in C++ (unlike in C). GCC, Clang and MSVC support it as an extension, but for
 well-defined code copy the bits with \c std::memcpy (or \c std::bit_cast in
@@ -42,12 +43,13 @@ res.d = result;
 std::cout << "Result as double "<<res.d<<"  as integer "<<res.i<<std::endl;
 @endcode
 */
-union udouble{
+union [[deprecated("Use dg::exblas::bit_cast<int64_t>")]] udouble{
     double d; //!< a double
     int64_t i; //!< a 64 bit integer
 };
 
 /*! @brief Utility union to display all bits of a float (using <a href="https://en.wikipedia.org/wiki/Type_punning">type-punning</a>)
+@deprecated Use <tt>dg::exblas::bit_cast<int32_t></tt>
 @warning Reading the member that was not written last is undefined behaviour
 in C++ (unlike in C). GCC, Clang and MSVC support it as an extension, but for
 well-defined code copy the bits with \c std::memcpy (or \c std::bit_cast in
@@ -60,7 +62,7 @@ res.f = result;
 std::cout << "Result as float "<<res.f<<"  as integer "<<res.i<<std::endl;
 @endcode
 */
-union ufloat{
+union [[deprecated("Use dg::exblas::bit_cast<int32_t>")]] ufloat{
     float f; //!< a float
     int32_t i; //!< a 32 bit integer
 };

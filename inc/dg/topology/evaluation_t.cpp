@@ -53,20 +53,20 @@ TEST_CASE( "Evaluation")
         const dg::x::DVec func1d = dg::construct<dg::x::DVec>( dg::evaluate( exp,
                     g1d));
         const dg::x::DVec w1d = dg::construct<dg::x::DVec>( dg::create::weights( g1d));
-        dg::exblas::udouble res;
-        double integral = dg::blas1::dot( w1d, func1d); res.d = integral;
+        double res = 0;
+        double integral = dg::blas1::dot( w1d, func1d); res = integral;
         double sol = (exp(2.) -exp(1));
         INFO("1D integral               "<<std::setw(6)<<integral);
         INFO("Correct integral is       "<<std::setw(6)<<sol);
         INFO("Relative 1d error is      "<<(integral-sol)/sol);
-        CHECK( abs(res.i - 4616944842743393935) < 2);
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) - 4616944842743393935) < 2);
 
-        double norm = dg::blas2::dot( func1d, w1d, func1d); res.d = norm;
+        double norm = dg::blas2::dot( func1d, w1d, func1d); res = norm;
         double solution = (exp(4.) -exp(2))/2.;
         INFO("Square normalized 1D norm "<<std::setw(6)<<norm);
         INFO("Correct square norm is    "<<std::setw(6)<<solution);
         INFO("Relative 1d error is      "<<(norm-solution)/solution);
-        CHECK( abs(res.i - 4627337306989890294) < 2);
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) - 4627337306989890294) < 2);
     }
 
     SECTION( "2d grid")
@@ -84,27 +84,27 @@ TEST_CASE( "Evaluation")
         const dg::x::DVec func2d = dg::construct<dg::x::DVec>( dg::evaluate(
                     function<double>, g2d));
         const dg::x::DVec w2d = dg::construct<dg::x::DVec>( dg::create::weights( g2d));
-        dg::exblas::udouble res;
-        double integral2d = dg::blas1::dot( w2d, func2d); res.d = integral2d;
+        double res = 0;
+        double integral2d = dg::blas1::dot( w2d, func2d); res = integral2d;
         double sol2d = 0;
         INFO("2D integral               "<<std::setw(6)<<integral2d);
         INFO("Correct integral is       "<<std::setw(6)<<sol2d);
         INFO("2d error is               "<<(integral2d-sol2d));
-        INFO("2d error is               "<<res.i);
+        INFO("2d error is               "<<dg::exblas::bit_cast<int64_t>( res));
 #ifdef __clang__
-        CHECK( abs(res.i + 4823291113748037632) < 2);
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) + 4823291113748037632) < 2);
 #elif _MSC_VER
-        CHECK( abs(res.i + 4823548114931548160) < 2);
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) + 4823548114931548160) < 2);
 #else
-        CHECK( abs(res.i + 4823286950217646080) < 2);
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) + 4823286950217646080) < 2);
 #endif
 
-        double norm2d = dg::blas2::dot( w2d, func2d); res.d = norm2d;
+        double norm2d = dg::blas2::dot( w2d, func2d); res = norm2d;
         double solution2d = 80.0489;
         INFO( "Square normalized 2D norm "<<std::setw(6)<<norm2d);
         INFO( "Correct square norm is    "<<std::setw(6)<<solution2d);
         INFO( "Relative 2d error is      "<<(norm2d-solution2d)/solution2d);
-        CHECK( abs( res.i - 4635333359953759707) < 2);
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4635333359953759707) < 2);
     }
 
     SECTION( "2d grid float")
@@ -121,17 +121,17 @@ TEST_CASE( "Evaluation")
         const dg::x::fDVec funcf2d = dg::construct<dg::x::fDVec>( dg::evaluate(
                     function<float>, gf2d));
         const dg::x::fDVec wf2d = dg::construct<dg::x::fDVec>( dg::create::weights( gf2d));
-        dg::exblas::ufloat resf;
-        float integralf2d = dg::blas1::dot( wf2d, funcf2d); resf.f = integralf2d;
+        float resf = 0;
+        float integralf2d = dg::blas1::dot( wf2d, funcf2d); resf = integralf2d;
         float solf2d = 0;
         INFO("2D integral (float)       "<<std::setw(6)<<integralf2d);
         INFO("Correct integral is       "<<std::setw(6)<<solf2d);
         INFO("2d error (float)          "<<(integralf2d-solf2d));
         // (Remark: in floating precision the function to integrate may already
         // be different on different compilers)
-        // CHECK(abs( resf.i - 913405508) < 4); // likely fails
+        // CHECK(abs( dg::exblas::bit_cast<int32_t>( resf) - 913405508) < 4); // likely fails
         // The products w*f are rounded in float precision
-        CHECK( fabs( resf.f ) < 4e-6);
+        CHECK( fabs( resf ) < 4e-6);
     }
 
     SECTION( "3d grid")
@@ -152,21 +152,21 @@ TEST_CASE( "Evaluation")
         const dg::x::DVec w3d = dg::construct<dg::x::DVec>(
                 dg::create::weights( g3d));
 
-        dg::exblas::udouble res;
-        double integral3d = dg::blas1::dot( w3d, func3d); res.d = integral3d;
+        double res = 0;
+        double integral3d = dg::blas1::dot( w3d, func3d); res = integral3d;
         double sol3d = (exp(2.)-exp(1))*(exp(4.)-exp(3))*(exp(6.)-exp(5));
         INFO("3D integral               "<<std::setw(6)<<integral3d);
         INFO("Correct integral is       "<<std::setw(6)<<sol3d);
         INFO("Relative 3d error is      "<<(integral3d-sol3d)/sol3d);
-        CHECK( abs(res.i - 4675882723962622631) < 2 );
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) - 4675882723962622631) < 2 );
 
         double solution3d =
             (exp(4.)-exp(2))/2.*(exp(8.)-exp(6.))/2.*(exp(12.)-exp(10))/2.;
-        double norm3d = dg::blas2::dot( func3d, w3d, func3d); res.d = norm3d;
+        double norm3d = dg::blas2::dot( func3d, w3d, func3d); res = norm3d;
         INFO( "Square normalized 3D norm "<<std::setw(6)<<norm3d);
         INFO( "Correct square norm is    "<<std::setw(6)<<solution3d);
         INFO( "Relative 3d error is      "<<(norm3d-solution3d)/solution3d);
-        CHECK( abs( res.i - 4746764681002108276) < 2);
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4746764681002108276) < 2);
     }
 }
 
@@ -203,22 +203,20 @@ TEST_CASE( "compiler specific math")
     {
         dg::x::DVec x(10, 6.12610567450009658);
         dg::blas1::transform( x, x, [] DG_DEVICE ( double x){ return sin(x);} );
-        dg::exblas::udouble res;
-        res.d = x[0];
-        INFO( "Result of sin:    "<<res.i<<"\t"
+        double res = x[0];
+        INFO( "Result of sin:    "<<dg::exblas::bit_cast<int64_t>( res)<<"\t"
                   << "          GCC:    -4628567870976535683 (correct)");
-        CHECK( abs( res.i + 4628567870976535683 ) < 2);
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) + 4628567870976535683 ) < 2);
     }
 
     SECTION( "exp function")
     {
         dg::x::DVec y(10, 5.9126151457310376);
         dg::blas1::transform( y, y,[] DG_DEVICE ( double x){ return exp(x);} );
-            dg::exblas::udouble res;
-        res.d = y[0];
-        INFO( "Result of exp:     "<<res.i<<"\t"
+            double res = y[0];
+        INFO( "Result of exp:     "<<dg::exblas::bit_cast<int64_t>( res)<<"\t"
                   << "          GCC:     4645210948416067678 (correct)");
-        CHECK( abs( res.i - 4645210948416067678 ) < 2);
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4645210948416067678 ) < 2);
     }
 }
 
@@ -262,16 +260,15 @@ TEST_CASE( "Accuracy Dense Matrix")
     dg::x::DVec integral_d( 2);
     dg::blas2::symv( 1., dg::asDenseMatrix( dg::asPointers( matrix)), w_h,
             0., integral_d);
-    dg::exblas::udouble res;
-    res.d = integral_d[0];
-    INFO( "2D integral               "<<std::setw(6)<<res.d);
-    //CHECK( abs( res.i + 4823491540355645440) < 2);
+    double res = integral_d[0];
+    INFO( "2D integral               "<<std::setw(6)<<res);
+    //CHECK( abs( dg::exblas::bit_cast<int64_t>( res) + 4823491540355645440) < 2);
     //We do not expect this to be correct because the Matrix-Vector product is
     //not accurate nor binary reproducible)!
     double sol2d = 0;
     INFO( "Correct integral is       "<<std::setw(6)<<sol2d);
-    INFO( "2d error is               "<<(res.d-sol2d));
-    CHECK_THAT( fabs(res.d - sol2d), WithinAbs( 0, 1e-13));
+    INFO( "2d error is               "<<(res-sol2d));
+    CHECK_THAT( fabs(res - sol2d), WithinAbs( 0, 1e-13));
 }
 #endif
 
@@ -296,28 +293,28 @@ TEST_CASE( "Complex scalar products")
         dg::blas1::transform( cc3d,cc3d, []DG_DEVICE( thrust::complex<double>
         x){ return thrust::complex{x.real(), x.real()};});
         thrust::complex<double> cintegral = dg::blas1::dot( w3d, cc3d);
-        dg::exblas::udouble res;
-        res.d =cintegral.real();
+        double res = 0;
+        res =cintegral.real();
         double sol3d = (exp(2.)-exp(1))*(exp(4.)-exp(3))*(exp(6.)-exp(5));
         INFO( "3D integral (real)        "<<std::setw(6)<<cintegral.real());
         INFO( "Correct integral is       "<<std::setw(6)<<sol3d);
         INFO( "3d error is               "<<(cintegral.real()-sol3d));
         // Note: Complex scalar products use floating point expansions
         // instead of a superaccumulator (not infinitely precise)
-        CHECK( abs(res.i - 4675882723962622631) < 2);
-        res.d =cintegral.imag();
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) - 4675882723962622631) < 2);
+        res =cintegral.imag();
         INFO( "3D integral (imag)        "<<std::setw(6)<<cintegral.imag());
-        CHECK( abs(res.i - 4675882723962622631) < 2);
+        CHECK( abs(dg::exblas::bit_cast<int64_t>( res) - 4675882723962622631) < 2);
 
         double solution3d =
             (exp(4.)-exp(2))/2.*(exp(8.)-exp(6.))/2.*(exp(12.)-exp(10));
         double norm3d = dg::blas1::vdot( [] DG_DEVICE( double ww,
             thrust::complex<double> zz){ return ww*norm(zz);}, w3d, cc3d);
-        res.d = norm3d;
+        res = norm3d;
         INFO( "Square normalized 3D norm "<<std::setw(6)<<norm3d);
         INFO( "Correct square norm is    "<<std::setw(6)<<solution3d);
         INFO( "Relative 3d error is      "<<(norm3d-solution3d)/solution3d);
-        CHECK( abs( res.i - 4751268280629478772) < 2);
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4751268280629478772) < 2);
     }
 
     SECTION( "1d grid")
@@ -336,16 +333,16 @@ TEST_CASE( "Complex scalar products")
         const dg::x::DVec w1d = dg::construct<dg::x::DVec>(
                 dg::create::weights( g1d));
         thrust::complex<double> cintegral = dg::blas1::dot( w1d, cc1d);
-        dg::exblas::udouble res;
-        res.d =cintegral.real();
+        double res = 0;
+        res =cintegral.real();
         INFO( "1D integral (real)        "<<std::setw(6)<<cintegral.real());
         double sol = (exp(2.) -exp(1));
         INFO( "Correct integral is       "<<std::setw(6)<<sol);
         INFO( "Relative 1d error is      "<<(cintegral.real()-sol)/sol);
-        CHECK( abs( res.i - 4616944842743393935) < 2);
-        res.d =cintegral.imag();
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4616944842743393935) < 2);
+        res =cintegral.imag();
         INFO( "1D integral (imag)        "<<std::setw(6)<<cintegral.imag());
-        CHECK( abs( res.i - 4616944842743393935) < 2);
+        CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4616944842743393935) < 2);
     }
     SECTION( "Vector valued scalar product")
     {

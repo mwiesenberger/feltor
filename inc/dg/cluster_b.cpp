@@ -194,7 +194,7 @@ int main(
     t.toc();
     if(rank==0)std::cout<<" "<<t.diff()/(double)multi<<std::flush;
     //The Elliptic scheme
-    dg::exblas::udouble res;
+    double res = 0;
     if( !(Nz > 2))
     {
         const Vector ellw3d = dg::create::volume(gridEll);
@@ -211,7 +211,7 @@ int main(
         dg::blas1::axpby( 1., solution, -1., x);
         //for missing DS
         if(rank==0)std::cout<<" 0.0";
-        res.d = dg::blas2::dot( x, ellw3d, x);
+        res = dg::blas2::dot( x, ellw3d, x);
     }
     else
     {
@@ -228,7 +228,7 @@ int main(
         t.toc();
         if(rank==0)std::cout <<" "<< number << " "<<t.diff()/(double)number<<std::flush;
         dg::blas1::axpby( 1., solution, -1., x);
-        res.d = dg::blas2::dot( x, ellw3d, x);
+        res = dg::blas2::dot( x, ellw3d, x);
         //Application of ds
         double R0 = 10, I0=20;
         double a = 1.;
@@ -253,7 +253,7 @@ int main(
         t.toc();
         if(rank==0)std::cout<<" "<<t.diff()/(double)multi;
     }
-    if(rank==0)std::cout << " "<<res.d<< " "<<res.i;
+    if(rank==0)std::cout << " "<<res<< " "<<dg::exblas::bit_cast<int64_t>( res);
 
     } catch( std::exception& e) {
         if(rank==0)std::cout << std::endl;

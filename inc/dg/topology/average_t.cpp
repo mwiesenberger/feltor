@@ -129,10 +129,9 @@ TEST_CASE( "3d Average in x and z direction")
         dg::x::DVec solution = dg::evaluate( x_average, g);
         dg::blas1::axpby( 1., solution, -1., average_z);
         const dg::x::DVec w3d = dg::create::weights( g);
-        dg::exblas::udouble res;
-        res.d = sqrt( dg::blas2::dot( average_z, w3d, average_z));
-        INFO("Solution is: "<<res.d<<"\t"<<res.i);
-        CHECK_THAT( res.d, WithinAbs( 0.0, 1e-13));
+        double res = sqrt( dg::blas2::dot( average_z, w3d, average_z));
+        INFO("Solution is: "<<res<<"\t"<<dg::exblas::bit_cast<int64_t>( res));
+        CHECK_THAT( res, WithinAbs( 0.0, 1e-13));
     }
     SECTION("Averaging z")
     {
@@ -144,11 +143,10 @@ TEST_CASE( "3d Average in x and z direction")
         const dg::x::DVec w2d = dg::create::weights( gxy);
         dg::x::DVec solution = dg::evaluate( z_average, gxy);
         dg::blas1::axpby( 1., solution, -1., average_z);
-        dg::exblas::udouble res;
-        res.d = sqrt( dg::blas2::dot( average_z, w2d, average_z));
+        double res = sqrt( dg::blas2::dot( average_z, w2d, average_z));
         INFO( "(Converges with 2nd order).");
-        INFO( "Solution is: "<<res.d<<"\t"<<res.i);
-        CHECK_THAT( res.d, WithinAbs( 0.0, 2.6e-5));
+        INFO( "Solution is: "<<res<<"\t"<<dg::exblas::bit_cast<int64_t>( res));
+        CHECK_THAT( res, WithinAbs( 0.0, 2.6e-5));
     }
     SECTION( "NaN and Inf behaviour")
     {

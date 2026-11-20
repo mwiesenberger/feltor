@@ -40,14 +40,14 @@ bool equal( const Vector& vec, T result)
 template<class Vector>
 bool equal64( const Vector& vec, int64_t result)
 {
-    dg::exblas::udouble ud;
+    double ud = 0;
     for( unsigned i=0; i<vec.size(); i++)
     {
-        ud.d = vec[i];
+        ud = vec[i];
 
-        if( abs(ud.i - result) >2)
+        if( abs(dg::exblas::bit_cast<int64_t>( ud) - result) >2)
         {
-            UNSCOPED_INFO( "Element "<<i<<" "<< ud.i << " "<<result);
+            UNSCOPED_INFO( "Element "<<i<<" "<< dg::exblas::bit_cast<int64_t>( ud) << " "<<result);
             return false;
         }
     }

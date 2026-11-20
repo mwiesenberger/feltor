@@ -86,7 +86,7 @@ int main()
     const Container chi =  dg::evaluate( chi_ana, grid2d);
     const Container rho_FFO4 =    dg::evaluate( rho_ana_FFO4, grid2d);
 
-    dg::exblas::udouble res;
+    double res = 0;
 
     dg::PCG <Container> pcg( x,  grid2d.size()*grid2d.size());
 
@@ -110,10 +110,10 @@ int main()
         t.toc();
 
         dg::blas1::axpby( 1., sol, -1., x, error);
-        res.d = sqrt( dg::blas2::dot( w2d, error));
+        res = sqrt( dg::blas2::dot( w2d, error));
         std::cout << "    time: "<<t.diff() << "s \n";
         std::cout << "    iter:  "<<number<<std::endl;
-        std::cout << "    error_abs: " << res.d<<" \n";
+        std::cout << "    error_abs: " << res<<" \n";
         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol))<<std::endl;
 
         std::cout << "\n#####df polarization charge with nested inversion (commute = true)\n";
@@ -128,10 +128,10 @@ int main()
         t.toc();
 
         dg::blas1::axpby( 1., sol, -1., x, error);
-        res.d = sqrt( dg::blas2::dot( w2d, error));
+        res = sqrt( dg::blas2::dot( w2d, error));
         std::cout << "    time: "<<t.diff() << "s \n";
         std::cout << "    iter:  "<<number<<std::endl;
-        std::cout << "    error_abs: " << res.d<<std::endl;
+        std::cout << "    error_abs: " << res<<std::endl;
         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol))<<std::endl;
     }
 
@@ -153,10 +153,10 @@ int main()
         t.toc();
 
         dg::blas1::axpby( 1., sol, -1., x, error);
-        res.d = sqrt( dg::blas2::dot( w2d, error));
+        res = sqrt( dg::blas2::dot( w2d, error));
         std::cout << "    time: "<<t.diff() << "s \n";
         std::cout << "    iter:  "<<number<<std::endl;
-        std::cout << "    error_abs: " << res.d<<std::endl;
+        std::cout << "    error_abs: " << res<<std::endl;
         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol))<<std::endl;
 
 
@@ -171,10 +171,10 @@ int main()
         t.toc();
 
         dg::blas1::axpby( 1., sol, -1., x, error);
-        res.d = sqrt( dg::blas2::dot( w2d, error));
+        res = sqrt( dg::blas2::dot( w2d, error));
         std::cout << "    time: "<<t.diff() << "s \n";
         std::cout << "    iter:  "<<number<<std::endl;
-        std::cout << "    error_abs: " << res.d<<std::endl;
+        std::cout << "    error_abs: " << res<<std::endl;
         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol))<<std::endl;
     }
 
@@ -197,10 +197,10 @@ int main()
         t.toc();
 
         dg::blas1::axpby( 1., sol_FF, -1., x, error);
-        res.d = sqrt( dg::blas2::dot( w2d, error));
+        res = sqrt( dg::blas2::dot( w2d, error));
         std::cout << "    time: "<<t.diff() << "s \n";
         std::cout << "    iter:  "<<number<<std::endl;
-        std::cout << "    error_abs: " << res.d<<std::endl;
+        std::cout << "    error_abs: " << res<<std::endl;
         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol_FF))<<std::endl;
 
         //test application of operator //TODO not converging but relatively close to sol
@@ -234,10 +234,10 @@ int main()
         t.toc();
 
         dg::blas1::axpby( 1., sol_FF, -1., x, error);
-        res.d = sqrt( dg::blas2::dot( w2d, error));
+        res = sqrt( dg::blas2::dot( w2d, error));
         std::cout << "    time: "<<t.diff() << "s \n";
         std::cout << "    iter:  "<<numberCG<<std::endl;
-        std::cout << "    error_abs: " << res.d<<std::endl;
+        std::cout << "    error_abs: " << res<<std::endl;
         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol_FF))<<std::endl;
     }
 //
@@ -259,10 +259,10 @@ int main()
 //         t.toc();
 //
 //         dg::blas1::axpby( 1., sol_FF, -1., x, error);
-//         res.d = sqrt( dg::blas2::dot( w2d, error));
+//         res = sqrt( dg::blas2::dot( w2d, error));
 //         std::cout << "    time: "<<t.diff() << "s \n";
 //         std::cout << "    iter:  "<<number<<std::endl;
-//         std::cout << "    error_abs: " << res.d<<std::endl;
+//         std::cout << "    error_abs: " << res<<std::endl;
 //         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol_FF))<<std::endl;
 //
 //
@@ -293,12 +293,12 @@ int main()
 //         t.toc();
 //
 //         dg::blas1::axpby( 1., sol_FF, -1., x, error);
-//         res.d = sqrt( dg::blas2::dot( w2d, error));
+//         res = sqrt( dg::blas2::dot( w2d, error));
 //         std::cout << "    time: "<<t.diff() << "s \n";
 //         for( unsigned u=0; u<number.size(); u++)
 //             std::cout << " # iter["<<u<<"] "<< number.size()-1-u << " " << number[number.size()-1-u] << " \n";
 //         std::cout << "    iter:  "<<number[0]+number[1]+number[2]<<std::endl;
-//         std::cout << "    error_abs: " << res.d<<std::endl;
+//         std::cout << "    error_abs: " << res<<std::endl;
 //         std::cout << "    error_rel: " << sqrt( dg::blas2::dot( w2d, error)/ dg::blas2::dot( w2d, sol_FF))<<std::endl;
 //     }
 //

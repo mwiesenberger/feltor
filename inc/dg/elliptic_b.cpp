@@ -130,9 +130,9 @@ int main(
 
     double normerr = dg::blas2::dot( w3d, error);
     double norm = dg::blas2::dot( w3d, solution);
-    dg::exblas::udouble res;
-    norm = sqrt(normerr/norm); res.d = norm;
-    DG_RANK0 std::cout << "L2 Norm of relative error is:               " <<res.d<<"\t"<<res.i<<std::endl;
+    double res = 0;
+    norm = sqrt(normerr/norm); res = norm;
+    DG_RANK0 std::cout << "L2 Norm of relative error is:               " <<res<<"\t"<<dg::exblas::bit_cast<int64_t>( res)<<std::endl;
     const dg::x::DVec deriv = dg::evaluate( fctX, grid);
     dg::x::DMatrix DX = dg::create::dx( grid);
     dg::blas2::gemv( DX, x, error);

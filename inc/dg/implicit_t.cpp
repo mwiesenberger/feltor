@@ -89,17 +89,17 @@ TEST_CASE( "Default solver interface")
     const dg::x::DVec solution = dg::evaluate( sol, grid);
     const double norm = dg::blas2::dot( w2d, solution);
     dg::x::DVec error( solution);
-    dg::exblas::udouble res;
+    double res = 0;
     dg::DefaultSolver solver( diff, x, max_iter, eps);
     solver.set_benchmark(false);
     x  =    dg::evaluate( initial, grid);
     solver( alpha, 1., x, b);
     dg::blas1::axpby( 1.,x,-1., solution, error);
     double err = dg::blas2::dot( w2d, error);
-    err = sqrt( err/norm); res.d = err;
-    INFO( " Error "<<err << "\t"<<res.i);
+    err = sqrt( err/norm); res = err;
+    INFO( " Error "<<err << "\t"<<dg::exblas::bit_cast<int64_t>( res));
     CHECK( err < 2e-7);
     // MW This does not succeed on github or msvc:
-    // CHECK( abs( res.i - 4503686874401734415) < 2);
+    // CHECK( abs( dg::exblas::bit_cast<int64_t>( res) - 4503686874401734415) < 2);
 }
 

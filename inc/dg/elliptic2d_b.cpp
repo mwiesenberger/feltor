@@ -97,7 +97,7 @@ int main(
     const dg::x::DVec variatio = dg::evaluate( vari, grid);
     const double norm = dg::blas2::dot( w2d, solution);
     dg::x::DVec error( solution);
-    dg::exblas::udouble res;
+    double res = 0;
 
     DG_RANK0 std::cout << "Create Polarisation object and set chi!\n";
     {
@@ -150,8 +150,8 @@ int main(
     //! [multigrid]
     dg::blas1::axpby( 1.,x,-1., solution, error);
     double err = dg::blas2::dot( w2d, error);
-    err = sqrt( err/norm); res.d = err;
-    DG_RANK0 std::cout << " "<<err << "\t"<<res.i<<"\n";
+    err = sqrt( err/norm); res = err;
+    DG_RANK0 std::cout << " "<<err << "\t"<<dg::exblas::bit_cast<int64_t>( res)<<"\n";
     dg::x::DMatrix DX = dg::create::dx( grid);
     dg::blas2::gemv( DX, x, error);
     dg::blas1::axpby( 1.,derivati,-1., error);
@@ -259,8 +259,8 @@ int main(
 		pcg.solve( pol_backward, x, b, chi_inv, w2d, eps);
 		dg::blas1::axpby( 1.,x,-1., solution, error);
 		double err = dg::blas2::dot( w2d, error);
-        err = sqrt( err/norm); res.d = err;
-        DG_RANK0 std::cout << " "<<err << "\t"<<res.i<<std::endl;
+        err = sqrt( err/norm); res = err;
+        DG_RANK0 std::cout << " "<<err << "\t"<<dg::exblas::bit_cast<int64_t>( res)<<std::endl;
     }
     {
         //try the Hyperelliptic operator
@@ -279,8 +279,8 @@ int main(
 		pcg.solve( pol_backward, x, chi, 1., w2d, eps);
 		dg::blas1::axpby( 1.,x,-0.25, solution, error);
 		double err = dg::blas2::dot( w2d, error);
-        err = sqrt( err/norm); res.d = err;
-        DG_RANK0 std::cout << " "<<err << "\t"<<res.i<<std::endl;
+        err = sqrt( err/norm); res = err;
+        DG_RANK0 std::cout << " "<<err << "\t"<<dg::exblas::bit_cast<int64_t>( res)<<std::endl;
     }
     try{
         dg::blas1::copy( 0., x);
@@ -323,7 +323,7 @@ int main(
 
         dg::blas1::axpby( 1.,x,-1., sol1d, x);
         double err = dg::blas2::dot( w1d, x);
-        err = sqrt( err/norm1d); res.d = err;
+        err = sqrt( err/norm1d); res = err;
         DG_RANK0 std::cout << " "<<err<<"\n";
         DG_RANK0 std::cout << "Compute direct application of 1d Elliptic (supraconvergence)\n";
         dg::apply( pol1d, sol1d, x);

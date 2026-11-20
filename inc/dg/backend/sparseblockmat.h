@@ -493,9 +493,8 @@ void EllSparseBlockMat<T, Vector>::display( std::ostream& os, bool show_data ) c
         for( unsigned i=0; i<data.size()/n/n; i++)
             for(unsigned k=0; k<n*n; k++)
             {
-                dg::exblas::udouble res;
-                res.d = data[i*n*n+k];
-                os << "idx "<<i<<" "<<res.d <<"\t"<<res.i<<"\n";
+                double res = data[i*n*n+k];
+                os << "idx "<<i<<" "<<res <<"\t"<<dg::exblas::bit_cast<int64_t>( res)<<"\n";
             }
     }
     os << std::endl;
@@ -520,9 +519,8 @@ void CooSparseBlockMat<real_type, Vector>::display( std::ostream& os, bool show_
         for( unsigned i=0; i<data.size()/n/n; i++)
             for(unsigned k=0; k<n*n; k++)
             {
-                dg::exblas::udouble res;
-                res.d = data[i*n*n+k];
-                os << "idx "<<i<<" "<<res.d <<"\t"<<res.i<<"\n";
+                double res = data[i*n*n+k];
+                os << "idx "<<i<<" "<<res <<"\t"<<dg::exblas::bit_cast<int64_t>( res)<<"\n";
             }
     }
     os << std::endl;
