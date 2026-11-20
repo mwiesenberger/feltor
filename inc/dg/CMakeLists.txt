@@ -35,9 +35,6 @@ set(DG_HEADERS
   backend/exblas/exdot_omp.h
   backend/exblas/exdot_serial.h
   backend/exblas/ExSUM.FPE.hpp
-  backend/exblas/fpedot_cuda.cuh
-  backend/exblas/fpedot_omp.h
-  backend/exblas/fpedot_serial.h
   backend/exblas/mpi_accumulate.h
   backend/exblas/mylibm.cuh
   backend/exblas/mylibm.hpp

@@ -27,13 +27,10 @@ namespace blas1
 {
 namespace detail
 {
-template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( AnyScalarTag, std::array<T,N>& fpe, Functor f,
-    const ContainerType& x, const ContainerTypes& ...xs)
+template< class Functor, class ...ContainerTypes>
+inline auto doDot_integral( AnyScalarTag, Functor f, const ContainerTypes& ...xs)
 {
-    fpe[0] = f(x,xs...);
-    for( unsigned u=1; u<N; u++)
-        fpe[u] = T(0);
+    return f( xs...);
 }
 
 template< class Functor, class ...ContainerTypes>

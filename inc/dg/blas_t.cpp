@@ -273,7 +273,6 @@ TEST_CASE( "Exact dot product")
     }
     SECTION( "vdot and complex dot")
     {
-        // These use floating point expansions instead of a superaccumulator
         CHECK( dg::blas1::vdot( []DG_DEVICE( double x, double y){ return x*y;},
                     v, w) == sol);
         thrust::host_vector<thrust::complex<double>> h_cv( size);
@@ -349,6 +348,28 @@ TEST_CASE( "vdot is exactly rounded")
         CHECK( dg::blas1::vdot( []DG_DEVICE( float x){ return x;}, fv) ==
                 float( sol));
     }
+}
+
+TEST_CASE( "vdot of integral values")
+{
+    // Integral values are summed as integers, also beyond 2^53
+    int ranks = 1;
+#ifdef WITH_MPI
+    MPI_Comm_size( MPI_COMM_WORLD, &ranks);
+#endif
+    unsigned size = GENERATE( 7u, 5003u);
+    INFO( "Local size "<<size<<" on "<<ranks<<" ranks");
+    auto v = make_x_vector<dg::DVec>( thrust::host_vector<double>( size, 1.));
+    const int64_t big = int64_t(1) << 60;
+    auto count = []DG_DEVICE( double){ return 1u;};
+    auto large = [big]DG_DEVICE( double){ return big+1;};
+    CHECK( dg::blas1::vdot( count, v) == size*ranks);
+    CHECK( dg::blas1::vdot( large, v) == int64_t(size*ranks)*(big+1));
+    std::array<dg::x::DVec, 2> rv{ v, v};
+    CHECK( dg::blas1::vdot( count, rv) == 2*size*ranks);
+    std::map<std::string, dg::x::DVec> mv{ {"a", v}, {"b", v}};
+    CHECK( dg::blas1::vdot( count, mv) == 2*size*ranks);
+    CHECK( dg::blas1::vdot( []( int x, int y){ return x*y;}, 3, 4) == 12);
 }
 
 TEST_CASE( "dot equals the exactly rounded sum of the rounded products")

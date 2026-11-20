@@ -6,7 +6,8 @@
 #include "config.h"
 #include "blas1_serial.h"
 #include "exblas/exdot_omp.h"
-#include "exblas/fpedot_omp.h"
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/functional.h>
 namespace dg
 {
 namespace blas1
@@ -18,14 +19,20 @@ namespace detail
 // 4096 made expensive functors and stencils slower.
 constexpr int MIN_SIZE=512;
 
-template<class T, size_t N, class Functor, class ...PointerOrValues>
-inline void doDot_fpe_dispatch( OmpTag, unsigned size, std::array<T,N>& fpe,
-    Functor f, PointerOrValues ...xs_ptr)
+// The sum of the integral values f( xs[i]...); integer addition does not
+// depend on the order
+template<class Functor, class ...PointerOrValues>
+inline auto doDot_integral_dispatch( OmpTag, unsigned size, Functor f,
+    PointerOrValues ...xs)
 {
-    if(size<exblas::MIN_OMP_SIZE)
-        exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
-    else
-        exblas::fpedot_omp<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
+    if( size < MIN_SIZE)
+        return doDot_integral_dispatch( SerialTag(), size, f, xs...);
+    using T = exblas::get_result_type<Functor, PointerOrValues...>;
+    return thrust::transform_reduce( thrust::omp::par,
+        thrust::counting_iterator<unsigned>(0),
+        thrust::counting_iterator<unsigned>(size),
+        [=]( unsigned i) mutable { return f( get_element( xs, i)...);},
+        T(0), thrust::plus<T>());
 }
 
 // The superaccumulators of the exact sum of f( xs[i]...)

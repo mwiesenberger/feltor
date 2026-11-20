@@ -51,29 +51,23 @@ namespace blas1
 namespace detail
 {
 
-template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( StdMapTag, std::array<T,N>& fpe, Functor f,
-    const ContainerType& x, const ContainerTypes& ...xs)
+template< class Functor, class ...ContainerTypes>
+inline auto doDot_integral( StdMapTag, Functor f, const ContainerTypes& ...xs)
 {
     //find out which one is the map and determine the keys
-    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, ContainerType, ContainerType, ContainerTypes...>::value;
-    //reduce received data (serial execution)
-    for( unsigned k=0; k<N; k++)
-        fpe[k] = T(0);
-    for( const auto& el : get_idx<vector_idx>(x,xs...))
+    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar, std::tuple_element_t<0, std::tuple<ContainerTypes...>>, ContainerTypes...>::value;
+    get_result_type<Functor, ContainerTypes...> sum = 0;
+    for( const auto& el : get_idx<vector_idx>(xs...))
     {
-        std::array<T,N> tmp;
         try{
-        doDot_fpe( tmp, f,
-            do_get_vector_element(x, el.first, get_tensor_category<ContainerType>()),
+        sum += dg::blas1::vdot( f,
             do_get_vector_element(xs, el.first, get_tensor_category<ContainerTypes>())...);
         }catch( std::out_of_range& err)
         {
             throw dg::Error( dg::Message(_ping_)<<"Wrong key '"<<el.first<<"' in blas1::vdot "<<err.what());
         }
-        for (unsigned k = 0; k < N; ++k)
-            exblas::cpu::Accumulate( tmp[k], fpe);
     }
+    return sum;
 }
 
 template< class Functor, class ...ContainerTypes>

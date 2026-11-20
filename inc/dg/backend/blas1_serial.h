@@ -6,7 +6,6 @@
 #include "exceptions.h"
 #include "execution_policy.h"
 #include "exblas/exdot_serial.h"
-#include "exblas/fpedot_serial.h"
 
 namespace dg
 {
@@ -15,12 +14,6 @@ namespace blas1
 {
 namespace detail
 {
-template<class T, size_t N, class Functor, class ...PointerOrValues>
-inline void doDot_fpe_dispatch( SerialTag, unsigned size, std::array<T,N>& fpe,
-    Functor f, PointerOrValues ...xs_ptr)
-{
-    exblas::fpedot_cpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
-}
 // The superaccumulators of the exact sum of f( xs[i]...)
 template<class Functor, class ...PointerOrValues>
 inline std::vector<int64_t> doDot_dispatch( SerialTag, int* status, unsigned size,
@@ -39,6 +32,17 @@ inline T get_element( T x, int){
 template<class T>
 inline T& get_element( T* x, int i){
 	return *(x+i);
+}
+// The sum of the integral values f( xs[i]...)
+template<class Functor, class ...PointerOrValues>
+inline auto doDot_integral_dispatch( SerialTag, unsigned size, Functor f,
+    PointerOrValues ...xs)
+{
+    using T = exblas::get_result_type<Functor, PointerOrValues...>;
+    T sum = T(0);
+    for( unsigned i=0; i<size; i++)
+        sum += f( get_element( xs, i)...);
+    return sum;
 }
 template< class Subroutine, class PointerOrValue, class ...PointerOrValues>
 inline void doSubroutine_dispatch( SerialTag, int size, Subroutine f, PointerOrValue x, PointerOrValues... xs)

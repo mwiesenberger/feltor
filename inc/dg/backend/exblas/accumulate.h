@@ -95,12 +95,6 @@ inline std::enable_if_t<!std::is_integral_v<T>,T> KnuthTwoSum(T a, T b, T & s)
     s = (a - (r - z)) + (b - z);
     return r;
 }
-template<typename T> // for unsigned, int, char etc.
-inline std::enable_if_t<std::is_integral_v<T>,T> KnuthTwoSum(T a, T b, T & s)
-{
-    s = 0;
-    return a + b;
-}
 
 template<typename T>
 inline T TwoProductFMA(T a, T b, T &d) {
@@ -111,74 +105,6 @@ inline T TwoProductFMA(T a, T b, T &d) {
     d = vcl::mul_sub_x(a, b, p); //extra precision even if FMA is not available
 #endif//EXBLAS_WITHOUT_VCL
     return p;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// FPE Accumulate and Round function for leightweight implementation
-////////////////////////////////////////////////////////////////////////////////
-//does not check for NaN
-template<typename T, size_t N>
-void Accumulate(T x, std::array<T,N>& fpe)
-{
-    if( x == T(0) )
-        return;
-    for(unsigned int i = 0; i != N; ++i) {
-        T s;
-        fpe[i] = KnuthTwoSum(fpe[i], x, s);
-        x = s;
-        if( x == T(0)) //early exit
-	        return;
-    }
-}
-/**
-* @brief Convert a fpe to a single number (CPU version)
-*
-* The components are first accumulated into an fpe of size 2, whose sum is
-* then rounded. The result is therefore not always correctly rounded but may
-* differ by 1 ulp from the number nearest to the fpe (e.g. for
-* \f$ 1 + 2^{-53} + 2^{-120}\f$ the result is 1 instead of \f$ 1+2^{-52}\f$)
-* @param fpe the floating point expansion (N values of type T on the CPU)
-* @return the sum of the fpe rounded to T
-*/
-template<class T, size_t N>
-inline T Round( const std::array<T,N>& fpe ) {
-    // Our own implementation
-    // Just accumulate to a FPE of size 2 and return sum;
-    std::array<T, 2> fpe_red{T(0),T(0)};
-    for( unsigned u = 0; u<N; u++)
-        Accumulate( fpe[u], fpe_red);
-    return fpe_red[0] + fpe_red[1];
-
-    // The problem with the following is to get it to work for complex
-
-    //// Sylvie Boldo, and Guillaume Melquiond. "Emulation of a FMA and correctly rounded sums: proved algorithms using rounding to odd." IEEE Transactions on Computers, 57, no. 4 (2008): 462-471.
-    //// Listing 1 CorrectRoundedSum3
-    //// xh = fpe[0], xm = fpe[1], xl = fpe[2]
-    //static_assert( N > 2, "FPE size must be greater than 2");
-    //union {
-    //    double d;
-    //    int64_t l;
-    //} thdb;
-
-    //double tl;
-    //double th = KnuthTwoSum(fpe[1], fpe[2], tl);
-
-    //if (tl != 0.0) {
-    //    thdb.d = th;
-    //    // if the mantissa of th is odd, there is nothing to do
-    //    if (!(thdb.l & 1)) {
-    //        // choose the rounding direction
-    //        // depending of the signs of th and tl
-    //        if ((tl > 0.0) ^ (th < 0.0))
-    //            thdb.l++;
-    //        else
-    //            thdb.l--;
-    //        th = thdb.d;
-    //    }
-    //}
-
-    //// final addition rounded to nearest
-    //return fpe[0] + th;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

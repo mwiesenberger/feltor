@@ -78,8 +78,14 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
  * type of \c f. The result is thus independent of the order of summation and
  * **binary reproducible** across numbers of threads, MPI decompositions and
  * backends, provided the values of \c f are (see below). Integral values are
- * summed exactly in their own type. For all other value types the sum is
- * computed in extended precision and is not binary reproducible.
+ * summed in their own type, which is exact (unless the sum overflows) and
+ * independent of the order of summation as well. Other value types (e.g.
+ * <tt>long double</tt>) are not supported.
+ * @attention Since integral values are summed in the value type of \c f, a
+ * \c f returning \c bool yields a logical or (<tt>true + true</tt> is \c
+ * true) and small types like \c char overflow quickly. To count, let \c f
+ * return \c unsigned or \c int, or use \c dg::blas1::reduce with a suitable
+ * binary operation.
  * @attention Only the sum is exact; the values of \c f are computed as
  * written in \c f. A program computes them always in the same way, so the
  * result is binary reproducible across numbers of threads and MPI
@@ -130,28 +136,20 @@ auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
     }
     else if constexpr( std::is_integral_v<T>) // e.g. T = int
     {
-        std::array<T, 1> fpe;
-        dg::blas1::detail::doDot_fpe( fpe, f, x, xs ...);
-        if( fpe[0] - fpe[0] != T(0))
-            throw dg::Error(dg::Message(_ping_)
-                <<"dg::blas1::vdot (integral type) failed "
-                <<"since one of the inputs contains NaN or Inf");
-        return fpe[0];
+        // integer sums do not depend on the order of summation
+        static_assert( ( dg::is_vector_v<ContainerType> && ...
+                      && dg::is_vector_v<ContainerTypes>),
+            "All container types must have a vector data layout (AnyVector)!");
+        using vector_type = find_if_t<dg::is_not_scalar, ContainerType, ContainerType, ContainerTypes...>;
+        using tensor_category  = get_tensor_category<vector_type>;
+        static_assert( ( dg::is_scalar_or_same_base_category<ContainerType, tensor_category>::value &&
+                  ... && dg::is_scalar_or_same_base_category<ContainerTypes, tensor_category>::value),
+            "All container types must be either Scalar or have compatible Vector categories (AnyVector or Same base class)!");
+        return dg::blas1::detail::doDot_integral( tensor_category(), f, x, xs...);
     }
     else
-    {
-        constexpr size_t N = 3;
-        std::array<T, N> fpe;
-        dg::blas1::detail::doDot_fpe( fpe, f, x, xs ...);
-        for( unsigned u=0; u<N; u++)
-        {
-            if( fpe[u] - fpe[u] != T(0))
-                throw dg::Error(dg::Message(_ping_)
-                    <<"dg::blas1::vdot (floating type) failed "
-                    <<"since one of the inputs contains NaN or Inf");
-        }
-        return exblas::cpu::Round(fpe);
-    }
+        static_assert( dg::detail::always_false_v<T>, "The values of f must be "
+            "float, double, complex numbers of these or integral types");
 }
 
 /*! @brief \f$ x^T y\f$ Binary reproducible Euclidean dot product between two vectors
@@ -637,21 +635,7 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
 ///@cond
 namespace detail{
 
-template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( std::array<T,N>& fpe, Functor f,
-    const ContainerType& x, const ContainerTypes& ...xs)
-{
-    static_assert( ( dg::is_vector_v<ContainerType> && ...
-                  && dg::is_vector_v<ContainerTypes>),
-        "All container types must have a vector data layout (AnyVector)!");
-    using vector_type = find_if_t<dg::is_not_scalar, ContainerType, ContainerType, ContainerTypes...>;
-    using tensor_category  = get_tensor_category<vector_type>;
-    static_assert( ( dg::is_scalar_or_same_base_category<ContainerType, tensor_category>::value &&
-              ... && dg::is_scalar_or_same_base_category<ContainerTypes, tensor_category>::value),
-        "All container types must be either Scalar or have compatible Vector categories (AnyVector or Same base class)!");
-    return doDot_fpe( tensor_category(), fpe, f, x, xs ...);
 
-}
 
 // The superaccumulators of the exact sum of f( x[i], xs[i]...): one for real
 // values of f, two (real and imaginary part) for complex values

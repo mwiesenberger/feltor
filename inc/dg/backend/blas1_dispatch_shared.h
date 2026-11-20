@@ -51,33 +51,30 @@ inline void subroutine( Subroutine f, ContainerType&& x, ContainerTypes&&... xs)
 
 template< class ContainerType, class BinarySubroutine, class Functor, class ContainerType0, class ...ContainerTypes>
 inline void kronecker( ContainerType& y, BinarySubroutine f, Functor g, const ContainerType0& x0, const ContainerTypes& ...xs);
+template<class Functor, class ContainerType, class ...ContainerTypes>
+auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
+    dg::get_result_type<Functor, ContainerType, ContainerTypes...>;
 namespace detail
 {
-template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe(
-    std::array<T,N>& fpe, Functor f, const ContainerType&, const ContainerTypes& ...xs);
 template< class Functor, class ...ContainerTypes>
 inline std::vector<int64_t> doDot_superacc( int* status, Functor f,
     const ContainerTypes& ...xs);
 //we need to distinguish between Scalars and Vectors
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-template< class T, size_t N, class Functor, class ContainerType, class ...ContainerTypes>
-inline void doDot_fpe( SharedVectorTag, std::array<T,N>& fpe, Functor f,
-    const ContainerType& x, const ContainerTypes& ...xs)
+template< class Functor, class ...ContainerTypes>
+inline auto doDot_integral( SharedVectorTag, Functor f, const ContainerTypes& ...xs)
 {
-    using vector_type = find_if_t<dg::is_not_scalar_has_not_any_policy, get_value_type<ContainerType>, ContainerType, ContainerTypes...>;
+    using first_type = std::tuple_element_t<0, std::tuple<ContainerTypes...>>;
+    using vector_type = find_if_t<dg::is_not_scalar_has_not_any_policy, get_value_type<first_type>, ContainerTypes...>;
     using execution_policy = get_execution_policy<vector_type>;
-    static_assert( (dg::has_any_or_same_policy<ContainerType, execution_policy>::value &&
-            ... &&  dg::has_any_or_same_policy<ContainerTypes, execution_policy>::value),
+    static_assert( ( dg::has_any_or_same_policy<ContainerTypes, execution_policy>::value && ...),
         "All ContainerType types must have compatible execution policies (AnyPolicy or Same)!");
-    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar_has_not_any_policy, get_value_type<ContainerType>, ContainerType, ContainerTypes...>::value;
-    doDot_fpe_dispatch(
-            get_execution_policy<vector_type>(),
-            get_idx<vector_idx>( x, xs...).size(),
-            fpe,
+    constexpr unsigned vector_idx = find_if_v<dg::is_not_scalar_has_not_any_policy, get_value_type<first_type>, ContainerTypes...>::value;
+    return doDot_integral_dispatch(
+            execution_policy(),
+            get_idx<vector_idx>( xs...).size(),
             f,
-            do_get_pointer_or_reference(x,get_tensor_category<ContainerType>()) ,
             do_get_pointer_or_reference(xs,get_tensor_category<ContainerTypes>()) ...
             );
 }

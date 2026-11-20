@@ -5,7 +5,10 @@
 #include <type_traits>
 #include "exceptions.h"
 #include "exblas/exdot_cuda.cuh"
-#include "exblas/fpedot_cuda.cuh"
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/functional.h>
+#include <thrust/tuple.h>
+#include <utility>
 namespace dg
 {
 struct equals; // defined in subroutines.h
@@ -13,12 +16,7 @@ namespace blas1
 {
 namespace detail
 {
-template<class T, size_t N, class Functor, class ...PointerOrValues>
-inline void doDot_fpe_dispatch( CudaTag, unsigned size, std::array<T,N>& fpe,
-    Functor f, PointerOrValues ...xs_ptr)
-{
-    exblas::fpedot_gpu<T,N,Functor,PointerOrValues...>( size, fpe, f, xs_ptr...);
-}
+
 
 // The superaccumulators of the exact sum of f( xs[i]...)
 template<class Functor, class ...PointerOrValues>
@@ -40,6 +38,40 @@ template<class T>
 __device__
 inline T& get_device_element( T* x, int i){
 	return *(x+i);
+}
+
+// f( xs[i]...) for the index i (nvcc does not allow device lambdas in host
+// functions, so this is a class)
+template<class T, class Functor, class ...PointerOrValues>
+struct EvaluateAt
+{
+    EvaluateAt( Functor f, PointerOrValues ...xs) : m_f(f), m_xs( xs...){}
+    __device__ T operator()( unsigned i) const
+    {
+        return call( i, std::index_sequence_for<PointerOrValues...>());
+    }
+    private:
+    template<size_t ...I>
+    __device__ T call( unsigned i, std::index_sequence<I...>) const
+    {
+        return m_f( get_device_element( thrust::get<I>( m_xs), i)...);
+    }
+    mutable Functor m_f;
+    thrust::tuple<PointerOrValues...> m_xs;
+};
+
+// The sum of the integral values f( xs[i]...); integer addition does not
+// depend on the order
+template<class Functor, class ...PointerOrValues>
+inline auto doDot_integral_dispatch( CudaTag, unsigned size, Functor f,
+    PointerOrValues ...xs)
+{
+    using T = exblas::get_result_type<Functor, PointerOrValues...>;
+    return thrust::transform_reduce( thrust::cuda::par,
+        thrust::counting_iterator<unsigned>(0),
+        thrust::counting_iterator<unsigned>(size),
+        EvaluateAt<T, Functor, PointerOrValues...>( f, xs...),
+        T(0), thrust::plus<T>());
 }
 
 template<class Subroutine, class PointerOrValue, class ...PointerOrValues>
