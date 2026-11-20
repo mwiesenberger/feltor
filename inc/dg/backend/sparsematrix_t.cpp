@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <random>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include "tensor_traits_std.h"
@@ -301,6 +302,45 @@ TEST_CASE( "SpMV on device")
         CHECK( v[8 + y_off + 1] == 37);
         CHECK( v[8 + y_off + 2] == 29);
     }
+}
+
+TEMPLATE_TEST_CASE( "SpMV on device is bitwise equal to host", "", float, double)
+{
+    // The device sums every row in the same order as the host. Rows of very
+    // different lengths: empty, short and up to 3072 entries
+    using T = TestType;
+    std::mt19937 gen( 42);
+    std::uniform_int_distribution<int> short_row( 0, 30), long_row( 0, 3072);
+    std::uniform_real_distribution<T> value( -1, 1);
+    unsigned num_rows = 600, num_cols = 5000;
+    std::uniform_int_distribution<int> column( 0, num_cols-1);
+    std::vector<int> rows = {0}, cols;
+    std::vector<T> vals;
+    for( unsigned i=0; i<num_rows; i++)
+    {
+        int length = i%7 == 0 ? long_row( gen) : short_row( gen);
+        if( i == 1) length = 1024;
+        if( i == 2) length = 1025;
+        if( i == 3) length = 0;
+        for( int k=0; k<length; k++)
+        {
+            cols.push_back( column( gen));
+            vals.push_back( value( gen));
+        }
+        rows.push_back( cols.size());
+    }
+    dg::SparseMatrix<int,T,thrust::host_vector> A( num_rows, num_cols, rows, cols, vals);
+    dg::SparseMatrix<int,T,thrust::device_vector> dA( A);
+    thrust::host_vector<T> x( num_cols), y( num_rows);
+    for( auto& e : x) e = value( gen);
+    for( auto& e : y) e = value( gen);
+    thrust::device_vector<T> dx( x), dy( y);
+    T alpha = GENERATE( 1, 1.5), beta = GENERATE( 0, 1, -0.5);
+    INFO( "alpha "<<alpha<<" beta "<<beta);
+    dg::blas2::symv( alpha, A, x, beta, y);
+    dg::blas2::symv( alpha, dA, dx, beta, dy);
+    std::vector<T> y_host( y.begin(), y.end()), y_device( dy.begin(), dy.end());
+    CHECK( y_device == y_host);
 }
 
 TEST_CASE("Documentation")

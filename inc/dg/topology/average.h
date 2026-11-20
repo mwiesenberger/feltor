@@ -42,7 +42,7 @@ namespace dg{
  * processes are added with \c MPI_Allreduce, in an order the MPI library
  * chooses. The results usually differ by a few units in the last place. If
  * the averaged directions are not distributed, the result is binary
- * reproducible (except on the GPU, see \c dg::SparseMatrix).
+ * reproducible.
  * @snippet topology/average_t.cpp doxygen
  * @ingroup average
  */
@@ -130,7 +130,6 @@ struct Average
         // (This must be done to remove potential NaN from previous computations,
         // otherwise the class can be "infected" with NaN)
         dg::blas1::copy( 0., m_tmp);
-        // Cusparse makes no guarantee on NaN behaviour
         // m_average in MPI has the "allreduce" distribution!
         dg::blas2::symv( m_average, src, m_tmp);
         dg::blas1::scal( m_tmp, m_area_inv);

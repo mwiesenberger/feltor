@@ -12,7 +12,6 @@
 // A: Some subtle issues:
 // - Do you want the thrust header? (And thus depend on thrust library?)
 // - Do you want all matrix traits as well?
-// - If so, do you want the sparsematrix.h which incurs -lcusparse dependency
 // In fact, it is possible to include tensor_traits.h as is and include the specialisation later when it is needed
 
 namespace dg{

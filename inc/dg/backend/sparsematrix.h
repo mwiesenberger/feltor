@@ -82,8 +82,7 @@ I coo2csr( unsigned num_rows, const I& coo)
  *
  * On the device like OpenMP or GPU the only currently allowed operations are \c transpose and the
  * matrix-vector multiplications through \c dg::blas2::symv (and its aliases \c
- * dg::blas2::gemv and \c dg::apply). We use the \c cusparse library to dispatch matrix-vector
- * multiplication on the GPU.
+ * dg::blas2::gemv and \c dg::apply).
  * @sa The CSR format is nicely explained at the
  * <a href="https://docs.nvidia.com/cuda/cusparse/#compressed-sparse-row-csr">cusparse documentation</a>
  * We use the zero-base index
@@ -91,13 +90,11 @@ I coo2csr( unsigned num_rows, const I& coo)
  * particular not in the \c dg::blas2::symv function. This means that in
  * <tt>dg::blas2::symv( A, x, y)</tt> if \c y contains a NaN or Inf on input,
  * it may or may not contain NaN or Inf on output
- * @attention On the GPU the matrix-vector multiplication is **not binary
- * reproducible** with the CPU and OpenMP versions, and an MPI distributed matrix
- * (\c dg::MIDMatrix) is not binary reproducible with the corresponding shared
- * memory matrix: \c cusparse does not define the order in which it sums the
- * entries of a row and the order depends on the matrix. The results usually
- * differ by a few units in the last place. On the CPU and with OpenMP the
- * entries of a row are summed in the order in which they are stored.
+ * @note The matrix-vector multiplication is binary reproducible: on all
+ * backends (CPU, OpenMP, GPU) the entries of a row are summed with \c DG_FMA
+ * in the order in which they are stored. The results are bitwise equal across
+ * backends, and an MPI distributed matrix (\c dg::MIDMatrix) gives bitwise the
+ * same result as the corresponding shared memory matrix.
  *
  * @tparam Index The index type (on GPU must be either \c int or \c long)
  * @tparam Value The value type (on GPU must be either \c float or \c double)
@@ -133,7 +130,6 @@ struct SparseMatrix
      * the matrix
      * @param column_indices Vector of size <tt>row_offsets.back()</tt> containing column indices.
      * The column indices may be unsorted within each row and should be unique.
-     * If duplicates exist symv may not be correct (from cusparse).
      * @param values Vector of size <tt>row_offsets.back()</tt> containing nonzero values
      */
     SparseMatrix( size_t num_rows, size_t num_cols, const Vector<Index>&
@@ -165,7 +161,7 @@ struct SparseMatrix
      *
      * @snippet{trimleft} sparsematrix_t.cpp setFromCoo
      * @note May be unsorted, in which case the \c sort parameter should be set
-     * to \c true; if duplicates exist symv may not be correct (from cusparse)
+     * to \c true; the indices should be unique
      *
      * @param num_rows Number of rows in the matrix
      * @param num_cols Number of columns in the matrix
@@ -236,7 +232,6 @@ struct SparseMatrix
      * the matrix
      * @param column_indices Vector of size <tt>row_offsets.back()</tt> containing column indices.
      * The column indices may be unsorted within each row and should be unique.
-     * If duplicates exist symv may not be correct (from cusparse).
      * @param values Vector of size <tt>row_offsets.back()</tt> containing nonzero values
      * @param sort If \c true the given vectors are sorted by column_indices in each row.
      * It is allowed to have unsorted column indices in each row so sorting is not strictly
@@ -260,7 +255,7 @@ struct SparseMatrix
     /*! @brief Sort by row and column
      *
      * Sort is somewhat expensive and it is allowed to have unsorted column
-     * indices (at least in cusparse). Sorting may or may not have an influence
+     * indices. Sorting may or may not have an influence
      * on performance. Never sort a stencil for \c dg::blas2::stencil.
      */
     void sort_indices()

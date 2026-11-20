@@ -379,9 +379,7 @@ TEST_CASE( "Fieldaligned construction")
 #ifdef WITH_MPI
 // The MPI Fieldaligned must give bitwise the same results as the shared
 // memory Fieldaligned on the global grid on the same backend, for any
-// number of ranks and any domain decomposition. On the GPU cuSPARSE does not
-// define its order of summation, so there the results are checked against a
-// bound in units in the last place (ulp)
+// number of ranks and any domain decomposition
 
 // Compare the local MPI result with the expected local values: the
 // differences may be at most max_ulp units in the last place of the largest
@@ -411,13 +409,6 @@ static void check_ulp( std::string what, const dg::HVec& local,
     CHECK( worst <= max_ulp);
 }
 
-// cuSPARSE: maximum difference between the MPI and the shared memory
-// products (measured at most 6 ulp of the largest value)
-#if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
-static const unsigned spmv_max_ulp = 16;
-#else
-static const unsigned spmv_max_ulp = 0;
-#endif
 
 TEST_CASE( "MPI Fieldaligned agrees with shared memory Fieldaligned")
 {
@@ -471,7 +462,7 @@ TEST_CASE( "MPI Fieldaligned agrees with shared memory Fieldaligned")
         0);
     // evaluate applies the interpolation matrices
     check_ulp( "evaluate", fa.evaluate( binary, unary, 0, 2).data(),
-        local_part( fa_global.evaluate( binary, unary, 0, 2)), spmv_max_ulp);
+        local_part( fa_global.evaluate( binary, unary, 0, 2)), 0);
     // Interpolation matrices
     dg::HVec global_f = dg::evaluate( []( double R, double Z, double phi){
         return sin( R)*cos( 3.*Z)*(1.5 + sin( phi)) + 1e-3*cos( 13.*R*Z);},
@@ -485,7 +476,7 @@ TEST_CASE( "MPI Fieldaligned agrees with shared memory Fieldaligned")
         INFO( "Matrix "<<which);
         fa( which, f, result);
         fa_global( which, gf, gresult);
-        check_ulp( "matrix", result.data(), local_part( gresult), spmv_max_ulp);
+        check_ulp( "matrix", result.data(), local_part( gresult), 0);
     }
 }
 #endif //WITH_MPI

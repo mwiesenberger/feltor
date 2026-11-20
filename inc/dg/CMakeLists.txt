@@ -321,7 +321,6 @@ target_link_libraries(dg_dg INTERFACE CCCL::CCCL)
 
 if(CCCL_THRUST_DEVICE_SYSTEM STREQUAL "CUDA" OR CCCL_THRUST_DEVICE_SYSTEM STREQUAL "")
   # CUDA language must be enabled if device is CUDA
-  target_link_libraries(dg_dg INTERFACE CUDA::cusparse)
   target_compile_features(dg_dg INTERFACE cuda_std_17)
 endif()
 # https://stackoverflow.com/questions/53256405/howto-pass-flag-to-nvcc-compiler-in-cmake

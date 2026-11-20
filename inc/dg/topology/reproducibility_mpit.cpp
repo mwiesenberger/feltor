@@ -13,12 +13,9 @@
 
 // The MPI matrices must give bitwise the same result as the shared memory
 // matrices of the global grid on the same backend, for any number of ranks
-// and any domain decomposition. Known exceptions are checked against a bound
-// in units in the last place (ulp):
-// - cuSPARSE does not define its order of summation in a matrix-vector
-//   product, so on the GPU the local and the global product may differ
-// - dg::Average adds the partial sums of the ranks along the averaged
-//   directions with MPI_Allreduce
+// and any domain decomposition. The known exception is checked against a
+// bound in units in the last place (ulp): dg::Average adds the partial sums
+// of the ranks along the averaged directions with MPI_Allreduce
 
 static double test_function( double x, double y)
 {
@@ -71,14 +68,6 @@ static void check_ulp( const dg::HVec& local, const dg::HVec& expected,
             max_ulp));
 }
 
-// cuSPARSE: maximum ulp difference between the MPI and the global product.
-// The longest rows in this test (cubic interpolation) have 16 entries; the
-// measured difference is at most 4 ulp
-#if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
-static const unsigned spmv_max_ulp = 16;
-#else
-static const unsigned spmv_max_ulp = 0;
-#endif
 
 // y = M x on the MPI grids and on the global grids, with the MPI matrix and
 // the global matrix copied to the device, and compare bitwise.
@@ -98,8 +87,7 @@ static void check_grid_matrix( const dg::MIHMatrix& mpi_host,
     dg::DVec gy( g_new.global().size());
     dg::blas2::symv( global_mat, gx, gy);
 
-    check_ulp( y.data(), dg::global2local( dg::HVec( gy), g_new).data(),
-        spmv_max_ulp);
+    check_ulp( y.data(), dg::global2local( dg::HVec( gy), g_new).data(), 0);
 }
 
 TEST_CASE( "MPI matrices agree with shared memory matrices")
@@ -161,7 +149,7 @@ TEST_CASE( "MPI matrices agree with shared memory matrices")
         dg::DVec gy( xs.size());
         dg::blas2::symv( global_mat, gx, gy);
         // the rows are the same local points
-        check_ulp( y.data(), gy, spmv_max_ulp);
+        check_ulp( y.data(), gy, 0);
     }
 }
 
@@ -196,7 +184,7 @@ TEST_CASE( "MPI Average agrees with shared memory Average")
     // defined by the MPI library
     int P = 1;
     MPI_Comm_size( g.comm( axis == dg::coo2d::x ? 0 : 1), &P);
-    unsigned max_ulp = P == 1 ? spmv_max_ulp : 4*P + spmv_max_ulp;
+    unsigned max_ulp = P == 1 ? 0 : 4*P;
     INFO( "Ranks along the averaged direction "<<P);
     check_ulp( y.data(), dg::global2local( dg::HVec( gy), g).data(), max_ulp);
 }
