@@ -147,31 +147,22 @@ struct ReversedProduct
  * Or a more elaborate use case
  * @snippet{trimleft} evaluation_t.cpp evaluate2d
  *
- * @attention if one of the input vectors contains \c Inf or \c NaN or the
- * product of the input numbers reaches \c Inf or \c Nan then the behaviour
- * is undefined and the function may throw. See @ref dg::ISNFINITE and @ref
- * dg::ISNSANE in that case
- * @note Our implementation guarantees **binary reproducible** results up to
- * and excluding the last mantissa bit of the result.  Furthermore, the sum is
- * computed with **infinite precision** and the result is then rounded to the
- * nearest double precision number. Although the products are not computed with
- * infinite precision, the order of multiplication is guaranteed.  This is
- * possible with the help of an adapted version of the \c dg::exblas library
- * and works for single and double precision.
- * @attention Binary Reproducible results are only guaranteed for **float** or
- * **double** input.  All other value types redirect to <tt>dg::blas1::vdot(
- * dg::Product(), x, m, y);</tt>
+ * @note If \c m is a scalar or has the same category as \c x and \c y,
+ * this function is an alias for
+ * <tt>dg::blas1::vdot( dg::Product(), x, m, y)</tt>, i.e. the products \f$
+ * (x_i M_{ii}) y_i\f$ are computed in this order in the type of the product
+ * and summed exactly; see \c dg::blas1::vdot for how the sum is computed for
+ * floating point and integral types, in which sense the result is **binary
+ * reproducible**, for \c Inf and \c NaN in the input and for MPI. If \c x
+ * and \c y (or one of them, if the other is a scalar) are vectors of
+ * containers and \c m is not, the sum runs over all their elements, i.e. the
+ * exact sums of <tt>dg::blas2::dot( x[i], m, y[i])</tt> are added before a
+ * floating point result is rounded.
  *
  * @param x Left input
  * @param m The diagonal Matrix.
  * @param y Right input (may alias \c x)
- * @return Generalized scalar product. If \c x and \c y are vectors of
- * containers and \c m is not, then we sum the results of <tt>dg::blas2::dot(
- * x[i], m, y[i])</tt>
- * @note This routine is always executed synchronously due to the
-    implicit memcpy of the result. With mpi the result is broadcasted to all
-    processes. Also note that the behaviour is undefined when one of the
-    containers contains \c nan
+ * @return Generalized scalar product, of the type of \f$ x_i M_{ii} y_i\f$
  * @tparam MatrixType \c MatrixType has to have a category derived from \c
  * AnyVectorTag and must be compatible with the \c ContainerTypes
  * @copydoc hide_ContainerType

@@ -409,3 +409,19 @@ struct Timer
  * @ingroup macros
  */
 #define DG_NVCC_EXEC_CHECK_DISABLE
+/**
+ * @brief Fused multiply-add \f$ ab+c\f$ with a single rounding, on host and device
+ *
+ * Expands to a call of \c fma (component-wise for complex numbers) if the
+ * host compiler targets a CPU with fused multiply-add instructions, i.e. if \c
+ * FP_FAST_FMA, \c __FMA__ or \c __AVX2__ is defined (e.g. with \c
+ * -march=native on CPUs since Haswell or with \c /arch:AVX2 on MSVC).
+ * Unlike the expression <tt>a*b+c</tt>, which a compiler may or may not
+ * contract into a fused multiply-add, the rounding is then fixed and the result
+ * is bitwise identical on all backends.
+ * @attention Without fused multiply-add instructions it expands to
+ * <tt>(a*b+c)</tt> (and a note is printed at compile time), whose rounding is
+ * again up to the compiler
+ * @ingroup macros
+ */
+#define DG_FMA(a,b,c)

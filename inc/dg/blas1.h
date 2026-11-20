@@ -98,8 +98,8 @@ inline void evaluate( ContainerType& y, BinarySubroutine f, Functor g, const Con
  *  rounded)
  *  - no expressions like <tt> a*b+c </tt>, which compilers may contract into
  *  a fused multiply-add in different places on different backends (e.g. \c
- *  gcc with \c -march=native and \c nvcc do so by default). Use \c
- *  DG_FMA(a,b,c) to fix the rounding instead. This includes the product of
+ *  gcc with \c -march=native and \c nvcc do so by default). Use \ref
+ *  DG_FMA to fix the rounding instead. This includes the product of
  *  two complex numbers, which \c dg::Product computes with explicit fused
  *  multiply-adds.
  *  .
@@ -161,23 +161,15 @@ auto vdot( Functor f, const ContainerType& x, const ContainerTypes& ...xs) ->
  * @snippet{trimleft} blas1_t.cpp dot
  * or
  * @snippet{trimleft} blas1_t.cpp cdot
- * @attention if one of the input vectors contains \c Inf or \c NaN or the
- * product of the input numbers reaches \c Inf or \c Nan then the behaviour
- * is undefined and the function may throw. See @ref dg::ISNFINITE and @ref
- * dg::ISNSANE in that case
- * @note Our implementation guarantees **binary reproducible** results.
- * The sum is computed with **infinite precision** and the result is rounded
- * to the nearest double precision number.
- * This is possible with the help of an adapted version of the \c dg::exblas library and
-* works for single and double precision.
-* @attention Binary Reproducible results are only guaranteed for **float** or **double** input.
-* All other value types redirect to <tt> dg::blas1::vdot( dg::Product(), x, y);</tt>
-
+ * @note This function is <tt>dg::blas1::vdot( dg::Product(), x, y)</tt>; see
+ * there for how the sum is computed exactly and in which sense the result is
+ * **binary reproducible**, for \c Inf and \c NaN in the input and for MPI.
+ * The products \f$ x_iy_i\f$ are computed in the type of the product, e.g.
+ * \c float for two \c float vectors; the product of two complex numbers is
+ * computed with fused multiply-adds (see \c dg::Product).
  * @param x Left Container
  * @param y Right Container may alias x
- * @return Scalar product as defined above
- * @note This routine is always executed synchronously due to the
-        implicit memcpy of the result. With mpi the result is broadcasted to all processes.
+ * @return Scalar product as defined above, of the type of \f$ x_iy_i\f$
  * @copydoc hide_ContainerType
  */
 template< class ContainerType1, class ContainerType2>
