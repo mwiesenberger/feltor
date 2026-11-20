@@ -370,6 +370,16 @@ TEST_CASE( "vdot of integral values")
     std::map<std::string, dg::x::DVec> mv{ {"a", v}, {"b", v}};
     CHECK( dg::blas1::vdot( count, mv) == 2*size*ranks);
     CHECK( dg::blas1::vdot( []( int x, int y){ return x*y;}, 3, 4) == 12);
+    // blas2::dot of integers, also with vectors of containers and a plain m
+    auto two = make_x_vector<dg::iDVec>( thrust::host_vector<int>( size, 2));
+    auto three = make_x_vector<dg::iDVec>( thrust::host_vector<int>( size, 3));
+    const int sol = 2*3*2*int(size)*ranks;
+    CHECK( dg::blas2::dot( two, three, two) == sol);
+    std::array<dg::x::iDVec, 2> rtwo{ two, two};
+    CHECK( dg::blas2::dot( rtwo, three, rtwo) == 2*sol);
+    CHECK( dg::blas2::dot( rtwo, 3, rtwo) == 2*sol);
+    std::map<std::string, dg::x::iDVec> mtwo{ {"a", two}, {"b", two}};
+    CHECK( dg::blas2::dot( mtwo, three, mtwo) == 2*sol);
 }
 
 TEST_CASE( "dot equals the exactly rounded sum of the rounded products")
@@ -394,6 +404,17 @@ TEST_CASE( "dot equals the exactly rounded sum of the rounded products")
     dg::blas1::evaluate( p, dg::equals(), dg::Product(), x, m, y);
     CHECK( dg::blas2::dot( x, m, y) == dg::blas1::dot( p, 1.));
     CHECK( dg::blas1::vdot( dg::Product(), x, m, y) == dg::blas1::dot( p, 1.));
+    // vectors of containers with a plain m sum over all elements exactly,
+    // independent of the nesting
+    std::array<dg::x::DVec, 4> flat{ x, y, y, x};
+    std::vector<std::array<dg::x::DVec, 2>> nested{ {x, y}, {y, x}};
+    const double sum = dg::blas2::dot( flat, m, flat);
+    CHECK( dg::blas2::dot( nested, m, nested) == sum);
+    // a scalar x times a vector of containers y
+    auto two = x;
+    dg::blas1::copy( 2., two);
+    std::array<dg::x::DVec, 2> rtwo{ two, two}, rxy{ x, y};
+    CHECK( dg::blas2::dot( 2., m, rxy) == dg::blas2::dot( rtwo, m, rxy));
 }
 
 TEST_CASE( "Dot of subnormal numbers")

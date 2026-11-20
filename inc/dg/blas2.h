@@ -30,32 +30,109 @@ namespace dg{
  objects is not restricted by this.
 */
 namespace blas2{
+///@cond
+namespace detail{
+template<class Matrix, class Vector>
+struct BroadcastMatrix;
+}//namespace detail
+///@endcond
+}//namespace blas2
+///@cond
+template<class Matrix, class Vector>
+struct TensorTraits<blas2::detail::BroadcastMatrix<Matrix, Vector>>
+{
+    using value_type = get_value_type<Matrix>;
+    using tensor_category = get_tensor_category<Vector>;
+    using execution_policy = get_execution_policy<Matrix>;
+};
+///@endcond
+namespace blas2{
 ///@addtogroup blas2
 ///@{
 
 ///@cond
 namespace detail{
 
-// The superaccumulators of dg::blas2::dot( x, m, y)
-template< class ContainerType1, class MatrixType, class ContainerType2>
-inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x, const MatrixType& m, const ContainerType2& y)
+// The idea of the following design is to enable the use of blas1::vdot inside
+// blas2::dot in the case that m is a vector but x or y is a recursive vector.
+// For such a case BroadcastMatrix pretends to be a recursive vector of the
+// same recursion as x or y whose elements (at the innermost level) are m.
+// This way blas2::dot can always dispatch to blas1::vdot and no separate
+// dispatch code is needed.
+
+// The element type of a vector of containers or of a std::map
+template<class Vector, bool is_map = std::is_base_of_v<StdMapTag, get_tensor_category<Vector>>>
+struct ElementOf
 {
-    static_assert(
-            dg::is_vector_v<ContainerType1> && dg::is_vector_v<MatrixType> &&
-            dg::is_vector_v<ContainerType2> ,
-        "The container types must have a vector data layout (AnyVector)!");
-    //check ContainerTypes: must be either scalar or same base category
-    using vector_type = find_if_t<dg::is_not_scalar, ContainerType1, ContainerType1, ContainerType2>;
-    using vector_category  = get_tensor_category<vector_type>;
-    static_assert(
-            dg::is_scalar_or_same_base_category<ContainerType1, vector_category>::value &&
-            dg::is_scalar_or_same_base_category<ContainerType2, vector_category>::value,
-        "All container types must be either Scalar or have compatible Vector categories (AnyVector or Same base class)!");
-    if constexpr( dg::is_scalar_or_same_base_category<MatrixType, vector_category>::value)
-        return dg::blas1::detail::doDot_superacc( status, dg::Product(), x, m, y);
-    else // x and y are vectors of containers and m is not
-        return doDot_superacc( vector_category(), status, x, m, y);
-}
+    using type = typename Vector::value_type;
+};
+template<class Vector>
+struct ElementOf<Vector, true>
+{
+    using type = typename Vector::mapped_type;
+};
+// A matrix m seen as a vector of containers like Vector, all of whose
+// elements are m: x[i] and m[i] then have the same category. For nested
+// vectors of containers the elements are again such wrappers until the
+// elements of Vector have the category of m.
+// The blas1 dispatch gets the elements with do_get_vector_element, which
+// returns a reference, so operator[] and at must return a reference to an
+// object that lives somewhere:
+// - If the elements of Vector have the category of m (is_leaf), the element
+//   is m itself and element() returns m_m.
+// - Else the element is the wrapper of the next level, which is the same for
+//   every index. m_inner is that object: each level holds the next one as a
+//   member, until a leaf level ends the chain at compile time. In a leaf
+//   level inner_type is the unused placeholder Empty, since C++17 cannot omit
+//   a member conditionally.
+// m is never copied: every level stores only the reference m_m to the same
+// m, and make_inner initializes m_inner directly (guaranteed copy elision).
+// The wrapper lives only during the call of blas2::dot, in which m is valid.
+template<class Matrix, class Vector>
+struct BroadcastMatrix
+{
+    using element_vector = typename ElementOf<Vector>::type;
+    static constexpr bool is_leaf = dg::is_scalar_or_same_base_category<Matrix,
+        get_tensor_category<element_vector>>::value;
+    using element_type = std::conditional_t< is_leaf, Matrix,
+        BroadcastMatrix<Matrix, element_vector>>;
+    using value_type = element_type; // for RecursiveVectorTag
+    using mapped_type = element_type; // for StdMapTag
+
+    BroadcastMatrix( const Matrix& m) : m_m(m), m_inner( make_inner(m)) {}
+    const element_type& operator[]( unsigned) const { return element();}
+    template<class Key>
+    const element_type& at( const Key&) const { return element();}
+    private:
+    struct Empty{};
+    using inner_type = std::conditional_t< is_leaf, Empty, element_type>;
+    static inner_type make_inner( const Matrix& m)
+    {
+        if constexpr( is_leaf)
+            return Empty();
+        else
+            return inner_type( m);
+    }
+    const element_type& element() const
+    {
+        if constexpr( is_leaf)
+            return m_m;
+        else
+            return m_inner;
+    }
+    const Matrix& m_m;
+    inner_type m_inner;
+};
+
+// The product (x*m)*y for the arguments in the order y, m, x
+struct ReversedProduct
+{
+    template<class T0, class T1, class T2>
+    DG_DEVICE auto operator()( T0 y, T1 m, T2 x) const
+    {
+        return dg::Product()( x, m, y);
+    }
+};
 
 }//namespace detail
 ///@endcond
@@ -102,21 +179,20 @@ inline std::vector<int64_t> doDot_superacc( int* status, const ContainerType1& x
 template< class ContainerType1, class MatrixType, class ContainerType2>
 inline auto dot( const ContainerType1& x, const MatrixType& m, const ContainerType2& y)
 {
-    using T = dg::get_result_type<dg::Product, ContainerType1, MatrixType, ContainerType2>;
-    if constexpr( exblas::ValueTraits<T>::K > 0) // float, double or complex
+    using vector_type = find_if_t<dg::is_not_scalar, ContainerType1, ContainerType1, ContainerType2>;
+    using vector_category  = get_tensor_category<vector_type>;
+    if constexpr( std::is_base_of_v<RecursiveVectorTag, vector_category> &&
+        !dg::is_scalar_or_same_base_category<MatrixType, vector_category>::value)
     {
-        int status = 0;
-        std::vector<int64_t> acc = dg::blas2::detail::doDot_superacc( &status,
-            x,m,y);
-        if( status != 0)
-            throw dg::Error(dg::Message(_ping_)<<"dg::blas2::dot failed "
-                <<"since one of the inputs contains NaN or Inf");
-        return exblas::cpu::Round<T>( acc.data());
+        // x and y are vectors of containers and m is not
+        detail::BroadcastMatrix<MatrixType, vector_type> mm( m);
+        if constexpr( dg::is_not_scalar<ContainerType1>::value)
+            return dg::blas1::vdot( dg::Product(), x, mm, y);
+        else // the first non-scalar determines the size of the sum
+            return dg::blas1::vdot( detail::ReversedProduct(), y, mm, x);
     }
     else
-    {
         return dg::blas1::vdot( dg::Product(), x, m, y);
-    }
 }
 
 /*! @brief \f$ x^T M x\f$; Binary reproducible general dot product
