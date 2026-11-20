@@ -96,7 +96,7 @@ void spgemm_cpu_kernel(
 
 //A = B + C
 // We do not catch explicit zeros in A
-// Entries in A are sorted
+// Entries in A are sorted and unique (duplicates in B and C are summed)
 template<class I, class V>
 void spadd_cpu_kernel(
     size_t B_num_rows, size_t B_num_cols,
@@ -121,8 +121,11 @@ void spadd_cpu_kernel(
         for (int pB = B_pos[i]; pB < B_pos[i+1]; pB++)
         {
             int ib = B_idx[pB];
-            wlist.push_back(ib);
-            w[ib] = true;
+            if( not w[ib])
+            {
+                wlist.push_back(ib);
+                w[ib] = true;
+            }
         }
         for (int pC = C_pos[i]; pC < C_pos[i+1]; pC++)
         {
@@ -158,7 +161,7 @@ void spadd_cpu_kernel(
         for (int pB = B_pos[i]; pB < B_pos[i+1]; pB++)
         {
             int ib = B_idx[pB];
-            workspace[ib] = B_val[pB];
+            workspace[ib] += B_val[pB];
         }
         for (int pC = C_pos[i]; pC < C_pos[i+1]; pC++)
         {

@@ -227,6 +227,26 @@ TEST_CASE( "Linear algebra")
         CHECK( C.values() == std::vector<double>{ 0,2,0,4,0,1,2,0,0});
 
     }
+    SECTION( "Duplicates act as their sum")
+    {
+        // A with entries split into duplicates (unsorted)
+        rows = {0,5,8,10}, cols = {0,3,0,4,4,0,2,2,1,4};
+        vals = {0.5,2,0.5,1,2,2,4,1,4,1};
+        dg::SparseMatrix<int,double,std::vector> D( 3, 5, rows, cols, vals);
+        std::vector<double> v = {1,2,3,4,5};
+        CHECK( D*v == A*v);
+        for( auto S : { D + A, A + D, D + D})
+        {
+            auto R = A + A;
+            CHECK( S.row_offsets() == R.row_offsets());
+            CHECK( S.column_indices() == R.column_indices());
+            CHECK( S.values() == R.values());
+        }
+        auto S = D*B, R = A*B;
+        CHECK( S.row_offsets() == R.row_offsets());
+        CHECK( S.column_indices() == R.column_indices());
+        CHECK( S.values() == R.values());
+    }
     SECTION( "Scal")
     {
 

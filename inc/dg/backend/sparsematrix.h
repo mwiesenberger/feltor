@@ -129,7 +129,8 @@ struct SparseMatrix
      * <tt>row_offsets.back()</tt> equals the number of non-zero elements in
      * the matrix
      * @param column_indices Vector of size <tt>row_offsets.back()</tt> containing column indices.
-     * The column indices may be unsorted within each row and should be unique.
+     * The column indices may be unsorted within each row and may contain
+     * duplicates, which act as one entry with the sum of their values.
      * @param values Vector of size <tt>row_offsets.back()</tt> containing nonzero values
      */
     SparseMatrix( size_t num_rows, size_t num_cols, const Vector<Index>&
@@ -161,7 +162,8 @@ struct SparseMatrix
      *
      * @snippet{trimleft} sparsematrix_t.cpp setFromCoo
      * @note May be unsorted, in which case the \c sort parameter should be set
-     * to \c true; the indices should be unique
+     * to \c true; duplicate index pairs act as one entry with the sum of
+     * their values
      *
      * @param num_rows Number of rows in the matrix
      * @param num_cols Number of columns in the matrix
@@ -231,7 +233,8 @@ struct SparseMatrix
      * <tt>row_offsets.back()</tt> equals the number of non-zero elements in
      * the matrix
      * @param column_indices Vector of size <tt>row_offsets.back()</tt> containing column indices.
-     * The column indices may be unsorted within each row and should be unique.
+     * The column indices may be unsorted within each row and may contain
+     * duplicates, which act as one entry with the sum of their values.
      * @param values Vector of size <tt>row_offsets.back()</tt> containing nonzero values
      * @param sort If \c true the given vectors are sorted by column_indices in each row.
      * It is allowed to have unsorted column indices in each row so sorting is not strictly
