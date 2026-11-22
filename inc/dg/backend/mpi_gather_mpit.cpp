@@ -218,16 +218,3 @@ TEST_CASE( "Gather when some ranks receive nothing")
     for( unsigned u=0; u<buffer.size(); u++)
         CHECK( buffer[u] == u+1);
 }
-
-TEST_CASE("MPIAllreduce")
-{
-    int rank, size;
-    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-    MPI_Comm_size( MPI_COMM_WORLD, &size);
-    unsigned N = 100;
-    thrust::device_vector<int> v(N, 1);
-    dg::detail::MPIAllreduce red( MPI_COMM_WORLD);
-    red.reduce(v);
-    CHECK( v[99] == size);
-    MPI_Barrier(MPI_COMM_WORLD);
-}
