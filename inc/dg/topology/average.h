@@ -36,13 +36,9 @@ namespace dg{
  * element (does
  * not know about geometry)
  *
- * @attention With MPI, if an averaged direction is distributed among more
- * than one process, the result is **not binary reproducible** with the shared
- * memory result or between different distributions: the partial sums of the
- * processes are added with \c MPI_Allreduce, in an order the MPI library
- * chooses. The results usually differ by a few units in the last place. If
- * the averaged directions are not distributed, the result is binary
- * reproducible.
+ * @note With MPI the result is binary reproducible: it is the same for every
+ * process distribution and equal to the shared memory result on the same
+ * backend (see \c dg::create::projection(std::array<unsigned,Md>,const MPITopology&)).
  * @snippet topology/average_t.cpp doxygen
  * @ingroup average
  */
@@ -61,6 +57,9 @@ struct Average
      * <tt>axes[i]<g_old.ndim()</tt>. Can be a named dimension from \c
      * dg::coo2d or \c dg::coo3d
      * @param g Grid of the old, un-reduced vectors
+     * @throw dg::Error with MPI if the averaged axes are distributed and the
+     * remaining axes have too few cells to give every process at least one
+     * cell (see \c dg::create::projection(std::array<unsigned,Md>,const MPITopology&))
      * @sa dg::create::projection
      */
     template<class Topology, size_t Md>
@@ -124,7 +123,6 @@ struct Average
     void operator() (const ContainerType& src, ContainerType& res, bool extend
             = true)
     {
-        // m_average in MPI has the "allreduce" distribution!
         dg::blas2::symv( m_average, src, m_tmp);
         dg::blas1::scal( m_tmp, m_area_inv);
         if( extend )

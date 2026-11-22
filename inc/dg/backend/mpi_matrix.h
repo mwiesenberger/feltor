@@ -458,17 +458,33 @@ struct MPIDistMat
                 const Vector<int>& scatter // TODO scatter comp -> y from symv(outside, recv, comp);
                 )
     : m_i(inside), m_o(outside), m_g(mpi_gather), m_scatter(scatter),
-      m_dist( row_dist), m_reduce(mpi_gather.communicator()) { }
+      m_dist( row_dist), m_comm(mpi_gather.communicator()) { }
 
     /**
      * @brief Allreduce dist type
      *
-     * In this mode the mpi matrix locally aplies the inner matrix and
-     * calls \c MPI_Allreduce on the result
+     * Partial reduction, after which all processes along the reduced
+     * directions hold the result. The matrix computes
+     * <tt>y[i] = back_buffer[back_idx[i]]</tt>, where \c back_buffer is
+     * gathered by \c back from the result of the inner matrix applied to the
+     * buffer that \c forward gathers from \c x. Each process computes its
+     * rows with only local data, so the result does not depend on the order
+     * of MPI messages (see
+     * \c dg::create::projection(std::array<unsigned,Md>,const MPITopology&)).
      * (outer matrix remains empty)
+     * @param inside The local matrix acting on the buffer of \c forward
+     * @param forward Gathers the input vector into the buffer of the inner
+     * matrix
+     * @param back Gathers the result of the inner matrix
+     * @param back_idx Index map from the buffer of \c back to the result
+     * vector
      */
-    MPIDistMat( const LocalMatrixInner& m, MPI_Comm comm)
-    : m_i(m), m_dist(allreduce), m_reduce(comm){}
+    MPIDistMat( const LocalMatrixInner& inside,
+                const MPIGather<Vector>& forward,
+                const MPIGather<Vector>& back,
+                const Vector<int>& back_idx)
+    : m_i(inside), m_g(forward), m_back(back), m_scatter(back_idx),
+      m_dist( allreduce), m_comm(forward.communicator()) { }
 
     /**
     * @brief Copy constructor
@@ -485,7 +501,8 @@ struct MPIDistMat
     template<template<class> class OtherVector, class OtherMatrixInner, class OtherMatrixOuter>
     MPIDistMat( const MPIDistMat<OtherVector, OtherMatrixInner, OtherMatrixOuter>& src)
     : m_i(src.inner_matrix()), m_o( src.outer_matrix()), m_g(src.mpi_gather()),
-    m_scatter( src.m_scatter), m_dist( src.m_dist), m_reduce(src.communicator())
+    m_back( src.m_back), m_scatter( src.m_scatter), m_dist( src.m_dist),
+    m_comm(src.communicator())
     { }
     ///@brief Read access to the inner matrix
     const LocalMatrixInner& inner_matrix() const{return m_i;}
@@ -495,7 +512,7 @@ struct MPIDistMat
     const MPIGather<Vector>& mpi_gather() const{return m_g;}
 
     ///@brief Read access to the MPI Communicator
-    MPI_Comm communicator() const{ return m_reduce.communicator();}
+    MPI_Comm communicator() const{ return m_comm;}
 
     ///@brief Read access to the \c scatter parameter of the constructor
     const Vector<int>& scatter() const {return m_scatter;}
@@ -514,15 +531,35 @@ struct MPIDistMat
     void symv( const ContainerType1& x, ContainerType2& y) const
     {
         //the blas2 functions should make enough static assertions on tpyes
+        if( m_dist == allreduce)
+        {
+            using value_type = dg::get_value_type<ContainerType1>;
+            m_recv_buffer.template set<value_type>( m_g.buffer_size());
+            m_comp_buffer.template set<value_type>( m_i.num_rows());
+            m_back_buffer.template set<value_type>( m_back.buffer_size());
+            auto& recv_buffer = m_recv_buffer.template get<value_type>();
+            auto& comp_buffer = m_comp_buffer.template get<value_type>();
+            auto& back_buffer = m_back_buffer.template get<value_type>();
+            // 1 gather x such that all rows of the inner matrix are local
+            m_g.global_gather_init( x.data(), recv_buffer);
+            m_g.global_gather_wait( recv_buffer);
+            // 2 compute the rows
+            dg::blas2::symv( m_i, recv_buffer, comp_buffer);
+            // 3 gather the result back
+            m_back.global_gather_init( comp_buffer, back_buffer);
+            m_back.global_gather_wait( back_buffer);
+            unsigned size = m_scatter.size();
+            dg::blas2::detail::doParallelFor( SharedVectorTag(),
+                []DG_DEVICE( unsigned i, const value_type* x,
+                    const int* idx, value_type* y) {
+                    y[i] = x[idx[i]];
+                }, size, back_buffer, m_scatter, y.data());
+            return;
+        }
         if( !m_g.isCommunicating()) //no communication needed
         {
             dg::blas2::symv( m_i, x.data(), y.data());
-            if( m_dist == allreduce)
-            {
-                m_reduce.reduce( y.data());
-            }
             return;
-
         }
         assert( m_dist == row_dist);
         int result;
@@ -567,13 +604,34 @@ struct MPIDistMat
     void stencil( const Functor f, const ContainerType1& x, ContainerType2& y) const
     {
         //the blas2 functions should make enough static assertions on tpyes
+        if( m_dist == allreduce)
+        {
+            using value_type = dg::get_value_type<ContainerType1>;
+            m_recv_buffer.template set<value_type>( m_g.buffer_size());
+            m_comp_buffer.template set<value_type>( m_i.num_rows());
+            m_back_buffer.template set<value_type>( m_back.buffer_size());
+            auto& recv_buffer = m_recv_buffer.template get<value_type>();
+            auto& comp_buffer = m_comp_buffer.template get<value_type>();
+            auto& back_buffer = m_back_buffer.template get<value_type>();
+            // 1 gather x such that all rows of the inner matrix are local
+            m_g.global_gather_init( x.data(), recv_buffer);
+            m_g.global_gather_wait( recv_buffer);
+            // 2 compute the rows
+            dg::blas2::stencil( f, m_i, recv_buffer, comp_buffer);
+            // 3 gather the result back
+            m_back.global_gather_init( comp_buffer, back_buffer);
+            m_back.global_gather_wait( back_buffer);
+            unsigned size = m_scatter.size();
+            dg::blas2::detail::doParallelFor( SharedVectorTag(),
+                []DG_DEVICE( unsigned i, const value_type* x,
+                    const int* idx, value_type* y) {
+                    y[i] = x[idx[i]];
+                }, size, back_buffer, m_scatter, y.data());
+            return;
+        }
         if( !m_g.isCommunicating()) //no communication needed
         {
             dg::blas2::stencil( f, m_i, x.data(), y.data());
-            if( m_dist == allreduce)
-            {
-                m_reduce.reduce( y.data());
-            }
             return;
         }
         assert( m_dist == row_dist);
@@ -609,11 +667,11 @@ struct MPIDistMat
     private:
     LocalMatrixInner m_i;
     LocalMatrixOuter m_o;
-    MPIGather<Vector> m_g;
+    MPIGather<Vector> m_g, m_back;
     Vector<int> m_scatter;
     enum dist_type m_dist = row_dist;
-    detail::MPIAllreduce m_reduce;
-    mutable detail::AnyVector<Vector>  m_recv_buffer, m_comp_buffer ;
+    MPI_Comm m_comm = MPI_COMM_NULL;
+    mutable detail::AnyVector<Vector>  m_recv_buffer, m_comp_buffer, m_back_buffer;
 };
 
 ///@}
