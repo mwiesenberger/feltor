@@ -131,3 +131,29 @@ TEST_CASE( "mpi_cart_create verbose")
         CHECK( periods[1] == false);
     }
 }
+
+TEST_CASE( "Detection of CUDA-aware MPI and NCCL")
+{
+#if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA
+#if defined( DG_WITH_NCCL)
+    CHECK( dg::nccl_mpi);
+    CHECK( not dg::cuda_aware_mpi);
+#elif defined( DG_CUDA_UNAWARE_MPI)
+    CHECK( not dg::nccl_mpi);
+    CHECK( not dg::cuda_aware_mpi);
+#elif defined(OPEN_MPI) && OPEN_MPI && defined(MPIX_CUDA_AWARE_SUPPORT)
+    // The compile time detection must agree with the MPI library at run time
+    INFO( "Open MPI reports CUDA-aware support "<<MPIX_Query_cuda_support());
+    CHECK( not dg::nccl_mpi);
+    CHECK( dg::cuda_aware_mpi == (MPIX_Query_cuda_support() == 1));
+#else
+    // Without a way to detect it CUDA-aware MPI is assumed
+    CHECK( not dg::nccl_mpi);
+    CHECK( dg::cuda_aware_mpi);
+#endif
+#else
+    // Without CUDA neither is used
+    CHECK( not dg::nccl_mpi);
+    CHECK( not dg::cuda_aware_mpi);
+#endif
+}

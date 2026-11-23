@@ -213,7 +213,6 @@ inline void createModifiedField(
             double psi1     = jsmod["boundary"].get(1, 0.97 ).asDouble();
             double alpha1   = jsmod[ "alpha"].get(1, 0.2 ).asDouble();
             switch( desc){
-                // TODO Maybe this can be unified with modifier::sol_pfr_2X
                 case description::standardX:
                 {
                     double sign0 = +1., sign1 = -1.;

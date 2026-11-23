@@ -40,7 +40,7 @@
 
 
 //%%%%%%%%%%%%%%%try to check for cuda-aware MPI support or NCCL%%%%%%%%%%%%%%%%%%%%%%%%%%
-//TODO This should be tested somewhere
+// Tested in mpi_init_mpit.cpp
 #if defined(MPI_VERSION) && defined(OPEN_MPI) && OPEN_MPI
 // Open-MPI header defines MPIX_CUDA_AWARE_SUPPORT if compiled with cuda
 #include "mpi-ext.h"

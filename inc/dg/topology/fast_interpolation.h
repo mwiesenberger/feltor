@@ -396,7 +396,6 @@ MHMatrix_t<real_type> fast_transform( unsigned coord, dg::SquareMatrix<real_type
 #endif //MPI_VERSION
 
 // Product interpolations/projections/transforms
-// TODO We may want to generalize this
 
 ///@brief Create interpolation matrix for integer multipliers in the first 2
 ///grid dimensions
