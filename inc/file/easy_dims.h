@@ -107,7 +107,6 @@ inline void assign_defaults( std::vector<std::string>& name_dims, const std::vec
 template<class T>
 bool check_real_time( int ncid, const char* name, int* dimID, int* tvarID)
 {
-    // TODO Axis attribute check is still missing
     file::NC_Error_Handle err;
     // Check that it exists
     int retval = nc_inq_dimid( ncid, name, dimID);
@@ -237,7 +236,6 @@ inline int define_limited_time( int ncid, const char* name, int size, int* dimID
 template<class T>
 bool check_dimension( int ncid, int* dimID, const dg::RealGrid1d<T>& g, std::string name_dim = "x", std::string = "X")
 {
-    // TODO Axis attribute check is still missing
     file::NC_Error_Handle err;
     // check if the dimension exists already:
     int retval = nc_inq_dimid( ncid, name_dim.data(), dimID);

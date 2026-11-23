@@ -57,7 +57,7 @@ TEST_CASE( "Easy dims")
         INFO( "All dimensions exist?");
         CHECK( exists);
         REQUIRE_NOTHROW(
-            err = dg::file::define_dimensions( ncid, dim2_ids, &tvarID, *grid2d_ptr, {"time", "x", "y"}, true)
+            err = dg::file::define_dimensions( ncid, dim2_ids, &tvarID, *grid2d_ptr, {"time", "y", "x"}, true)
         );
         INFO( "Check functions throw if existing dimensions do not match");
         int dimID, varID;

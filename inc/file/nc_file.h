@@ -1058,7 +1058,6 @@ struct SerialNcFile
         ContainerType, SharedVectorTag>, bool > = true>
     ContainerType get_var_as( std::string name) const
     {
-        // ! Does not work for MPI !
         return get_var_as<ContainerType>( name, {*this, name});
     }
 
