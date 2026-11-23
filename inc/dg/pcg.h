@@ -59,8 +59,6 @@ enum ComplexMode{
     complex_hermitian //!< choose Hermitian algorithm
 };
 
-// TODO test complex behaviour
-
 /**
 * @brief Preconditioned conjugate gradient method to solve \f$ Ax=b\f$
 *

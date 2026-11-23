@@ -560,7 +560,7 @@ SquareMatrix<real_type> delta( unsigned n)
 }
 
 
-// Not sure why we called this dg::create::lu_solve instead of dg::lu_solve
+// Implementation of the public dg::lu_solve below
 template<class T>
 void lu_solve( const dg::SquareMatrix<T>& lu, const std::vector<unsigned>& p, std::vector<T>& b)
 {

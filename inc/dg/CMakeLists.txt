@@ -215,6 +215,7 @@ set(DG_TESTS
   topology/random_t.cpp
   topology/refined_grid_t.cpp
   topology/refined_gridX_t.cpp
+  topology/split_and_join_t.cpp
   topology/stencil_t.cpp
   topology/tensor_t.cpp
   topology/transform_t.cpp
@@ -253,6 +254,7 @@ list( APPEND DG_MPI_TESTS
   topology/evaluation_t.cpp
   topology/geometry_t.cpp
   topology/projection_t.cpp
+  topology/split_and_join_t.cpp
 )
 
 # ============================================

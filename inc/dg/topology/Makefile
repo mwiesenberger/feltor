@@ -31,6 +31,7 @@ operator_tensor_t\
 projection_t\
 random_t\
 refined_grid_t\
+split_and_join_t\
 stencil_t\
 tensor_t\
 transform_t\
@@ -48,6 +49,7 @@ interpolation_mpit\
 random_mpit\
 reproducibility_mpit\
 mpi_projection_t\
+mpi_split_and_join_t\
 
 #all: $(CPPFILES:%.cpp=%) $(CUFILES:%.cu=%)
 all: tests mpi-tests
@@ -66,6 +68,10 @@ mpi_average_t.$(device).o: average_t.cpp average.h
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 # There is no mpi_geometry.h
 mpi_geometry_t.$(device).o: geometry_t.cpp geometry.h mpi_base_geometry.h
+	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
+
+# There is no mpi_split_and_join.h
+mpi_split_and_join_t.$(device).o: split_and_join_t.cpp split_and_join.h
 	$(MPICC) $(OPT) $(MPICFLAGS) -c $< -o $@ -g $(INCLUDE) -DWITH_MPI
 
 # There is no reproducibility.h
