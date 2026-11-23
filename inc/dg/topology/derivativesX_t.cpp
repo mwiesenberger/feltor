@@ -119,6 +119,15 @@ TEST_CASE( "Derivatives X")
         else
             CHECK( dist < 1e-3);
     }
+    SECTION( "Invalid coordinate throws")
+    {
+        dg::GridX3d g3d( -2.*M_PI, M_PI, 0., 2*M_PI, 0., 2.*M_PI, 1./3., 0., n,
+                Nx, Ny, Nz, bcx, bcy, bcz);
+        CHECK_THROWS_AS( dg::create::derivative( 2, g2d, bcx), dg::Error);
+        CHECK_THROWS_AS( dg::create::jump( 2, g2d, bcx), dg::Error);
+        CHECK_THROWS_AS( dg::create::derivative( 3, g3d, bcx), dg::Error);
+        CHECK_THROWS_AS( dg::create::jump( 3, g3d, bcx), dg::Error);
+    }
     //for periodic bc | dirichlet bc
     //n = 1 -> p = 2      2
     //n = 2 -> p = 1      1

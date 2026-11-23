@@ -119,6 +119,8 @@ namespace create{
 template<class real_type>
 Composite<EllSparseBlockMat<real_type, thrust::host_vector> > derivative( unsigned coord, const aRealTopologyX2d<real_type>& g, dg::bc bc, direction dir = centered)
 {
+    if( coord > 1)
+        throw Error( Message(_ping_)<<"coord>1 not allowed! You typed: "<<coord);
     if( coord == 0)
     {
         EllSparseBlockMat<real_type, thrust::host_vector>  dx;
@@ -139,7 +141,6 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > derivative( unsign
 
     Composite<EllSparseBlockMat<real_type, thrust::host_vector> > c( dy_inner, dy_outer);
     return c;
-    // TODO throw on coord > 1 ?
 }
 
 /**
@@ -154,6 +155,8 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > derivative( unsign
 template<class real_type>
 Composite<EllSparseBlockMat<real_type, thrust::host_vector> > jump( unsigned coord, const aRealTopologyX2d<real_type>& g, bc bc)
 {
+    if( coord > 1)
+        throw Error( Message(_ping_)<<"coord>1 not allowed! You typed: "<<coord);
     if( coord == 0)
     {
         EllSparseBlockMat<real_type, thrust::host_vector>  jx;
@@ -174,7 +177,6 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > jump( unsigned coo
 
     Composite<EllSparseBlockMat<real_type, thrust::host_vector> > c( jy_inner, jy_outer);
     return c;
-    // TODO throw on coord > 1 ?
 }
 
 ///////////////////////////////////////////3D VERSIONS//////////////////////
@@ -190,6 +192,8 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > jump( unsigned coo
 template<class real_type>
 Composite<EllSparseBlockMat<real_type, thrust::host_vector> > jump( unsigned coord, const aRealTopologyX3d<real_type>& g, bc bc)
 {
+    if( coord > 2)
+        throw Error( Message(_ping_)<<"coord>2 not allowed! You typed: "<<coord);
     if( coord == 0)
     {
         EllSparseBlockMat<real_type, thrust::host_vector>  jx;
@@ -219,7 +223,6 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > jump( unsigned coo
     jz = jump( 1, g.Nz(), g.hz(), bc);
     jz.set_right_size( g.n()*g.Nx()*g.n()*g.Ny());
     return jz;
-    // TODO throw on coord > 2 ?
 }
 
 
@@ -236,6 +239,8 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > jump( unsigned coo
 template<class real_type>
 Composite<EllSparseBlockMat<real_type, thrust::host_vector> > derivative( unsigned coord, const aRealTopologyX3d<real_type>& g, bc bc, direction dir = centered)
 {
+    if( coord > 2)
+        throw Error( Message(_ping_)<<"coord>2 not allowed! You typed: "<<coord);
     if( coord == 0)
     {
         EllSparseBlockMat<real_type, thrust::host_vector>  dx;
@@ -265,7 +270,6 @@ Composite<EllSparseBlockMat<real_type, thrust::host_vector> > derivative( unsign
     dz = dx_normed( 1, g.Nz(), g.hz(), bc, dir);
     dz.set_right_size( g.n()*g.n()*g.Nx()*g.Ny());
     return dz;
-    // TODO throw on coord > 2 ?
 }
 
 
