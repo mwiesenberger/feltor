@@ -219,6 +219,45 @@ TEST_CASE( "Derivatives")
 
 }
 
+#ifdef WITH_MPI
+TEST_CASE( "More processes than cells")
+{
+    // With 2 x 1 cells most processes hold no cells; the MPI matrices must
+    // still agree with the shared memory matrices of the global grid
+    auto bc = GENERATE( dg::PER, dg::DIR);
+    auto dir = GENERATE( dg::centered, dg::forward, dg::backward);
+    std::array<int,2> dims = GENERATE( std::array<int,2>{0,1},
+        std::array<int,2>{1,0}, std::array<int,2>{0,0});
+    INFO( "bc "<<dg::bc2str( bc)<<" direction "<<dg::direction2str( dir)
+        <<" dims "<<dims[0]<<" "<<dims[1]);
+    MPI_Comm comm2d = dg::mpi_cart_create( MPI_COMM_WORLD,
+        {dims[0], dims[1]}, {0,0});
+    dg::MPIGrid2d g( 0., 1., 0., 1., 3, 2, 1, bc, bc, comm2d);
+    const auto global_x = dg::evaluate( []( double x, double y){
+            return sin(3.*x+0.3)*cos(2.*y+0.1);}, g.global());
+    const auto x = dg::global2local( global_x, g);
+    for( unsigned coord : {0u, 1u})
+    {
+        INFO( "coord "<<coord);
+        auto y = x, z = x;
+        auto global_y = global_x, global_z = global_x;
+        dg::blas2::symv( dg::create::derivative( coord, g, bc, dir), x, y);
+        dg::blas2::symv( dg::create::derivative( coord, g.global(), bc, dir),
+            global_x, global_y);
+        dg::blas2::symv( dg::create::jump( coord, g, bc), x, z);
+        dg::blas2::symv( dg::create::jump( coord, g.global(), bc), global_x,
+            global_z);
+        const auto local_y = dg::global2local( global_y, g);
+        const auto local_z = dg::global2local( global_z, g);
+        for( unsigned i=0; i<y.data().size(); i++)
+        {
+            CHECK( y.data()[i] == local_y.data()[i]);
+            CHECK( z.data()[i] == local_z.data()[i]);
+        }
+    }
+}
+#endif // WITH_MPI
+
 TEST_CASE( "Documentation dx")
 {
     SECTION("derive")

@@ -11,7 +11,6 @@ static int function( double x, double y)
 {
     return int(10000*x*y);
 }
-// TODO Test what happens if # processes is larger than N?
 TEST_CASE( "MPI Grid")
 {
     int rank, size;
@@ -196,5 +195,38 @@ TEST_CASE( "MPI Grid")
         check_local( g1d);
         g1d.set( 3, 79);
         check_local( g1d);
+    }
+}
+
+TEST_CASE( "More processes than cells")
+{
+    int rank, size;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    // With more than 2 ranks the last processes get no cells
+    MPI_Comm comm1d = dg::mpi_cart_create( MPI_COMM_WORLD, {0}, {0});
+    const unsigned n = 3, N = 2;
+    dg::MPIGrid1d g( 0., 1., n, N, dg::DIR, comm1d);
+    const unsigned local_N = rank < (int)N ? (N/size + (rank < (int)(N%size)))
+        : 0;
+    CHECK( g.local().N() == local_N);
+    CHECK( g.local_size() == n*local_N);
+    CHECK( g.count()[0] == n*local_N);
+    const auto global_vec = dg::evaluate( dg::cooX1d, g.global());
+    const auto local_vec = dg::evaluate( dg::cooX1d, g);
+    REQUIRE( local_vec.data().size() == n*local_N);
+    const auto local_vec2 = dg::global2local( global_vec, g);
+    for( unsigned i=0; i<local_vec.data().size(); i++)
+    {
+        CHECK( local_vec.data()[i] == local_vec2.data()[i]);
+        CHECK( local_vec.data()[i] == global_vec[g.start()[0] + i]);
+    }
+    for( unsigned i=0; i<g.size(); i++)
+    {
+        int lIdx = 0, pid = 0, gIdx = 0;
+        g.global2localIdx( i, lIdx, pid);
+        CHECK( pid < (int)N);
+        g.local2globalIdx( lIdx, pid, gIdx);
+        CHECK( gIdx == (int)i);
     }
 }

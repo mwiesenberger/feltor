@@ -57,9 +57,6 @@ struct Average
      * <tt>axes[i]<g_old.ndim()</tt>. Can be a named dimension from \c
      * dg::coo2d or \c dg::coo3d
      * @param g Grid of the old, un-reduced vectors
-     * @throw dg::Error with MPI if the averaged axes are distributed and the
-     * remaining axes have too few cells to give every process at least one
-     * cell (see \c dg::create::projection(std::array<unsigned,Md>,const MPITopology&))
      * @sa dg::create::projection
      */
     template<class Topology, size_t Md>

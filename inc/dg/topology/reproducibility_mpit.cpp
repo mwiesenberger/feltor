@@ -229,13 +229,20 @@ TEST_CASE( "MPI Average agrees with shared memory Average")
             ( axis == 1 ? std::array{0u,2u} : std::array{0u,1u});
         check_average( g, pair, global_x);
     }
-    SECTION( "Too many ranks for the remaining axes throw")
+    SECTION( "More ranks than cells")
     {
-        // Every rank needs at least one of the 3 cells along x
-        MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {1, size}, {1,0});
+        // With more than 3 ranks some processes get none of the 3 cells along
+        // x: in the redistribution for the average along y, and with dims
+        // {size,1} also in the grid itself
+        std::array<int,2> dims = GENERATE( std::array<int,2>{1,0},
+            std::array<int,2>{0,1});
+        auto axis = GENERATE( 0u, 1u);
+        INFO( "Number of ranks "<<size<<", average along axis "<<axis
+            <<", dims "<<dims[0]<<" "<<dims[1]);
+        MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD,
+            {dims[0], dims[1]}, {1,0});
         dg::MPIGrid2d g( 0.1, 1.7, -0.3, 1.2, 3, 3, 11, dg::PER, dg::DIR, comm);
-        if( size > 3)
-            CHECK_THROWS_AS( (dg::Average< dg::MIDMatrix, dg::MDVec>( g,
-                dg::coo2d::y)), dg::Error);
+        check_average( g, std::array{axis},
+            dg::evaluate( test_function, g.global()));
     }
 }

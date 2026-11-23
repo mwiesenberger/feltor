@@ -66,7 +66,9 @@ struct RealMPIGrid;
  * communicator in direction \f$ u\f$. The approximation becomes an equality if
  * \f$ s_u\f$ evenly divides \f$ N_u\f$ otherwise the remainder is distributed
  * among the participating processes (such that some have one cell more or less
- * than others).  We have \f[ N_u = \sum_{r=0}^{s-1} N_{ur}\f] The number of
+ * than others). If \f$ s_u > N_u\f$ the last \f$ s_u - N_u\f$ processes get no
+ * cells: their local grid and vectors are empty (and the local \f$ h_u\f$ is
+ * not a number). We have \f[ N_u = \sum_{r=0}^{s-1} N_{ur}\f] The number of
  * polynomial coefficients and the boundary condition is the same for all
  * processes of an axis. The periodicity of the Cartesian communicator is not
  * used and need not match the boundary conditions of the grid.

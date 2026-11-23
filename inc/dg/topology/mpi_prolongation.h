@@ -98,10 +98,11 @@ RealMPIGrid<typename MPITopology::value_type, Md> sub_grid(
 // Same global grid as g, with one process along the given axes. The
 // processes along the axes are moved to the remaining axes, outermost
 // (largest axis number, slowest varying in memory) first, such that every
-// process keeps at least one cell. Splitting the outermost axis keeps the
-// messages of the gathers contiguous and the received elements in local
-// order. The caller must free the communicator of the returned grid (this
-// frees its sub-communicators).
+// process keeps at least one cell if possible. Otherwise all of them go to
+// the outermost remaining axis, where the last processes get no cells.
+// Splitting the outermost axis keeps the messages of the gathers contiguous
+// and the received elements in local order. The caller must free the
+// communicator of the returned grid (this frees its sub-communicators).
 template<class MPITopology, size_t Md>
 RealMPIGrid<typename MPITopology::value_type, MPITopology::ndim()>
     redistributed_grid( const MPITopology& g, std::array<unsigned,Md> axes)
@@ -136,18 +137,9 @@ RealMPIGrid<typename MPITopology::value_type, MPITopology::ndim()>
         }
         return false;
     };
+    // distribute restores dims if it fails
     if( !distribute( distribute, int(Nd-Md)-1, factor))
-    {
-        int size;
-        MPI_Comm_size( g.communicator(), &size);
-        dg::Message msg(_ping_);
-        msg << "Cannot distribute "<<size<<" processes over the remaining axes"
-            <<" with cell numbers";
-        for( unsigned u=0; u<Nd-Md; u++)
-            msg << " "<<g.N(remains[u]);
-        msg <<" such that every process holds at least one cell";
-        throw dg::Error( msg);
-    }
+        dims[remains[Nd-Md-1]] *= factor;
     MPI_Comm comm = dg::mpi_cart_create( g.communicator(), dims, periods);
     const auto& gg = g.global();
     return { gg.get_p(), gg.get_q(), gg.get_n(), gg.get_N(), gg.get_bc(),
@@ -215,9 +207,9 @@ dg::MIHMatrix_t<typename MPITopology::value_type> mpi_reduction(
  * order of the shared memory matrix, and the result is gathered back to all
  * processes along \c axes. The result is therefore binary reproducible: it
  * is the same for every process distribution and equal to the shared memory
- * result on the same backend.
- * @throw dg::Error if the remaining axes have too few cells to give every
- * process at least one cell
+ * result on the same backend. If the remaining axes have too few cells to
+ * give every process at least one cell, some processes get none (see \c
+ * dg::aRealMPITopology).
  */
 
 ///@copydoc dg::create::reduction(std::array<unsigned,Md>,const aRealTopology<real_type,Nd>&)
