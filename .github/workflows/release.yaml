@@ -1,0 +1,61 @@
+# Keep the FELTOR version (project(VERSION ...) in CMakeLists.txt) in sync
+# with the release tags. On every push to main compare the version with the
+# latest tag v*:
+# - version older than the latest tag: warning (forgotten bump)
+# - version equal to the latest tag: nothing to do
+# - version newer than the latest tag: create a draft release v<VERSION> on
+#   this commit, or move an existing draft to this commit and warn that it is
+#   not published yet. Publishing the draft creates the tag.
+# So a release is made by bumping the version in a pull request into main and
+# then publishing the draft release that appears on GitHub.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # create and edit draft releases
+
+# Handle one push after the other
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Forks do not create releases
+    if: github.repository == 'feltor-dev/feltor'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0 # all tags
+
+    - name: Compare version with tags
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        version=$(sed -n '/^project(/,/)/s/^ *VERSION *\([0-9.]*\).*/\1/p' CMakeLists.txt)
+        latest=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+        latest=${latest#v}
+        echo "CMakeLists.txt version: $version, latest tag: v$latest"
+        if [ -z "$version" ]; then
+            echo "::error file=CMakeLists.txt::Cannot read VERSION from project()"
+            exit 1
+        fi
+        if [ "$version" = "$latest" ]; then
+            exit 0
+        fi
+        oldest=$(printf '%s\n' "$version" "$latest" | sort -V | head -n 1)
+        if [ "$oldest" = "$version" ]; then
+            echo "::warning file=CMakeLists.txt::Version $version is older than the latest tag v$latest. Update project(VERSION) in CMakeLists.txt."
+        elif gh release view "v$version" > /dev/null 2>&1; then
+            gh release edit "v$version" --target "$GITHUB_SHA"
+            echo "::warning::Draft release v$version is not published yet (now on commit $GITHUB_SHA)"
+        else
+            gh release create "v$version" --draft --target "$GITHUB_SHA" \
+                --title "v$version" --generate-notes
+            echo "::notice::Created draft release v$version, publish it on GitHub to create the tag"
+        fi
