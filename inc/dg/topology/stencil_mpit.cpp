@@ -9,8 +9,6 @@
 
 #include "catch2/catch_all.hpp"
 
-// TODO Fix Test gets stuck with mpirun -n 4
-
 TEST_CASE( "MPI stencil")
 {
     const double lx = 2.*M_PI;

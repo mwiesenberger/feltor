@@ -218,3 +218,29 @@ TEST_CASE( "Gather when some ranks receive nothing")
     for( unsigned u=0; u<buffer.size(); u++)
         CHECK( buffer[u] == u+1);
 }
+
+TEST_CASE( "Invalid recvIdx throws on all ranks")
+{
+    int rank, size;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    // Only rank 0 has an invalid map, all ranks must throw (no deadlock)
+    std::map<int, thrust::host_vector<int>> recvIdx;
+    SECTION( "Key is not a rank")
+    {
+        if( rank == 0)
+            recvIdx[size] = std::vector<int>{0};
+    }
+    SECTION( "Negative key")
+    {
+        if( rank == 0)
+            recvIdx[-1] = std::vector<int>{0};
+    }
+    SECTION( "Negative index")
+    {
+        if( rank == 0)
+            recvIdx[0] = std::vector<int>{-1};
+    }
+    CHECK_THROWS_AS( dg::MPIGather<thrust::host_vector>( recvIdx,
+        MPI_COMM_WORLD), dg::Error);
+}

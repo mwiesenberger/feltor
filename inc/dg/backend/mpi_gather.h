@@ -667,13 +667,14 @@ struct MPIGather
     * operations
     * @note Messages will be received in \c buffer in the order that <tt>for(
     * auto& msg : recvIdx)</tt> is unrolled
+    * @throw dg::Error on all ranks in \c comm if on any rank a key of \c
+    * recvIdx is not a rank in \c comm or an index is negative
     */
     MPIGather(
         const std::map<int, thrust::host_vector<int>>& recvIdx, // in units of chunk size
         unsigned chunk_size, // can be 1 (contiguous indices in recvIdx are concatenated)
         MPI_Comm comm)
     {
-        // TODO Catch wrong size of recvIdx
         static_assert( dg::is_vector_v<Vector<double>, SharedVectorTag>,
                 "Only Shared vectors allowed");
         // The idea is that recvIdx and sendIdx completely define the communication pattern
@@ -688,6 +689,21 @@ struct MPIGather
         //v -> store -> buffer -> w
         // G_1 P G_2 v
         // G_2^T P^T G_1^T w
+        //
+        // First, some checks that indices are valid
+        int comm_size;
+        MPI_Comm_size( comm, &comm_size);
+        double invalid = 0.;
+        for( auto& idx : recvIdx)
+        {
+            if( idx.first < 0 || idx.first >= comm_size)
+                invalid = 1.;
+            for( unsigned u=0; u<idx.second.size(); u++)
+                if( idx.second[u] < 0)
+                    invalid = 1.;
+            // Too large indices are caught in global_gather_init ...
+        }
+
         // We need some logic to determine if we should pre-gather messages into a store
         unsigned num_messages = 0;
         auto recvChunks = detail::MPIContiguousGather::make_chunks(
@@ -698,7 +714,14 @@ struct MPIGather
         // A rank that receives nothing must not make the average NaN
         double avg_msg_per_pid = size == 0 ? 0. :
             (double)num_messages/(double)size; // >= 1
-        MPI_Allreduce( MPI_IN_PLACE, &avg_msg_per_pid, 1, MPI_DOUBLE, MPI_MAX, comm);
+        // One reduction for both, so that all ranks throw together
+        double reduce[2] = {avg_msg_per_pid, invalid};
+        MPI_Allreduce( MPI_IN_PLACE, reduce, 2, MPI_DOUBLE, MPI_MAX, comm);
+        if( reduce[1] > 0)
+            throw dg::Error(dg::Message(_ping_)<<"In MPIGather recvIdx keys "
+                <<"must be ranks in [0,"<<comm_size<<") and indices must not "
+                <<"be negative");
+        avg_msg_per_pid = reduce[0];
         m_contiguous = ( avg_msg_per_pid < 10); // 10 is somewhat arbitrary
         if( not m_contiguous) // messages are too fractioned
         {
