@@ -418,6 +418,20 @@ if(FELTOR_BUILD_TESTS)
                 add_dg_test("${test_path}" "" ON target_name )
             endif()
         endforeach()
+        # With more than 128 processes the exact MPI reduction works in two
+        # steps, which the rank counts in FELTOR_TEST_MPI_RANKS never reach.
+        # Only in the serial CPU build: with CUDA every process would need a
+        # context on the GPU, with OpenMP every process its threads
+        if( NOT FELTOR_TEST_MPI_RANKS STREQUAL ""
+                AND CCCL_THRUST_DEVICE_SYSTEM STREQUAL "CPP")
+            add_test(NAME dg_backend_mpi_exblas_mpit_np130
+                COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 130
+                    ${MPIEXEC_PREFLAGS} $<TARGET_FILE:dg_backend_mpi_exblas_mpit>
+                    ${MPIEXEC_POSTFLAGS}
+            )
+            set_tests_properties(dg_backend_mpi_exblas_mpit_np130 PROPERTIES
+                PROCESSORS 130 LABELS "mpi;np130")
+        endif()
     else()
         foreach(test_path IN LISTS DG_TESTS)
             cmake_path( REMOVE_FILENAME test_path OUTPUT_VARIABLE outvar)

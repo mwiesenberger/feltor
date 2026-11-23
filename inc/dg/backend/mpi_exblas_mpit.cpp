@@ -5,7 +5,9 @@
 
 #include "catch2/catch_all.hpp"
 
-// TODO Find a test to test accumulation for >128 threads
+// With more than 128 ranks "Accumulate reduces the status with the
+// superaccumulator" tests the two-step reduction; the mpi-cpu preset
+// runs this program with 130 ranks (dg_backend_mpi_exblas_mpit_np130)
 TEST_CASE( "Accumulate reuses comm")
 {
     int rank;
@@ -68,13 +70,17 @@ TEST_CASE( "Accumulate reduces the status with the superaccumulator")
     if( failing == "all" || (failing == "first" && rank == 0)
         || (failing == "last" && rank == size-1))
         status = 1;
-    // Every rank contributes 1 and the sum must not be affected by the status
+    // Every rank contributes the same value and the sum must not be affected
+    // by the status. A negative value has almost all words of its normalized
+    // superaccumulator at the maximum, so with more than 128 ranks the sum
+    // overflows unless the reduction normalizes between its two steps
+    const double value = GENERATE( 1., -1.);
     std::vector<int64_t> in( dg::exblas::BIN_COUNT, 0);
     std::vector<int64_t> out( in);
-    dg::exblas::cpu::Accumulate( in.data(), 1.);
+    dg::exblas::cpu::Accumulate( in.data(), value);
     dg::exblas::reduce_mpi_cpu( 1, in.data(), out.data(), &status, comm,
         comm_mod, comm_red);
-    INFO( "Failing ranks: "<<failing);
-    CHECK( dg::exblas::cpu::Round( out.data()) == size);
+    INFO( "Failing ranks: "<<failing<<", value "<<value);
+    CHECK( dg::exblas::cpu::Round( out.data()) == size*value);
     CHECK( status == (failing == "none" ? 0 : 1));
 }
