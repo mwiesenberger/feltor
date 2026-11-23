@@ -404,7 +404,9 @@ struct MPIContiguousGather
                 <<buffer.size() << " must be at least "<<buffer_size( self_communication));
         int rank;
         MPI_Comm_rank( m_comm, &rank);
-        // TODO only works if m_recvMsg is non-overlapping
+        // Chunks in m_recvMsg may overlap: every chunk is received into its
+        // own part of buffer, and overlapping chunks only make concurrent
+        // sends read the same part of gatherFrom (allowed since MPI 3.0)
         using value_type = dg::get_value_type<ContainerType0>;
         static_assert( std::is_same_v<value_type,
                 get_value_type<ContainerType1>>);
@@ -508,9 +510,6 @@ struct MPIContiguousGather
         const std::map<int,thrust::host_vector<MsgChunk>>& sendMsg
         ) const
     {
-        // TODO only works if recvMsg is non-overlapping
-        // MW: not sure what exactly can go wrong ...
-        //
         using value_type = dg::get_value_type<ContainerType0>;
         // Receives (we implicitly receive chunks in the order)
         unsigned start = 0;

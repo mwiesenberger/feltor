@@ -244,3 +244,40 @@ TEST_CASE( "Invalid recvIdx throws on all ranks")
     CHECK_THROWS_AS( dg::MPIGather<thrust::host_vector>( recvIdx,
         MPI_COMM_WORLD), dg::Error);
 }
+
+TEST_CASE( "Gather overlapping chunks")
+{
+    int rank, size;
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+    MPI_Comm_size( MPI_COMM_WORLD, &size);
+    // Every rank requests overlapping (and duplicate) index ranges from every
+    // rank, so the sending ranks read overlapping parts of v concurrently
+    thrust::host_vector<double> v( 20);
+    for( unsigned i=0; i<v.size(); i++)
+        v[i] = 1000*rank + i;
+    const std::vector<int> idx = {2,3,4,5, 3,4, 4,5,6, 2,3, 5, 1,2,3,4,5,6,7};
+    const unsigned chunk_size = GENERATE( 1u, 2u);
+    // many fragmented messages per rank switch to the non-contiguous gather
+    const unsigned repeat = GENERATE( 1u, 5u);
+    INFO( "chunk size "<<chunk_size<<" repeat "<<repeat);
+    std::map<int, thrust::host_vector<int>> recvIdx;
+    for( int pid=0; pid<size; pid++)
+        for( unsigned r=0; r<repeat; r++)
+            for( auto i : idx)
+                recvIdx[pid].push_back( i);
+    dg::MPIGather<thrust::device_vector> mpi_gather( recvIdx, chunk_size,
+        MPI_COMM_WORLD);
+    CHECK( mpi_gather.isContiguous() == (repeat == 1));
+    thrust::device_vector<double> v_d = v;
+    thrust::device_vector<double> buffer( mpi_gather.buffer_size());
+    mpi_gather.global_gather_init( v_d, buffer);
+    mpi_gather.global_gather_wait( buffer);
+    thrust::host_vector<double> result = buffer;
+    // The buffer holds the messages in the order of recvIdx
+    unsigned k = 0;
+    for( auto& msg : recvIdx)
+        for( auto i : msg.second)
+            for( unsigned c=0; c<chunk_size; c++)
+                CHECK( result[k++] == 1000*msg.first + i*chunk_size + c);
+    CHECK( k == result.size());
+}
