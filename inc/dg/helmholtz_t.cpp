@@ -44,7 +44,6 @@ static double dx2rhs2( double x,double){ return (1.+x)*sin(x)-2*alpha*sin(x)+alp
 
 TEST_CASE( "Helmholtz")
 {
-    // TODO Maybe a convergence test is better
     SECTION( "2d Gamma 1 inverse")
     {
         const double eps = 1e-8;

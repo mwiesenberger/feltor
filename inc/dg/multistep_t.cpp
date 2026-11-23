@@ -308,8 +308,35 @@ TEST_CASE( "Operator splitting")
         double err = sqrt(dg::blas1::dot( y0, y0)/norm_sol);
         INFO( "# steps "<<counter);
         INFO( "Relative error: "<<std::setw(24) <<name<<" "<<err);
-        // Very lax condition here, not sure if there is a better test
+        // The adaptive control bounds only the error of the explicit part.
+        // The splitting error depends on the step sizes the controller
+        // chooses, so only a lax bound is possible (the order is tested below)
         CHECK( err < 1e-3);
+    }
+    SECTION( "Strang operator splitting is second order")
+    {
+        // With fixed steps the order of the splitting can be measured
+        std::vector<unsigned> NTs = {20, 40};
+        std::vector<double> err(NTs.size());
+        for( unsigned u = 0; u<NTs.size(); u++)
+        {
+            dg::RungeKutta<std::array<double,2>> erk( "SSPRK-2-2", y0);
+            dg::ImplicitRungeKutta<std::array<double,2>> dirk( "Trapezoidal-2-2", y0 );
+            double dt = T/(double)NTs[u];
+            time = 0., y0 = init;
+            for( unsigned k=0; k<NTs[u]; k++)
+            {
+                dirk.step( std::tie(im, im), time, y0, time, y0, dt/2.);
+                erk.step( ex, time-dt/2., y0, time, y0, dt);
+                dirk.step( std::tie(im, im), time-dt/2., y0, time, y0, dt/2.);
+            }
+            dg::blas1::axpby( -1., sol, 1., y0);
+            err[u] = sqrt(dg::blas1::dot( y0, y0)/norm_sol);
+        }
+        double order = log( err[0]/err[1])/log( (double)NTs[1]/(double)NTs[0]);
+        INFO( "Relative error "<<err[1]<<" order "<<order<<" expected 2");
+        CHECK( fabs( time - T) < 1e-14);
+        CHECK( fabs( (order - 2.)/2.) < 0.05);
     }
 }
 

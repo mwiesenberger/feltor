@@ -125,8 +125,9 @@ inline TokamakMagneticField createMagneticField( dg::file::WrappedJsonValue gs)
     }
 }
 
-
-//TODO The place where these functions are somewhat tested is geometry_diag.cpp Formalise?
+// Tests: createMagneticField and createModifiedField in modified_t.cpp,
+// createSheathRegion in sheath_t.cpp (createWallRegion only forwards to
+// createModifiedField)
 
 ///@cond
 namespace detail{
