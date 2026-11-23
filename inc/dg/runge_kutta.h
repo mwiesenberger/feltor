@@ -923,7 +923,7 @@ struct ShuOsher
             ts[i] = m_t.alpha(i-1,0)*ts[0] + dt*m_t.beta(i-1,0);
             for( unsigned j=1; j<i; j++)
             {
-                //about the i-1: it is unclear to me how the ShuOsher tableau makes implicit schemes
+                // Stage i = 1,...,s uses row i-1 of alpha and beta
                 dg::blas1::axpbypgz( m_t.alpha(i-1,j), m_u[j], dt*m_t.beta(i-1,j), m_k[j], 1., i==s ? u1 : m_u[i]);
                 ts[i] += m_t.alpha(i-1,j)*ts[j] + dt*m_t.beta(i-1,j);
 

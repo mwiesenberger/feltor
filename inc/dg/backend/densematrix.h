@@ -75,7 +75,6 @@ struct TensorTraits<DenseMatrix<Container> >
 template<class ContainerType>
 auto asDenseMatrix( const std::vector<const ContainerType*>& in)
 {
-    // TODO could be marked deprecated because with C++17 the compiler can figure out the type of DenseMatrix
     return DenseMatrix<ContainerType>(in);
 }
 
@@ -87,7 +86,6 @@ auto asDenseMatrix( const std::vector<const ContainerType*>& in)
 template<class ContainerType>
 auto asDenseMatrix( const std::vector<const ContainerType*>& in, unsigned size)
 {
-    // TODO could be marked deprecated because with C++17 the compiler can figure out the type of DenseMatrix
     return DenseMatrix<ContainerType>(in, size);
 }
 

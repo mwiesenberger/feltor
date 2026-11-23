@@ -232,7 +232,6 @@ struct SerialNcFile
         // Like a std::fstream opening fails if file already associated
         if( m_open)
             throw NC_Error( 1002);
-        // TODO Test the pathing on Windows
         NC_Error_Handle err;
         switch (mode)
         {

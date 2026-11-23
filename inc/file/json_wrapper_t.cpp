@@ -5,7 +5,6 @@
 #include "catch2/catch_all.hpp"
 #include "json_wrapper.h"
 
-// TODO Needs to be more precise
 #ifdef DG_USE_JSONHPP
 TEST_CASE("Json HPP wrapper")
 #else

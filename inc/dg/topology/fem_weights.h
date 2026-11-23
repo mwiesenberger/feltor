@@ -28,7 +28,6 @@ std::vector<real_type> fem_weights( unsigned nn)
     return w;
 }
 }//namespace detail
-// TODO Maybe generalize this into the BOX class?
 ///@endcond
 
 ///@addtogroup fem

@@ -22,7 +22,9 @@ template<class real_type>
         dg::bc bcx,
         int num_cols)
 {
-    // Fix this leads to duplicate values (do not sort or remove them though)
+    // Mirroring at the boundary can give a row duplicate column indices.
+    // Keep them (do not sort or merge): a stencil filter must see every point
+    // of the window, e.g. a median over a mirrored window
     for( unsigned k=0; k<values.size(); k++)
     {
         if( column_indices[k] < 0 )

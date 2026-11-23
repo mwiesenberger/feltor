@@ -195,11 +195,9 @@ struct EllSparseBlockMat
 
 };
 
-// TODO not sure this should be public...
-
-//four classes/files play together in mpi distributed EllSparseBlockMat
-//CooSparseBlockMat and kernels, NearestNeighborComm, RowColDistMat
-//and the creation functions in mpi_derivatives.h
+// In MPI, dg::MPISparseBlockMat applies an EllSparseBlockMat to the inner
+// points and a CooSparseBlockMat to the boundary points, which
+// dg::MPIKroneckerGather communicates; they are created in mpi_derivatives.h
 /**
 * @brief Coo Sparse Block Matrix format
 *

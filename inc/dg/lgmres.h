@@ -212,12 +212,13 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
     unsigned restartCycle = 0;
     unsigned counter = 0;
     value_type rho = 1.;
-    // DO NOT HOLD THESE AS PRIVATE!! MAKES BUG IN COPY!!
-    std::vector<ContainerType const*> m_W, m_Vptr;
-    m_W.assign(m_krylovDimension,nullptr);
-    m_Vptr.assign(m_krylovDimension+1,nullptr);
+    // Pointers into m_V and m_outer_w: local, because as members they would
+    // point into the vectors of the original after a copy
+    std::vector<ContainerType const*> w_ptrs, v_ptrs;
+    w_ptrs.assign(m_krylovDimension,nullptr);
+    v_ptrs.assign(m_krylovDimension+1,nullptr);
     for( unsigned i=0; i<m_krylovDimension+1; i++)
-        m_Vptr[i] = &m_V[i];
+        v_ptrs[i] = &m_V[i];
     do
 	{
         dg::blas2::gemv(A,x,m_residual);
@@ -238,13 +239,13 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
 		{
             unsigned outer_w_count = std::min(restartCycle,m_outer_k);
             if(iteration < m_krylovDimension-outer_w_count){
-                m_W[iteration] = &m_V[iteration];
-                dg::blas2::gemv(P,*m_W[iteration],m_tmp);
+                w_ptrs[iteration] = &m_V[iteration];
+                dg::blas2::gemv(P,*w_ptrs[iteration],m_tmp);
                 dg::blas2::gemv(A,m_tmp,m_V[iteration+1]);
                 counter++;
             } else if( iteration < m_krylovDimension){ // size of W
                 unsigned w_idx = iteration - (m_krylovDimension - outer_w_count);
-                m_W[iteration] = &m_outer_w[w_idx];
+                w_ptrs[iteration] = &m_outer_w[w_idx];
                 dg::blas1::copy( m_outer_Az[w_idx], m_V[iteration+1]);
             }
 
@@ -318,11 +319,11 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
             rho = fabs(m_s[iteration+1]);
             if( rho < tol)
 			{
-                Update(P,m_dx,x,iteration,m_H,m_s,m_W);
+                Update(P,m_dx,x,iteration,m_H,m_s,w_ptrs);
                 return counter;
             }
         }
-        Update(P,m_dx,x,m_krylovDimension-1,m_H,m_s,m_W);
+        Update(P,m_dx,x,m_krylovDimension-1,m_H,m_s,w_ptrs);
         if( m_outer_k > 1)
         {
             std::rotate(m_outer_w.rbegin(),m_outer_w.rbegin()+1,m_outer_w.rend());
@@ -339,7 +340,7 @@ unsigned LGMRES< ContainerType>::solve( Matrix&& A, ContainerType0& x, const Con
                 for( unsigned k=0; k<m_krylovDimension; k++)
                     coeffs[i] = DG_FMA( m_HH[i][k],m_s[k], coeffs[i]);
             }
-            dg::blas2::gemv( dg::asDenseMatrix( m_Vptr), coeffs, m_outer_Az[0]);
+            dg::blas2::gemv( dg::asDenseMatrix( v_ptrs), coeffs, m_outer_Az[0]);
         }
 
         restartCycle ++;

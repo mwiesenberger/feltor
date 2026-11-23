@@ -1782,7 +1782,8 @@ struct Vortex
 #endif
                     )*cos(theta)/norm;
         return u_d * R_* bessk1(beta*r/R_)/bessk1(beta)*cos(theta)/norm;
-        // TODO Can these be replaced by std::cyl_bessel_k? Not sure what to do on device though
+        // bessk1 instead of std::cyl_bessel_k, which is not available in device
+        // code (and not in libc++)
     }
     /**
      * @brief \f$f(x,y,z) =\cos(k_z z)\begin{cases}

@@ -57,8 +57,6 @@ static double rhs( double x, double y) { return (1.-alpha*pow(2.*nu,order))*sin(
 static double sol(double x, double y)  { return sin( x)*sin(y);}
 static double initial( double x, double y) {return rhs(x,y);}
 
-// TODO Should we use a logging system for feltor algorithms?
-
 TEST_CASE( "Default solver interface")
 {
 #ifdef WITH_MPI

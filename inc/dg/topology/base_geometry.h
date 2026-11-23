@@ -355,7 +355,6 @@ struct RealCylindricalGrid3d: public dg::aRealProductGeometry3d<real_type>
 
 ///@}
 
-//TODO With C++17 class type inference we could rethink these?
 /*!@addtogroup gridtypes
  *
  * @anchor dg_geometry_typedefs_table

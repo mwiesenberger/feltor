@@ -11,7 +11,6 @@ namespace detail
 
 
 // MW if ever needed the code for assembly of sparsity structure of A and the computation of A can be separated
-// TODO Make gemm pointers restrict!?
 
 // A = B*C
 // We do not catch explicit zeros in A

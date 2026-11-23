@@ -356,8 +356,9 @@ std::map<int,int> get_size_map( const std::map<int, thrust::host_vector<T>>& idx
 
 
 }// namespace detail
-// TODO Maybe this can be public? Why would anyone call these functions directly?
-// TODO Maybe be a MPIGather function?
+// gIdx2unique_idx and gIdx2gIdx are internal (hidden from the documentation):
+// they are used by MPIGather, mpi_permutation.h and the creation of MPI
+// matrices. Users should call the gather map constructor of dg::MPIGather.
 /**
  * @brief Convert an unsorted and possible duplicate global index list to unique
  * stable_sorted by pid and duplicates map

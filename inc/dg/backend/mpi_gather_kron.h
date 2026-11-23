@@ -147,7 +147,7 @@ struct MPIContiguousKroneckerGather
 * @ingroup mpi_comm
 * @tparam Vector a thrust Vector e.g. \c thrust::host_vector or \c thrust::device_vector
 * Determines the internal buffer type of the \f$ G_2\f$ gather operation
-* @sa dg::RowColDistMat
+* @sa dg::MPISparseBlockMat
 */
 template<template< typename> typename Vector>
 struct MPIKroneckerGather
