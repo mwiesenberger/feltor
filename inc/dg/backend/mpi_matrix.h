@@ -444,7 +444,8 @@ struct MPIDistMat
     * buffer_size() and \c isCommunicating() member functions are called If \c
     * !isCommunicating() the gather functions won't be called and only the
     * inner matrix is applied.
-    * @param scatter Scattering of the rows from row buffer back to result vector
+    * @param scatter Row \c i of \c outside is added to row \c scatter[i] of
+    * the result vector (size <tt>outside.num_rows()</tt>)
     * @note This is needed is because <tt>blas2::symv( m_o, buffer, y);</tt>
     * currently initializes all elements in \c y with zero and therefore would
     * overwrite the result from <tt>blas2::symv( m_i, x, y)</tt>. We therefore
@@ -455,7 +456,7 @@ struct MPIDistMat
     MPIDistMat( const LocalMatrixInner& inside,
                 const LocalMatrixOuter& outside,
                 const MPIGather<Vector>& mpi_gather,
-                const Vector<int>& scatter // TODO scatter comp -> y from symv(outside, recv, comp);
+                const Vector<int>& scatter
                 )
     : m_i(inside), m_o(outside), m_g(mpi_gather), m_scatter(scatter),
       m_dist( row_dist), m_comm(mpi_gather.communicator()) { }

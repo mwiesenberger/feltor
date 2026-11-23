@@ -35,7 +35,8 @@ __device__ inline int64_t xadd( int64_t &sa, int64_t x, unsigned char &of) {
     // (unsigned addition: signed overflow is undefined)
     int64_t z = (int64_t)((uint64_t)y + (uint64_t)x);
 
-    // TODO: cover also underflow
+    // of is the signed overflow flag (like OF on x86): set on wrap-around in
+    // the positive and in the negative direction
     of = 0;
     if(x > 0 && y > 0 && z < 0)
         of = 1;

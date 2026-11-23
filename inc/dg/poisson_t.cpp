@@ -51,7 +51,6 @@ TEST_CASE("Poisson")
     MPI_Comm_rank( MPI_COMM_WORLD, &rank);
     MPI_Comm_size( MPI_COMM_WORLD, &size);
     MPI_Comm comm = dg::mpi_cart_create( MPI_COMM_WORLD, {0,0}, {1,1});
-    // TODO Does the bcx and bcy in the communicator matter??
 #endif
     //![doxygen]
     unsigned n = 5, Nx = 32, Ny = 48;
