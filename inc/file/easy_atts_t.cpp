@@ -40,6 +40,7 @@ TEST_CASE( "Easy attributes")
     {
         // ! [version_flags]
         file.put_atts(dg::file::version_flags);
+        CHECK_NOTHROW( file.get_att_as<std::string>("feltor_version"));
         CHECK_NOTHROW( file.get_att_as<std::string>("git_hash"));
         CHECK_NOTHROW( file.get_att_as<std::string>("git_branch"));
         CHECK_NOTHROW( file.get_att_as<std::string>("compile_time"));

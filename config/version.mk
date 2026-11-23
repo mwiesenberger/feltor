@@ -5,5 +5,6 @@ VERSION_MK=1
 GIT_HASH=$$(git rev-parse HEAD)
 COMPILE_TIME=$$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 GIT_BRANCH=$$(git branch --show-current)
-export VERSION_FLAGS=-DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\""
+FELTOR_VERSION=$$(git describe --tags --always --dirty)
+export VERSION_FLAGS=-DFELTOR_VERSION="\"$(FELTOR_VERSION)\"" -DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\""
 endif # VERSION_MK

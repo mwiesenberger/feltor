@@ -122,32 +122,29 @@ if( FELTOR_FILE_WITH_NETCDF)
 
 
     # ============================================
-    # Add compile definitions
-
-    execute_process(
-        COMMAND git rev-parse HEAD
-        OUTPUT_VARIABLE GIT_HASH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    # Version information for dg::file::version_flags
+    # Every target linking dg_file compiles the generated feltor_version.cpp.
+    # It is updated on every build but rewritten only if the git hash, branch
+    # or version changes, so that only this small file is recompiled and the
+    # targets relinked. Installed packages do not get it (BUILD_INTERFACE).
+    find_package(Git QUIET)
+    set(FELTOR_VERSION_CPP "${CMAKE_CURRENT_BINARY_DIR}/feltor_version.cpp")
+    # Note: custom targets are always out of date so the script always runs
+    # but the script only updates feltor_version.cpp if its contents change
+    add_custom_target(dg_file_version
+        COMMAND "${CMAKE_COMMAND}"
+            "-DOUTPUT=${FELTOR_VERSION_CPP}"
+            "-DSOURCE_DIR=${PROJECT_SOURCE_DIR}"
+            "-DGIT_EXECUTABLE=${GIT_EXECUTABLE}"
+            "-DPROJECT_VERSION=${PROJECT_VERSION}"
+            -P "${PROJECT_SOURCE_DIR}/cmake/FeltorVersion.cmake"
+        BYPRODUCTS "${FELTOR_VERSION_CPP}"
+        VERBATIM
     )
-    message(STATUS "Git hash: ${GIT_HASH}")
-
-    execute_process(
-        COMMAND git branch --show-current
-        OUTPUT_VARIABLE GIT_BRANCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    )
-    message(STATUS "Git branch: ${GIT_BRANCH}")
-
-    string(TIMESTAMP COMPILE_TIME "%Y-%m-%dT%H:%M:%SZ" UTC)
-    message(STATUS "Compile time: ${COMPILE_TIME}")
-
+    add_dependencies(dg_file dg_file_version)
+    target_sources(dg_file INTERFACE $<BUILD_INTERFACE:${FELTOR_VERSION_CPP}>)
     target_compile_definitions(dg_file INTERFACE
-        GIT_HASH="${GIT_HASH}"
-        GIT_BRANCH="${GIT_BRANCH}"
-        COMPILE_TIME="${COMPILE_TIME}"
-    )
+        $<BUILD_INTERFACE:DG_FILE_FELTOR_VERSION_CPP>)
 endif()
 
 # ============================================
