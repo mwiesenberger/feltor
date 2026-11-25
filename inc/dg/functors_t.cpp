@@ -1,11 +1,13 @@
 #include <iostream>
+#include <cmath>
+#include <array>
 
 
 #include "functors.h"
+#include "blas2.h"
+#include "topology/weights.h"
 
 #include "catch2/catch_all.hpp"
-
-//TODO Add tests for other functors
 
 TEST_CASE("Basic Functors")
 {
@@ -57,7 +59,170 @@ TEST_CASE( "Horner")
         double leg10_num = legendre(0.1);
         CHECK( fabs ( leg10_num - leg10) < 1e-12);
     }
+    SECTION( "Horner1d is correct when the point repeats")
+    {
+        // f(x) = 1 + 2x + 3x^2
+        dg::Horner1d p( {1., 2., 3.});
+        auto f = []( double x){ return 1. + x*( 2. + 3.*x);};
+        for( double x : { 0.5, 0.5, -0.7, 0.5, 0., -0.7})
+        {
+            INFO( "x "<<x);
+            CHECK( fabs( p( x) - f( x)) < 1e-15);
+        }
+        CHECK( dg::Horner1d()( 0.3) == 1.);
+        CHECK( dg::Horner1d( std::vector<double>{})( 0.3) == 0.);
+    }
+    SECTION( "Horner2d is correct when the point repeats or changes in one coordinate")
+    {
+        // c[i*N+j] x^i y^j with M = 2, N = 3
+        dg::Horner2d p( {1., 2., 3., 4., 5., 6.}, 2, 3);
+        auto f = []( double x, double y){
+            return 1. + 2.*y + 3.*y*y + x*( 4. + 5.*y + 6.*y*y);};
+        // Same point, new x with same y, new y with same x, back to the start
+        std::vector<std::array<double,2>> points = { {0.5, 0.3}, {0.5, 0.3},
+            {-0.7, 0.3}, {-0.7, -1.1}, {0.5, -1.1}, {0.5, 0.3}, {0., 0.}};
+        for( auto pt : points)
+        {
+            INFO( "x "<<pt[0]<<" y "<<pt[1]);
+            CHECK( fabs( p( pt[0], pt[1]) - f( pt[0], pt[1])) < 1e-14);
+        }
+        dg::Horner2d one;
+        CHECK( one( 0.3, 0.4) == 1.);
+        CHECK( one( 0.3, -0.4) == 1.);
+        CHECK( dg::Horner2d( {}, 0, 3)( 0.3, 0.4) == 0.);
+        CHECK( dg::Horner2d( {}, 2, 0)( 0.3, 0.4) == 0.);
+    }
+}
 
+TEST_CASE( "MOD returns values in [0,m)")
+{
+    dg::MOD<double> mod( 2.);
+    CHECK( mod( 5.5) == 1.5);
+    CHECK( mod( -0.5) == 1.5);
+    CHECK( mod( 4.) == 0.);
+    CHECK( mod( -4.) == 0.);
+    CHECK( mod( 1.) == 1.);
+    // Results that round to m must not be returned
+    for( double x : { -1e-20, -1e-300, -4.-1e-17, -2.*(1.-1e-17), 0., 1.999})
+    {
+        INFO( "x "<<x<<" mod "<<mod( x));
+        CHECK( 0. <= mod( x));
+        CHECK( mod( x) < 2.);
+    }
+    dg::MOD<float> modf( 1.f);
+    CHECK( 0.f <= modf( -1e-10f));
+    CHECK( modf( -1e-10f) < 1.f);
+}
+
+TEST_CASE( "VanLeer limiter properties")
+{
+    dg::VanLeer vl;
+    CHECK( vl( 1., -2.) == 0.);
+    CHECK( vl( 0., 3.) == 0.);
+    CHECK( vl( 3., 0.) == 0.);
+    for( auto ab : std::vector<std::array<double,2>>{ {1., 2.}, {0.1, 5.},
+            {3., 3.}, {-1., -4.}})
+    {
+        double a = ab[0], b = ab[1];
+        INFO( "a "<<a<<" b "<<b);
+        CHECK( vl( a, b) == vl( b, a));
+        // Between the smaller and twice the smaller argument (in magnitude)
+        double mn = std::min( fabs( a), fabs( b));
+        CHECK( mn <= fabs( vl( a, b)));
+        CHECK( fabs( vl( a, b)) <= 2.*mn);
+        CHECK( vl( a, b)*a > 0);
+    }
+    CHECK( vl( 3., 3.) == 3.);
+}
+
+TEST_CASE( "PolynomialRectangle")
+{
+    double xl = -1., al = 0.5, xr = 2., ar = 0.3;
+    dg::PolynomialRectangle rect( xl, al, xr, ar);
+    CHECK( fabs( rect( xl) - 0.5) < 1e-14);
+    CHECK( fabs( rect( xr) - 0.5) < 1e-14);
+    CHECK( rect( xl - 1.1*al) == 0.);
+    CHECK( rect( xr + 1.1*ar) == 0.);
+    CHECK( rect( 0.5*(xl+xr)) == 1.);
+    CHECK( rect( xl + 1.1*al) == 1.);
+    CHECK( rect( xr - 1.1*ar) == 1.);
+    // Monotone in both transition regions
+    for( unsigned i=0; i<20; i++)
+    {
+        double x = xl - al + 2.*al*i/20.;
+        CHECK( rect( x) <= rect( x + al/20.));
+        x = xr - ar + 2.*ar*i/20.;
+        CHECK( rect( x) >= rect( x + ar/20.));
+    }
+    // With equal widths the rectangle is symmetric around its centre
+    dg::PolynomialRectangle sym( xl, al, xr, al);
+    for( double x : { -1.3, -0.8, 1.6, 2.4})
+    {
+        INFO( "x "<<x);
+        CHECK( fabs( sym( x) - sym( xl+xr-x)) < 1e-14);
+    }
+}
+
+TEST_CASE( "Lamb dipole")
+{
+    const double x0 = 0.2, y0 = -0.1, R = 1., U = 0.5;
+    dg::Lamb lamb( x0, y0, R, U);
+    // The vorticity vanishes at the edge of the dipole
+    for( double theta : { 0., 0.4, 2.})
+    {
+        INFO( "theta "<<theta);
+        double x = x0 + R*cos( theta)*(1.-1e-14), y = y0 + R*sin( theta)*(1.-1e-14);
+        CHECK( fabs( lamb( x, y)) < 1e-12);
+        CHECK( lamb( x0 + 1.1*R*cos( theta), y0 + 1.1*R*sin( theta)) == 0.);
+    }
+    // enstrophy = 1/2 int omega^2
+    dg::Grid2d grid( -2., 2., -2., 2., 3, 100, 100);
+    auto omega = dg::evaluate( lamb, grid);
+    double enstrophy = 0.5*dg::blas2::dot( omega, dg::create::weights( grid),
+        omega);
+    INFO( "Numerical "<<enstrophy<<" analytical "<<lamb.enstrophy());
+    CHECK( fabs( enstrophy - lamb.enstrophy()) < 1e-6*lamb.enstrophy());
+}
+
+TEST_CASE( "Vortex")
+{
+    const double R = 1.5, ud = 0.7;
+    unsigned state = GENERATE( 0, 1, 2);
+    INFO( "State "<<state);
+    dg::Vortex v( 0., 0., state, R, ud);
+    // f(r,0) is continuous and continuously differentiable at r = R
+    auto f = [&]( double r){ return v( r, 0.);};
+    double h = 1e-4;
+    double fin = f( R*(1.-1e-14)), fout = f( R*(1.+1e-14));
+    CHECK( fabs( fin - fout) < 1e-10*fabs( fin));
+    // one-sided second order differences; the constants g_i, beta_i have 10
+    // digits and g_i lies close to a zero of J_1, so the slopes agree to 1e-5
+    double din  = ( 3.*f( R) - 4.*f( R-h) + f( R-2.*h))/2./h;
+    double dout = (-3.*f( R) + 4.*f( R+h) - f( R+2.*h))/2./h;
+    INFO( "Derivative inside "<<din<<" outside "<<dout);
+    CHECK( fabs( din - dout) < 1e-5*fabs( din));
+    // The angle dependence is cos(theta)
+    for( double theta : { 0.3, 2.})
+    {
+        for( double r : { 0.5*R, 2.*R})
+        {
+            INFO( "theta "<<theta<<" r "<<r);
+            CHECK( fabs( v( r*cos( theta), r*sin( theta)) - f( r)*cos( theta))
+                    < 1e-14*fabs( f( r)));
+        }
+    }
+#ifdef __cpp_lib_math_special_functions
+    // Outside the vortex f(r,0)/f(R,0) = K_1( beta r/R) / K_1( beta)
+    // with the documented beta_i
+    double beta = state == 0 ? 0.03827327723 : 0.07071067810;
+    for( double r : { 1.2*R, 3.*R, 50.*R, 200.*R})
+    {
+        INFO( "r "<<r);
+        double ratio = std::cyl_bessel_k( 1., beta*r/R)/std::cyl_bessel_k( 1.,
+                beta);
+        CHECK( fabs( f( r)/f( R) - ratio) < 1e-7*ratio);
+    }
+#endif
 }
 
 TEST_CASE( "Composition")

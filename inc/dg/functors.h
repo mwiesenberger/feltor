@@ -196,7 +196,14 @@ struct MOD
     ///@copydoc hide_functor_call
     DG_DEVICE
     T operator()( T x)const{
-        return (fmod(x,m_m) < 0 ) ? (m_m + fmod(x,m_m)) : fmod(x,m_m);
+        T r = fmod(x,m_m);
+        if( r < 0)
+        {
+            r += m_m;
+            if( r == m_m) // tiny negative r rounds to m
+                return 0;
+        }
+        return r;
     }
     private:
     T m_m;
@@ -1720,11 +1727,15 @@ struct Lamb
  with \f$ r = \sqrt{(x-x_0)^2 + (y-y_0)^2}\f$, \f$ \theta = \arctan_2( (y-y_0), (x-x_0))\f$,
         \f$ g_0 = 3.831896621 \f$,
         \f$ g_1 = -3.832353624 \f$,
-        \f$ g_2 = 7.016\f$,
+        \f$ g_2 = 7.015940504\f$,
         \f$ \beta_0 = 0.03827327723\f$,
         \f$ \beta_1 = 0.07071067810 \f$,
         \f$ \beta_2 = 0.07071067810 \f$
-        \f$ K_1\f$ is the modified and \f$ J_1\f$ the Bessel function
+        \f$ K_1\f$ is the modified and \f$ J_1\f$ the Bessel function.
+        Each \f$ g_i\f$ solves
+        \f$ 1 + \frac{\beta_i^2}{g_i^2} - \frac{\beta_i^2}{g_i}\frac{J_1'(g_i)}{J_1(g_i)}
+        = \beta_i\frac{K_1'(\beta_i)}{K_1(\beta_i)}\f$
+        such that \f$ f\f$ is continuously differentiable at \f$ r=R\f$
  */
 struct Vortex
 {
@@ -1743,7 +1754,7 @@ struct Vortex
         x0_(x0), y0_(y0), s_(state),  R_(R), u_d( u_dipole), kz_(kz){
         g_[0] = 3.831896621;
         g_[1] = -3.832353624;
-        g_[2] = 7.016;
+        g_[2] = 7.015940504;
         b_[0] = 0.03827327723;
         b_[1] = 0.07071067810 ;
         b_[2] = 0.07071067810 ;
