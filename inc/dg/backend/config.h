@@ -50,39 +50,23 @@ namespace dg{
 #if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_CUDA // cuda is involved
 //{;
 
+// CUDA-aware MPI is assumed unless the user defines DG_CUDA_UNAWARE_MPI or
+// Open MPI is known to be built without CUDA support;
+// message if host path is taken
 #ifdef DG_WITH_NCCL
 inline constexpr bool nccl_mpi = true;
 inline constexpr bool cuda_aware_mpi = false;
-#pragma message( "NCCL MPI support enabled!")
 #else
 inline constexpr bool nccl_mpi = false;
-//{
-#ifdef DG_CUDA_UNAWARE_MPI
-//{;
-#pragma message( "Assume CUDA-unaware MPI support as per user indication!")
+#if defined(DG_CUDA_UNAWARE_MPI)
+#pragma message( "CUDA_UNAWARE_MPI: Communicate GPU data through host! (user mandated)")
 inline constexpr bool cuda_aware_mpi = false;
-//}
-#else // ! DG_CUDA_UNAWARE_MPI
-//{;
-#if defined(OPEN_MPI) && OPEN_MPI
-//{;
-#if defined(MPIX_CUDA_AWARE_SUPPORT) && MPIX_CUDA_AWARE_SUPPORT
-#pragma message( "CUDA-aware MPI support detected! Yay!")
-inline constexpr bool cuda_aware_mpi = true;
+#elif defined(OPEN_MPI) && OPEN_MPI && defined(MPIX_CUDA_AWARE_SUPPORT) && !MPIX_CUDA_AWARE_SUPPORT
+#pragma message( "CUDA_UNAWARE_MPI: Communicate GPU data through host! (detected through MPIX_CUDA_AWARE_SUPPORT in Open MPI)")
+inline constexpr bool cuda_aware_mpi = false;
 #else
-#pragma message( "No CUDA aware MPI installation! Falling back to regular MPI!")
-inline constexpr bool cuda_aware_mpi = false;
-#endif
-//}
-#else // Other than open-mpi there seems no way to determine cuda support
-//{;
-#pragma message( "We assume CUDA-aware MPI support! Compile with -DDG_CUDA_UNAWARE_MPI if we should not!")
 inline constexpr bool cuda_aware_mpi = true;
-//}
-#endif // OPEN_MPI
-//}
-#endif // DG_CUDA_UNAWARE_MPI
-//}
+#endif
 #endif // DG_WITH_NCCL
 //}
 #else // THRUST != CUDA

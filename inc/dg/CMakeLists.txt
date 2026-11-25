@@ -330,6 +330,9 @@ target_compile_options(dg_dg INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:--extended-lam
 if( FELTOR_WITH_NCCL)
     target_compile_definitions( dg_dg INTERFACE DG_WITH_NCCL)
 ##### TODO Update once libnccl-dev installs ncclConfig.cmake and find_package works
+    # NCCL 2.29.7 added a CMake install with find_package support. Switch to
+    # it once the NCCL versions we build against (libnccl-dev, clusters) are
+    # at least 2.29.7; check the package and target names of that release
     # find_package( nccl REQUIRED)
     # target_link_libraries( dg_dg INTERFACE nccl::nccl)
 ##### In the meantime:
