@@ -59,6 +59,11 @@ jobs:
       if: ${{ !contains(matrix.preset, 'gpu') }}
       run: ctest --preset ${{ matrix.preset }} -LE mpi
 
+    # TEMPORARY: does the runner allow 130 MPI processes? Remove after one run
+    - name: Test with 130 processes
+      if: matrix.preset == 'mpi-cpu'
+      run: ctest --preset ${{ matrix.preset }} -L np130
+
   # Windows with Visual Studio: vcpkg installs NetCDF and GLFW from source
   # during the configure step (no cache), so the step times show the install
   # times noted in CMakeLists.txt.
