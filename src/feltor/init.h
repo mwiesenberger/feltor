@@ -392,7 +392,6 @@ dg::x::HVec make_ntilde(
     }
     else if(  "zonal" == type)
     {
-        dg::x::HVec ntilde = dg::evaluate(dg::zero, grid);
         double k_psi  = js.get( "k_psi", 0.).asDouble();
         double amp    = js.get( "amplitude", 0.).asDouble();
         dg::SinX sinX( amp, 0., 2.*M_PI*k_psi);

@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO update to new feltor structure
 template<class Geometry, class IMatrix, class Matrix, class Container>
 void Explicit<Geometry, IMatrix, Matrix, Container>::operator()(
     double t,
