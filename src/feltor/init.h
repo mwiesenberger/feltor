@@ -151,7 +151,7 @@ dg::x::HVec make_profile(
         }
         double q0 = ret - nbg;
         double q1 = d1/q0;
-        double q2 = 0.5*(d2/q0 - q1*q1);
+        double q2 = d2/q0 - 0.5*q1*q1; // d2 = p''(1)/2
         profile = dg::pullback( dg::compose(
                 [c,M,nbg, psipO, q0,q1,q2] ( double psip){
                     double psipp = 1.-psip/psipO;
@@ -549,6 +549,7 @@ dg::x::HVec source_profiles(
     ne_profile = source;
     if( "zero" == type)
     {
+        fixed_profile = false;
     }
     else if( "fixed_profile" == type)
     {

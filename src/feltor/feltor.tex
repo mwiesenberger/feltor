@@ -1327,11 +1327,11 @@ We can choose between several initial conditions for $\tilde n$:
 %\subsubsection{Blob}
 We initialize a blob in the R-Z plane
 \begin{align} \label{eq:initial_blob}
-  \tilde n_{blob}(R,Z,0) = \triangle n \exp\left( -\frac{(R - R_0 - p_x a)^2 + (Z-p_ya)^2}{\sigma^2 a^2} \right)
+  \tilde n_{blob}(R,Z,0) = \triangle n \exp\left( -\frac{(R - R_0 - p_x a)^2 + (Z-p_ya)^2}{2\sigma^2 a^2} \right)
 \end{align}
 Then, we use fieldline integration modulated by either
 \begin{align} \label{eq:modulation_blob}
-    m_{\text{gaussian}}(\varphi) = \exp\left( -\frac{\varphi^2 }{\pi^2\sigma_z^2} \right)
+    m_{\text{gaussian}}(\varphi) = \exp\left( -\frac{\varphi^2 }{2\pi^2\sigma_z^2} \right)
 \end{align}
 or
 \begin{align} \label{eq:modulation_step}
@@ -1348,17 +1348,29 @@ We either follow fieldlines around the torus several times or only once.
     "ntilde" :
     {
         "type" : "blob", // Choose Eq.\eqref{eq:initial_blob}
+        "type" : "circle", // $\triangle n$ for $(R - R_0 - p_x a)^2 + (Z-p_ya)^2 < \sigma^2a^2$, else $0$
         "amplitude": 1.0, // $\triangle n$ in Eq.\eqref{eq:initial_blob}
         "posX" : 0, // $p_x$ in Eq.\eqref{eq:initial_blob}
         "posY" : 0, // $p_y$ in Eq.\eqref{eq:initial_blob}
         "sigma" : 1.0, // $\sigma$ in Eq.\eqref{eq:initial_blob}
         "revolutions" : 1, // times the blob is followed around the torus
         "parallel" : "gaussian" // Eq.\eqref{eq:modulation_blob}
+        "parallel" : "exact-gaussian" // Eq.\eqref{eq:modulation_blob} with
+        // direct fieldline integration instead of the FCI interpolation
         "parallel" : "step" // Eq.\eqref{eq:modulation_step}
-        "sigma_z" :  0.5 // $\sigma_z$ in Eq.\eqref{eq:modulation_blob} or \eqref{eq:modulation_step}
+        "parallel" : "double-step" // $m(\varphi) = 1/2$ for $-\pi\sigma_z<\varphi<0$,
+        // $1$ for $0\leq \varphi < \pi\sigma_z$, $0$ else
+        "parallel" : "toroidal-gaussian" // not field-aligned: the blob (or
+        // circle) times Eq.\eqref{eq:modulation_blob} with $\varphi$ replaced by $\varphi-\pi$
+        "parallel" : "toroidal" // not field-aligned: the blob (or circle) in every plane
+        "sigma_z" :  0.5, // $\sigma_z$ in Eq.\eqref{eq:modulation_blob} or \eqref{eq:modulation_step}
+        "rk4eps" : 1e-6 // accuracy of the fieldline integration for
+        // "exact-gaussian", "step" and "double-step"
     }
 }
 \end{minted}
+If the grid has only one plane (e.g. with the "symmetric" flag) the blob is used
+directly and the "parallel" parameters are ignored.
 
 %\subsubsection{Turbulent bath}
 We can initialize the R-Z plane with a turbulent bath with a certain amplitude $A$.
@@ -1378,8 +1390,10 @@ Again, we transform this to all poloidal planes along the magnetic field lines a
         "amplitude": 1.0, //amplitude of perturbation in Eq.\eqref{eq:initial_turbulent}
         "revolutions" : 1, // times the bath is followed around the torus
         "parallel" : "gaussian" // Eq.\eqref{eq:modulation_blob}
+        "parallel" : "exact-gaussian" // as for the blob
         "parallel" : "step" // Eq.\eqref{eq:modulation_step}
-        "sigma_z" :  0.5 // $\sigma_z$ in Eq.\eqref{eq:modulation_blob} or \eqref{eq:modulation_step}
+        "sigma_z" :  0.5, // $\sigma_z$ in Eq.\eqref{eq:modulation_blob} or \eqref{eq:modulation_step}
+        "rk4eps" : 1e-6 // as for the blob
     }
 }
 \end{minted}
@@ -1469,7 +1483,7 @@ Typically this profile is used to fit an experimental profile.
 \noindent
 Instead of the flux-aligned profile we can also choose a toroidally symmetric Gaussian profile
 \begin{align} \label{eq:profile_blob}
-    n_{prof}(R,Z) = n_{bg} + A \exp\left( -\frac{(R - R_0 - p_x a)^2 + (Z-p_ya)^2}{\sigma^2} \right)
+    n_{prof}(R,Z) = n_{bg} + A \exp\left( -\frac{(R - R_0 - p_x a)^2 + (Z-p_ya)^2}{2\sigma^2} \right)
 \end{align}
 \begin{minted}[texcomments]{js}
 "density":
@@ -1484,6 +1498,20 @@ Instead of the flux-aligned profile we can also choose a toroidally symmetric Ga
         "posX" : 0, // $p_x$ in Eq.\eqref{eq:profile_blob}
         "posY" : 0, // $p_y$ in Eq.\eqref{eq:profile_blob}
         "sigma" : 1.0, // $\sigma$ in Eq.\eqref{eq:profile_blob}
+    }
+}
+\end{minted}
+Finally, a fit to an L-mode density profile in COMPASS
+\begin{align} \label{eq:profile_compass}
+    n_{prof}(R,Z) = -2.4 + \frac{8.5+2.4}{1 + (\rho_p(R,Z)/0.784)^{2.88}}
+\end{align}
+\begin{minted}[texcomments]{js}
+"density":
+{
+    "profile" :
+    {
+        "type" : "Compass_L_mode", // Eq.\eqref{eq:profile_compass}
+        "background" : 0.2 // $n_{bg}$ (only used in Eq.\eqref{eq:initial_ne})
     }
 }
 \end{minted}
@@ -1672,7 +1700,7 @@ the source with the parameters below generates and compare to
 
 We can choose the special ringed Gaussian TCV source of the form
 \begin{align}
-    S_{n_e}(R,Z) &= \omega_s \exp\left( -\frac{(\psi_p-\psi_{p,0})^2}{\sigma^2}\right)H(Z-Z_X)
+    S_{n_e}(R,Z) &= \omega_s \exp\left( -\frac{(\psi_p-\psi_{p,0})^2}{2\sigma^2}\right)H(Z-Z_X)
 \end{align}
 with $\psi_{p,0} = \psi_p(1075, -10)$ and $\sigma = 0.0093\psi_{p,0}/0.4$,
 \begin{minted}[texcomments]{js}
