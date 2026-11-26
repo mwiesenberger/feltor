@@ -1140,7 +1140,7 @@ std::vector<Record> ToroidalExBDiagnostics2d_list = { //27
             routines::times( v.f.bhatgB(), v.f.gradP(0), v.tmp);
 
             // Omega_D,phi
-            routines::dot( v.p.mu[1]*v.p.tau[1], v.f.gradN(0), v.gradPsip, 0., v.tmp2[1]);
+            routines::dot( v.p.mu[1]*v.p.tau[1], v.f.gradN(0), v.gradPsip, 0., v.tmp3[0]);
 
             // Divergence
             v.f.centered_div( v.tmp3[0], v.tmp, v.tmp2[0], result);
@@ -1179,10 +1179,11 @@ std::vector<Record> ToroidalExBDiagnostics2d_list = { //27
         []( dg::x::DVec& result, Variables& v){
             routines::dot( v.gradPsip, v.f.gradU(1), v.tmp[0]);
             routines::dot( v.gradPsip, v.f.gradN(1), v.tmp[1]);
-            dg::blas1::pointwiseDot( 1., v.tmp[0], v.f.density(1), 1., v.tmp[0], v.f.velocity(1), 0., result);
+            // GradPsi Dot Grad (N U)
+            dg::blas1::pointwiseDot( 1., v.tmp[0], v.f.density(1), 1., v.tmp[1], v.f.velocity(1), 0., v.tmp[2]);
 
             routines::jacobian( v.f.bhatgB(), v.f.gradA(), v.gradPsip, result);
-            dg::blas1::pointwiseDot( -1./2.*v.p.tau[1], result, v.tmp[0], 0., result);
+            dg::blas1::pointwiseDot( -1./2.*v.p.tau[1], result, v.tmp[2], 0., result);
         }
     },
     {"jsoexbApar_tt", "A parallel ExB vorticity flux term (magnetization stress) (Time average)", true,
@@ -1444,9 +1445,14 @@ std::vector<Record> ParallelMomDiagnostics2d_list = { //36
             routines::dot( 1., v.f.curv(), v.f.gradU(1), 0., v.tmp[1]);
             dg::blas1::pointwiseDot( v.tmp[0], v.f.bphi(), v.tmp[0]);
             dg::blas1::pointwiseDot( v.tmp[1], v.f.bphi(), v.tmp[1]);
+            // K Dot Grad bphi (bphi is not constant)
+            v.f.centered_v_dot_nabla( v.f.curv(), v.f.bphi(), v.tmp2[0], v.tmp[2]);
+            dg::blas1::pointwiseDot( v.tmp[2], v.f.density(1), v.tmp[2]);
             // Multiply everything
             dg::blas1::pointwiseDot( v.p.mu[1]*v.p.tau[1], v.tmp[0], v.f.velocity(1),
                 v.p.mu[1]*v.p.tau[1], v.tmp[1], v.f.density(1), 0., result);
+            dg::blas1::pointwiseDot( v.p.mu[1]*v.p.tau[1], v.tmp[2], v.f.velocity(1),
+                1., result);
         }
     },
     {"divparbphikappai_tt", "Parallel angular momentum radial flux by curvature velocity (Time average)", true,
@@ -1660,9 +1666,10 @@ std::vector<Record> COCEDiagnostics2d_list = { // 16
             // take care to use correct derivatives...
             v.f.compute_lapMperpN( -1., v.f.density(1), v.tmp[0], 0., v.tmp2[0]);
             dg::blas1::pointwiseDot( v.f.velocity(1), v.tmp2[0], v.tmp2[0]);
-            v.f.compute_lapMperpU( 1, v.tmp2[1]);
-            dg::blas1::pointwiseDot( v.f.density(1), v.tmp2[1], v.tmp2[1]);
-            dg::tensor::scalar_product3d( 1., 1.,
+            v.f.compute_lapMperpU( 1, v.tmp2[1]); // -Lap U
+            dg::blas1::pointwiseDot( -1., v.f.density(1), v.tmp2[1], 0., v.tmp2[1]);
+            // Lap (NU) = U Lap N + N Lap U + 2 Grad N Dot Grad U
+            dg::tensor::scalar_product3d( 2., 1.,
                     v.f.gradN(1)[0], v.f.gradN(1)[1], v.f.gradN(1)[2],
                     v.f.projection(), 1.,
                     v.f.gradU(1)[0], v.f.gradU(1)[1], v.f.gradU(1)[2],
