@@ -535,7 +535,9 @@ void ParaDynamics<Geometry, IMatrix, Matrix, Container>::add_velocities_diffusio
                         //upwind scheme
                         double nST = (PN+QN)/2.;
                         double current = -nu*bphi*(PN-QN)/delta/nST;
-                        if( current > 0)
+                        // the upwind direction in varphi is the sign of the
+                        // varphi component current*bphi (bphi < 0 for reversed field)
+                        if( current*bphi > 0)
                             WDot += - current*bphi*(U0-UM)/delta;
                         else
                             WDot += - current*bphi*(UP-U0)/delta;
