@@ -90,6 +90,8 @@ struct Parameters
         fci_bc      = js["FCI"].get( "bc", "along_field").asString();
 
         diff_order  = js["regularization"].get( "order", 2).asUInt();
+        if( diff_order == 0)
+            throw std::runtime_error( "ERROR: regularization : order must be at least 1!\n");
         diff_dir    = dg::str2direction(
                 js["regularization"].get( "direction", "centered").asString() );
         for( unsigned u=0; u<6; u++)
