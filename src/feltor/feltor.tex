@@ -2532,16 +2532,16 @@ The relevant terms in the output file are
     ue2   &$z_i\mu_i N_i u_E^2 /2$ \\
     neue2 &$ z_e\mu_e n_e u_{\parallel,e}^2/2$ \\
     niui2 &$ z_i\mu_i N_i U_{\parallel,i}^2/2$ \\
-    see\_tt & $z_e(\tau_e (1+\ln n_e) + \phi + \frac{1}{2}\mu_e u_{\parallel,e}^2) S_{n_e} $ \\
-    sei\_tt & $z_i(\tau_i (1+\ln N_i) + \psi + \frac{1}{2}\mu_i U_{\parallel,i}^2) S_{N_i} $ \\
+    see\_tt & $z_e(\tau_e (1+\ln n_e) + \phi - \frac{1}{2}\mu_e u_{\parallel,e}^2) S_{n_e} $ \\
+    sei\_tt & $z_i(\tau_i (1+\ln N_i) + \psi - \frac{1}{2}\mu_i U_{\parallel,i}^2) S_{N_i} $ \\
     resistivity\_tt &-$\eta_\parallel n_e (U_{\parallel,i}-u_{\parallel,e})(N_iU_{\parallel,i}-n_eu_{\parallel,e})$ \\
     jsee\_tt &$z_e(\tau_e \ln n_e + \mu_e u_{\parallel,e}^2/2 + \phi)n_e(\vec u_E + \vec u_C + \vec u_K)\cn \psi_p
-        + z_e \tau_e n_e u_{\parallel,e}^2 \vec K_{\vn\times\bhat}\cn \psi_p$ \\
+        + z_e \mu_e\tau_e n_e u_{\parallel,e}^2 \vec K_{\vn\times\bhat}\cn \psi_p$ \\
     jsei\_tt &$z_i(\tau_i \ln N_i + \mu_i U_{\parallel,i}^2/2 + \psi_i)N_i(\vec u_E^i + \vec u_C + \vec u_K)\cn \psi_p
-        + z_i \tau_i N_i U_{\parallel,i}^2 \vec K_{\vn\times\bhat}\cn \psi_p$ \\
-    jseea\_tt &$z_e(\tau_e \ln n_e + \mu_e u_{\parallel,e}^2 + \phi)n_e \vec { b}_\perp\cn \psi_p
+        + z_i \mu_i\tau_i N_i U_{\parallel,i}^2 \vec K_{\vn\times\bhat}\cn \psi_p$ \\
+    jseea\_tt &$z_e(\tau_e \ln n_e + \mu_e u_{\parallel,e}^2/2 + \phi)n_e u_{\parallel,e}\vec { b}_\perp\cn \psi_p
         + z_e \tau_e n_e u_{\parallel,e} \vec{ b}_\perp \cn \psi_p $ \\
-    jseia\_tt &$z_i(\tau_i \ln N_i + \mu_i U_{\parallel,i}^2 + \psi_i)N_i \vec { b}_\perp\cn \psi_p
+    jseia\_tt &$z_i(\tau_i \ln N_i + \mu_i U_{\parallel,i}^2/2 + \psi_i)N_i U_{\parallel,i}\vec { b}_\perp\cn \psi_p
         + z_i \tau_i N_i U_{\parallel,i} \vec{ b}_\perp \cn \psi_p $ \\
     divee\_tt &$\nc \vec j_{\mathcal E}^e$ \\
     divei\_tt &$\nc \vec j_{\mathcal E}^i$ \\
@@ -2550,9 +2550,9 @@ The relevant terms in the output file are
     leeperp\_tt &$z_e(\tau_e(1+\ln n_e) + \phi + \mu_eu_{\parallel,e}^2/2) \Lambda_{n_e,\perp} + z_e\mu_e n_e u_{\parallel,e} \Lambda_{u_e,\perp}$ \\
     leiperp\_tt &$z_i(\tau_i(1+\ln N_i) + \psi_i + \mu_iU_{\parallel,i}^2/2) \Lambda_{N_i,\perp} + z_i\mu_i N_i U_{\parallel,i} \Lambda_{U_i,\perp}$ \\
     leeparallel\_tt & $z_e(\tau_e(1+\ln n_e) + \phi + \mu_eu_{\parallel,e}^2/2) \Lambda_{n_e,\parallel} +
-    z_e\mu_e u_{\parallel,e} \Lambda_{u_e, \parallel}$ \\
+    z_e\mu_e n_e u_{\parallel,e} \Lambda_{u_e, \parallel}$ \\
     leiparallel\_tt & $z_i(\tau_i(1+\ln N_i) + \psi_i + \mu_iU_{\parallel,i}^2/2)\Lambda_{N_i,_\parallel} +
-    z_i\mu_i U_{\parallel,i} \Lambda_{U_i,\parallel}$ \\
+    z_i\mu_i N_i U_{\parallel,i} \Lambda_{U_i,\parallel}$ \\
     %leeparallel\_tt & $ z_e\mu_e u_{\parallel,e} \nu_{\parallel,e} \Delta_\parallel u_{\parallel,e}$ \\
     %leiparallel\_tt & $ z_i\mu_i U_{\parallel,i} \nu_{\parallel,i} \Delta_\parallel U_{\parallel,i}$ \\
     divjeepar\_tt &$ z_e\nc \left( (\tau_e(1+\ln n_e) + \phi + \mu_eu_{\parallel,e}^2/2) n_eu_{\parallel,e}\bhat\right)$ \\
@@ -2717,7 +2717,7 @@ The relevant terms in the output file are (the Lorentz force term is described i
     divparexbii\_tt       & $\mu_i \nc (N_iU_{\parallel,i}\vec u_E^i)$ &
     divparbphiexbii\_tt   & $\mu_i\nc( N_iU_{\parallel,i}b_\varphi \vec u_E^i)$ \\
     divpardiai\_tt       & $\nc(\mu_i \tau_i N_iU_{\parallel,i}\vec K)$ &
-    divparbphdiai\_tt   & $\nc ( \mu_i \tau_i N_iU_{\parallel,i}b_\varphi\vec K)$ \\
+    divparbphidiai\_tt   & $\nc ( \mu_i \tau_i N_iU_{\parallel,i}b_\varphi\vec K)$ \\
     divparkappai\_tt       & $\nc (\mu_i N_iU_{\parallel,i} ( \mu_i U_{\parallel,i}^2 + 2\tau_i)\KK )$ &
     divparbphikappai\_tt       & $\nc( \mu_i N_iU_{\parallel,i}b_\varphi ( \mu_i U_{\parallel,i}^2 + 2\tau_i)\KK)$ \\
     divparmirrorAi\_tt       & $\nc(z_i \tau_i N_i \vec b_\perp)$ &
@@ -2737,7 +2737,7 @@ The relevant terms in the output file are (the Lorentz force term is described i
     lparparbphi\_tt   & $(N_i \Lambda_{U_i,\parallel} + U_{\parallel,i} \Lambda_{N_i,\parallel})b_\varphi$ &
     lparperpbphi\_tt & $(U_{\parallel,i} \Lambda_{N_i} + N_i\Lambda_{U_i})b_\varphi $ \\
     sparKappaphii\_tt & $-\mu_i N_i U_{\parallel,i} \KK\cn \psi_i$ &
-    sparmirrorKappai\_tt & $\tau_i N_i U_{\parallel,i} \nc\KK$ \\
+    sparmirrorKappai\_tt & $\mu_i\tau_i N_i U_{\parallel,i} \nc\KK$ \\
     sparphii\_tt & $-N_i\npar \psi$ &
     friction\_tt & $ \eta n_e(N_iU_{\parallel,i}-n_eu_{\parallel,e})$ \\
     sparmirrori\_tt & $-\tau_i\npar N_i$ &
@@ -2894,10 +2894,10 @@ xc               & Dataset & 2 (eta,psi) & Cartesian x-coordinate of the FSA gri
 yc               & Dataset & 2 (eta,psi) & Cartesian y-coordinate of the FSA grid\\
 vol              & Dataset & 2 (eta,psi) & Volume form in 2d including dG weights (can be used to integrate 2d quantities on the FSA grid; multiply by $2\pi$xc to get 3d volume)  \\
 time             & Coord. Var. & 1 (time)& time at which fields are written (variable size: maxout$+1$, dimension size: unlimited) \\
-dvdpsip          & Dataset & 1 (psi) & $\d v/\d\psi_p$ \\
+dvdpsi           & Dataset & 1 (psi) & $\d v/\d\psi_p$ \\
 psi\_vol         & Dataset & 1 (psi) & The volume enclosed by the flux surfaces $v(\psi_p) = \int_{\psi_p} \dV $ \\
 psi\_area        & Dataset & 1 (psi) & The area of the flux surfaces $A(\psi_p) = 2\pi \int_\Omega |\vn\psi_p| \delta(\psi_p - \psi_{p0}) H(Z-Z_X) R\d R\d Z$ \\
-dv2ddpsip        & Dataset & 1 (psi) & $\d v/\d\psi_p$ (in the 2d poloidal plane) \\
+dv2ddpsi         & Dataset & 1 (psi) & $\d v/\d\psi_p$ (in the 2d poloidal plane) \\
 psi\_vol2d       & Dataset & 1 (psi) & The 2d volume enclosed by the flux surfaces $v(\psi_p) = \int_{\psi_p} dRdZ $ \\
 psi\_arc         & Dataset & 1 (psi) & The arc length of the flux surfaces $L(\psi_p) = 2\pi \int_\Omega |\vn\psi_p| \delta(\psi_p - \psi_{p0}) H(Z-Z_X) \d R\d Z$ \\
 q-profile        & Dataset & 1 (psi) & The safety factor $q(\psi_p)$ \eqref{eq:safety_factor} using direct integration ( accurate but we assign random values outside separatrix) \\
@@ -2917,7 +2917,7 @@ Z\_std\_fsa      & Dataset & 2 (time, psi) & Standard deviation of flux surface 
 Z\_ifs           & Dataset & 2 (time, psi) & Volume integrated flux surface average $\int\d v\RA{ Z}$ unless Z is a current, then it is the volume derived flux-surface average $\partial_v \RA{ Z}$ \\
 Z\_ifs\_lcfs     & Dataset & 1 (time) & Volume integrated flux surface average evaluated on last closed flux surface $\int_0^{v(0)}\d v\RA{ Z}$ unless Z is a current, then it is the fsa evaluated $\RA{ j_v}(0)$ \\
 Z\_ifs\_norm     & Dataset & 1 (time) & Volume integrated square flux surface average $\sqrt{\int \d v \RA{Z}^2}$, unless Z is a current, then it is the square derivative of the flux surface average $\sqrt{\int\d v (\partial_v \RA{j^v})^2}$\\
-Z\_cta2dX  & Dataset & 3 (time, psi, eta) & Convoluted toroidal average Eq.~\eqref{eq:cta} in the magnetic plane. \\
+Z\_cta2dX  & Dataset & 3 (time, eta, psi) & Convoluted toroidal average Eq.~\eqref{eq:cta} in the magnetic plane (currents keep their name jsX, i.e. they are not multiplied by $\d v/\d\psi_p$). \\
 \bottomrule
 \label{table:diag}
 \end{longtable}
@@ -2938,7 +2938,7 @@ Furthermore, a user can specify which kind of diagnostics quantities should be c
 "Npsi": 64, // resolution of X-point grid for fsa
 "Neta": 640, // resolution of X-point grid for fsa
 "Kphi": 10, // resolution for convoluted toroidal average (10 is fine)
-"fsa" : "toroidal-average", // From which quantity fsa should be computed, can also be "convoluted-toroidal-average"
+"fsa" : "convoluted-toroidal-average", // From which quantity fsa should be computed (default), can also be "toroidal-average"
 "fx_0" : 0.125, // where the separatrix is in relation to the $\zeta$ coordinate
 "x-grid-interpolation" : "dg", // type of interpolation for Cylindrical2XGrid
 "cta-interpolation" : "dg", // interpolation type in Fieldaligned object for convoluted toroidal averages
