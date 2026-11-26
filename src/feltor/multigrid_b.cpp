@@ -47,7 +47,7 @@ int main( int argc, char* argv[])
     /////////////////////////////////////////////////////////////////////////
     auto box = common::box( js);
     dg::CylindricalGrid3d g3d( box.at("Rmin"), box.at("Rmax"), box.at("Zmin"), box.at("Zmax"), 0., 2.*M_PI,
-        p.n, p.Nx, p.Ny, p.Nz, p.bcxN, p.bcyN, dg::PER);
+        p.n, p.Nx, p.Ny, p.symmetric ? 1 : p.Nz, p.bcxN, p.bcyN, dg::PER);
     dg::CylindricalGrid3d g2d( box.at("Rmin"), box.at("Rmax"), box.at("Zmin"), box.at("Zmax"), 0., 2.*M_PI,
     //    p.n, p.Nx, p.Ny, p.Nz, p.bcxN, p.bcyN, dg::PER);
         p.n, p.Nx, p.Ny, 1, p.bcxN, p.bcyN, dg::PER);
@@ -68,6 +68,11 @@ int main( int argc, char* argv[])
     unsigned k=4;
     std::cin >>k;
     std::cout << "Plane "<<k<<"\n";
+    if( k >= g3d.Nz())
+    {
+        std::cerr << "Plane "<<k<<" does not exist, there are "<<g3d.Nz()<<" planes\n";
+        return -1;
+    }
     unsigned num_stages = p.stages;
     std::cout << "Num stages\n";
     std::cin >> num_stages;

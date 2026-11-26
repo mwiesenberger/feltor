@@ -50,7 +50,7 @@ int main( int argc, char* argv[])
     /////////////////////////////////////////////////////////////////////////
     auto box = common::box( js);
     dg::CylindricalGrid3d g3d_fine( box.at("Rmin"), box.at("Rmax"), box.at("Zmin"), box.at("Zmax"), 0., 2.*M_PI,
-        p.n, p.Nx, p.Ny, p.Nz, p.bcxN, p.bcyN, dg::PER);
+        p.n, p.Nx, p.Ny, p.symmetric ? 1 : p.Nz, p.bcxN, p.bcyN, dg::PER);
 
     std::cout << "Reading file "<<argv[1]<<"\n";
     std::string names[4] = {"chi", "sol", "rhs", "phi0"};
@@ -107,6 +107,8 @@ int main( int argc, char* argv[])
     IHMatrix result;
 
     std::cout << "Building matrices\n";
+    jumpx *= p.jfactor;
+    jumpy *= p.jfactor;
     result = inv_vol * (leftx*chi_diag*rightx + lefty*chi_diag*righty + jumpx + jumpy);
     std::cout << "Done\n";
 

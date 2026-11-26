@@ -83,7 +83,8 @@ int main( int argc, char* argv[])
 
     unsigned cx = js["output"]["compression"].get(0u,1).asUInt();
     unsigned cy = js["output"]["compression"].get(1u,1).asUInt();
-    unsigned n_out = p.n, Nx_out = p.Nx/cx, Ny_out = p.Ny/cy, Nz_out = p.Nz;
+    unsigned n_out = p.n, Nx_out = p.Nx/cx, Ny_out = p.Ny/cy,
+             Nz_out = p.symmetric ? 1 : p.Nz;
     dg::RealCylindricalGrid3d<double> g3d_in( box.at("Rmin"),box.at("Rmax"), box.at("Zmin"),box.at("Zmax"), 0, 2*M_PI,
         n_out, Nx_out, Ny_out, Nz_out, p.bcxN, p.bcyN, dg::PER);
     dg::RealCylindricalGrid3d<double> g3d_out( box.at("Rmin"),box.at("Rmax"), box.at("Zmin"),box.at("Zmax"), 0, 2*M_PI,
