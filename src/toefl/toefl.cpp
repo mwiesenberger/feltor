@@ -123,6 +123,7 @@ int main( int argc, char* argv[])
     {
         double dt = 1e-5;
         /////////glfw initialisation ////////////////////////////////////////////
+        // TODO window_params.json should be part of the input file in case the output is glfw as done in src/feltor!
         dg::file::WrappedJsonValue ws = dg::file::file2Json( "window_params.json");
         GLFWwindow* w = draw::glfwInitAndCreateWindow( ws["width"].asDouble(),
                 ws["height"].asDouble(), "");
