@@ -420,7 +420,9 @@ std::vector<Record> basicDiagnostics2d_list = { // 22
     },
     {"gammaNi", "Gamma Ni", false,
         []( dg::x::DVec& result, Variables& v ) {
-             dg::blas1::copy(v.f.gammaNi(), result);
+             // gammaNi() is Gamma (N_i - nbc) if tau_i != 0
+             double nbc = v.p.tau[1] == 0 ? 0. : v.p.nbc;
+             dg::blas1::transform(v.f.gammaNi(), result, dg::PLUS<double>(nbc));
         }
     },
     {"gammaPhi", "Gamma Phi", false,

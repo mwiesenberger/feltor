@@ -57,6 +57,7 @@ struct Explicit
     const Container& density(int i)const{
         return m_q.at("N")[i];
     }
+    // Returns N_i if tau_i == 0, else Gamma_{1,i} (N_i - nbc) (without nbc!)
     const Container&  gammaNi() const{
         if( m_p.tau[1] == 0)
             return m_q.at("N")[1];
@@ -217,7 +218,7 @@ struct Explicit
         if( nu > 0)
         {
             dg::blas1::pointwiseDot( dsN(i), dsU(i), result);
-            dg::blas1::pointwiseDivide( nu, result, density(1), 0., result);
+            dg::blas1::pointwiseDivide( nu, result, density(i), 0., result);
         }
         else
             dg::blas1::copy( 0, result);
@@ -263,14 +264,9 @@ struct Explicit
             for( unsigned i=0; i<2; i++)
             {
                 // density m_dsN, m_lapParN
-                //m_para.fieldaligned()( dg::geo::einsMinus, m_density[i], m_minus);
-                //m_para.fieldaligned()( dg::geo::zeroForw,  m_density[i], m_zero);
-                //m_para.fieldaligned()( dg::geo::einsPlus,  m_density[i], m_plus);
-                //update_parallel_bc_2nd( m_para.fieldaligned(), m_minus, m_zero, m_plus,
-                //        m_p.bcxN, m_p.bcxN == dg::DIR ? m_p.nbc : 0.);
                 dg::geo::ds_centered( m_para.fieldaligned(), 1., m_q.at("N -1")[i], m_q.at("N +1")[i], 0., m_dsN[i]);
                 dg::geo::dssd_centered( m_para.fieldaligned(), 1.,
-                        m_minus, m_zero, m_plus, 0., m_lapParN[i]);
+                        m_q.at("N -1")[i], m_q.at("N 0")[i], m_q.at("N +1")[i], 0., m_lapParN[i]);
                 // potential m_dsP
                 m_para.fieldaligned()( dg::geo::einsMinus, m_q.at("Psi")[i], m_minus);
                 m_para.fieldaligned()( dg::geo::einsPlus,  m_q.at("Psi")[i], m_plus);
