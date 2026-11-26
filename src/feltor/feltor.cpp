@@ -150,7 +150,10 @@ int main( int argc, char* argv[])
     double t_output = time;
     unsigned failed =0;
     bool adaptive = false;
-    auto odeint = common::init_timestepper<Vector>( js, feltor, time, y0, adaptive, failed);
+    // calibrate does not construct the FCI, so the rhs must not be called
+    std::unique_ptr<dg::aTimeloop<Vector>> odeint;
+    if( !p.calibrate)
+        odeint = common::init_timestepper<Vector>( js, feltor, time, y0, adaptive, failed);
 
     /// //////////////////////////set up netcdf/////////////////////////////////////
     if( p.output == "netcdf")
