@@ -71,9 +71,10 @@ std::array<std::array<dg::x::DVec,2>,2> init_from_file( std::string file_name,
     // Theoretically we can change resolution
     dg::x::IHMatrix interpolateIN;
     dg::x::HVec transferIN;
+    // a symmetric file contains a single plane (of the same perpendicular grid)
+    std::unique_ptr<dg::x::aGeometry2d> grid_perp( grid.perp_grid());
     if( pIN.symmetric)
     {
-        std::unique_ptr<dg::x::aGeometry2d> grid_perp( grid.perp_grid());
         interpolateIN = dg::create::prolongation( grid, std::array{2u});
         transferIN = dg::evaluate(dg::zero, *grid_perp);
     }
@@ -90,7 +91,10 @@ std::array<std::array<dg::x::DVec,2>,2> init_from_file( std::string file_name,
     DG_RANK0 std::cout << "# Current time = "<< time <<  std::endl;
     for( unsigned i=0; i<restart3d_list.size(); i++)
     {
-        file.get_var( restart3d_list[i].name, {grid_IN}, transferIN);
+        if( pIN.symmetric)
+            file.get_var( restart3d_list[i].name, {0, *grid_perp}, transferIN);
+        else
+            file.get_var( restart3d_list[i].name, {grid_IN}, transferIN);
         dg::blas2::gemv( interpolateIN, transferIN, transferOUTvec[i]);
     }
     file.close();

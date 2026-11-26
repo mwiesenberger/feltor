@@ -516,7 +516,7 @@ std::array<std::array<dg::x::DVec,2>,2> initial_conditions(
     }
     else if( "restart" == type)
     {
-        std::string file = js["init"]["file"].asString();
+        std::string file = js["file"].asString();
         return init_from_file( file, grid, p, time);
     }
     else
