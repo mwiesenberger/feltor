@@ -409,18 +409,18 @@ void PerpDynamics<Geometry, Matrix, Container>::update_STderivatives(
         dg::blas1::transform( q.at("ST N")[i], m_temp, dg::PLUS<double>(-m_p.nbc));
         if( m_p.diff_dir == dg::forward)
         {
-            dg::blas2::symv( m_dxF_U, m_temp, q.at("ST dx N")[i]);
-            dg::blas2::symv( m_dyF_U, m_temp, q.at("ST dy N")[i]);
+            dg::blas2::symv( m_dxF_N, m_temp, q.at("ST dx N")[i]);
+            dg::blas2::symv( m_dyF_N, m_temp, q.at("ST dy N")[i]);
         }
         else if( m_p.diff_dir == dg::backward)
         {
-            dg::blas2::symv( m_dxB_U, m_temp, q.at("ST dx N")[i]);
-            dg::blas2::symv( m_dyB_U, m_temp, q.at("ST dy N")[i]);
+            dg::blas2::symv( m_dxB_N, m_temp, q.at("ST dx N")[i]);
+            dg::blas2::symv( m_dyB_N, m_temp, q.at("ST dy N")[i]);
         }
         else
         {
-            dg::blas2::symv( m_dxC_U, m_temp, q.at("ST dx N")[i]);
-            dg::blas2::symv( m_dyC_U, m_temp, q.at("ST dy N")[i]);
+            dg::blas2::symv( m_dxC_N, m_temp, q.at("ST dx N")[i]);
+            dg::blas2::symv( m_dyC_N, m_temp, q.at("ST dy N")[i]);
         }
         if(m_compute_in_3d) dg::blas2::symv( m_dz, m_temp, q.at( "ST dz N")[i]);
 
