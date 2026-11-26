@@ -16,7 +16,9 @@
     {
         "type" : "multistep",
         "tableau": "TVB-3-3",
-        "dt" : 1e-1
+        "dt" : 1e-1,
+        "output-mode" : "deltaT",
+        "deltaT" : 0.4
     },
     "FCI":
     {
@@ -29,7 +31,6 @@
     "output":
     {
         "type" : "netcdf",
-        "inner_loop" : 2,
         "itstp"  : 2,
         "maxout" : 1,
         "compression" : [1,1]
@@ -47,7 +48,8 @@
     {
         "curvmode" : "toroidal",
         "input": "file",
-        "file" : "geometry/tcv.json"
+        "file" : "geometry/tcv.json",
+        "scale" : 1
     },
     "physical":
     {
@@ -62,7 +64,8 @@
         "order" : 2,
         "direction": "forward",
         "nu_perp_n" : 1e-5,
-        "nu_perp_u" : 1e-5
+        "nu_perp_u" : 1e-5,
+        "nu_parallel_n" : 0
     },
     "boundary":
     {

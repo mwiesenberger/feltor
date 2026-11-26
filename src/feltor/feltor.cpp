@@ -122,6 +122,9 @@ int main( int argc, char* argv[])
     }
     else
     {
+        // TODO: input/default.json and input/compass.json stop with a negative
+        // Ni in initial_conditions ("potential": "zero", min -55.45 and -28.18
+        // in a calibrate+symmetric run; fine with "zero_pol"); find the cause
         try{
             y0 = feltor::initial_conditions(feltor, grid, p, mag, unmod_mag,
                     js["init"], time, sheath_coordinate );

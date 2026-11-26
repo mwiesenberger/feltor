@@ -16,7 +16,9 @@
     {
         "type" : "multistep",
         "tableau": "TVB-3-3",
-        "dt" : 2e-3
+        "dt" : 2e-3,
+        "output-mode" : "deltaT",
+        "deltaT" : 0.008
     },
     "FCI":
     {
@@ -40,7 +42,8 @@
         "order" : 2,
         "direction": "forward",
         "nu_perp_n" : 1e-5,
-        "nu_perp_u" : 1e-5
+        "nu_perp_u" : 1e-5,
+        "nu_parallel_n" : 0
     },
     "physical":
     {
@@ -53,7 +56,6 @@
     "output":
     {
         "type" : "netcdf",
-        "inner_loop" : 2,
         "itstp"  : 2,
         "maxout" : 1,
         "compression" : [2,2]
@@ -158,6 +160,7 @@
     {
         "curvmode" : "toroidal",
         "input": "file",
-        "file" : "geometry/compass.json"
+        "file" : "geometry/compass.json",
+        "scale" : 1
     }
 }

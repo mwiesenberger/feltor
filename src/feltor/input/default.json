@@ -16,14 +16,17 @@
     {
         "type" : "multistep",
         "tableau": "TVB-3-3",
-        "dt" : 1e-2
+        "dt" : 1e-2,
+        "output-mode" : "deltaT",
+        "deltaT" : 0.04
     },
     "regularization":
     {
         "order" : 2,
         "direction": "forward",
         "nu_perp_n" : 1e-5,
-        "nu_perp_u" : 1e-5
+        "nu_perp_u" : 1e-5,
+        "nu_parallel_n" : 0
     },
     "elliptic":
     {
@@ -60,7 +63,6 @@
             "width" : 200,
             "height" : 200
         },
-        "inner_loop" : 2,
         "itstp"  : 2,
         "maxout" : 1,
         "compression" : [1,1]
@@ -107,7 +109,8 @@
             {
                 "type" : "aligned",
                 "npeak" : 5.0,
-                "nsep" : 1.0
+                "nsep" : 1.0,
+                "background" : 0.2
             },
             "damping":
             {
@@ -161,6 +164,7 @@
     {
         "curvmode" : "toroidal",
         "input" : "file",
-        "file" : "geometry/geometry_params.json"
+        "file" : "geometry/geometry_params.json",
+        "scale" : 1
     }
 }
