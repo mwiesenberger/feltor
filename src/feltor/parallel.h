@@ -58,9 +58,11 @@ struct ParaDynamics
             if( bcx == dg::DIR)
             {
                 dg::blas1::plus( minusST, -value);
-                dg::geo::swap_bc_perp( m_fa, minusST, plusST,
+                dg::blas1::plus( plusST, -value);
+                dg::geo::swap_bc_perp( m_faHalf, minusST, plusST,
                         minusST, plusST);
                 dg::blas1::plus( minusST, +value);
+                dg::blas1::plus( plusST, +value);
             }
         }
     }
@@ -78,9 +80,11 @@ struct ParaDynamics
             if( bcx == dg::DIR)
             {
                 dg::blas1::plus( minus, -value);
+                dg::blas1::plus( plus, -value);
                 dg::geo::swap_bc_perp( fa, minus, plus,
                         minus, plus);
                 dg::blas1::plus( minus, +value);
+                dg::blas1::plus( plus, +value);
             }
         }
     }
